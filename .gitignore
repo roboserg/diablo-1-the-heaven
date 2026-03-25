@@ -1,10 +1,13 @@
-Debug
+Debug/
+Release/
+build/
 thehell2.vcxproj.user
 thehell2.vNext.vcxproj.user
+thehell4.vcxproj.user
 personal.props
 .vs
+.vscode
 .idea
 cmake-build-*/
 Cheats/
-Release/
 /src/thehell3.rc
