@@ -1,1 +1,0 @@
-{ gsub("#pragma once", "//#pragma once" ORS "#ifndef _"name"_h_" ORS "#define _"name"_h_" ORS "#else" ORS "#error reinclude "name".h" ORS "#endif" ORS ); print }
