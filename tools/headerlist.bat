@@ -1,0 +1,1 @@
+@forfiles /P ..\ /M *.h /S /C "cmd /c echo @file		@path" | sort > header_list.txt

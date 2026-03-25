@@ -1,0 +1,14 @@
+Debug/
+Release/
+build/
+*.vcxproj.user
+*.vcxproj.filters
+personal.props
+.vs
+.vscode
+.idea
+cmake-build-*/
+Cheats/
+/src/thehell3.rc
+.claude
+CLAUDE.md

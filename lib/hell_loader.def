@@ -1,0 +1,32 @@
+LIBRARY     TH.DLL
+
+EXPORTS
+    eUiAppActivate@4                @1   
+    eUiArtCallback@32               @2   
+    eUiAuthCallback@28              @3   
+    eUiBetaDisclaimer               @4   
+    eUiCategoryCallback@28          @5   
+    eUiCopyProtError@4              @6   
+    eUiCreateGameCallback@24        @7   
+    eUiCreateGameCriteria           @8   
+    eUiCreatePlayerDescription@12   @9   
+    eUiCreditsDialog@4              @10  
+    eUiDestroy@0                    @11  
+    eUiDrawDescCallback@32          @12  
+    eUiGetDataCallback@20           @13  
+    eUiGetDefaultStats              @14  
+    eUiInitialize@0                 @15  
+    eUiLogonDialog                  @16  
+    eUiMainMenuDialog@20            @17  
+    eUiMessageBoxCallback@16        @18  
+    eUiOnPaint                      @19  
+    eUiProgressDialog@20            @20  
+    eUiSelHeroMultDialog@32         @21  
+    eUiSelHeroSingDialog@36         @22  
+    eUiSelectGame@24                @23  
+    eUiSelectProvider@24            @24  
+    eUiSetBackgroundBitmap          @25  
+    eUiSetSpawned                   @26  
+    eUiSoundCallback@12             @27  
+    eUiSupportDialog@4              @28  
+    eUiTitleDialog                  @29

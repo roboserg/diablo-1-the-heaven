@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ProjectGuid>{E982BC91-6810-4A42-94FB-19E3E744A3A7}</ProjectGuid>
+    <RootNamespace>TheHeaven</RootNamespace>
+    <ProjectName>The Heaven</ProjectName>
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  <Import Project="personal.props" />
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <PropertyGroup>
+    <OutDir>$(GameFolder)</OutDir>
+    <IntDir>.\$(Configuration)\</IntDir>
+    <TargetName>TH4</TargetName>
+    <LinkIncremental>true</LinkIncremental>
+    <CopyOutputSymbolsToOutputDirectory>false</CopyOutputSymbolsToOutputDirectory>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Midl>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <TargetEnvironment>Win32</TargetEnvironment>
+      <TypeLibraryName>$(IntDir)\theheaven.tlb</TypeLibraryName>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </Midl>
+    <ClCompile>
+      <MinimalRebuild>false</MinimalRebuild>
+      <Optimization Condition="'$(Configuration)'=='Release'">Full</Optimization>
+      <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;_PROTECTION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>OPTIMIZE=1;MSVC_TOOLSET=$(PlatformToolsetVersion);PRJ_NAME="$(ProjectName)";TAR_DIR=R"($(TargetDir))";WIN32;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+      <StructMemberAlignment>1Byte</StructMemberAlignment>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)\theheaven.pch</PrecompiledHeaderOutputFile>
+      <ProgramDatabaseFileName>$(IntDir)</ProgramDatabaseFileName>
+      <BrowseInformation>false</BrowseInformation>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <WarningLevel>Level3</WarningLevel>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
+      <ControlFlowGuard>false</ControlFlowGuard>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0419</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>dbghelp.lib;lib\storm.lib;lib\dxguid.lib;lib\ddraw.lib;d3d9.lib;Version.lib;odbc32.lib;odbccp32.lib;lib\smackw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <TargetMachine>MachineX86</TargetMachine>
+      <AllowIsolation>true</AllowIsolation>
+      <BaseAddress>0x01400000</BaseAddress>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <StackReserveSize>10485760</StackReserveSize>
+      <DelayLoadDLLs>ddraw.dll;xinput9_1_0.dll</DelayLoadDLLs>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <GenerateMapFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateMapFile>
+    </Link>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)\theheaven.bsc</OutputFile>
+      <PreserveSbr>true</PreserveSbr>
+    </Bscmake>
+    <ManifestResourceCompile>
+      <ResourceOutputFileName />
+    </ManifestResourceCompile>
+    <Manifest>
+      <OutputManifestFile />
+    </Manifest>
+    <FxCompile>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\%(Filename).h</HeaderFileOutput>
+      <ObjectFileOutput />
+    </FxCompile>
+    <FxCompile />
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\AffixesClassic.cpp" />
+    <ClCompile Include="src\AffixesColiseum.cpp" />
+    <ClCompile Include="src\CXBOXController.cpp" />
+    <ClCompile Include="src\difficulty.cpp" />
+    <ClCompile Include="src\InfoWindow.cpp" />
+    <ClCompile Include="src\AffixEffects.cpp" />
+    <ClCompile Include="src\Affixes.cpp" />
+    <ClCompile Include="src\AffixesEnchant.cpp" />
+    <ClCompile Include="src\AffixesRare.cpp" />
+    <ClCompile Include="src\Auras.cpp" />
+    <ClCompile Include="src\automap.cpp" />
+    <ClCompile Include="src\BaseItems.cpp" />
+    <ClCompile Include="src\BaseMonster.cpp" />
+    <ClCompile Include="src\BaseObjectsOnMap.cpp" />
+    <ClCompile Include="src\BaseQuests.cpp" />
+    <ClCompile Include="src\CastSprites.cpp" />
+    <ClCompile Include="src\CharPanel.cpp" />
+    <ClCompile Include="src\CharSlots.cpp" />
+    <ClCompile Include="src\CodeSave.cpp" />
+    <ClCompile Include="src\Config.cpp" />
+    <ClCompile Include="src\Crafting.cpp" />
+    <ClCompile Include="src\dataseg.cpp" />
+    <ClCompile Include="src\Draw.cpp" />
+    <ClCompile Include="src\dx.cpp" />
+    <ClCompile Include="src\dx_utility.cpp" />
+    <ClCompile Include="src\Enchanting.cpp" />
+    <ClCompile Include="src\Entry.cpp" />
+    <ClCompile Include="src\Error.cpp" />
+    <ClCompile Include="src\File.cpp" />
+    <ClCompile Include="src\FlasksInfo.cpp" />
+    <ClCompile Include="src\GameChangers.cpp" />
+    <ClCompile Include="src\GameModes.cpp" />
+    <ClCompile Include="src\GenerateMap.cpp" />
+    <ClCompile Include="src\GenerateQuestFloor.cpp" />
+    <ClCompile Include="src\Halls.cpp" />
+    <ClCompile Include="src\Help.cpp" />
+    <ClCompile Include="src\IniFile.cpp" />
+    <ClCompile Include="src\InventoryPanel.cpp" />
+    <ClCompile Include="src\Item.cpp" />
+    <ClCompile Include="src\Lights.cpp" />
+    <ClCompile Include="src\Engine.cpp" />
+    <ClCompile Include="src\LoadingScreen.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\MainMenu.cpp" />
+    <ClCompile Include="src\menu.cpp" />
+    <ClCompile Include="src\MenuEngine.cpp" />
+    <ClCompile Include="src\Missile.cpp" />
+    <ClCompile Include="src\Monster.cpp" />
+    <ClCompile Include="src\MonsterStunThreshold.cpp" />
+    <ClCompile Include="src\MpqSave.cpp" />
+    <ClCompile Include="src\msg.cpp" />
+    <ClCompile Include="src\multi.cpp" />
+    <ClCompile Include="src\Net.cpp" />
+    <ClCompile Include="src\PerksData.cpp" />
+    <ClCompile Include="src\Quenching.cpp" />
+    <ClCompile Include="src\SymptomData.cpp" />
+    <ClCompile Include="src\sync.cpp" />
+    <ClCompile Include="src\Object.cpp" />
+    <ClCompile Include="src\palette.cpp" />
+    <ClCompile Include="src\Panel.cpp" />
+    <ClCompile Include="src\Path.cpp" />
+    <ClCompile Include="src\Perks.cpp" />
+    <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\SynergyData.cpp" />
+    <ClCompile Include="src\tmsg.cpp" />
+    <ClCompile Include="src\PopupScreens.cpp" />
+    <ClCompile Include="src\Quests.cpp" />
+    <ClCompile Include="src\Room.cpp" />
+    <ClCompile Include="src\SaveInfo.cpp" />
+    <ClCompile Include="src\Saving.cpp" />
+    <ClCompile Include="src\serialize.cpp" />
+    <ClCompile Include="src\SHA.cpp" />
+    <ClCompile Include="src\SomeSpell.cpp" />
+    <ClCompile Include="src\SoundBuffer.cpp" />
+    <ClCompile Include="src\SoundCache.cpp" />
+    <ClCompile Include="src\Speeches.cpp" />
+    <ClCompile Include="src\SpellCasts.cpp" />
+    <ClCompile Include="src\SpellPanel.cpp" />
+    <ClCompile Include="src\Spells.cpp" />
+    <ClCompile Include="src\stdafx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <ForcedIncludeFiles>
+      </ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Include="lib\pklib\explode.cpp" />
+    <ClCompile Include="lib\pklib\implode.cpp" />
+    <ClCompile Include="src\structs_sounds.cpp" />
+    <ClCompile Include="src\structs_speech.cpp" />
+    <ClCompile Include="src\TH1dll.cpp" />
+    <ClCompile Include="src\th2data.cpp" />
+    <ClCompile Include="src\th2_proposals.cpp" />
+    <ClCompile Include="src\theheaven.cpp" />
+    <ClCompile Include="src\PlayerTrade.cpp" />
+    <ClCompile Include="src\thread.cpp" />
+    <ClCompile Include="src\Tooltip.cpp" />
+    <ClCompile Include="src\TownMap.cpp" />
+    <ClCompile Include="src\track.cpp" />
+    <ClCompile Include="src\Traits.cpp" />
+    <ClCompile Include="src\Transmute.cpp" />
+    <ClCompile Include="src\TrapsInfo.cpp" />
+    <ClCompile Include="src\UberDiabloQuest.cpp" />
+    <ClCompile Include="src\UniqueItems.cpp" />
+    <ClCompile Include="src\UniqueMonsters.cpp" />
+    <ClCompile Include="src\UniqueSets.cpp" />
+    <ClCompile Include="src\VisualStash.cpp" />
+    <ClCompile Include="src\VisualTrade.cpp" />
+    <!--<ClCompile Include="src\vorbis.cpp" />-->
+    <ClCompile Include="src\Warp.cpp" />
+    <ClCompile Include="src\Windows.cpp" />
+    <ClCompile Include="src\Hell.cpp" />
+    <ClCompile Include="src\Xinput.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="import_data\import_all.py" />
+    <None Include="import_data\import_base_items.py" />
+    <None Include="import_data\import_spells.py" />
+    <None Include="import_data\import_unique_items.py" />
+    <None Include="import_data\import_unique_sets.py" />
+    <None Include="res\diablocu.cur" />
+    <None Include="res\diabloib.cur" />
+    <None Include="res\diablo_a.cur" />
+    <None Include="res\diablo_l.cur" />
+    <None Include="src\vorbis.cpp" />
+    <None Include="src\ScreenShotMaker.cpp" />
+    <None Include="doc\DevNotes.txt" />
+    <None Include="$(GameFolder)config.ini" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="lib\Strm2.dll" />
+    <CustomBuild Include="lib\Standard.sn2" />
+    <CustomBuild Include="lib\SmackW32.DLL" />
+    <CustomBuild Include="$(SolutionDir)..\.svn\wc.db" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\BitsBytes.h" />
+    <ClInclude Include="src\codec.h" />
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\CXBOXController.h" />
+    <ClInclude Include="src\difficulty.h" />
+    <ClInclude Include="src\enums.h" />
+    <ClInclude Include="src\engine.h" />
+    <ClInclude Include="src\game.h" />
+    <ClInclude Include="src\Item.h" />
+    <ClInclude Include="src\msg.h" />
+    <ClInclude Include="src\multi.h" />
+    <ClInclude Include="src\reflect.h" />
+    <ClInclude Include="src\ScreenShotMaker.h" />
+    <ClInclude Include="src\serialize.h" />
+    <ClInclude Include="src\structs.h" />
+    <ClInclude Include="src\sync.h" />
+    <ClInclude Include="src\tmsg.h" />
+    <ClInclude Include="src\track.h" />
+    <ClInclude Include="src\vars.h" />
+    <ClInclude Include="src\vorbisenc.h" />
+    <ClInclude Include="src\vorbisfile.h" />
+    <ClInclude Include="tools\version.h" />
+    <ClInclude Include="src\funcs.h" />
+    <ClInclude Include="src\IniFile.h" />
+    <ClInclude Include="src\rad.h" />
+    <ClInclude Include="src\stdafx.h" />
+    <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\hell.h" />
+    <ClInclude Include="src\smack.h" />
+    <ClInclude Include="src\storm.h" />
+    <ClInclude Include="lib\pklib\pklib.h" />
+    <ResourceCompile Include="src\theheaven.rc" />
+    <Image Include="res\th3_dev.ico" />
+    <Image Include="res\th3_black.ico" />
+    <Image Include="res\th3_red.ico" />
+    <Image Include="res\th3_scull.ico" />
+    <Image Include="res\th3_white.ico" />
+    <Image Include="res\ico101.ico" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+    <BuildDependsOn>
+       CopyResources;
+       $(BuildDependsOn)
+    </BuildDependsOn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifest>false</GenerateManifest>
+    <EmbedManifest>false</EmbedManifest>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ExecutablePath>$(VC_ExecutablePath_x86);$(WindowsSdk_71A_ExecutablePath);$(WindowsSDK80Path)bin\x86;$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(SystemRoot)\SysWow64;$(FxCopDir);$(PATH)</ExecutablePath>
+  </PropertyGroup>
+  <ItemGroup>
+    <VersionFile Include="$(SolutionDir)..\.svn\wc.db" />
+  </ItemGroup>
+  <!--<Target Name="AfterBuild">
+    <ItemGroup>
+      <ZipFiles Include="$(SolutionDir)lib\Strm2.dll" />
+      <ZipFiles Include="$(SolutionDir)lib\Standard.sn2" />
+      <ZipFiles Include="$(TargetDir)TH1-2-Debug.exe" />
+      <ZipFiles Include="$(TargetDir)TheHeaven-Debug.dll" />
+      <ZipFiles Include="$(TargetDir)config.ini" />
+    </ItemGroup>
+    <MSBuild.Community.Tasks.Zip Files="@(ZipFiles)" WorkingDirectory="$(SolutionDir)bin" ZipFileName="$(SolutionDir)bin\th2.zip" ZipLevel="9" />
+    <Exec Command="PowerShell -command Compress-Archive @(ZipFiles, ',') $(SolutionDir)bin\th2.zip" />
+  </Target>-->
+  <ItemGroup>
+    <!--<ResourceFileToCopy Include="$(SolutionDir)res\thdata\**\*.*" Exclude="$(SolutionDir)res\thdata\**\.svn\**" />-->
+    <FileToCopy Include="lib\Strm2.dll" />
+    <FileToCopy Include="lib\Standard.sn2" />
+    <FileToCopy Include="lib\SmackW32.DLL" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="bin\ReadMe.txt" />
+    <Text Include="bin\TH4_Changelog.txt" />
+    <Text Include="doc\Coliseum.txt" />
+    <Text Include="doc\Todo_List.txt" />
+    <Text Include="res\credits.txt" />
+    <Text Include="res\support.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="src\BloomShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_bloom</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\BloomShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_fog</EntryPointName>
+      <ShaderModel>2.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\FogShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FXAAShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_fxaa</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\FXAAShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\PerspectiveShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_perspective</EntryPointName>
+      <ShaderModel>2.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\PerspectiveShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\VignettingShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\VignettingShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+      <EntryPointName>main_vignetting</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="src\FogVenShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fogven</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogVenShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\LineShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_line</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\LineShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\PaletteShader.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <HeaderFileOutput>PaletteShader.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+      <EntryPointName>main_palette</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\PaletteShader.h</HeaderFileOutput>
+    </FxCompile>
+  </ItemGroup>
+  <Target Name="CopyResources" Inputs="@(FileToCopy)" Outputs="@(FileToCopy -> '$(OutDir)%(Filename)%(Extension)')">
+    <!--<Copy SourceFiles="@(ResourceFileToCopy)" DestinationFolder="$(OutDir)%(RecursiveDir)" OverwriteReadOnlyFiles="true" SkipUnchangedFiles="true" />-->
+    <Copy SourceFiles="@(FileToCopy)" DestinationFolder="$(OutDir)" OverwriteReadOnlyFiles="True" SkipUnchangedFiles="True" />
+  </Target>
+</Project>

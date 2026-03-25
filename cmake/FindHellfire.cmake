@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 2.8)
+
+find_file(HELLFIRE_ORIGINAL_EXE "hellfire.exe" HINT "${HELLFIRE_PATH}")
+
+if ("${HELLFIRE_ORIGINAL_EXE}" STREQUAL "HELLFIRE_ORIGINAL_EXE-NOTFOUND")
+	message(WARNING "Original hellfire.exe executable is not found. You can specify HELLFIRE_PATH")
+	unset(GAME_FOLDER CACHE)
+	set(HELLFIRE_PATH "" CACHE PATH "Original hellfire.exe directory path")
+else()
+	unset(HELLFIRE_PATH CACHE)
+	get_filename_component(HF_REAL_PATH ${HELLFIRE_ORIGINAL_EXE} REALPATH)
+	get_filename_component(HF_REAL_DIR ${HF_REAL_PATH} DIRECTORY)
+	if (NOT DEFINED GAME_FOLDER OR "${GAME_FOLDER}" STREQUAL "")
+	  unset(GAME_FOLDER CACHE)
+	endif()
+	set(GAME_FOLDER ${HF_REAL_DIR} CACHE PATH "Diablo: Hellfire game folder")
+	mark_as_advanced(HELLFIRE_ORIGINAL_EXE)
+endif()
+
+include(FindPackageHandleStandardArgs REQUIRED)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(ORIGINAL_HELLFIRE DEFAULT_MSG GAME_FOLDER)

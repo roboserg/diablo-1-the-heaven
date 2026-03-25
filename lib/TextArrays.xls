@@ -1,0 +1,51 @@
+varName	isTranslate	amount	Тип ( char* или имя структуры )	Примечание 1	Примечание 2
+BaseItems.NamePtr	1	-1	BaseItem 		NamePtr, Name2 - отображаемые имена
+BaseItems.Name2	1	-1	BaseItem 		NamePtr, Name2 - отображаемые имена
+BaseMonsters.AnimationFilePtr	0	218	BaseMonster 		AnimationFilePtr, SoundFilePtr, ColorTranslationFilePtr - имена файлов. NamePtr - отображаемое имя
+BaseMonsters.SoundFilePtr	0	218	BaseMonster 		AnimationFilePtr, SoundFilePtr, ColorTranslationFilePtr - имена файлов. NamePtr - отображаемое имя
+BaseMonsters.ColorTranslationFilePtr	0	218	BaseMonster 		AnimationFilePtr, SoundFilePtr, ColorTranslationFilePtr - имена файлов. NamePtr - отображаемое имя
+BaseMonsters.NamePtr	1	218	BaseMonster 		AnimationFilePtr, SoundFilePtr, ColorTranslationFilePtr - имена файлов. NamePtr - отображаемое имя
+UniqueItems.Name	1	-1	UniqueItem 		Name - отображаемое имя
+UniqueMonsters.NamePtr	1	-1	UniqueMonster 		NamePtr - отображаемое имя.  ColorTranslationFile - имя файла
+UniqueMonsters.ColorTranslationFile	0	-1	UniqueMonster 		NamePtr - отображаемое имя.  ColorTranslationFile - имя файла
+Affixes.Name	1	186	Affix 		Name - отображаемое имя
+Spells.Name	1	52	Spell 		Name, SkillNamePtr - отображаемые имена
+Spells.SkillNamePtr	1	52	Spell 		Name, SkillNamePtr - отображаемые имена
+MissileSprites.NamePtr	0	-1	MissileSprite		NamePtr - имя файла
+SoundFiles.FileNamePtr	0	-1	SoundFile	field_0 - EndMarker)	FileNamePtr - имя файла
+SpeechsPtr.TextPtr	0	500	Speech	Размер меняется, но маркера нет. По адресу 0x00491930 лежит дворд количества, но мор его может забывать обновлять	TextPtr - выводимый текст
+FloorObjectsNamesOriginal	0	56	char*	расширял, может и больше	имя файла
+FloorObjectsNamesCrypt	0	56	char*	аналогично	имя файла
+FloorObjectsNamesAbyss	0	56	char*	56	имя файла. Адреса друг за другом, можно использовать как единый массив 3*56
+QuestsPtr.QuestNamePtr	1	24	Quest	24	QuestNamePtr - отображаемои имя
+QuestNameTable	1	26	char*	-1 должно быть, но по факту 26, маркер отсутствует	Отображаемое имя
+MpHorror1MusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+MpHorror2MusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+MpHorror3MusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+MpPurgatory3MusicTable	0	8	char*	Z8	имя файла музыки (нет аналога в тх2)
+SpMpPurgatoryMusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+MpDoom2MusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+MpDoom3MusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+GenericTraxMusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+SpDoomMusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+WormLvlMusicTable	0	8	char*	8	имя файла музыки (нет аналога в тх2)
+DungeonThemeTable	0	8	char*	8	имя файла музыки
+FlipItemNameTable	0	43	char*	43	Имя файла анимации флипа
+MusicMenu	1	2	char*	2	Отображаемое имя в меню
+SoundMenu	1	2	char*	2	Отображаемое имя в меню
+WalkMenu	1	2	char*	2	Отображаемое имя в меню
+OnScreenMessages	1	-1	char*	маркера нет, придётся определять на глаз	Отображаемые сообщения алтаря
+NetMsgTable	1	4	char*	4	Отображаемые сетевые сообщения на хоткеях
+KeyNameTable	0	4	char*	4	Имена клавиш хоткеев, не переводимые
+HotKeyNamePtrs	1	8	char*	8	Отображаемый тултип при наведении на кнопки
+ButtonNamePtrs	1	8	char*	8	Отображаемый тултип при наведении на кнопки
+BookNamePtrTable	1	16	char*	во время делания квеста хоразона было расшитрение	Отображаемые имена квестовых книг
+ShrineNamesPtr	1	34	char*	34	Отображаемые имена алтарей. Возможно не используется
+PlayerClassTable1	0	6	char*	6	Часть имен файлов анимации
+PlayerClassTable2	0	6	char*	6	Часть имен файлов анимации
+CitizensPtr	1	9	char*	9	Отображаемые имена горожан для строки Talk to %s
+SPMainMenu.NamePtr	1	6	MenuStruct	6	NamePtr - отображаемое имя пункта меню
+MPMainMenu.NamePtr	1	5	MenuStruct	5	NamePtr - отображаемое имя пункта меню
+OptionsMenu.NamePtr	1	6	MenuStruct	6	NamePtr - отображаемое имя пункта меню
+QuestPlaceNamesPtr	1	5	char*	5(в последующих версиях перенесена и расширена до 26)	отображаемые имна квестовых лок
+					-1	Хитрый случай. setName - это первые 4 буквы имени сета которые нужно будет перевести

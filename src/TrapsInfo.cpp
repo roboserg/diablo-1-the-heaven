@@ -1,0 +1,62 @@
+#include "stdafx.h"
+
+/*
+int MaxTrapThrowDistance;
+int TimeToLive;
+MISSILE MissileIndex;
+int ShootDelay;
+int TargetDetectRadius;
+int ArrowSpeed;
+*/
+
+TrapInfo TrapsInfo[] = {
+    // Fast traps
+	{ 8, 1100, MI_121_TRAPPER_GUN_ARROW,  50, 10, 20 }, // 0
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW,  77, 10, 22 }, // 1
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW, 119, 10, 24 }, // 2
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW,  74, 10, 26 }, // 3
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW,  25, 10, 28 }, // 4
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW,  80, 10, 30 }, // 5
+    { 8, 1100, MI_121_TRAPPER_GUN_ARROW, 107, 10, 32 }, // 6
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW,  48, 11, 34 }, // 7
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW, 118, 11, 36 }, // 8
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW,  67, 11, 38 }, // 9
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW, 150, 12, 40 }, // 10
+    //exp
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW,  77, 12, 40 }, // 11
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW, 119, 12, 40 }, // 12
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW,  74, 12, 40 }, // 13
+    { 7, 1100, MI_121_TRAPPER_GUN_ARROW,  25, 12, 40 }, // 14
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW,  80, 12, 40 }, // 15
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 107, 12, 40 }, // 16
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW,  48, 12, 40 }, // 17
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 118, 12, 40 }, // 18
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW,  67, 12, 40 }, // 19
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 150, 12, 40 }, // 20
+
+
+	// Slow traps
+	{ 6, 1030, MI_121_TRAPPER_GUN_ARROW, 245,  9, 20 }, // 21
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 269,  9, 22 }, // 22
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 328,  9, 24 }, // 23
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 274,  9, 26 }, // 24
+    { 6, 1161, MI_121_TRAPPER_GUN_ARROW, 382,  9, 28 }, // 25
+    { 6, 1100, MI_121_TRAPPER_GUN_ARROW, 350,  9, 30 }, // 26
+    { 6, 1145, MI_121_TRAPPER_GUN_ARROW, 377,  9, 32 }, // 27
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 352, 10, 34 }, // 28
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 324, 10, 36 }, // 29
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 359, 10, 38 }, // 30
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 499, 11, 40 }, // 31
+    //exp
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 269, 11, 40 }, // 32
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 328, 11, 40 }, // 33
+    { 5, 1200, MI_121_TRAPPER_GUN_ARROW, 295, 11, 40 }, // 34
+    { 5, 1166, MI_121_TRAPPER_GUN_ARROW, 382, 11, 40 }, // 35
+    { 5, 1100, MI_121_TRAPPER_GUN_ARROW, 350, 11, 40 }, // 36
+    { 4, 1140, MI_121_TRAPPER_GUN_ARROW, 377, 11, 40 }, // 37
+    { 4, 1060, MI_121_TRAPPER_GUN_ARROW, 352, 12, 40 }, // 38
+    { 4, 1300, MI_121_TRAPPER_GUN_ARROW, 324, 12, 40 }, // 39
+    { 4, 1100, MI_121_TRAPPER_GUN_ARROW, 463, 12, 40 }, // 40
+    { 4, 1502, MI_121_TRAPPER_GUN_ARROW, 499, 12, 40 }, // 41
+
+};

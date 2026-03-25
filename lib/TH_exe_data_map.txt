@@ -1,0 +1,10 @@
+BaseQuest	0x004B6908	24
+BaseItem	0x00905000	-1
+BaseMonster	0x009332F0	218
+UniqueItem	0x00805000	-1
+UniqueMonster	0x00A13400	-1
+Affix	0x0048B820	186
+Spell	0x004B75E8	52
+SPELL	0x00494d68	42
+MissileSprite	0x004A8538	-1
+

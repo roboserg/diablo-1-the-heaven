@@ -1,0 +1,79 @@
+﻿
+Game mode name: Coliseum
+
+Allows all classes to play. 
+GCs not allowed. 
+Traits - not allowed.
+Game difficulties (Horror-Purgatory-Doom) - not allowed.
+Game modes (Normal, Easy, Hard, ..) - not allowed.
+
+All game is PvP on (manually pre-made) arenas. (maybe with some PvE elements too - not decided yet).
+Opponents are bots or real players. 1 on 1 and 2 on 2 fights.
+
+Question is: will it not be too boring if arena fights are only PvP? What if we make it like Crucible in Grim Dawn, with waves of enemies spawned?
+_______________________
+
+It will require, if we go strictly PvP route:
+    a. new affix, rare affix and enchant (or will i turn it off there? ) tables, (lots of affixes dont work in PvP, so they have to be removed in Coliseum)
+    b. loot is probably absent and will be acquired through vendors
+    c. perk and syn tables will need to be different as well, too many PvE choices there.. or maybe even turn off will be required (we'll see, not decided yet)
+
+Fighting goes on like this: player approaches Sepia, opens dialogue window and chooses fight type (1v1 or 2v2)
+and selects gladiator type by char.level: 1-5, 6-10, 11-15, 16-20, 21-25, 26-30, 31-35, 36-40, 41-45, 46-50. (and bear in mind that we can increase CLVL cap)
+
+This teleports player to a (random?) arena. And battle starts when all fight members have arrived (or at once, it's a fight with bot(s) and/or with monsters).
+
+The winner gets XP according to foe level. Approximately, CLVLx1000. A portal opens in a corner of arena, player enters it and gets teleported back to town. Cycled loops...
+
+-----------------------
+
+Current tasks:
+
+1. [done] create new meta menu: between multiplayer and replay intro. call it Coliseum
+2. [done] make Coliseum a copy of multiplayer (but we'll need to check for this mode in code, so it has to be given a certain name, not MaxCOuntofPlayers > 1 : )
+3. [done] turn off difficulty modes in Coliseum (horror-purgatory-doom)
+4. [done] make Coliseum characters incompatible with regular multiplayer characters. item share, connectivity, and rename and use as mp/sp characters (people will try it, but it should not be allowed - or there will be a lot of headache with phony reports)
+5. [done] when creating coliseum characfters, turn off: a. trait selection, b. GCs, c. game modes (easy, normal, iron, etc.) 
+6. [done] add new NPC to town: Sepia
+7. [done] pressing ` :  for Coliseum game type, remove difficulty and mode info here    
+8. close all entrances to dungeons in Coliseum - players should not be able to visit dungeons.
+     Gates to close:
+     a. church,
+     b. catacombs,
+     c. caves,
+     d. hell,
+     e. abyss,
+     f. crypt
+9. [unsure about this] all quests must be deactivated. but to activate them, player actually needs to visit certain dungeon levels, so no need to work here. maybe just remove the initial dialogue with Ogden, or just his annoying sign over the head.
+10. first arena: 
+    it's levels\l2data\ar_1_1.dun (40x40 in size, the arena is in the middle of it and is 16x16 in size)
+    player arrives down below.
+    when fight is over (no hostile creatures left), portal back to town is opened in the center of it,
+    and player appears somewhere near gillian or near deckard cain 
+
+----
+
+currently known issues:
+
+1. 
+2. 
+3. 
+
+-----
+
+ideas:
+
+1. in ancient Rome, there was this entertainment where a gladiator and a wild beast would roam a maze, spectators would see it from above and watch how these two can roam the maze, and when they met, it was exciting. something similar could be made here. with a maze-shaped arena. and occasional dangerous monsters appearing for the gladiators, to increase the spectacularity
+
+2. 
+
+[ 1 - 2 ]
+[ 3 - 5 ]
+[ 6 - 10 ]
+[ 11 - 15 ]
+[ 16 - 20 ]
+[ 21 - 25 ]
+[ 26 - 30 ]
+[ 31 - 35 ]
+[ 36 - 40 ]
+[ 41 - 50 ]

@@ -1,0 +1,17 @@
+macro(END)
+
+	if (${__is_library})
+		if (NOT __srcs)
+			message(FATAL_ERROR "At least one source file should be specified in SRCS()")
+		endif()
+		set_property(TARGET ${__current_target_name} PROPERTY SOURCES ${__srcs})
+	elseif(${__is_program})
+		if (NOT __srcs)
+			message(FATAL_ERROR "At least one source file should be specified in SRCS()")
+		endif()
+		set_property(TARGET ${__current_target_name} PROPERTY SOURCES ${__srcs})
+	else()
+		message(FATAL_ERROR "One of LIBRARY, PROGRAM, DLL should be specified")
+	endif()
+	
+endmacro()
