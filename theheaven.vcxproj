@@ -31,7 +31,7 @@
   <PropertyGroup>
     <OutDir>$(GameFolder)</OutDir>
     <IntDir>.\$(Configuration)\</IntDir>
-    <TargetName>TH4</TargetName>
+    <TargetName>TheHeaven</TargetName>
     <LinkIncremental>true</LinkIncremental>
     <CopyOutputSymbolsToOutputDirectory>false</CopyOutputSymbolsToOutputDirectory>
   </PropertyGroup>
