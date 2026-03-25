@@ -4,6 +4,14 @@
 
 ---
 
+## Repository Updates
+
+This fork enhances the original code release with:
+* Updated build system for modern environments using **VS Code** (Visual Studio no longer required)
+* See `BUILD.md` for detailed build instructions
+
+---
+
 ## Original Readme from the Mod Author
 
 **This is the Readme file to accompany The Hell 4 source.**
