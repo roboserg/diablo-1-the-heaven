@@ -2274,7 +2274,7 @@ void FreeGame()
 bool NoMyExec()
 {
 	SetLastError(0);
-	CreateEventA(0, 0, 0, "TheHell4Event");
+	CreateEventA(0, 0, 0, "TheHeavenEvent");
 	return GetLastError() != 183; // 0x000000B7
 }
 

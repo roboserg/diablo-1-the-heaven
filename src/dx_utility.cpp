@@ -487,8 +487,8 @@ void SaveScreenShot()
 	dsd.dwSize = sizeof(DDSURFACEDESC);
 	ScreenSurface->Lock(0, &dsd, DDLOCK_WAIT, 0);
 	DDSurfaceGuard dds_guard(ScreenSurface);
-	TheHell::Graphics::MakeScreenShot(FilePalette, dsd.dwWidth, dsd.dwHeight, dsd.lPitch, 
-		static_cast<unsigned char*>(dsd.lpSurface), TheHell::Graphics::ScreenshotFormat::PNG);
+	TheHeaven::Graphics::MakeScreenShot(FilePalette, dsd.dwWidth, dsd.dwHeight, dsd.lPitch,
+		static_cast<unsigned char*>(dsd.lpSurface), TheHeaven::Graphics::ScreenshotFormat::PNG);
 	#endif
 }
 
