@@ -2344,7 +2344,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	OldTopLevelExceptionFilter = (int(__stdcall*)(struct _EXCEPTION_POINTERS*))SetUnhandledExceptionFilter((LONG(__stdcall*)(struct _EXCEPTION_POINTERS*))TopLevelExceptionFilter);
 	#endif
 	// Проверки на уже запущенность
-	if( !DevelopMode && (AlreadyHasWindow("THEHELL4") || !NoMyExec()) ){ 
+	if( !DevelopMode && (AlreadyHasWindow("THEHEAVEN") || !NoMyExec()) ){ 
 		return 0;
 	}
 	InitOnScreenData();

@@ -110,7 +110,7 @@ void CreateMainWindow()
 	Dst.hCursor = LoadCursor(0, (LPCSTR)IDC_ARROW);
 	Dst.hbrBackground = (HBRUSH)GetStockObject( BLACK_BRUSH );
 	Dst.lpszMenuName = PRJ_NAME;
-	Dst.lpszClassName = "THEHELL4";
+	Dst.lpszClassName = "THEHEAVEN";
 	Dst.hIconSm = (struct HICON__*)LoadImage(HInstance, (LPCSTR)ID_ICON1, 1, 16, 16, 0);
 	if( !RegisterClassExA(&Dst) ){
 		TerminateWithError("Unable to register window class");
@@ -199,7 +199,7 @@ void CreateMainWindow()
 	if( !popup ){
 		AdjustWindowRectEx( &r, WS_OVERLAPPEDWINDOW, 0, 0 );
 	}
-	HWND hWnd = CreateWindowExA( 0, "THEHELL4", PRJ_NAME,
+	HWND hWnd = CreateWindowExA( 0, "THEHEAVEN", PRJ_NAME,
 		popup ? WS_POPUP : WS_OVERLAPPEDWINDOW, startX, startY, r.right - r.left + 1, r.bottom - r.top + 1, 0, 0, HInstance, 0);
 	if( !hWnd ){
 		TerminateWithError("Unable to create main window");
