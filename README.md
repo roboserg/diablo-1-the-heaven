@@ -2,7 +2,7 @@
 
 A casual, quality-of-life enhanced Diablo 1 mod based on **The Hell 4** source code.
 
-This repository is a fork of [the-hell-4-src](https://github.com/roboserg/the-hell-4-src) — an upload of The Hell 4 source files that were publicly released by Mordor.
+This repository is a fork of [the-hell-4-src](https://github.com/roboserg/the-hell-4-src) — an upload of The Hell 4 source files that were publicly released by [The Hell team](https://www.patreon.com/thmod).
 
 *This repository is not affiliated with The Hell team.*
 
