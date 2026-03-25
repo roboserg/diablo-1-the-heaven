@@ -11,3 +11,5 @@ personal.props
 cmake-build-*/
 Cheats/
 /src/thehell3.rc
+.claude
+CLAUDE.md
