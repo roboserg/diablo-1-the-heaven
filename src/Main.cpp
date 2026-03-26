@@ -2041,8 +2041,7 @@ i64 GetTickCountTh()
 	nanoseconds curTime = steady_clock::now() - StartTime;
 	i64 delta = (curTime - PrevTime).count();
 	PrevTime = curTime;
-	if( TimeSpeed != 1.0 && (is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL) && MaxCountOfPlayersInGame == 1
-	 || DevelopMode) ){
+	if( TimeSpeed != 1.0 && (MaxCountOfPlayersInGame == 1 || DevelopMode) ){
 		delta = i64(TimeSpeed * delta);
 	}
 	Tick += nanoseconds(delta);

@@ -471,10 +471,6 @@ int __fastcall GetDamageOfPlayerSpell(int playerIndex, int spellIndex, int spell
 			*pMinDamage += damage_min_save * ( PerkValue(SYNERGY_SPELL_POWER, playerIndex) + PerkValue(PERK_CASTING_POWERS, playerIndex) + PerkValue(PERK_MIGHT_N_MAGIC, playerIndex, 1) + PerkValue(SYNERGY_ABJURATION, playerIndex, 1)) / 100;
 			*pMaxDamage += damage_max_save * ( PerkValue(SYNERGY_SPELL_POWER, playerIndex) + PerkValue(PERK_CASTING_POWERS, playerIndex) + PerkValue(PERK_MIGHT_N_MAGIC, playerIndex, 1) + PerkValue(SYNERGY_ABJURATION, playerIndex, 1)) / 100;
 		}
-		if (HasTrait(playerIndex, TraitId::GrimDeal)) {
-			damage_min_save -= (player.CharLevel / 3) * damage_min_save / 100;
-			damage_max_save -= (player.CharLevel / 3) * damage_max_save / 100;
-		}
 		return 0;
 	}else{
 		if( minDamage == -1 && maxDamage == -1 ){
@@ -1577,10 +1573,6 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 		else if (damageType == ET_5_HOLY) {
 			damage += damage_value * (PerkValue(SYNERGY_SPELL_POWER, playerIndex) + PerkValue(PERK_CASTING_POWERS, playerIndex) + PerkValue(PERK_MIGHT_N_MAGIC, playerIndex, 1) + PerkValue(SYNERGY_ABJURATION, playerIndex, 1)) / 100;
 		}
-		if (HasTrait(playerIndex, TraitId::GrimDeal)) {
-			damage -= (player.CharLevel / 3) * damage / 100;
-		}
-
 		//----------spell damage crits!---------------
 		bool canCrit_with_elemental_damage = true;
 		if (player.fullClassId == PFC_SAVAGE || HasTrait(playerIndex, TraitId::Toxic_at_Heart)) {

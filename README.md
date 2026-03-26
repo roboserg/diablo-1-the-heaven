@@ -10,15 +10,19 @@ A streamlined, quality-of-life enhanced Diablo 1 mod based on **The Hell 4 v0.20
 
 A The Hell 4 experience but with less grind and more fun! Given how hard The Hell 4 mod is, this mod is still harder then the vanilla Diablo 1 game, just with less grind.
 
-Some examples of gameplay improvements and balance adjustments:
-* **Psion Aura**: Damage output ~50% higher due to improved scaling formula (reverted to The Hell 2 levels)
-* **Black Mushroom Quest**: Spectral Elixir now grants +10 to all stats in non-Classic modes
+### Balance Adjustment Examples:
+* **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
 * **Acceleration Game Changer**: Experience multiplier increased from 2x to 5x (single-player, Easy mode)
 * **Swift Learner Perk**: XP gain per level increased from +5% to +20%
+* **Black Mushroom Quest**: Spectral Elixir now grants +5 to all stats in non-Classic modes
+* **Psion Aura**: Damage output ~50% higher due to improved scaling formula (reverted to The Hell 2 levels)
+* **Grim Deal Trait**: Fixed undocumented spell damage penalty that was silently reducing all spell damage
 
 For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.md).
 
 ## Installation
+
+### Case 1: Fresh Installation (TH4 not installed)
 
 1. **Set up your mod directory** — You only need `DIABDAT.MPQ` from the original Diablo 1 game
    - **Option A:** Use your existing Diablo 1 installation directory
@@ -29,6 +33,16 @@ For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.m
 3. **Download The Heaven mod** from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases) and extract all files to the same directory
 
 4. **Run `TheHeaven.exe`** and enjoy!
+
+### Case 2: Existing TH4 Installation
+
+> **Important:** Make a backup copy of your TH4 folder before upgrading. Do not mix The Heaven saves with The Hell 4 saves — they are not compatible.
+
+1. **Download The Heaven mod** from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases)
+
+2. **Extract all files to your TH4 folder** (overwrite when prompted)
+
+3. **Run `TheHeaven.exe`** and enjoy!
 
 ## Planned changes
 

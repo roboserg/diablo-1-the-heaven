@@ -1006,7 +1006,7 @@ array<Button, B_COUNT > ModButtons = { //      x,   y,  w,  h
 	Button{ B_TALK   , "Send Message"   , "Enter",  87, 443, 33, 32, 2, 0, ToggleTalkPanel     , &CtrlPan_P8But2CEL    , { 1, 2}, 13, -1 },
 	Button{ B_PVP    , "Player Attack"  , 0      , 527, 443, 33, 32, 2, 0, TogglePvP           , &CtrlPan_P8But2CEL    , { 3, 4}, 13, (int)~B(GM_COLISEUM) },
 	Button{ B_SYNERGY, "Synergies"      , 0      ,  45, 414, 37, 29, 3, 0, ToggleSynergyPanel  , &CtrlPan_NewButtonsCEL, {11,12}, 12, (int)~B(GM_CLASSIC) },
-	Button{ B_TIME   , "Time speed"     , ">"    , 527, 443, 32, 32, 1, 0, TimeToggle          , &CtrlPan_TimeButtonCEL, { 1, 2}, 12, B(GM_IRONMAN)|B(GM_NIGHTMARE)|B(GM_SURVIVAL) },
+	Button{ B_TIME   , "Time speed"     , ">"    , 527, 443, 32, 32, 1, 0, TimeToggle          , &CtrlPan_TimeButtonCEL, { 1, 2}, 12, -1 },
 };
 
 StatUpButton StatUpButtons[4] = {

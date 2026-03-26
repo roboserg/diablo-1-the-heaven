@@ -10294,17 +10294,17 @@ bool __fastcall UsePotionOrScroll(int playerIndex, Item* item) // UseItem
 	    break;
 	case MC_44_SPECTRAL_ELIXIR:
 		used = false;
-	    if (ModifyPlayerDexterity(playerIndex, GameMode == GM_CLASSIC ? 3 : 10)) {
+	    if (ModifyPlayerDexterity(playerIndex, GameMode == GM_CLASSIC ? 3 : 5)) {
 			used = true;
 		}
-		if (ModifyPlayerStrength(playerIndex, GameMode == GM_CLASSIC ? 3 : 10)) {
+		if (ModifyPlayerStrength(playerIndex, GameMode == GM_CLASSIC ? 3 : 5)) {
 			used = true;
 		}
-		if( ModifyPlayerVitality(playerIndex, GameMode == GM_CLASSIC ? 3 : 10) ){
+		if( ModifyPlayerVitality(playerIndex, GameMode == GM_CLASSIC ? 3 : 5) ){
 	        UseFullHealingPotion(playerIndex);
             used = true;
         }
-        if( ModifyPlayerMagic(playerIndex, GameMode == GM_CLASSIC ? 3 : 10) ){
+        if( ModifyPlayerMagic(playerIndex, GameMode == GM_CLASSIC ? 3 : 5) ){
 	        UseFullManaPotion(playerIndex);
 	        used = true;
         }

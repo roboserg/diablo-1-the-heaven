@@ -2103,8 +2103,7 @@ void DrawInfoLeft()
             }
         }
     }
-	if( TimeSpeed != 1.0 && (is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL) && MaxCountOfPlayersInGame == 1
-	 || DevelopMode) ){
+	if( TimeSpeed != 1.0 && (MaxCountOfPlayersInGame == 1 || DevelopMode) ){
 		draw( C_3_Gold, "Time speed: %0.2f", TimeSpeed );
 	}
 	//extern int fullCellDelta;
