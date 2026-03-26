@@ -313,7 +313,7 @@ const char* getGameChangerDescription(const GAME_CHANGER gameChanger)
     case GC_22_BLACK_DEATH: return "You are infected. The plague of Black Death has taken over you. It is a curse that develops uncontrollably. How long can you last until it claims your life?";
     case GC_23_TOUGH_LUCK:  return "You are unlucky. Starting stats = 5. Get 2 stat points on level-up. -75% to MF/GF/XP. No perks for XP, elixirs, magic find and level-up stats.";
     case GC_24_RUTHLESS:    return "Classic Diablo Ironman conditions: no boost to XP, MF, stats. No oils and IDs from bosses.";
-    case GC_25_ACCELERATION:return "Makes game easier. Experience is increased 2x. Warning: this is not intended game pace. Use it only for testing.";
+    case GC_25_ACCELERATION:return "Makes game easier. Experience is increased 5x. Warning: this is not intended game pace in TH4, but in The Heaven it is. Enjoy!";
     case GC_26_ASCETICISM:  return "Game is saved automatically. You can't resurrect in town (have to make a new game) and all dropped items are lost when you die. It's a hardcore mode for items.";
     default:                return "wrong gc index";
     }

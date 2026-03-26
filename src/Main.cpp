@@ -633,7 +633,7 @@ LABEL_44:
 				Tooltip_AddLine("how much damage your attacks do to enemies,", C_0_White); 
 				int c = 128 + C_1_Blue;
 				if (HasTrait(CurrentPlayerIndex, TraitId::Psion)) {					
-					int psionic_dmg = (3 + player.CharLevel * player.CurMagic / 150) + PerkValue(PERK_PSYCHOKINESIS, CurrentPlayerIndex);
+					int psionic_dmg = (3 + player.CharLevel * player.CurMagic / 100) + PerkValue(PERK_PSYCHOKINESIS, CurrentPlayerIndex);
 					sprintf(InfoPanelBuffer, "Psionic damage: %c%i", c, psionic_dmg);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					if (PerkValue(PERK_AMPLIFY_DAMAGE, CurrentPlayerIndex) > 0) {

@@ -7,3 +7,8 @@ $config = if ($args[0]) { $args[0] } else { "Release" }
 if (Test-Path "Release") {
     Remove-Item -Recurse -Force "Release"
 }
+
+# Copy mod data files to build output
+if (Test-Path "res/thdata") {
+    Copy-Item -Recurse -Force "res/thdata/*" "build/"
+}

@@ -347,7 +347,7 @@ const char* GetTraitBenefitDescription( TraitId id )
 	case TraitId::Sisyphean:		return  "current life and mana increased by (2xCLVL)"; //done
 	case TraitId::BendTheRules:		return  "all base attributes can grow up to 900"; //done
     case TraitId::Barbarian:		return  "+180%CLVL additional perk points, +CLVL/2 stun threshold"; //done
-    case TraitId::Psion:		    return  "nearby visible monsters take 3+CLVL*MAG/150 damage per second"; //done
+    case TraitId::Psion:		    return  "nearby visible monsters take 3+CLVL*MAG/100 damage per second"; //done
     case TraitId::Devastator:	    return  "access to elemental auras that damage nearby visible monsters"; //done
     case TraitId::Thrill_Seeker:    return  "+50% to experience gains when current life is below 35%"; //done
     case TraitId::Psychotic:        return  "Fury makes you stronger and more resilient"; //done

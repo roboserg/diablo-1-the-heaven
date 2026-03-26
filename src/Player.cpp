@@ -343,7 +343,7 @@ void DamageMonstersByAuras()
 				TurnUndeadAura(CurrentPlayerIndex, 10, damage);
 			}
 			if( HasTrait(CurrentPlayerIndex, TraitId::Psion) ){
-				int damage = (3 + player.CharLevel * player.CurMagic / 150) << 6;
+				int damage = (3 + player.CharLevel * player.CurMagic / 100) << 6;
 				damage += (PerkValue(PERK_PSYCHOKINESIS, CurrentPlayerIndex)) << 6;
 				if( player.CurAction == PCA_0_STAND ){
 					int amplifier = (PerkValue(PERK_AMPLIFY_DAMAGE, CurrentPlayerIndex));
@@ -2342,7 +2342,7 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 				newXpValue -= (75 + clvl / 10) * newXpValue / 100;
 			}
 			else if (player.gameChanger & BIT(GC_25_ACCELERATION) && MaxCountOfPlayersInGame == 1 && is(GameMode, GM_EASY/*, GM_CLASSIC*/)) {
-				newXpValue *= 2;
+				newXpValue *= 5;
 			}
 			if (HasTrait(playerIndex, TraitId::Domesticated) && is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SPEEDRUN)) {
 				newXpValue += 2 * newXpValue / 10;

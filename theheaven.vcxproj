@@ -322,7 +322,7 @@
     <Exec Command="PowerShell -command Compress-Archive @(ZipFiles, ',') $(SolutionDir)bin\th2.zip" />
   </Target>-->
   <ItemGroup>
-    <!--<ResourceFileToCopy Include="$(SolutionDir)res\thdata\**\*.*" Exclude="$(SolutionDir)res\thdata\**\.svn\**" />-->
+    <ResourceFileToCopy Include="$(SolutionDir)res\thdata\**\*.*" Exclude="$(SolutionDir)res\thdata\**\.svn\**" />
     <FileToCopy Include="lib\Strm2.dll" />
     <FileToCopy Include="lib\Standard.sn2" />
     <FileToCopy Include="lib\SmackW32.DLL" />
@@ -403,7 +403,7 @@
     </FxCompile>
   </ItemGroup>
   <Target Name="CopyResources" Inputs="@(FileToCopy)" Outputs="@(FileToCopy -> '$(OutDir)%(Filename)%(Extension)')">
-    <!--<Copy SourceFiles="@(ResourceFileToCopy)" DestinationFolder="$(OutDir)%(RecursiveDir)" OverwriteReadOnlyFiles="true" SkipUnchangedFiles="true" />-->
+    <Copy SourceFiles="@(ResourceFileToCopy)" DestinationFolder="$(OutDir)%(RecursiveDir)" OverwriteReadOnlyFiles="true" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(FileToCopy)" DestinationFolder="$(OutDir)" OverwriteReadOnlyFiles="True" SkipUnchangedFiles="True" />
   </Target>
 </Project>

@@ -1,0 +1,942 @@
+Changes log for Diablo: The Hell 4 mod
+..updated downwards (newest changes down below)..
+
+This log is best viewed in fullscreen, with resolutions of 1600x900 or higher (I use 1920x1080 when writing this)
+
+Latest version of the mod available only on the main website: 	
+www.patreon.com/thmod/about
+
+Mirror:
+https://www.moddb.com/mods/diablo-the-hell-4
+--------------------------------------------
+Community:
+TH1+TH2: 	https://discord.gg/9Mk3yXw
+TH3: 		https://discord.gg/9kN7HMPgUY
+TH4:		https://discord.gg/AN9NukZFbN
+--------------------------------------------
+Youtube: 	
+https://www.youtube.com/user/MordorTheModmaker
+
+Twitch: 		
+https://www.twitch.tv/mordor_th
+--------------------------------------------
+Mod development started 2025-06-29. Forked from TH3 v1.252
+
+Contact email: diablothehell@gmail.com
+
+======================================================================================
+                   	  		  THE HELL 4 - log of changes
+======================================================================================
+
+	Note: this is not the beginning of the mod development. 
+
+	Log for The Hell 2 available here:
+	https://thehellmod.ucoz.ru/Downloads/TH2ChangesLog.txt
+
+	Log for The Hell 3 available here:
+	https://thehellmod.ucoz.ru/Downloads/TH3_Changelog.txt
+
+
+	v0.000 (2025-06-29)
+
++	Save files made incompatible with TH3 format;
++	New datafile is used now: TH4data.mor;
++	Adjusted qlvl for base items 2408-2425;
+
+
+	v0.001 (2025-07-02)
+
++	Lithe Build trait turns off Night Kin GC;
+
+
+	v0.002 (2025-07-02)
+
++	Changed default exe icon;
++	Added new synergy for Thraex;
+
+
+	v0.003 (2025-07-03)
+
++	Fixed requirements for synergy Silver Tongue;
++	Fixed requirements on summoner perks;
++	New characters can now have up to 4 traits (which will increase total character build variability by x400 more), also: watch out for bugs fellas;
+
+
+	v0.004 (2025-07-04)
+
++	Lithe Build nerfed: extra chance to get missed 10% -> 8%, +to max Dex: +150 -> +100;
++	Acceleration nerfed: 3x -> 2x;
++	Psion base mana formula set to : 4 + 150%MAG + CLVL;
+
+
+	v0.005 (2025-07-04)
+
++	Main menu logo update;
+
+
+	v0.006 (2025-07-05)
+
++	Perk Might & Magic gives ~40% less spell damage;
++	Perk Fortified Shield goes 10 levels deep now;
+
+
+	v0.007 (2025-07-06)
+
++	Four levels of Cleave perk are available to Dimachaerus;
++	Monsters and bosses get more stat addups since difficulty 6, more on each difficulty:
+	6:		+ dlvl,
+	7:		+ 24 + 3 * dlvl / 2,
+	8:		+ 24 + 36 + 2 * dlvl,
+	9:		+ 24 + 36 + 48 + 3 * dlvl;
+
+
+	v0.010 (2025-07-15)
+
++	Fixed crash on return from difficulty selection on first hero in meta menu;
++	Fixed a bug with Zealot Night Kin's first level of Rip and Tear perk not increasing attack speed;
++	Reverted Flash fix from TH3 v1.243 which did more damage than good;
+
+
+	v0.011 (2025-07-19)
+
++	Fixed quench spell damage applying to non-offensive spells in spellbook;
++	Added low level jewelry suffixes for summoners (+damage series);
+
+
+	v0.012 (2025-07-22)
+
++	Working with items;
+
+
+	v0.013 (2025-07-23)
+
++	Starting to work with Druid class;
+
+
+	v0.014 (2025-07-23)
+
++	Base damage formula for Druid: clvl * cSTR / 80 + clvl + 3;
++	Druid base life formula set to: 18 + 2 * bVIT + 2 * clvl;
++	Druid base mana formula set to: 13 + 2 * bMAG + 2 * clvl;
++	More traits allowed for Druid to pick from;
++	Base crit in melee for Druid is 2% chance for +40% damage. 2% for +40% damage with spells;
++	Fixed up availability of perks and synergies for Druid;
+
+
+	v0.015 (2025-07-23)
+
++	Fixed game crashing on Druid death;
++	Fixed game crashing when equipping mail/plate armor on Druid;
++	Druid base life and innate life regen formula improved;
++	More caster type perks allowed for Druid;
++	Druid's innate melee accuracy increased by 10;
+
+
+	v0.016 (2025-07-23)
+
++	Fixed Druid attack animation with no shield equipped (used to appear torn);
++	Mana relicts restore more mana to Druid;
++	Fixed game crashing when equipping solo sword or mace;
+
+
+	v0.017 (2025-07-24)
+
++	Druid can't use xbows now;
++	Druid can equip most of Savage's base helms;
++	All weapons used by Druid deal neutral damage;
++	Druids are allowed to wield axes now as their main weapon;
++	Druid melee crit changed to 9% chance for +50% +(10-15) damage;
+
+
+	v0.020 (2025-07-24)
+
++	Druid base life formula set to: 7 + 3 * bVIT + 3 * clvl;
++	Druid basic mana regen restores 1 mana per 12 MAG points (like Rogue);
++	Revised Druid's starting stats;
+
+
+	v0.021 (2025-07-25)
+
++	Some caster unique item tweaks;
++	Character sheet tooltip corrections for Druid and Paladin;
++	New Ice Age avatar for Druid added;
+
+
+	v0.022 (2025-07-27)
+
++	Druid character sheet tooltip for damage now displays damage against different monster species;
++	Traits "Finesse" and "Rabid" are made incompatible;
+
+
+	v0.023 (2025-07-31)
+
++	Fixed old (goes back to 2018) automap bug that could corrupt memory and crash game;
+
+
+	v0.024 (2025-08-04)
+
++	Some updates to ReadMe;
++	Mamluk, Archer and Sharpshooter get less base damage with bows;
++	Druid now gets axe from Anvil quest (used to get 2h sword);
+
+
+	v0.025 (2025-08-07)
+
++	New quest made: "Grave Matters". Given by barmaid when you visit dlvl 1;
+	Note: it's new, I did not add them since early 2024, expect some bugs, but I think it works. I may tweak it further later;
+
+
+	v0.026 (2025-08-07)
+
++	Black Chapel gives 25% more XP;
++	Ghost of Brother Martin now drops two random gems of grade (1 + Difficulty / 2),
+	Note: he does not in IM/SR/NM modes;
++	Also, he drops 2 items now, and 4 in SR/NM/IM modes;
+
+
+	v0.027 (2025-08-07)
+
++	Fixed Grave Matters quest map entry not generating in multiplayer (Gillian still doesn't initiate speech);
+
+
+	v0.030 (2025-08-08)
+
++	Fixed "Grave Matters" quest not being completable. Killing Ghost of Brother Martin now completes the quest;
++	Fixed Gillian not initiating quest "Grave Matters" in multiplayer, now it works as intended;
+
+
+	v0.031 (2025-08-09)
+
++	Fixed loot checks for Ghost of Brother Martin;
++	Griswold's Enchanter looks like knife when worn by Beastmaster;
++	Druid gets axes from weapon racks (used to get gold);
+
+
+	v0.032 (2025-08-13)
+
++	Fixed old bug with Good Deal quest status check for Griswold script;
++	Fixed a bug with game crashing in SP survival purgatory mode when clicking tilde in-game;
+
+
+	v0.033 (2025-08-16)
+
++	Beastmaster summon tier 2 now should no longer retreat after losing more than 66% hit points;
++	Synergy "Trader" will now require Gold Fever perk (instead of Obsession);
++	Fixed meta menu reading wrong stats from some items bought from NPCs;
++	Buffed basic DFE on Sorcerer Robe, Sorcerer Mail, Acolyte Mail & Apprentice Mail;
+
+
+	v0.034 (2025-08-18), "Indestructible" (Disturbed)
+
++	TH4 process is now fully separated from TH3 (it should be possible to run them simultaneously now);
++	Fixed some flaws in Murmillo colors;
++	Clearing Infested Cellar opens up quick exit to stairs;
++	Druid spell accuracy raised by 50;
+
+
+	v0.035 (2025-08-18)
+
++	Changed qlvls of many T2 harness type items (these changes will likely cause item morphing);
++	Changed qlvls of many T2 helmet type items;
+
+
+	v0.036 (2025-08-19)
+
++	Dark Lord pack now follows this formula: 99 - diff * 6 ;
++	Revised qlvls on shields, pistols, traps, flasks, monk staves, wands, blunts, sharps, bows, mallets, crossbows, shuriken, knives,
+	Note: this is all of them, but it can morph existing items,
+	Note: these changes will massively solve old T2 item availability issues;
+
+
+	v0.037 (2025-08-19)
+
++	Iron Maiden will get spiked gauntlets and boots from monsters and bosses more often now;
++	Monster lightning (Advocate lightning attacks in particular) minimal damage (per frame) limit set to dlvl/8 + diff*3 + 1;
+
+
+	v0.040 (2025-08-19)
+
++	Iron Maiden now will get spiked armor pieces (helm, harness, gauntlets, boots) from dungeon objects (chests, barrels, etc.) more often;
+
+
+	v0.041 (2025-08-19)
+
++	MvP ranged: Druid innate damage reduction set to 52% (absorbs a little more damage (standard is 50%));
++	Druid gets Warlord's set pieces now;
++	Druid Fury effects changed to:
+	Damage: + 5 + 3 * charLevel,
+	DFE: -(3 * charLevel / 21 + 1),
+	accuracy: 10 + charLevel / 2,
+	ACFromItems: 5 + charLevel / 10,
+	Stun Threshold: 3 + charLevel / 15;
+
+
+	v0.042 (2025-08-20)
+
++	Damage division from monster elemental arrows is changed from 3 + diff / 3 to 4 + diff / 3;
++	Added new quest: Iron Oath. It's on dlvl 2. Watch out for bugs and report them if you notice any;
+
+
+	v0.043 (2025-08-20)
+
++	Church Sacristy map gives +25% XP;
++	Clearing Church Sacristy opens up quick passage to stairs;
++	Composite Hide Armor allowed to drop for Druid. It will also allow him to find full Arctic set;
+
+
+	v0.044 (2025-08-20)
+
++	Better scaling of Maiden T2 base items (harness/headwear/shields);
++	Perk "Antisocial" goes 45 levels deep now, and numbers start going up after level 15;
+
+
+	v0.045 (2025-08-21)
+
++	Fixed Druid loot conditions to stop DEX line gloves and belts from dropping from monsters;
++	Fixed dlvl 4 generating two stairs up to dlvl 3 in SP when Ogden's Sign quest is present in game;
+
+
+	v0.046 (2025-08-24)
+
++	Fixed original game bug with Eldritch shrine turning item under cursor to holy potion;
++	Druid gets access to more perk levels of "Hot Tempered" and "Rampage";
++	Revision of Pistol base damage values;
++	Druid now turns into werewolf under fury, and un-turns when it ends;
+
+
+	v0.047 (2025-08-25)
+
++	Hydramancer's pets spit charged bolts in straight lines now, also damage is fixed ;
++	Fixed a potential issue with Psion color taking over Elementalist;
++	Fixed Druid not unturning when entering another area under Fury;
+
+
+	v0.050 (2025-08-26)
+
++	Druid axe swing (when not turned) sounds different now, like a standard axe sound;
++	Druid is given slightly different color set;
++	Fixed broken battle trance (wouldn't stop effects after expiration);
+
+
+	v0.051 (2025-08-28), "Monster" (Skillet)
+
++	Fixed entrances to Skeleton King Tomb, Sacristy and Black Chapel;
++	Druid gets + 1 mana regen rate for each 10 clvl;
++	Un-turn animation for Druid stops all other actions for him for the duration of the animation (which fixes light radius bugout issue);
+
+
+	v0.052 (2025-09-04)
+
++	Tough Luck GC turns off synergies Butchery, Negation, Bolster and Grace;
++	Some fixes to Rogue plate animation series;
++	Added new monster (levels 7-11);
+
+
+	v0.053 (2025-09-05)
+
++	Fixed Druid animation not changing back to normal form when entering TP under Fury;
++	Fixed Druid weird animation when having died under Fury and it ends;
+
+
+	v0.054 (2025-09-05)
+
++	Devastator elemental aura damages from perks get a buff later on (starting from perk level 11), final perk levels are 25% stronger;
++	New monster added to Chamber of Bone, and levels 7-8;
+
+
+	v0.055 (2025-09-06)
+
++	Devastator aura damage now obeys MP coop damage reduction rules;
++	New monster added to levels 9-12;
+
+
+	v0.056 (2025-09-09)
+
++	Necromorph monster now appears on dlvls 23 & 24 (a little tougher there too);
++	Holy aura damage now too obeys MP coop damage reduction rules;
++	Revision to Mossy Grotto map: it now has new enemies, more enemies, and refreshed look;
+
+
+	v0.057 (2025-09-14)
+
++	Fixed Blizzard's missing animations for Rogue: ALSLM in S & SE directions and ALAAS in NE direction;
++	Adria's Enchant menu shows available enchants in bronze, not in grey;
++	Barbarian MDR/ADR boost changed to: clvl * clvl / 300 + clvl / 2 (was clvl * clvl / 225 + clvl / 3);
+
+
+	v0.058 (2025-09-18)
+
++	Fixed Overlord and Goat melee AI not playing sound for secondary attack;
++	Music pack updated to v28;
++	Created new quest, on dlvl-11. That took some time. I think it should work fine, but watch out for any bugs in cave quests. Could happen,
+	Note: also, this caused certain issues with dungeon morphing that reappeared, it should be fixed, but watch out for it when re-visiting levels;
+
+
+	v0.059 (2025-09-19)
+
++	Fixed containers dropped from some other bosses for Leper and in extra modes;
++	Earth Golem doesn't retreat after getting stunned when using Hidden AI;
+
+
+	v0.060 (2025-09-19)
+
++	Fixed Clear Water quest script. Pepin would not give empty containers if player had visited the quest dungeon;
+
+
+	v0.061 (2025-09-21)
+
++	Trapper and Bombardier are now shown damage in character panel modified by Dread effect;
++	Fixed goatmace secondary attack sfx;
++	Frozen Loch map variants have less monsters near entrance;
++	Frost Warden now has 'snow' type walk sfx;
+
+
+	v0.062 (2025-09-22)
+
++	Some fixes to monster sfx;
+
+
+	v0.063 (2025-09-27)
+
++	Less HP for Fungal Root;
++	Some adjustments to Reliquary;
++	Frost Bone replaced with (new) Ice Trolls in Frozen Loch and Glacial Caverns;
+
+
+	v0.064 (2025-10-01)
+
+	Note: may take a while til next update, I need to attend to something else..
+
++	Character panel accuracy tooltip now should display correct info on spell accuracy;
+
+
+	v0.065 (2025-10-08)
+
++	Red Wyrms made vulnerable to acid;
+
+
+	v0.066 (2025-10-11)
+
++	Fixed some flaws in Ironman mode  savegame rules for dungeon maps HALL_OF_HEROES, BLACK_CHAPEL, CHURCH_SACRISTY, STILL_SPRINGS;
+
+
+	v0.067 (2025-10-22)
+
++	Fixed overbuffed Hydramancer lightning bolt damage from hydra (~60% nerf);
+
+
+	v0.070 (2025-10-27)
+
++	New trait added for Monk: Lord of the Rings;
++	A lot of engine works took place, it took about 8 months to get it done, this can potentially lead to bugs - watch out;
+
+
+	v0.071 (2025-10-27)
+
++	Fixed sporadic affix morphing from 0.070 ;
+
+
+	v0.072 (2025-10-28)
+
++	Fixed quench effect inconsistency;
++	Fixed no portal mode precious stone transmute (right-click);
++	Fixed wrong display of some affixes (in quench, flat steal, thprns, knockback);
+
+
+	v0.073 (2025-10-28)
+
++	Fixed unique item sockets not working after 070 upgrade;
+
+
+	v0.074 (2025-10-28)
+
++	Teleport pad to Pit of Flame is now displayed in Cursed Blade entry dun;
++	Fixed inability to properly equip weapons on Shinobi;
+
+
+	v0.075 (2025-10-29)
+
++	Fixed "total damage vs species" affix series (got bugged in 0.070);
+
+
+	v0.076 (2025-11-02)
+
++	Fixed crash/hanging on game load (another bug from 0.070);
+
+
+	v0.077 (2025-11-05)
+
++	Another attempt to fix the crash from 0.076;
++	Fixed the following relicts disappearing on rightclick: 
+	firewall, lightning wall, lightning, incinerate, hydra, teleport,
+	now they get erased after the actual cast (if it was successful);
++	Fixed Ball Lightning flawed manacost (used Fireblast data);
+
+
+	v0.078 (2025-11-07)
+
++	Fixed wrong elemental arrow type selection (another bug from 0.070);
++	Passage of Fire map variant 1 is excluded from the pool in IM/NM/SR modes;
++	Modified Hall of Heroes map;
+
+
+	v0.079 (2025-11-09)
+
++	Fixed affixes High durability/Reduced durability;
++	Removed map variant 8 in Passage in IM/NM/SR modes (ranged characters should feel safer there now);
++	Hydra arcane star cast now is given a sound effect;
+
+
+	v0.080 (2025-11-13)
+
++	Fixed AC percent affix: negative values didn't apply;
++	10% more XP is given in AR maps from Fields of Madness to Arcane Prison;
+
+
+	v0.081 (2025-11-16)
+
++	In Ironman mode pressing Save & Quit with item under cursor doesn't save game anymore;
++	Fixed placing items on belt: items under cursor now target image center, not upper left corner;
+
+
+	v0.082 (2025-11-20)
+
++	Trait Bloodless no longer allows to steal life with flat lifesteal affix;
++	More enchant affixes are available for wands now;
++	New quest added. On dlvl-13. Both SP & MP. Item reward is not ready yet, will be supplied later;
+
+
+	v0.083 (2025-11-21)
+
++	Some improvements to enchant affix selection;
++	Maze architecture updates;
++	Monk subclass gets special reward from Borosteron now;
+
+
+	v0.084 (2025-11-22)
+
++	Borosteron gives special reward to more classes: 
+	1h mace to Warrior, Templar, Shinobi, Rogue, Iron Maiden (non-Two Towers), Thraex, Secutor, Murmillo, Dimachaerus,
+	2h mace to Kensei, Savage, Guardian,
+	axe to Axepertise Rogue, Shugoki, Berserker, Executioner, Druid;
+
+
+	v0.085 (2025-11-24)
+
++	Some late stage caster uniques were nerfed a little;
++	Blood Lords get less dfe and resistance vs melee attacks in the Maze: 
+		melee damage resist (non thorns): damage / 8,
+		then DFE (substracted from the rest): 15 + Difficulty * 40,
+		same for Borosteron,
+		what it used to be:	MDR damage / 5, then DFE by Difficulty: 30, 120, 240, 360, 480, 600, 720, 840, 960;
++	Borosteron's pack now has less Blood Lords: 19 -> 14;
++	Fixed used relicts sometimes not getting deleted from belt;
+
+
+	v0.086 (2025-11-26)
+
++	Borosteron will not drop unique reward to Warrior if he has Ranger trait;
++	Fixed affixes AE_CLVL_STAT_ALL, AE_CLVL_RESIST_ALL, AE_CLVL_SPELL_ALL ;
+
+
+	v0.087 (2025-11-27)
+
++	New trait created for Murmillo: Crupellarius:
+	gets +10% to min & max arrow damage resistance cap,
+	gets +15% to min & max melee damage resistance cap,
+	loses access to Festina Lente perk,
+	base damage is halved,
+	max Str: -100, max Vit: +100,
+	accuracy decreased by 10 for melee and ranged,
+	armor bonus (+1 per clvl after clvl 50) replaced with just +150%clvl (e.g., +15 at clvl 10, +75 at clvl 50),
+	incompatible with traits Sandman, Old Fashioned;
+
+
+	v0.088 (2025-11-27)
+
++	Crupellarius gets dedicated picture in meta menu, and adjusted class name in character panel;
++	Crupellarius trait made incompatible with Finesse;
++	Crupellarius gets a better description in menu;
+
+
+	v0.089 (2025-11-28)
+
++	War Paint perk progression nerfed: +4% life per level -> 3% ;
++	Crupellarius IDR set to 46% (same as Dimachaerus, Shinobi, Monk, Kensei) ;
++	Crupellarius base crit chance in melee and with xbow reduced by 1% ;
+
+
+	v0.090 (2025-11-30)
+
++	Warlord of Blood (SP) will now drop more identify relicts in IM/SR/NM/SU modes;
++	New synergy created for Crupellarius: Rigidity. Adds MDR+ADR;
+
+
+	v0.091 (2025-12-03)
+
++	Fixed perks that improve elemental damage for flasks: didn't boost max damage;
++	Less HP for static shrooms in Mossy Grotto on Horror;
++	Battle Trance slowdown affects dungeon objects too now;
++	Borosteron is given life leech ;
++	New SP trait created: Fatality. Available to all but Magi, Bombardier, Maiden, Inquisitor, Monk, Scout;
+
+
+	v0.092 (2025-12-06)
+
++	Turned off ice lighting in Frozen Loch;
++	Preparations made to add Tentaclists;
+
+
+	v0.093 (2025-12-10)
+
++	Fixed XP from bosses on 8th difficulty;
++	Paladin trait gives +1 stat for distribution on level-up in following modes: IM/SU/SR/NM ;
+
+
+	v0.094 (2025-12-12)
+
++	Crupellarius autohit thresholds in MvP reduced by 1% more (19 melee, 13 arrows, 14 magic);
++	Deathcaller in the Bridge map now drops Empyrean Bracers;
++	Sister Priscilla (in Colonnade) drops Wanderer's Boots;
+
+
+	v0.095 (2025-12-14)
+
++	Trait "Gifted" ups stat limits more: +10 -> +25;
++	Created new Templar trait: Abnegation. Incompatible with traits "Survivor" and "Fast Metabolism";
+
+
+	v0.096 (2025-12-17)
+
++	Paladin starts with spells: Firebolt, Charged Bolt, Holy Bolt;
++	Druid starts with the same package (minus Holy Bolt in Coliseum);
+
+
+	v0.097 (2025-12-23)
+
++	Mamluk acid element coefficient set to 1.0 (was 0.6);
++	Avalanche uniques nerfed;
++	Borosteron now drops special unique blade to Mamluk (varies for difficulty);
+
+
+	v0.098 (2025-12-25)
+
++	Added new monsters to dlvls 11-20: Tentaclists. They have new AI that attacks in melee and sends underground tentacles at distance (not in melee);
+
+
+	v0.099 (2025-12-25)
+
++	Fixed death animation speed for tentaclist boss monster;
++	Fixed resistances for unique tentaclists;
++	Fixed Pistoleer's drop from Borosteron: used to get Bonegrinder;
+
+
+	v0.100 (2025-12-28)
+
++	Added some tentaclists in Frozen Loch;
++	Fixed wrong character missile display after game load (bug was set in 0.098);
++	Fixed tentaclist boss armor: 37 -> 65;
+
+
+	v0.101 (2025-12-30)
+
++	Added lightning vulnerability to tentaclists;
++	Fixed beastmaster fury: it actually lowered summon damage all these years;
++	Tentaclist tendrils now attack once (used to be a multi-hit attack, oops!);
+
+
+	v0.102 (2026-01-04)
+
++	Inquisitor character panel crit chance cell now displays physical crit chance,
+	Note: weapon element crit chances is displayed in a pop-up window;
++	Some tentaclists added in AR maps (without bosses);
+
+
+	v0.103 (2026-01-06)
+
++	Fixed tentaclists getting stuck after you leave level while they are active, and return;
++	Argent armor: new appearance;
++	Created 1 more unique item;
+
+
+	v0.104 (2026-01-08)
+
++	New appearance for some T2 items;
+
+
+	v0.105 (2026-01-09)
+
++	Fixed Monkey Grip weapon display issues;
++	FYI Kozel guide is upgraded to allow user to pick background color;
++	More item cosmetics;
+
+
+	v0.106 (2026-01-10)
+
++	Fixed Necromancer appearance while holding mace type weapon;
++	Iron Maiden now always gets spiked shield unique reward from Anvil of Fury quest;
+
+
+	v0.107 (2026-01-10)
+
++	Tentacle damage is increased by 50%;
++	Tentaclists switch monster class to Beast;
++	Tightened screws a little for ranged attacker AIs (concerning retreat chances mostly),
+	Note: this is mostly for singleplayer;
++	Removed forced required CLVL from some base Sica blades that had it;
++	Seeing effect renamed ( "Enhanced perception" -> "Infravision");
+
+
+	v0.108 (2026-01-11)
+
++	Crimson Tide synergy nerfed (was too good);
++	Adjustments to highest level affixes' qlvls, to improve findability (some were practically unfindable);
++	Created new trait: "Giant";
+
+
+	v0.109 (2026-01-11)
+
++	Trait Giant now accessible by Assassin, Bombardier and Maiden;
++	Created new trait for Beastmaster: "Feral";
+
+
+	v0.110 (2026-01-12)
+
++	Apoc cooldown ease-up included for Feral trait;
++	Fixed Web Queen spawn animation (idk how it worked without crashing game);
+
+
+	v0.111 (2026-01-13)
+
++	Ball Lightning damage increased a little;
++	Lightning from monsters and traps deal more damage now: +4 per tick for each difficulty after Horror,
+	Note:	this should solve Lightning Mages' weak attacks on higher difficulty modes;
+
+
+	v0.112 (2026-01-13)
+
++	Fixed thorns damage against Web Queen, Flesh Devourers and Thorned Hulks;
++	Lightning attacks from monsters use upgraded formula now: 4 + (mAC/2 + 1) * 8 + mAC/4 + Diff * 64 * 6 (this is average);
+
+
+	v0.114 (2026-01-15)
+
++	Gargoyle retreat chances (when life drops below 50%) increased:
+	Easy:		1/150 - Diff * 2,
+	Normal:		1/ 75 - Diff * 2,
+	Hard:		1/ 25 - Diff * 2,
+	Hardcore:	1/100 - Diff * 2,
+	Survival:	1/ 75 - Diff * 2,
+	Ironman:	1/100 - Diff * 2,
+	Speedrun:	1/100 - Diff * 2,
+	Nightmare:	1/ 50 - Diff * 2;
++	Armored Skeleton allowed to make appearance on dlvl 9. Boss added,
+	Note: resistance to player damage in PvM on dlvl-9 is raised to 40% (default 33%);
++	Mamluk : boots have upgraded appearance;
+
+
+	v0.115 (2026-01-15)
+
++	Modified some affixes,
+	Note: magic items can morph, careful! ;
++	Mamluk's perks and synergies that increase damage, give less damage to bows now;
++	Bouncer trait damage increase nerfed: +60% -> +50% ;
+
+
+	v0.116 (2026-01-16)
+
++	Some spruceups for Mossy Grotto;
++	Default cooldown for nova spells set to 12 sec for SP, and 17 for MP;
++	Night Kin is given new perk "Casting Powers" to help with offensive spell damage;
++	Lich King drops 1 more item now;
+
+
+	v0.117 (2026-01-16)
+
++	Iron Maiden Fury effects changed;
++	[dd] Fixed CLVL requirement inconsistency on rare items (could change after identification). Report if anything's off;
+
+
+	v0.118 (2026-01-20)
+
++	Warp is given spellbook description;
++	Sanctifying affix removed from 1 handed sword (was assigned erroneously);
+
+
+	v0.119 (2026-01-20)
+
++	Fixed Mamluk hit recovery improvement (used to work only if some hit recovery affix was active on player);
++	Same with Secutor's "Hit Me Again" perk;
++	CLVL requirement affix on unique items is no longer displayed as affix line;
++	New synergy added: "Strong Heart". Adds melee damage depending on character max life,
+	Available: Warriors except Inquisitor, Monks, Rogue, Assassin, Savages,
+	Unavailable: traits Pistoleer, Ranger and Fear the Reaper;
+
+
+	v0.120 (2026-01-22)
+
++	Monster Apoc damage formula changed to:
+	Horror: 110-130, // same
+	Purgatory: 200-260, // same
+	Doom+ : 250 + Diff * 80 + Rand(dlvl * 3), // was: 250 + Diff * 55 + Rand(Diff * 30 + 41);
++	Bone Spirit spell formula changed: nominator / denominator,	where denominator equals 8 + Diff (was just 8);
++	Warlock gets +1 level to perk "Atrophy";
+
+
+	v0.121 (2026-01-26)
+
++	Added higher level affixes of fast attack on jewelry, and cast speed, they were missing (minor affix morphing possible);
++	Aura Mastery synergy reduced in power;
++	Psion gets less base mana, and basic aura damage is reduced;
++	Psychokinesis perk gives less damage on higher levels;
++	Upgraded socketing tab in crafting service at Griswold's shop;
+
+
+	v0.122 (2026-01-29)
+
++	Church and Catacombs play classic Diablo music twice as often now;
++	Quest items are now shown in different color (in inventory and with ALT highlight);
++	Fixed erroneous info that was displayed in tooltip for socketing button with socketed items inserted in the panel;
+
+
+	v0.123 (2026-01-30)
+
++	Fixed quench effects displayed as duplicated affixes (bug from 0.070);
+
+
+	v0.124 (2026-01-31)
+
++	Fixed a rare bug with game crashing for player using infravision at a corner of a map when playing in a high resolution;
++	Fixed ALT compare of inventory item tooltips;
+
+
+	v0.125  (2026-02-03)
+
++	Trait "Domesticated" gives additionally +20% total XP (multiplicative) in game modes SR/IM/NM;
++	Better XP on difficulties 4-5;
++	Corrupt Paladin and Warped One can now block only non-elemental arrows (from player);
++	Players now don't block elemental arrows from monsters (may block arrow once but no serial blocks);
++	Fixed player getting multihits from monster missile attacks when standing on tiles that allow walking but block missiles;
+
+
+	v0.126 (2026-02-04)
+
++	Now it is possible to upgrade Griswold's item quality level, there is upgrade button added, increases item qlvl range for gold,
+	Note: can potentially cause instability in loaded game, it's better to restart game session;
+
+
+	v0.130 (2026-02-07)
+
++	Created multiplayer version of "Ogden's Sign" quest;
+
+
+	v0.131 (2026-02-08)
+
++	Fixed perks "Lethality"/"Purge"/"Exorcism" giving wrong damage boost. Turns out, they improved only weapon damage, not total;
++	Fixed retreat chances for monsters with Mage AI (used to be always 30%);
+
+
+	v0.132 (2026-02-08)
+
++	Fixed quest bugs from 0.130,
+	Note: don't load game, start new session (to avoid complications);
+
+
+	v0.133 (2026-02-14)
+
++	Audio levels were revised so that minimal sound volume is much lower (there were complaints minimum volume is too high);
+
+
+	v0.200 (2026-02-23)
+
++	Restock button gets a hotkey now : "R". Works for Griswold's shop and Adria's (buttons display it now too);
++	Hydramancers will see amount of active hydras summoned in upper right corner of the screen now;
++	Introducing new game type: Classic Diablo. It is original Diablo (SP) experience reimagined on TH4 engine,
+	it is 100% identical recreation, but there are some enhancements and convenience mechanics left in the game:
+		1. stash is present
+		2. restock buttons left in the game (maybe for now, we'll see about that),
+		3. some utterly bad uniques were buffed (nothing OP though),
+		4. some bosses that weren't appearing in the game due to bugs were re-introduced (Bronzefist, Lord of the Pit, etc.),
+		5. Hellfire content is not there, just Diablo,
+		6. NPC collocation is the same as in the mod,
+		7. some base items were subtly revised for better balance,
+		8. shrines work like they do in the mod (to be addressed) but no mana stealing shrines no more,
+		9. Black Death monster doesn't reduce max life of player, instead, they take away a portion of current mana and steal life like Skeleton King (30% per hit),
+		10. new portraits for character classes (in meta menu),
+		11. sound ambience was not removed (you can always turn it off), but monster walking sfx were ditched,
+		12. monster bars removed,
+		13. classes use new modified inventory panels, bigger inventory remains, quick slots remain,
+		14. resistance system is inherited from the mod (at least, for now),
+		15. resolution and motion interpolation settings inherited from the mod,
+		16. unique items unfindable in Diablo can be found here,
+		17. magic affixes are fixed where they had to be, negative affixes were removed,
+		18. Stone Curse works like in the mod (for now, depends on feedback),
+		19. item durability loss works like in the mod,
+		20. book requirements inherited from the mod (and they go up +20 per level, not +20%),
+		21. character skills work like they do in the mod (Rogue has Infravision instead of Trap Disarm),
+		22. Arkaine's Valor quest was not ported yet (there are issues, hopefully to be resolved ASAP),
+		23. weapon swing sounds inherited from the mod (may change if feedback demands it),
+		24. level loading screens inherited from the mod,
+		25. Butcher drops his cleaver, Leoric - crown. All quest rewards become better on higher difficulty modes,
+		26. Hall of Heroes area remains but has original monsters and no bosses, and less loot,
+		27. Item flip sfx/visuals inherited,
+		28. Soul Burners are present on dlvl 16, they are Diablo's minions now,
+		29. Champiion monsters remain
+		30. Alt highlight of weapons, compare of items, shift-clicks to belt, gold auto-pickup: it all remains;
+
+
+	v0.201 (2026-02-24)
+
++	Fixed Classic mode Eldritch shrine;
++	Classic: Rogue & Sorcerer can block with shield now;
+
+
+	v0.202 (2026-02-24)
+
++	Classic: Fixed Fallen running away after a nearby monster is killed;
++	Fixed spell names for Classic mode;
++	Fixed erroneous class requirement display on item tooltips;
+
+
+	v0.203 (2026-02-25)
+
++	Classic: Glooms don't hit player after charge (used to);
++	Classic: Illusion Weaver can't be hit by player when in the state of retreat (same as in vanilla);
++	Classic: Horned demons now charge attack using run animation;
++	Classic: Stone Cursed monsters now can be hit (in melee, with arrows and spells) and targeted by minions (Golem),
+	Note: the idea was Elemental damages all but undead and you could use that vs triple immunes that appear later,
+		but this is how that spell worked in original game, so eventually I had to restore its functionality,
+	Note 2: Lord of Terror is still immune to SC, as well as all Gargoyles (and their bosses);
+
+
+	v0.204 (2026-02-25)
+
++	Classic: Viper AI: charges allowed from 2 tiles away, and charge chance increased;
++	Classic: regeneration shrine now works;
+
+	
+	v0.205 (2026-02-26)
+
++	Classic: fixed weapon damage not displayed for Sorcerer;
++	Classic: fixed speedbook showing "Relict" instead of "Scroll";
++	Classic: spell "Lightning" changed into "Chain Lightning",
+	Note: formula for number of lightning torrents is: SLVL (1 at SLVL 1, 2 at SLVL 2, etc.);
+
+
+	v0.207 (2026-02-27)
+
++	Classic: fixed bugged wall tile in Lazarus quest level;
++	Classic: added Arkaine's Valor quest. The armor will get more powerful stats in Nightmare and Hell difficulties;
+
+
+	v0.208 (2026-03-03)
+
++	Classic: updated spellbook description for Stone Curse spell;
++	Classic: monsters don't strafe anymore (can't run from player if cornered);
++	Classic: fixed Dreamflange data;
+
+==========================================================================================================================
+News, downloads and updates: 	https://www.patreon.com/thmod/about
+Mirror:							https://www.moddb.com/mods/diablo-the-hell-4
+Community (discord): 			https://discord.gg/AN9NukZFbN
+If you wish to participate in development (C++ coder, composer, animator), DM me in Discord (_Mordor) or email ( diablothehell@gmail.com )
