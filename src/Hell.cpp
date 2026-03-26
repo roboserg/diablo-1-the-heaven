@@ -3490,7 +3490,7 @@ int __cdecl DialogDirectConnection( HWND hDlg, unsigned int Msg, WPARAM wParam, 
 	InitSelectionAndLoadPentagram( "ui_art\\focus16.pcx" );
 	SDlgSetTimer( hDlg, 1, 55, 0 );
 	InitDialogSurface( hDlg );
-	InitDialogAnimTitle( hDlg, "ui_art\\th4_logo_v1.pcx" );
+	InitDialogAnimTitle( hDlg, "ui_art\\th_logo.pcx" );
 	AnimateDialogTitle( hDlg );
 	SDlgSetTimer( hDlg, 2, 55, 0 );
 	dlgData = AllocTextWin();
@@ -5643,9 +5643,9 @@ int __stdcall DialogMainMenu( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM
 		if( dlgData_1 ){
 			SetWindowLongA( hdlg, GWL_USERDATA, (LONG) dlgData_1 );
 			isFullGame = GetIsShareware() == 0;
-			menuBackground = "ui_art\\swmmenu.pcx";
+			menuBackground = "ui_art\\black.pcx";
 			if( isFullGame ){
-				menuBackground = "ui_art\\mainmenu.pcx";
+				menuBackground = "ui_art\\black.pcx";
 			}
 			LoadDialogBackground( hdlg, 0, &ZeroString_, -1, 1, menuBackground, &dlgData_2->surface, &dlgData_2->size, 0 );
 			CheckPressKey( hdlg, 1 );
@@ -5657,7 +5657,7 @@ int __stdcall DialogMainMenu( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM
 		InitSelectionAndLoadPentagram( "ui_art\\focus42.pcx" );
 		SDlgSetTimer( hdlg, 1, 55, 0 );
 		InitDialogSurface( hdlg );
-		InitDialogAnimTitle( hdlg, "ui_art\\th4_logo_v1.pcx" );
+		InitDialogAnimTitle( hdlg, "ui_art\\th_logo.pcx" );
 		AnimateDialogTitle( hdlg );
 		SDlgSetTimer( hdlg, 2, 55, 0 );
 		SetYesNoButtonListProc( hdlg, MainMenuButtonList );
@@ -6041,7 +6041,7 @@ int __stdcall SelectDialup( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM l
 		return SDlgDefDialogProc_( hdlg, Msg, wParam, lParam );
 	}
 	InitDialogSurface( hdlg );
-	InitDialogAnimTitle( hdlg, "ui_art\\th4_logo_v1.pcx" );
+	InitDialogAnimTitle( hdlg, "ui_art\\th_logo.pcx" );
 	AnimateDialogTitle( hdlg );
 	SDlgSetTimer( hdlg, 2, 55, 0 );
 	dialupWinText = AllocTextWin();
@@ -8109,7 +8109,7 @@ void __fastcall InitSelectConnection( HWND hdlg )
 	InitSelectionAndLoadPentagram( "ui_art\\focus16.pcx" );
 	SDlgSetTimer( hdlg, 1, 55, 0 );
 	InitDialogSurface( hdlg );
-	InitDialogAnimTitle( hdlg, "ui_art\\th4_logo_v1.pcx" );
+	InitDialogAnimTitle( hdlg, "ui_art\\th_logo.pcx" );
 	AnimateDialogTitle( hdlg );
 	SDlgSetTimer( hdlg, 2, 55, 0 );
 	textWin = AllocTextWin();
@@ -9306,7 +9306,7 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 		{
 			MenuLoadCharSlots( hdlg );
 			InitDialogSurface( hdlg );
-			InitDialogAnimTitle( hdlg, "ui_art\\th4_logo_v1.pcx" );
+			InitDialogAnimTitle( hdlg, "ui_art\\th_logo.pcx" );
 			AnimateDialogTitle( hdlg );
 			SDlgSetTimer( hdlg, 2, 55, 0 );
 			TextWin* heroDialogWin = AllocTextWin();
@@ -10994,7 +10994,7 @@ void __fastcall EnumerateIpxGames( HWND hdlg )
 	InitSelectionAndLoadPentagram( "ui_art\\focus16.pcx" );
 	SDlgSetTimer( hdlg_1, 1, 55, 0 );
 	InitDialogSurface( hdlg_1 );
-	InitDialogAnimTitle( hdlg_1, "ui_art\\th4_logo_v1.pcx" );
+	InitDialogAnimTitle( hdlg_1, "ui_art\\th_logo.pcx" );
 	AnimateDialogTitle( hdlg_1 );
 	SDlgSetTimer( hdlg_1, 2, 55, 0 );
 	textWin = AllocTextWin();
@@ -13872,7 +13872,7 @@ int __stdcall DialogTitleScreen( HWND hDlg, unsigned int msg, WPARAM wParam, LPA
 	textWin_1 = AllocTextWin();
 	SetWindowLongA( hDlg, GWL_USERDATA, (LONG) textWin_1 );
 	if( textWin_1 ){
-		LoadDialogBackground( hDlg, 0, &ZeroString_, -1, 1, "ui_art\\hf_title.pcx", &textWin_1->surface, &textWin_1->size, 0 );
+		LoadDialogBackground( hDlg, 0, &ZeroString_, -1, 1, "ui_art\\black.pcx", &textWin_1->surface, &textWin_1->size, 0 );
 		CheckPressKey( hDlg, 0 );
 	}
 	InitTextElemList( hDlg, TitleDialogList, 3 );

@@ -775,9 +775,6 @@ int getPlayerPerksPointsLeft(PERK_TYPE perkType /*= PERK_TYPE_COMMON*/)
 		}else if( HasTrait(CurrentPlayerIndex, TraitId::GrimDeal) ){
 			perkPointsGiven = (clvl - 1) * 2;
 		}else{
-			// 1: 1 - 1 = 0
-			// 2: 2 - 1 = 1
-			// 3: 3 - 1 = 2
 			perkPointsGiven = clvl - 1 + PerkValue(SYNERGY_INFERNAL_BARGAIN, CurrentPlayerIndex, 0);
 		}
 

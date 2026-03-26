@@ -234,7 +234,7 @@ This GC makes you go back to those roots.",
     /*GC_25*/
 "Acceleration\n\n\n\
 Makes game easier\n\n\
-Experience is increased 2x.",
+Experience is increased 5x.",
 
     /*GC_26*/
 "Asceticism\n\n\n\
