@@ -2,7 +2,7 @@
 
 <img src="docs/logo.png" width="300" alt="Diablo: The Heaven Logo">
 
-A streamlined, quality-of-life enhanced Diablo 1 mod based on **The Hell 4 v0.208** source code from [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 source files that were publicly released by [The Hell team](https://www.patreon.com/thmod).
+A streamlined, quality-of-life enhanced Diablo 1 mod based on **The Hell 4 v0.208** source code.
 
 > This mod should be compatible with later versions of The Hell 4 mod, until it's not. Save files created in The Hell 4 mod are **not compatible** with this mod. For The Hell 4 documentation, see [TH4_Changelog.txt](docs/legacy/TH4_Changelog.txt) and [TH4_Readme.txt](docs/legacy/TH4_Readme.txt).
 
@@ -42,3 +42,7 @@ This mod support improved development experience compared to the original source
 * Easy one-command builds via `build.ps1`
 
 See [BUILD.md](docs/BUILD.md) for detailed build instructions.
+
+## Credits
+
+Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 source files that were publicly released by [The Hell team](https://www.patreon.com/thmod).

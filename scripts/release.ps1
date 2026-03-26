@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     Builds and publishes a GitHub release for Diablo: The Heaven.
@@ -65,7 +65,7 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 Write-Ok "GitHub CLI found"
 
 # Check tag doesn't already exist
-$existingTag = gh release view $tag 2>&1
+gh release view $tag | Out-Null
 if ($LASTEXITCODE -eq 0) {
     Fail "Release $tag already exists on GitHub. Bump the version first."
 }
@@ -76,7 +76,8 @@ Write-Ok "Tag $tag is available"
 Write-Step "Extracting release notes from docs/CHANGELOG.md"
 
 $changelog = Get-Content "docs/CHANGELOG.md" -Raw
-$match = [regex]::Match($changelog, "## \[$Version\].*?\n([\s\S]*?)(?=\n## \[|\z)")
+$pattern = '## \[' + $Version + '\].*?\n([\s\S]*?)(?=\n## \[|\z)'
+$match = [regex]::Match($changelog, $pattern)
 if (-not $match.Success) {
     Write-Warn "No changelog entry found for [$Version] — release notes will be empty"
     $releaseNotes = "_No release notes provided._"
@@ -112,11 +113,12 @@ Write-Step "Creating GitHub release $tag"
 if ($DryRun) {
     Write-Warn "DryRun mode — skipping gh release create"
     Write-Host "`nWould run:" -ForegroundColor DarkGray
-    Write-Host "  gh release create `"$tag`" <$($buildFiles.Count) files> -t `"$tag`" -n `"...`"" -ForegroundColor DarkGray
+    Write-Host "  gh release create `"$tag`" $($buildFiles.Count) files -t `"$tag`" -n `"...`"" -ForegroundColor DarkGray
 } else {
     gh release create $tag @buildFiles --title $tag --notes $releaseNotes
     if ($LASTEXITCODE -ne 0) { Fail "gh release create failed" }
     Write-Ok "Release published: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$tag"
 }
 
-Write-Host "`nDone!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Done!" -ForegroundColor Green

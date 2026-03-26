@@ -1,5 +1,5 @@
 $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
-$config = if ($args[0]) { $args[0] } else { "Release" }
+$config = if ($args.Count -gt 0) { $args[0] } else { "Release" }
 
 & $msbuild TheHeaven.sln /p:Configuration=$config /p:Platform=Win32
 
@@ -8,7 +8,3 @@ if (Test-Path "Release") {
     Remove-Item -Recurse -Force "Release"
 }
 
-# Copy mod data files to build output
-if (Test-Path "res/thdata") {
-    Copy-Item -Recurse -Force "res/thdata/*" "build/"
-}
