@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     Reads version from tools/version.h, extracts release notes from docs/CHANGELOG.md,
-    builds the project, and creates a GitHub release with all files from the build folder.
+    builds the project, packages release files into a zip, and creates a GitHub release.
 
 .PARAMETER Version
     Optional version override (e.g. "0.0.1"). If not provided, reads from tools/version.h.
@@ -94,17 +94,58 @@ Write-Step "Building release"
 if ($LASTEXITCODE -ne 0) { Fail "Build failed — aborting release" }
 Write-Ok "Build succeeded"
 
-# ── Collect build artifacts ──────────────────────────────────────────────────
+# ── Package release zip ──────────────────────────────────────────────────────
 
-Write-Step "Collecting build artifacts"
+Write-Step "Packaging release zip"
 
 if (-not (Test-Path "build")) { Fail "build/ folder not found after build step" }
 
-$buildFiles = Get-ChildItem "build" -Recurse -File | ForEach-Object { $_.FullName }
-if ($buildFiles.Count -eq 0) { Fail "build/ folder is empty — nothing to release" }
+# Files to include in the release zip
+# Standard.sn2 is required for multiplayer (Battle.net-style networking)
+$releaseFiles = @(
+    "TheHeaven.exe",
+    "Strm2.dll",
+    "SmackW32.DLL",
+    "config.ini",
+    "Standard.sn2"
+)
 
-Write-Ok "Files to upload:"
-$buildFiles | ForEach-Object { Write-Host "    $_" }
+$zipName = "DiabloTheHeaven-$tag.zip"
+$zipPath = "$PSScriptRoot\..\$zipName"
+
+# Verify all required files/folders exist
+foreach ($f in $releaseFiles) {
+    $fullPath = "build\$f"
+    if (-not (Test-Path $fullPath)) {
+        Write-Warn "Expected release file not found, skipping: $fullPath"
+    }
+}
+
+# Build the zip
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
+
+foreach ($f in $releaseFiles) {
+    $fullPath = Resolve-Path "build\$f" -ErrorAction SilentlyContinue
+    if (-not $fullPath) { continue }
+
+    if (Test-Path $fullPath -PathType Container) {
+        # Add folder contents recursively
+        Get-ChildItem $fullPath -Recurse -File | ForEach-Object {
+            $entryName = $_.FullName.Substring((Resolve-Path "build").Path.Length + 1)
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName) | Out-Null
+        }
+    } else {
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $fullPath, $f) | Out-Null
+    }
+}
+
+$zip.Dispose()
+
+$zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+Write-Ok "Created $zipName ($zipSize MB)"
 
 # ── Create release ───────────────────────────────────────────────────────────
 
@@ -113,9 +154,9 @@ Write-Step "Creating GitHub release $tag"
 if ($DryRun) {
     Write-Warn "DryRun mode — skipping gh release create"
     Write-Host "`nWould run:" -ForegroundColor DarkGray
-    Write-Host "  gh release create `"$tag`" $($buildFiles.Count) files -t `"$tag`" -n `"...`"" -ForegroundColor DarkGray
+    Write-Host "  gh release create `"$tag`" `"$zipPath`" --title `"$tag`" --notes `"...`"" -ForegroundColor DarkGray
 } else {
-    gh release create $tag @buildFiles --title $tag --notes $releaseNotes
+    gh release create $tag $zipPath --title $tag --notes $releaseNotes
     if ($LASTEXITCODE -ne 0) { Fail "gh release create failed" }
     Write-Ok "Release published: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$tag"
 }

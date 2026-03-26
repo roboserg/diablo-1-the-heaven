@@ -302,6 +302,7 @@ void OpenGameArchives()
 	hellgfxMPQPtr	= OpenMPQ( MpqPath_7, "\\TH4data.mor",	InstallKey, 8500, 0 );
 	hellmfMPQPtr	= OpenMPQ( MpqPath_8, "\\THmusic.mor",	InstallKey, 8600, 0 );
 	th2devMPQPtr	= OpenMPQ( MpqPath_dev, "\\th2dev.mpq",	InstallKey, 8700, 0 );  // dev mpq
+	SFileEnableDirectAccess( 1 ); // allow loose files in game folder to override MPQ content
 }
 
 // потом в storm.dll перебираются все открытые mpq каждый раз по очереди
