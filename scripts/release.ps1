@@ -75,7 +75,7 @@ Write-Ok "Tag $tag is available"
 
 Write-Step "Extracting release notes from docs/CHANGELOG.md"
 
-$changelog = Get-Content "docs/CHANGELOG.md" -Raw
+$changelog = Get-Content "docs/CHANGELOG.md" -Raw -Encoding UTF8
 $pattern = '## \[' + $Version + '\].*?\n([\s\S]*?)(?=\n## \[|\z)'
 $match = [regex]::Match($changelog, $pattern)
 if (-not $match.Success) {
@@ -90,7 +90,7 @@ if (-not $match.Success) {
 
 Write-Step "Building release"
 
-& ".\build.ps1"
+& "$PSScriptRoot\build.ps1"
 if ($LASTEXITCODE -ne 0) { Fail "Build failed — aborting release" }
 Write-Ok "Build succeeded"
 
@@ -156,9 +156,17 @@ if ($DryRun) {
     Write-Host "`nWould run:" -ForegroundColor DarkGray
     Write-Host "  gh release create `"$tag`" `"$zipPath`" --title `"$tag`" --notes `"...`"" -ForegroundColor DarkGray
 } else {
-    gh release create $tag $zipPath --title $tag --notes $releaseNotes
-    if ($LASTEXITCODE -ne 0) { Fail "gh release create failed" }
-    Write-Ok "Release published: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$tag"
+    $notesFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($notesFile, $releaseNotes, [System.Text.Encoding]::UTF8)
+    try {
+        gh release create $tag $zipPath --title $tag --notes-file $notesFile
+        if ($LASTEXITCODE -ne 0) { Fail "gh release create failed" }
+        Write-Ok "Release published: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$tag"
+        Remove-Item $zipPath -Force
+        Write-Ok "Removed local $zipName"
+    } finally {
+        Remove-Item $notesFile -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Host ""
