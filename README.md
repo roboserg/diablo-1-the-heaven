@@ -18,7 +18,7 @@ A The Hell 4 experience but with less grind and more fun! Given how hard The Hel
 * **Psion Aura**: Damage output ~50% higher due to improved scaling formula (reverted to The Hell 2 levels)
 * **Grim Deal Trait**: Fixed undocumented spell damage penalty that was silently reducing all spell damage
 
-For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.md).
+For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.md). For a full list of quests and objectives, see [QUESTS](docs/QUESTS.md).
 
 ## Installation
 
