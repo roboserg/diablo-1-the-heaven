@@ -427,10 +427,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& (!HasTrait(playerIndex, TraitId::ThickSkinned)) 
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
 		case SYNERGY_DEATH_DENIER:			available = !(player.gameChanger & BIT(GC_9_NIGHT_KIN)); break;
-		// Bargain turned off completely, below is an impossible condition
-		case SYNERGY_INFERNAL_BARGAIN:		available = HasTrait(playerIndex, TraitId::Paladin) && HasTrait(playerIndex, TraitId::Hydramancer) && HasTrait(playerIndex, TraitId::Barbarism)
-											&& (!(HasTrait(playerIndex, TraitId::Skilled, TraitId::GrimDeal, TraitId::Barbarian, TraitId::Mamluk)))
-											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
+		case SYNERGY_INFERNAL_BARGAIN:		available = true; break;
 		case SYNERGY_ENERGY_FIELD:			available = !HasTrait(playerIndex, TraitId::Mamluk); break;
 		case SYNERGY_MESSENGER_OF_DEATH:
 		case SYNERGY_DEEP_WOUNDS:

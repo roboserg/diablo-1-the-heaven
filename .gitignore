@@ -12,3 +12,5 @@ Cheats/
 /src/thehell3.rc
 .claude
 CLAUDE.md
+*.pyc
+__pycache__

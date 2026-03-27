@@ -12,11 +12,14 @@ A The Hell 4 experience but with less grind and more fun! Given how hard The Hel
 
 ### Balance Adjustment Examples:
 * **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
+* **Independent Rare Item Drops**: Rare items now have their own drop chance (2% for mobs, 3% for bosses) separate from unique items, matching Diablo 2's priority chain
+* **Rare Item Affixes Buffed**: All rare item affix values are now higher (×1.25 for low/mid tier, ×1.5 for high tier)
 * **Acceleration Game Changer**: Experience multiplier increased from 2x to 5x (single-player, Easy mode)
 * **Swift Learner Perk**: XP gain per level increased from +5% to +20%
 * **Black Mushroom Quest**: Spectral Elixir now grants +5 to all stats in non-Classic modes
 * **Psion Aura**: Damage output ~50% higher due to improved scaling formula (reverted to The Hell 2 levels)
 * **Grim Deal Trait**: Fixed undocumented spell damage penalty that was silently reducing all spell damage
+* **Infernal Bargain Synergy**: Re-enabled for all classes. Trades life & mana regeneration and all stats for extra perk points
 
 For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.md). For a full list of quests and objectives, see [QUESTS](docs/QUESTS.md).
 

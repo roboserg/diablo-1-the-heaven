@@ -2,6 +2,13 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
+## [0.0.3] - 2026-03-27
+
+### Added
+- **Independent rare item drops**: Rare items now have their own drop chance (2% for mobs, 3% for bosses) separate from unique items, matching Diablo 2's priority chain: unique > rare > magic > normal.
+- **Rare Item Affixes Buffed**: All rare item affix values are now higher (×1.25 for low/mid tier, ×1.5 for high tier, quality ≥ 50). High-tier affixes are twice as likely to be selected and eligible on a wider range of item levels.
+- **Infernal Bargain Synergy**: Re-enabled for all classes. The synergy trades life & mana regeneration and all stats for extra perk points.
+
 ## [0.0.2] - 2026-03-27
 
 ### Changed

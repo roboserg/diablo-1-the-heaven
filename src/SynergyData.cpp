@@ -334,11 +334,11 @@ Perk SynergyPerks[] = {
 	} },
 
 	{ SYNERGY_INFERNAL_BARGAIN, {"    get %i more perk points,","life & mana regeneration::    decreased by %i,","    all stats decreased by %i"}, "Infernal Bargain", {// ?
-		{ 13, IPCM_ANY_WARRIOR & ~IPCM_TEMPLAR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE & ~IPCM_WARLOCK | IPCM_ANY_MONK | IPCM_ANY_ROGUE | IPCM_ANY_SAVAGE & ~IPCM_EXECUTIONER,											{PERK_GAIN_MAGIC, 1, PERK_GAIN_VITALITY, 1}/*perk*/, {}/*spell*/, 0,0,0,30/*sdmv*/,  5,  2,  2 },
-		{ 21, IPCM_ANY_WARRIOR & ~IPCM_TEMPLAR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE & ~IPCM_WARLOCK | IPCM_ANY_MONK | IPCM_ANY_ROGUE | IPCM_ANY_SAVAGE & ~IPCM_EXECUTIONER,											{PERK_GAIN_MAGIC, 2, PERK_GAIN_VITALITY, 2}/*perk*/, {}/*spell*/, 0,0,0,40/*sdmv*/, 10,  4,  4 },
-		{ 29, IPCM_ANY_WARRIOR & ~IPCM_TEMPLAR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE & ~IPCM_WARLOCK | IPCM_ANY_MONK | IPCM_ANY_ROGUE | IPCM_ANY_SAVAGE & ~IPCM_EXECUTIONER,											{PERK_GAIN_MAGIC, 3, PERK_GAIN_VITALITY, 3}/*perk*/, {}/*spell*/, 0,0,0,50/*sdmv*/, 15,  6,  6 },
-		{ 34, IPCM_ANY_WARRIOR & ~IPCM_TEMPLAR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE & ~IPCM_WARLOCK | IPCM_ANY_MONK | IPCM_ANY_ROGUE | IPCM_SAVAGE | IPCM_BERSERKER | IPCM_THRAEX | IPCM_DIMACHAERUS | IPCM_SECUTOR,	{PERK_GAIN_MAGIC, 4, PERK_GAIN_VITALITY, 4}/*perk*/, {}/*spell*/, 0,0,0,60/*sdmv*/, 20,  8,  8 },
-		{ 38, IPCM_ANY_WARRIOR & ~IPCM_TEMPLAR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE & ~IPCM_WARLOCK | IPCM_ANY_MONK | IPCM_ANY_ROGUE | IPCM_SAVAGE | IPCM_BERSERKER | IPCM_THRAEX | IPCM_SECUTOR,						{PERK_GAIN_MAGIC, 5, PERK_GAIN_VITALITY, 5}/*perk*/, {}/*spell*/, 0,0,0,70/*sdmv*/, 25, 10, 10 },
+		{ 13, IPCM_ALL_CLASSES,																								{PERK_GAIN_MAGIC, 1, PERK_GAIN_VITALITY, 1}/*perk*/, {}/*spell*/, 0,0,0,30/*sdmv*/,  5,  2,  2 },
+		{ 21, IPCM_ALL_CLASSES,																								{PERK_GAIN_MAGIC, 2, PERK_GAIN_VITALITY, 2}/*perk*/, {}/*spell*/, 0,0,0,40/*sdmv*/, 10,  4,  4 },
+		{ 29, IPCM_ALL_CLASSES,																								{PERK_GAIN_MAGIC, 3, PERK_GAIN_VITALITY, 3}/*perk*/, {}/*spell*/, 0,0,0,50/*sdmv*/, 15,  6,  6 },
+		{ 34, IPCM_ALL_CLASSES,																								{PERK_GAIN_MAGIC, 4, PERK_GAIN_VITALITY, 4}/*perk*/, {}/*spell*/, 0,0,0,60/*sdmv*/, 20,  8,  8 },
+		{ 38, IPCM_ALL_CLASSES,																								{PERK_GAIN_MAGIC, 5, PERK_GAIN_VITALITY, 5}/*perk*/, {}/*spell*/, 0,0,0,70/*sdmv*/, 25, 10, 10 },
 	} },
 
 	{ SYNERGY_PERSEVERANCE, {"    extra %i%% chance to::avoid getting stunned"}, "Perseverance", {//ok

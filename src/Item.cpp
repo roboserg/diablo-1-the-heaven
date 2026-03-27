@@ -9237,8 +9237,10 @@ void __fastcall SetRandomDurability(int itemIndex)
 	}
 }
 
-enum DROP_CHANCE { ChanceMagicBase = 5, ChanceUniqueMob = 1, MagicFindUniqueDiv = 4 };
+enum DROP_CHANCE { ChanceMagicBase = 50, ChanceUniqueMob = 1, MagicFindUniqueDiv = 4,
+                   ChanceRareBase = 20, BossRareMultiplier = 3 }; // all values are X/1000
 constexpr int ChanceUniqueBoss[CurItemGenVersion + 1] = { 10, 10, 6, 6, 10, 10, 6, 8 }; // last value is current chance
+
 //----- (004272CE) - Item regeneration from seed info, should not have any player specific filters
 void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int qlvl, int chanceInPercent, int IsGoodMagicItem, int allowDup, int pregen, bool identified, int playerMask, int magicFind, int rare, int genVersion, int uniqIndex, uchar difficulty, uchar magicLevel /*= 0*/ )
 {
@@ -9289,7 +9291,7 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 		}
 	}else{
 		int itemQuality = -1;
-		int magicChance = ChanceMagicBase * 10;
+		int magicChance = ChanceMagicBase;
 		if( magicFind ){
 			magicChance += magicChance * magicFind / 100;
 		}
@@ -9320,7 +9322,21 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 				uniqueItemIndex = SelectRandomUnique(itemIndex, itemQuality, uniqueChance, true); // unique chance
 				//if( uniqueItemIndex == -1 && ! rare && magicLevel == 0) __debugbreak();
 				if( (uniqueItemIndex == -1 && DropRares && GameMode != GM_CLASSIC && magicLevel != ML_1_MAGIC) || rare ){ // rare flag is for existing items
-					InitRare(itemIndex, itemQuality / 2, itemQuality, uniqueChance, IsGoodMagicItem);
+					InitRare(itemIndex, itemQuality / 4, itemQuality, uniqueChance, IsGoodMagicItem);
+					rare = 1;
+				}
+			}
+			// Independent rare roll - only fires when unique roll failed outright
+			if (!rare && DropRares && GameMode != GM_CLASSIC && magicLevel != ML_1_MAGIC) {
+				int rareChance = ChanceRareBase;
+				if (chanceInPercent == ChanceUniqueBoss[genVersion]) {
+					rareChance *= BossRareMultiplier;
+				}
+				if (magicFind) {
+					rareChance += rareChance * magicFind / 100 / MagicFindUniqueDiv;
+				}
+				if (rareChance >= RNG(1000)) {
+					InitRare(itemIndex, itemQuality / 2, itemQuality, rareChance, IsGoodMagicItem);
 					rare = 1;
 				}
 			}
