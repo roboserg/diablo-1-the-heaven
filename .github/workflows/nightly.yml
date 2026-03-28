@@ -40,7 +40,7 @@ jobs:
           "@ | Set-Content personal.props
 
       - name: Build Release
-        run: msbuild TheHeaven.sln /p:Configuration=Release /p:Platform=Win32 /p:GameFolder=.\artifact
+        run: msbuild TheHeaven.sln /p:Configuration=Release /p:Platform=Win32 /p:GameFolder=.\artifact /p:PlatformToolset=v143
 
       - name: Gather distributables
         shell: pwsh
