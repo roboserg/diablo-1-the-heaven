@@ -17,6 +17,28 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
+      - name: Create personal.props for CI
+        shell: pwsh
+        run: |
+          @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <PropertyGroup Label="UserMacros">
+              <GameFolder>${{ github.workspace }}\artifact\</GameFolder>
+              <FxCopDir></FxCopDir>
+            </PropertyGroup>
+            <PropertyGroup>
+              <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+              <XPDeprecationWarning>false</XPDeprecationWarning>
+            </PropertyGroup>
+            <ItemGroup>
+              <BuildMacro Include="GameFolder">
+                <Value>`$(GameFolder)</Value>
+              </BuildMacro>
+            </ItemGroup>
+          </Project>
+          "@ | Set-Content personal.props
+
       - name: Build Release
         run: msbuild TheHeaven.sln /p:Configuration=Release /p:Platform=Win32 /p:GameFolder=.\artifact
 
