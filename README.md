@@ -1,14 +1,16 @@
-# Diablo: The Heaven
+<div align="center">
+  <img src="docs/logo.png" width="400" alt="Diablo: The Heaven Logo">
 
-<img src="docs/logo.png" width="300" alt="Diablo: The Heaven Logo">
+  <sub>The Hell 4 experience, but with less grind and more fun!</sub>
 
-A streamlined, quality-of-life enhanced Diablo 1 mod based on **The Hell 4 v0.208** source code.
+  ### [⬇️ Download Latest Release](https://github.com/roboserg/diablo-1-the-heaven/releases)
 
-> This mod should be compatible with later versions of The Hell 4 mod, until it's not. Save files created in The Hell 4 mod are **not compatible** with this mod. For The Hell 4 documentation, see [TH4_Changelog.txt](docs/legacy/TH4_Changelog.txt) and [TH4_Readme.txt](docs/legacy/TH4_Readme.txt).
+  <a href="https://www.buymeacoffee.com/roboserg" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="40"></a>
+</div>
 
 ## About
 
-A The Hell 4 experience but with less grind and more fun! Given how hard The Hell 4 mod is, this mod is still harder then the vanilla Diablo 1 game, just with less grind.
+A quality-of-life mod built on The Hell 4. Retains the challenge and depth of TH4 while cutting the tedious grind.
 
 ### Balance Adjustment Examples:
 * **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
@@ -23,11 +25,13 @@ A The Hell 4 experience but with less grind and more fun! Given how hard The Hel
 
 For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.md). For a full list of quests and objectives, see [QUESTS](docs/QUESTS.md).
 
+> This mod should be compatible with later versions of The Hell 4 mod, until it's not. Save files created in The Hell 4 mod are **not compatible** with this mod. For The Hell 4 documentation, see [TH4_Changelog.txt](docs/legacy/TH4_Changelog.txt) and [TH4_Readme.txt](docs/legacy/TH4_Readme.txt).
+
 ## Installation
 
 ### Case 1: Fresh Installation (TH4 not installed)
 
-1. **Set up your mod directory** — You only need `DIABDAT.MPQ` from the original Diablo 1 game
+1. **Set up your mod directory** — You only need `DIABDAT.MPQ` from Diablo 1
    - **Option A:** Use your existing Diablo 1 installation directory
    - **Option B:** Create a new "Diablo The Heaven" folder and copy `DIABDAT.MPQ` there
 
@@ -47,13 +51,24 @@ For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.m
 
 3. **Run `TheHeaven.exe`** and enjoy!
 
+### Nightly Builds (Latest Features, May Have Bugs)
+
+Want to try the newest features right away? Download the **`nightly`** build from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases). It's updated automatically with the latest changes, but may be unstable. For a safer experience, stick with regular versioned releases like `v0.0.4`.
+
 ## Planned changes
 
-* Additional QoL improvements and rebalanced gameplay for a more streamlined experience
+* Hotkey for quick save/load (where game mode allows)
+* Remove negative penalties from unique items
+* Sockets for magic and rare items
+* Unsocket items
+* Town portal in the center of town
+* Chest in the center of town
+* Re-roll affixes on magic and rare items
+* Item sharing in multiplayer
 
 ## Build
 
-This mod support improved development experience compared to the original source code:
+Improved development experience vs. the original source:
 * Updated build system for modern Windows environments using **VS Code** (Visual Studio no longer required)
 * Cleaned up codebase (removed dev tools and legacy files)
 * Easy one-command builds via `build.ps1`
