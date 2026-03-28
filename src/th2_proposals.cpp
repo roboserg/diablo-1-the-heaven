@@ -43,25 +43,58 @@ void __fastcall GoldAutoPickup(int playerIndex)
 	int playerRow, playerCol;
 	playerRow = player.Row;
 	playerCol = player.Col;
-	for( int orient = 0; orient < 9; ++orient ){
-		if( orient < 8 ){ 
-			int orientDif = abs( player.dir - orient);
-			if( orientDif >= 3 && orientDif <= 5 ) continue; // с 3 клеток за спиной золото автоматом не подбираем
-		}
-		int row = playerRow + RowDelta[orient];
-		int col = playerCol + ColDelta[orient];
-		int itemNum = ItemMap[ row ][ col ]; 
-		if( itemNum > 0 ){
-			int itemIndex = itemNum - 1;
-			Item& item = Items[ itemIndex ];
-			if( item.ItemCode == IC_11_GOLD && ! item.gottenFromLand ){
-				if( ! HasSpaceForGold( playerIndex, item.amount ) ) return;
-                NetSendCmdGItem( 1, CMD_39_REQUESTGITEM, CurrentPlayerIndex, CurrentPlayerIndex, itemIndex );
-				//track_repeat_walk( false );
-				Items[ itemIndex ].gottenFromLand = 1;
-				PlayLocalSound( Flip_DropSound[ ItemFlipTable[ item.GraphicValue ] ], row, col );
-				//ItemsOnGroundMap[ row ][ col ] = 0;
-				break;
+	for( int dRow = -2; dRow <= 2; ++dRow ){
+		for( int dCol = -2; dCol <= 2; ++dCol ){
+			// Skip center tile
+			if( dRow == 0 && dCol == 0 ) continue;
+
+			// Map (dRow, dCol) to orientation (0-7) for directional exclusion
+			int orient = 8;
+			if( dRow == 1 && dCol == 1 ) orient = 0;
+			else if( dRow == 0 && dCol == 1 ) orient = 1;
+			else if( dRow == -1 && dCol == 1 ) orient = 2;
+			else if( dRow == -1 && dCol == 0 ) orient = 3;
+			else if( dRow == -1 && dCol == -1 ) orient = 4;
+			else if( dRow == 0 && dCol == -1 ) orient = 5;
+			else if( dRow == 1 && dCol == -1 ) orient = 6;
+			else if( dRow == 1 && dCol == 0 ) orient = 7;
+			else {
+				// For distance-2 tiles, find nearest orientation by quadrant
+				if( dRow > 0 ){
+					if( dCol > 0 ) orient = 0; // Down-right
+					else if( dCol < 0 ) orient = 6; // Down-left
+					else orient = 7; // Down
+				} else if( dRow < 0 ){
+					if( dCol > 0 ) orient = 2; // Up-right
+					else if( dCol < 0 ) orient = 4; // Up-left
+					else orient = 3; // Up
+				} else { // dRow == 0
+					if( dCol > 0 ) orient = 1; // Right
+					else if( dCol < 0 ) orient = 5; // Left
+				}
+			}
+
+			// Apply directional exclusion (skip tiles directly behind player)
+			if( orient < 8 ){
+				int orientDif = abs( player.dir - orient);
+				if( orientDif >= 3 && orientDif <= 5 ) continue;
+			}
+
+			int row = playerRow + dRow;
+			int col = playerCol + dCol;
+			int itemNum = ItemMap[ row ][ col ];
+			if( itemNum > 0 ){
+				int itemIndex = itemNum - 1;
+				Item& item = Items[ itemIndex ];
+				if( item.ItemCode == IC_11_GOLD && ! item.gottenFromLand ){
+					if( ! HasSpaceForGold( playerIndex, item.amount ) ) return;
+                    NetSendCmdGItem( 1, CMD_39_REQUESTGITEM, CurrentPlayerIndex, CurrentPlayerIndex, itemIndex );
+					//track_repeat_walk( false );
+					Items[ itemIndex ].gottenFromLand = 1;
+					PlayLocalSound( Flip_DropSound[ ItemFlipTable[ item.GraphicValue ] ], row, col );
+					//ItemsOnGroundMap[ row ][ col ] = 0;
+					break;
+				}
 			}
 		}
 	}
