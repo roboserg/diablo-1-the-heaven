@@ -2172,10 +2172,8 @@ int __fastcall LevelPointsToMax(int playerIndex)
 	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE)) { 
 		extra_mode_boost = clvl / 2 + 50;
 	}
-	maxStatSumCap = (10 * clvl) 
+	maxStatSumCap = ((10 * clvl) + 90 + (2 * clvl / 3)) * 2
 		+ extra_mode_boost
-		+ 90
-		+ (2 * clvl / 3)
 		+ blueblood_limit_raise
 		+ gifted_limit
 		+ giant_limit
