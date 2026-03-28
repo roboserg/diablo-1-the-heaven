@@ -249,7 +249,16 @@ __forceinline char GetLetterColor(uchar mask, int colorIndex)
 			mask = 145 + ((mask - 240) >> 1);
 		}
 		break;
-	case C_12_Teal: if (mask >= 240) { mask -= 112; } break; // palette 128-143 range
+	case C_12_LightGold:
+		if (mask >= 240) {
+			if (mask >= 254) {
+				mask = 210;
+			}
+			else {
+				mask -= 36;
+			}
+		}
+		break; // light/whitish gold for holy water
 	}
 	return mask;
 }

@@ -5,6 +5,7 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 ## [0.0.4] - 2026-03-28
 
 ### Added
+- **Teleport and Mana Shield now usable in town**: Both spells can now be cast while in town.
 - **Perk Reset and Stat Reset services at Adria**: Adria now offers two new services via buttons in her shop: **Reset Perks** (refunds all spent perk points) and **Reset Stats** (refunds all spent stat points back to class starting values). Both cost `1000 × character level` gold.
 - **Type-Specific Floor Item Text Colors**: Potions, gems, relics, and rare items now display in distinctive colors for easier identification.
 

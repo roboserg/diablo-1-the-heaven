@@ -1541,7 +1541,7 @@ extern int MinDmgFromChar;
 extern int MaxDmgFromChar;
 
 extern void VisualTrade_ForEachPlayerItem(std::function<void(Item* item)> cb);
-constexpr bool SpellAnimInTown = false;
+constexpr bool SpellAnimInTown = true;
 extern bool CastColiseumPortal;
 extern ITEM_SLOT LastInvSlotPicked;
 extern bool FastInventoryItemSwap;

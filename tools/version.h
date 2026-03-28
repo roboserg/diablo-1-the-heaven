@@ -12,6 +12,6 @@
 
 
 
-#define CHEATS 0 // Set to false before release
+#define CHEATS 1 // Set to false before release
 
 

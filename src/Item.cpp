@@ -9933,15 +9933,15 @@ TEXT_COLOR ItemColor(const Item& item)
 	if(IsQuestItem(item.baseItemIndex)) return C_11_Quest;
 	if( item.ItemCode == IC_11_GOLD ) return C_3_Gold;
 	if( item.MagicCode == MC_2_POTION_OF_FULL_HEALING || item.MagicCode == MC_3_POTION_OF_HEALING ) return C_2_Red;
-	if( item.MagicCode == MC_6_POTION_OF_MANA || item.MagicCode == MC_7_POTION_OF_FULL_MANA ) return C_1_Blue;
-	if( item.MagicCode == MC_18_POTION_OF_REJUVENATION || item.MagicCode == MC_19_POTION_OF_FULL_REJUVENATION ) return C_10_Enchanted;
+	if( item.MagicCode == MC_6_POTION_OF_MANA || item.MagicCode == MC_7_POTION_OF_FULL_MANA ) return C_10_Enchanted;
+	if( item.MagicCode == MC_18_POTION_OF_REJUVENATION || item.MagicCode == MC_19_POTION_OF_FULL_REJUVENATION ) return C_3_Gold;
 	if( item.MagicCode == MC_GEM ) return C_4_Orange;
 	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_7_Grey;
 	if( item.MagicCode == MC_24_BOOKS ) return C_6_Brownish;
 	if( is(item.MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET) ){
 		if( item.SpellIndex == PS_5_IDENTIFY      ) return C_4_Orange;
 		if( item.SpellIndex == PS_2_HEALING        ) return C_2_Red;
-		if( item.SpellIndex == PS_37_MANA_RECHARGE ) return C_1_Blue;
+		if( item.SpellIndex == PS_37_MANA_RECHARGE ) return C_10_Enchanted;
 		return C_7_Grey;
 	}
 	switch( item.MagicLevel ){

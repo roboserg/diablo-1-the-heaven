@@ -8238,7 +8238,7 @@ void __fastcall ActTeleport(int missileIndex)
 	SomeWithTeleportAndTransparent(player.Row, player.Col);// установили прозрачность комнате с игроком
 	missile.value[0] = 1;
 	PlayerMap[ player.Row ][ player.Col ] = (uchar)missile.CasterIndex + 1;
-	if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){
+	if( Dungeon->genType || Dungeon->isQuest || Dungeon == DUN_0_TOWN /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){
 		ChangeLightPos(player.LightIndex, player.Row, player.Col);
 		ChangeVision(player.lightRadiusIdentificator, player.Row, player.Col);
 	}

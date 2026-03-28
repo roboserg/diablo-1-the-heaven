@@ -3277,37 +3277,9 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					case VK_48_0_KEY: // Alt + 0 Add 1 000 000 gold
 						SpawnSomething(BI_0_GOLD, PlayerRowPos, PlayerColPos, 0, 0, 0, 0, 1'000'000);
 						break;
-					case VK_82_R_KEY: //Alt + R test spell book drop randomness
-						if( CreateSpellBook( PlayerRowPos, PlayerColPos, -123, 0, 1 ) == -1 ){
-							ofstream gen("gen_"s + to_string(CurItemGenVersion), ios_base::app);
-							struct Sp { int spell; int count;} sp[PS_COUNT]; int sps = 0;
-							for( int i = 0; i < MaxItems_255; ++i ){
-								Item& item = Items[i];
-								if( item.MagicCode == MC_24_BOOKS ){
-									bool found = false;
-									for( int s = 0; s < sps; ++s ){
-										if( sp[s].spell == item.SpellIndex ){
-											++sp[s].count;
-											found = true;
-											break;
-										}
-									}
-									if( ! found ){
-										sp[sps].spell = item.SpellIndex;
-										sp[sps].count = 1;
-										++sps;
-									}
-								}
-							}
-							sort(sp, sp+sps, [](Sp& a, Sp& b) { return a.spell < b.spell; });
-							for( int s = 0; s < sps; ++s ){
-								gen << sp[s].count << ",0" << sp[s].spell << " ";
-							}
-							gen << endl;
-							InitItems();
-							memset(ItemMap, 0, sizeof( ItemMap ));
-						}
-						break;
+					case VK_82_R_KEY: { //Alt + R, drop a random spell book
+						CreateSpellBook( Players[CurrentPlayerIndex].Row + 1, Players[CurrentPlayerIndex].Col, -123, 0, 0 );
+						break; }
 						//free key to bind
 #endif
 					case VK_90_Z_KEY: // Alt + Z, переключение zoom
