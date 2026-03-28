@@ -1,0 +1,38 @@
+name: Nightly Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build Release
+        run: msbuild TheHeaven.sln /p:Configuration=Release /p:Platform=Win32 /p:GameFolder=.\artifact
+
+      - name: Gather distributables
+        shell: pwsh
+        run: |
+          Copy-Item lib/Strm2.dll, lib/SmackW32.DLL, lib/Standard.sn2, res/config.ini artifact/
+          Compress-Archive -Path artifact/* -DestinationPath TheHeaven-nightly.zip
+
+      - name: Upsert nightly release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
+          gh release create nightly TheHeaven-nightly.zip \
+            --prerelease \
+            --title "Nightly $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            --notes "Automated build from latest commit on \`main\`. Not a stable release."

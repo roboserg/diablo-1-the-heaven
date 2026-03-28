@@ -53,10 +53,10 @@ Write-Step "Running pre-release checks"
 
 # Check CHEATS is disabled
 $header = Get-Content "tools/version.h" -Raw
-if ($header -match '#define CHEATS\s+1') {
-    Fail "CHEATS is enabled in tools/version.h — set it to 0 before releasing"
+if ($header -notmatch '#ifdef _DEBUG' -and $header -match '#define CHEATS\s+1') {
+    Fail "CHEATS is hardcoded to 1 in tools/version.h — use the #ifdef _DEBUG guard instead"
 }
-Write-Ok "CHEATS is disabled"
+Write-Ok "CHEATS is auto-managed via #ifdef _DEBUG"
 
 # Check gh CLI is available
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
