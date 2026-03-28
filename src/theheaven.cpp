@@ -675,9 +675,9 @@ void __fastcall DropItemWithQlvlFilteredByMagicLevel( int itemIndex, int baseIte
 
 	// filter dropped item by magic level and qlvl
 	while( 1 ){
-		// not drop magic and rare with simple qlvl for magic and rare
+		// not drop magic with simple qlvl for magic; rares and uniques keep full qlvl
 		SetupAllItemsSmartdrop( itemIndex, baseItemIndex, seed, qlvl, chanceInProcent, IsGoodMagicItem, allowDup, isInternal, monster.Attackers );
-		if( *itemML != ML_1_MAGIC && !(Items[ itemIndex ].dropType & D_RARE) ){
+		if( *itemML != ML_1_MAGIC ){
 			return;
 		}
 		// not drop unique wit qlvlForMagicItem

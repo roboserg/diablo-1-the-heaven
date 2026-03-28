@@ -1512,7 +1512,8 @@ void __fastcall MakePlayerPath( int playerIndex, int row, int col, int endSpace	
 void __fastcall SyncPlrAnim( uint playerIndex	);//	Player		
 void __fastcall SyncInitPlrPos( int playerIndex	);//	Player		
 void __fastcall SyncInitPlr( int playerIndex	);//	Player		
-void __fastcall LimitPlayerStats( uint PlrIndex	);//	Player		
+void __fastcall LimitPlayerStats( uint PlrIndex	);//	Player
+PlayerStat GetStartStat( PLAYER_FULL_CLASS fullClassId, decltype(Player::traits) traits, int playerIndex );//	Player
 bool __fastcall ModifyPlayerStrength( int playerIndex, int modifyValue	);//	Player
 bool __fastcall ModifyPlayerMagic( int playerIndex, int modifyValue	);//	Player
 bool __fastcall ModifyPlayerDexterity( int playerIndex, int modifyValue	);//	Player
@@ -2262,6 +2263,8 @@ bool VisualTrade_GriswoldUpgradeAvailable();
 void VisualTrade_GriswoldUpgrade();
 uchar VisualTrade_GetGriswoldLevel();
 int VisualTrade_GetGriswoldUpgradePrice();
+void VisualTrade_ResetPerks();
+void VisualTrade_ResetStats();
 
 uint8_t __fastcall GetItemBackgroundColorType(const Item& item);
 

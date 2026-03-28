@@ -12,7 +12,9 @@ enum VisualTradeAction
     VTA_IdentifyAll,
     VTA_Restock,
     VTA_Upgrade,
-    
+    VTA_ResetPerks,
+    VTA_ResetStats,
+
     VTA_Count
 };
 
@@ -24,7 +26,7 @@ struct VisualTradeModeInfo
 
 const VisualTradeModeInfo VisualTradeModeInfos[VTM_Count] = {
     /* VTM_Blacksmith */{ {VTP_BlacksmithBasic, VTP_BlacksmithPremium}, {VTA_Repair, VTA_RepairAll, VTA_Restock, VTA_Upgrade} },
-    /* VTM_Witch      */{ {VTP_WitchBasic},                             {VTA_Recharge, VTA_RechargeAll, VTA_Restock} },
+    /* VTM_Witch      */{ {VTP_WitchBasic},                             {VTA_Recharge, VTA_RechargeAll, VTA_Restock, VTA_ResetPerks, VTA_ResetStats} },
     /* VTM_Gamble     */{ {VTP_GambleBasic},                            {} },
     /* VTM_Healer     */{ {VTP_HealerBasic},                            {} },
     /* VTM_Elder      */{ {},                                           {VTA_Identify, VTA_IdentifyAll} }
@@ -52,7 +54,9 @@ const VisualTradeActionInfo VisualTradeActionInfos[VTA_Count] = {
     /* VTA_Identify     */ { "Identify",        8 },
     /* VTA_IdentifyAll  */ { "Identify All",   24 },
     /* VTA_Restock      */ { "Restock",         4 },
-    /* VTA_Upgrade      */ { "Upgrade",        10 }
+    /* VTA_Upgrade      */ { "Upgrade",        10 },
+    /* VTA_ResetPerks   */ { "Reset Perks",     4 },
+    /* VTA_ResetStats   */ { "Reset Stats",     4 },
 };
 int VisualTrade_ExitButtonIcon = 9;
 
@@ -620,6 +624,24 @@ void __fastcall VisualTrade_MouseMove()
                     Tooltip_AddLine("Hotkey: R");
                 }
                     break;
+                case VTA_ResetPerks:
+                {
+                    Tooltip_AddLine("RESET PERKS");
+                    int price = 1000 * Players[CurrentPlayerIndex].CharLevel;
+                    sprintf(InfoPanelBuffer, "Cost: %i gold", price);
+                    Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
+                    Tooltip_AddLine("Resets all spent perk points");
+                }
+                    break;
+                case VTA_ResetStats:
+                {
+                    Tooltip_AddLine("RESET STATS");
+                    int price = 1000 * Players[CurrentPlayerIndex].CharLevel;
+                    sprintf(InfoPanelBuffer, "Cost: %i gold", price);
+                    Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
+                    Tooltip_AddLine("Resets all spent stat points");
+                }
+                    break;
                 case VTA_Upgrade:
                 {
                     if (VisualTrade_GriswoldUpgradeAvailable()) {
@@ -757,6 +779,12 @@ void VisualTrade_ActionButtonsMouseClick()
 					case VTA_Upgrade:
                         VisualTrade_GriswoldUpgrade();
 						break;
+                    case VTA_ResetPerks:
+                        VisualTrade_ResetPerks();
+                        break;
+                    case VTA_ResetStats:
+                        VisualTrade_ResetStats();
+                        break;
                 }
                 PlayGlobalSound(S_75_I_TITLEMOV);
             }
@@ -1430,6 +1458,49 @@ uchar VisualTrade_GetGriswoldLevel()
 	Player& player = Players[CurrentPlayerIndex];
 	uchar griswoldLevel = player.griswoldLevel;
 	return griswoldLevel;
+}
+
+//----- (th4) -------------------------------------------------------------
+void VisualTrade_ResetPerks()
+{
+    Player& plr = Players[CurrentPlayerIndex];
+    int price = 1000 * plr.CharLevel;
+    if( plr.TotalGold < price ){
+        PlayGlobalSound(S_1515);
+        return;
+    }
+    ClearGoldByInventoryAsPrice(price);
+    for( int p = 0; p < PERKS_SYNERGY_MAX_750; ++p ){
+        if( plr.perk[p] != 0 ){
+            plr.perk[p] = 0;
+            NetSendCmdParam2(1, CMD_105_SETPERK, p, 0);
+        }
+    }
+    getAvailablePerksList();
+    PlayGlobalSound(S_1112_PERK_01);
+}
+
+//----- (th4) -------------------------------------------------------------
+void VisualTrade_ResetStats()
+{
+    Player& plr = Players[CurrentPlayerIndex];
+    int price = 1000 * plr.CharLevel;
+    if( plr.TotalGold < price ){
+        PlayGlobalSound(S_1515);
+        return;
+    }
+    ClearGoldByInventoryAsPrice(price);
+    const PlayerStat startStat = GetStartStat(plr.fullClassId, plr.traits, CurrentPlayerIndex);
+    int refund = (plr.BaseStrength  - startStat.Strength)
+               + (plr.BaseMagic     - startStat.Magic)
+               + (plr.BaseDexterity - startStat.Dexterity)
+               + (plr.BaseVitality  - startStat.Vitality);
+    ModifyPlayerStrength (CurrentPlayerIndex, startStat.Strength  - plr.BaseStrength);
+    ModifyPlayerMagic    (CurrentPlayerIndex, startStat.Magic     - plr.BaseMagic);
+    ModifyPlayerDexterity(CurrentPlayerIndex, startStat.Dexterity - plr.BaseDexterity);
+    ModifyPlayerVitality (CurrentPlayerIndex, startStat.Vitality  - plr.BaseVitality);
+    plr.AvailableLvlPoints += refund;
+    PlayGlobalSound(S_1112_PERK_01);
 }
 
 int VisualTrade_GetGriswoldUpgradePrice()
