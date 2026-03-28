@@ -2,6 +2,11 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
+## [0.0.4] - 2026-03-28
+
+### Changed
+- **Acceleration Game Changer**: Now available in all single-player game modes (previously Easy mode only)
+
 ## [0.0.3] - 2026-03-27
 
 ### Added

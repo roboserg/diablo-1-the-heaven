@@ -2341,7 +2341,7 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 			if (HasTrait(playerIndex, TraitId::Sisyphean)) {
 				newXpValue -= (75 + clvl / 10) * newXpValue / 100;
 			}
-			else if (player.gameChanger & BIT(GC_25_ACCELERATION) && MaxCountOfPlayersInGame == 1 && is(GameMode, GM_EASY/*, GM_CLASSIC*/)) {
+			else if (player.gameChanger & BIT(GC_25_ACCELERATION) && MaxCountOfPlayersInGame == 1) {
 				newXpValue *= 5;
 			}
 			if (HasTrait(playerIndex, TraitId::Domesticated) && is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SPEEDRUN)) {
