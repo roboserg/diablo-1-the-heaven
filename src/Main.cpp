@@ -4221,6 +4221,32 @@ void __fastcall KeyPressHandler(WPARAM key)
 		}
 		return;
 	}
+	// Quick Save / Quick Load (single-player, saving-enabled modes only)
+	if( MaxCountOfPlayersInGame == 1 ){
+		if( key == VK_120_F9_KEY ){   // F9 = Quick Save
+			if( !IsPlayerDead
+			 && Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
+			 && IsSaveAndLeavingEnabled()
+			 && !EnforceNoSave ){
+				ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
+				SetCursorGraphics(CM_0_INVISIBLE);
+				AddOnScreenMessage(OM_11_Saving);
+				MainDrawFunc();
+				SaveGame();
+				ClearOnScreenMessages();
+				SetCursorGraphics(CM_1_NORMAL_HAND);
+				HandleSystemMessage();
+				SetWindowProc(prevHandler);
+			}
+			return;
+		}
+		if( key == VK_123_F12_KEY ){  // F12 = Quick Load
+			if( !IsPlayerDead ){
+				LoadGameMenuHandler(0, 0);
+			}
+			return;
+		}
+	}
 	if( NetCursorItemId || IsGoldSplitPanelVisible ){
 		return;
 	}

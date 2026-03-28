@@ -2,6 +2,11 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
+## [0.1.0] - 2026-03-29
+
+### Added
+- **Quick Save / Quick Load Hotkeys**: F9 for quick save, F12 for quick load during gameplay (single-player, saving-enabled modes only). Mirrors the menu save/load with "Saving"/"Loading" on-screen feedback.
+
 ## [0.0.4] - 2026-03-28
 
 ### Added
