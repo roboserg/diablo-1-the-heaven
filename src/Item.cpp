@@ -9317,14 +9317,21 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 			if (magicFind) {
 				uniqueChance += uniqueChance * magicFind / 100 / MagicFindUniqueDiv;
 			}
+			const int rare_input = rare; // save before modification
 			int uniqueItemIndex = -1;
-			if (uniqueChance >= RNG(1000)) {// unique chance, TODO: move to Smartdrop from recreate, this can avoid further extention of ChanceUniqueBoss
+			bool uniqueCheckPassed = uniqueChance >= RNG(1000);
+			if (uniqueCheckPassed) {// unique chance, TODO: move to Smartdrop from recreate, this can avoid further extention of ChanceUniqueBoss
 				uniqueItemIndex = SelectRandomUnique(itemIndex, itemQuality, uniqueChance, true); // unique chance
 				//if( uniqueItemIndex == -1 && ! rare && magicLevel == 0) __debugbreak();
 				if( (uniqueItemIndex == -1 && DropRares && GameMode != GM_CLASSIC && magicLevel != ML_1_MAGIC) || rare ){ // rare flag is for existing items
 					InitRare(itemIndex, itemQuality / 4, itemQuality, uniqueChance, IsGoodMagicItem);
 					rare = 1;
 				}
+			}
+			// If recreating a rare but the unique check failed, the item was originally
+			// created via the independent rare roll — reset to let the same RNG path replay
+			if (rare_input && !uniqueCheckPassed) {
+				rare = 0;
 			}
 			// Independent rare roll - only fires when unique roll failed outright
 			if (!rare && DropRares && GameMode != GM_CLASSIC && magicLevel != ML_1_MAGIC) {
@@ -9333,7 +9340,7 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 					rareChance *= BossRareMultiplier;
 				}
 				if (magicFind) {
-					rareChance += rareChance * magicFind / 100 / MagicFindUniqueDiv;
+					rareChance += rareChance * magicFind / 100;
 				}
 				if (rareChance >= RNG(1000)) {
 					InitRare(itemIndex, itemQuality / 2, itemQuality, rareChance, IsGoodMagicItem);
@@ -9924,10 +9931,23 @@ TEXT_COLOR ItemColor(const Item& item)
 {
 	if( item.dropType & D_ENCHANT ) return C_10_Enchanted;
 	if(IsQuestItem(item.baseItemIndex)) return C_11_Quest;
+	if( item.ItemCode == IC_11_GOLD ) return C_3_Gold;
+	if( item.MagicCode == MC_2_POTION_OF_FULL_HEALING || item.MagicCode == MC_3_POTION_OF_HEALING ) return C_2_Red;
+	if( item.MagicCode == MC_6_POTION_OF_MANA || item.MagicCode == MC_7_POTION_OF_FULL_MANA ) return C_1_Blue;
+	if( item.MagicCode == MC_18_POTION_OF_REJUVENATION || item.MagicCode == MC_19_POTION_OF_FULL_REJUVENATION ) return C_10_Enchanted;
+	if( item.MagicCode == MC_GEM ) return C_4_Orange;
+	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_7_Grey;
+	if( item.MagicCode == MC_24_BOOKS ) return C_6_Brownish;
+	if( is(item.MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET) ){
+		if( item.SpellIndex == PS_5_IDENTIFY      ) return C_4_Orange;
+		if( item.SpellIndex == PS_2_HEALING        ) return C_2_Red;
+		if( item.SpellIndex == PS_37_MANA_RECHARGE ) return C_1_Blue;
+		return C_7_Grey;
+	}
 	switch( item.MagicLevel ){
 	default /*USUAL*/: return item.socketsAmount > 0 ? C_7_Grey : C_0_White; break;
 	case ML_1_MAGIC  : return C_1_Blue; break;
-	case ML_2_UNIQUE : return item.dropType & D_RARE ? C_8_Pink : C_3_Gold; break;
+	case ML_2_UNIQUE : return item.dropType & D_RARE ? C_5_Yellow : C_3_Gold; break;
 	case ML_3_SET    : return C_4_Orange; break;
 	}
 }
@@ -10331,7 +10351,8 @@ bool __fastcall UsePotionOrScroll(int playerIndex, Item* item) // UseItem
 		used = false;
 	    break;
 	}
-	
+
+
 	return used;
 }
 

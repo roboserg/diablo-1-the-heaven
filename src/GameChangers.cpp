@@ -581,7 +581,6 @@ void __fastcall ResetGameChangerButtons(HWND hdlg, const int topIndex)
 
     if (
         MaxCountOfPlayersInGame == 1
-        && NewSaveInfo.GameMode == GM_EASY
         && (!has(NewSaveInfo.Traits, TraitId::Sisyphean))
         ) {
         GameChangersAvailableList.emplace_back(GC_25_ACCELERATION);

@@ -7555,6 +7555,7 @@ enum TEXT_COLOR
 	C_9_RedGold = 9,
 	C_10_Enchanted = 10,
 	C_11_Quest = 11,
+	C_12_Teal = 12,
 };
 
 enum PLAYER_TRADE: int 

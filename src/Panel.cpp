@@ -249,6 +249,7 @@ __forceinline char GetLetterColor(uchar mask, int colorIndex)
 			mask = 145 + ((mask - 240) >> 1);
 		}
 		break;
+	case C_12_Teal: if (mask >= 240) { mask -= 112; } break; // palette 128-143 range
 	}
 	return mask;
 }
