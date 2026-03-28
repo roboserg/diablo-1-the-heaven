@@ -10,6 +10,7 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 - **Type-Specific Floor Item Text Colors**: Potions, gems, relics, and rare items now display in distinctive colors for easier identification.
 
 ### Changed
+- **Stat Allocation Cap Doubled**: Players can now allocate twice as many stat points per character level. The level-based stat sum limit formula is doubled (`(32×level/3 + 90) × 2`), while trait bonuses (Gifted, Giant, Paladin, etc.) remain unchanged.
 - **Gold Auto-Pickup Radius Increased**: Gold is now picked up from up to 2 tiles away (was 1 tile).
 - **Acceleration Game Changer**: Now available in all single-player game modes (previously Easy mode only)
 - **Magic Find now fully scales rare item drop chance**: MF applies 1:1 to rare drop chance (same as magic items). Previously used the unique item divisor (÷4), giving only +25% per 100 MF. Now 100 MF doubles the rare drop chance.
