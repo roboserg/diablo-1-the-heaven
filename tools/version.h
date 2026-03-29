@@ -1,6 +1,6 @@
 #pragma once
 
-#define TH4_REVISION 5
+#define TH4_REVISION 6
 #define THE_HELL_VERSION_INT 0,1,0,0
 
 #ifdef _DEBUG

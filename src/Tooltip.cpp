@@ -388,6 +388,14 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
         }
     }
 
+    sprintf(InfoPanelBuffer, "item level: %i", item.quality);
+    Tooltip_AddLine_2(InfoPanelBuffer);
+
+    if (item.basePrice > 0) {
+        sprintf(InfoPanelBuffer, "base cost: %i gold", item.basePrice);
+        Tooltip_AddLine_2(InfoPanelBuffer);
+    }
+
     if (item.BaseCharges) {
         char color = ((item.CurCharges > 0) ? C_0_White : C_2_Red) + 128;
         sprintf(InfoPanelBuffer, "%s charges: %c%i%c of %i", getSpellName(item.SpellIndex), color, item.CurCharges, color, item.BaseCharges);
@@ -1219,6 +1227,14 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
                 Tooltip_AddLine_3(InfoPanelBuffer);
             }
         }
+    }
+
+    sprintf(InfoPanelBuffer, "item level: %i", item.quality);
+    Tooltip_AddLine_3(InfoPanelBuffer);
+
+    if (item.basePrice > 0) {
+        sprintf(InfoPanelBuffer, "base cost: %i gold", item.basePrice);
+        Tooltip_AddLine_3(InfoPanelBuffer);
     }
 
     if (item.BaseCharges) {
@@ -2165,6 +2181,14 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
                 Tooltip_AddLine(InfoPanelBuffer);
             }
         }
+    }
+
+    sprintf(InfoPanelBuffer, "item level: %i", item.quality);
+    Tooltip_AddLine(InfoPanelBuffer);
+
+    if (item.basePrice > 0) {
+        sprintf(InfoPanelBuffer, "base cost: %i gold", item.basePrice);
+        Tooltip_AddLine(InfoPanelBuffer);
     }
     
     if( item.BaseCharges ){

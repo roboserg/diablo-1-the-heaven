@@ -9680,7 +9680,9 @@ void __fastcall RecreateItem( int itemIndex, short baseItemIndex, int dropType, 
 	}
 
 	if( item.genVersion >= 5 || item.MagicLevel >= ML_2_UNIQUE ){
-		if( ! (extraGen & D_ENCHANT) && item.MagicLevel != ML_0_USUAL ) socketsAdded = 0; // Allow added sockets only for enchanted (Craft) and base (Transmute)
+		bool isMagicOrRare = item.MagicLevel == ML_1_MAGIC
+		    || (item.MagicLevel == ML_2_UNIQUE && (item.dropType & D_RARE));
+		if( ! (extraGen & D_ENCHANT) && item.MagicLevel != ML_0_USUAL && !isMagicOrRare ) socketsAdded = 0; // Allow added sockets only for enchanted (Craft), base (Transmute), and magic/rare items
 	}else{
 		socketsAdded = std::max( socketsAdded, item.socketsBase );
 		item.socketsBase = 0;
@@ -9936,8 +9938,8 @@ TEXT_COLOR ItemColor(const Item& item)
 	if( item.MagicCode == MC_6_POTION_OF_MANA || item.MagicCode == MC_7_POTION_OF_FULL_MANA ) return C_10_Enchanted;
 	if( item.MagicCode == MC_18_POTION_OF_REJUVENATION || item.MagicCode == MC_19_POTION_OF_FULL_REJUVENATION ) return C_3_Gold;
 	if( item.MagicCode == MC_GEM ) return C_4_Orange;
-	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_7_Grey;
-	if( item.MagicCode == MC_24_BOOKS ) return C_6_Brownish;
+	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_6_Brownish;
+	if( item.MagicCode == MC_24_BOOKS ) return C_3_Gold;
 	if( is(item.MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET) ){
 		if( item.SpellIndex == PS_5_IDENTIFY      ) return C_4_Orange;
 		if( item.SpellIndex == PS_2_HEALING        ) return C_2_Red;
