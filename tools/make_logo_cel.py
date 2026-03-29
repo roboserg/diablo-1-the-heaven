@@ -17,12 +17,13 @@ import os
 from PIL import Image
 
 # --- Config ---
-LOGO_SRC  = "docs/logo.png"
-CEL_OUT   = "res/thdata/Data/th_logo2.CEL"
-CEL_WIDTH = 430          # hardcoded width in MenuEngine.cpp
-NUM_FRAMES = 16          # LogoFrameCount cycles 1..16
+LOGO_SRC = "docs/logo.png"
+CEL_OUT = "res/thdata/Data/th_logo2.CEL"
+CEL_WIDTH = 430  # hardcoded width in MenuEngine.cpp
+NUM_FRAMES = 16  # LogoFrameCount cycles 1..16
 # Pixels with R+G+B <= this are rendered transparent (let menu BG show through)
-TRANSPARENT_THRESHOLD = 30
+TRANSPARENT_THRESHOLD = 45
+
 
 # ---------------------------------------------------------------------------
 # 1. Extract MenuPal from dx_utility.cpp (256 x RGBX entries)
@@ -30,112 +31,128 @@ TRANSPARENT_THRESHOLD = 30
 def parse_menu_pal(src_path="src/dx_utility.cpp"):
     with open(src_path, "r") as f:
         content = f.read()
-    m = re.search(r'uchar MenuPal\[1024\]\s*=\s*\{(.*?)\};', content, re.DOTALL)
+    m = re.search(r"uchar MenuPal\[1024\]\s*=\s*\{(.*?)\};", content, re.DOTALL)
     if not m:
         raise ValueError("MenuPal not found in dx_utility.cpp")
-    nums = [int(v, 0) for v in re.findall(r'0[xX][0-9A-Fa-f]+|\d+', m.group(1))]
-    palette = [(nums[i*4], nums[i*4+1], nums[i*4+2]) for i in range(256)]
+    nums = [int(v, 0) for v in re.findall(r"0[xX][0-9A-Fa-f]+|\d+", m.group(1))]
+    palette = [(nums[i * 4], nums[i * 4 + 1], nums[i * 4 + 2]) for i in range(256)]
     return palette  # palette[i] = (R, G, B) for CEL pixel value i
 
-# ---------------------------------------------------------------------------
-# 2. Nearest-colour lookup (squared Euclidean distance)
-# ---------------------------------------------------------------------------
-def make_lookup(palette):
-    """Pre-build a 256^3 is too big; do on-demand with caching."""
-    cache = {}
-    def nearest(r, g, b):
-        key = (r >> 3, g >> 3, b >> 3)   # reduce to ~32-shade buckets
-        if key in cache:
-            return cache[key]
-        best, best_d = 0, 1 << 30
-        for i, (pr, pg, pb) in enumerate(palette):
-            d = (r-pr)**2 + (g-pg)**2 + (b-pb)**2
-            if d < best_d:
-                best_d, best = d, i
-        cache[key] = best
-        return best
-    return nearest
 
 # ---------------------------------------------------------------------------
-# 3. Encode one scanline to CEL RLE
+# 2. Encode one scanline to CEL RLE
 #    Positive byte N  -> next N bytes are literal palette indices
 #    Negative byte -N -> skip N pixels (transparent)
 # ---------------------------------------------------------------------------
-def encode_row(row, nearest, threshold):
+def encode_row(pixels, palette):
     data = bytearray()
-    x, W = 0, len(row)
+    x, W = 0, len(pixels)
     while x < W:
-        r, g, b = row[x]
-        if r + g + b <= threshold:
-            # transparent run
+        px = pixels[x]
+        if px == 0:  # transparent
             end = x
-            while end < W and sum(row[end]) <= threshold:
+            while end < W and pixels[end] == 0:
                 end += 1
             count = end - x
             while count > 0:
                 run = min(count, 127)
-                data.append((256 - run) & 0xFF)   # two's-complement negative
+                data.append((256 - run) & 0xFF)
                 count -= run
             x = end
         else:
-            # literal run
             end = x
-            while end < W and sum(row[end]) > threshold:
+            while end < W and pixels[end] != 0:
                 end += 1
-            indices = [nearest(*row[k]) for k in range(x, end)]
+            indices = pixels[x:end]
             i = 0
             while i < len(indices):
                 run = min(len(indices) - i, 127)
                 data.append(run)
-                data.extend(indices[i:i+run])
+                data.extend(indices[i : i + run])
                 i += run
             x = end
     return bytes(data)
 
+
 # ---------------------------------------------------------------------------
-# 4. Build full 16-frame CEL
-#    Header layout (1-indexed frames, as used by Surface_DrawCEL):
-#      header[0]      = num_frames  (int32)
-#      header[1..N]   = frame data offsets from file start  (int32 each)
-#      header[N+1]    = end-of-last-frame offset  (int32)
-#    Frame data = concatenated encoded scanlines, BOTTOM ROW FIRST
-#    (Diablo RleDraw advances dst UPWARD after each row)
+# 3. Build full 16-frame CEL
 # ---------------------------------------------------------------------------
 def build_cel(frame_bytes, num_frames=NUM_FRAMES):
-    header_ints = num_frames + 2          # header[0] + N offsets + end
+    header_ints = num_frames + 2
     header_size = header_ints * 4
-    frame_size  = len(frame_bytes)
+    frame_size = len(frame_bytes)
 
     hdr = bytearray()
-    hdr += struct.pack('<I', num_frames)  # header[0]
+    hdr += struct.pack("<I", num_frames)
     for i in range(num_frames):
-        hdr += struct.pack('<I', header_size + i * frame_size)
-    hdr += struct.pack('<I', header_size + num_frames * frame_size)   # end
+        hdr += struct.pack("<I", header_size + i * frame_size)
+    hdr += struct.pack("<I", header_size + num_frames * frame_size)
 
     return bytes(hdr) + frame_bytes * num_frames
 
+
 # ---------------------------------------------------------------------------
-# 5. Main
+# 4. Main
 # ---------------------------------------------------------------------------
 def main():
     palette = parse_menu_pal()
-    nearest = make_lookup(palette)
 
-    img = Image.open(LOGO_SRC).convert("RGB")
+    # Create PIL palette image for quantization
+    pal_img = Image.new("P", (256, 1))
+    pal_data = []
+    for r, g, b in palette:
+        pal_data.extend([r, g, b])
+    pal_img.putpalette(pal_data)
+
+    img = Image.open(LOGO_SRC).convert("RGBA")
     W, H = img.size
     new_h = round(H * CEL_WIDTH / W)
     img = img.resize((CEL_WIDTH, new_h), Image.LANCZOS)
     print(f"Resized logo: {CEL_WIDTH}x{new_h}")
 
-    pixels = [
-        [img.getpixel((x, y)) for x in range(CEL_WIDTH)]
-        for y in range(new_h)
-    ]
+    # Make dark pixels transparent
+    def is_dark(r, g, b, a):
+        return r + g + b <= TRANSPARENT_THRESHOLD or a < 128
 
-    # Encode rows BOTTOM-TO-TOP (Diablo RleDraw renders upward)
+    # Convert to palette mode using the game's palette
+    img_rgb = img.convert("RGB")
+    img_p = Image.new("P", (CEL_WIDTH, new_h))
+    img_p.putpalette(pal_data)
+
+    # Quantize using dither
+    result = img_rgb.quantize(palette=img_p, dither=Image.FLOYDSTEINBERG)
+
+    # Apply transparency mask
+    alpha = img.split()[3] if img.mode == "RGBA" else None
+    pixels = list(result.getdata())
+
+    # Mark transparent pixels as index 0
+    if alpha:
+        pixels = [
+            0
+            if is_dark(
+                *img_rgb.getpixel((x % CEL_WIDTH, x // CEL_WIDTH)),
+                alpha.getpixel((x % CEL_WIDTH, x // CEL_WIDTH)),
+            )
+            else p
+            for x, p in enumerate(pixels)
+        ]
+    else:
+        pixels = [
+            0
+            if sum(img_rgb.getpixel((x % CEL_WIDTH, x // CEL_WIDTH)))
+            <= TRANSPARENT_THRESHOLD
+            else p
+            for x, p in enumerate(pixels)
+        ]
+
+    # Convert to rows (top to bottom for encoding, will reverse later)
+    rows = [pixels[y * CEL_WIDTH : (y + 1) * CEL_WIDTH] for y in range(new_h)]
+
+    # Encode rows BOTTOM-TO-TOP
     frame = bytearray()
     for y in range(new_h - 1, -1, -1):
-        frame += encode_row(pixels[y], nearest, TRANSPARENT_THRESHOLD)
+        frame += encode_row(rows[y], palette)
 
     cel = build_cel(bytes(frame))
 
@@ -148,6 +165,7 @@ def main():
     print()
     print("Next step: ensure 'res/thdata/Data/th_logo2.CEL' is packaged into the")
     print("mod's MPQ archive or placed as a loose file in your game Data\\ directory.")
+
 
 if __name__ == "__main__":
     main()

@@ -11,6 +11,7 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 - **Oil and Book Color Changes**: Oils now display in brown and books display in gold (matching unique item color) for easier visual identification.
 - **Add Socket Service at Griswold**: Magic, and rare items can now have sockets added at Griswold. Price scales with item level and base price.
 - **Open Stash at Griswold**: Griswold now offers "Open stash" option in his menu, same as Gillian's stash service.
+- **Identify All Items at Cain**: Cain's shop now has a new "Identify all items (X gold)" option that identifies all unidentified items in inventory at once.
 
 ## [0.0.4] - 2026-03-28
 

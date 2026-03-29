@@ -7682,8 +7682,9 @@ enum PLAYER_TRADE: int
 	PT_DialogRows_15_ElderMain_ActionLabel = 9,
 	PT_DialogRows_15_ElderMain_Talk = 12,
 	PT_DialogRows_15_ElderMain_IdentifyItems = 14,
-	PT_DialogRows_15_ElderMain_Transmute = 16,
-	PT_DialogRows_15_ElderMain_Leave = 18,
+	PT_DialogRows_15_ElderMain_IdentifyAll = 16,
+	PT_DialogRows_15_ElderMain_Transmute = 18,
+	PT_DialogRows_15_ElderMain_Leave = 20,
 
 	PT_DialogRows_20_IdentifiedItemInfo_Label = 7,
 	PT_DialogRows_20_IdentifiedItemInfo_Item = 11,
