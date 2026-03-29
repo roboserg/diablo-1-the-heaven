@@ -21,7 +21,7 @@ No XP support, no v141, no CMake/vcpkg/testing tools needed.
 From the repo root in a terminal:
 
 ```
-InitProject.bat
+scripts\InitProject.bat
 ```
 
 This creates two files if they don't already exist:
@@ -86,6 +86,6 @@ Then launch `TH4.exe` directly or via the VS debugger.
 | Error | Fix |
 |---|---|
 | `Cannot find fxc.exe` | Check `FxCopDir` in `personal.props` points to a folder that contains `fxc.exe` |
-| `personal.props not found` | Run `InitProject.bat` first |
+| `personal.props not found` | Run `scripts\InitProject.bat` first |
 | `GameFolder` errors | Make sure the path ends with a backslash `\` and the folder exists |
 | `v143 toolset not found` | In VS Build Tools installer, ensure "MSVC Build Tools for x64/x86 (Latest)" is checked |

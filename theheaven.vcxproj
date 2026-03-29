@@ -244,7 +244,7 @@
     <None Include="res\diablo_a.cur" />
     <None Include="res\diablo_l.cur" />
     <None Include="src\vorbis.cpp" />
-    <None Include="src\ScreenShotMaker.cpp" />
+
     <None Include="doc\DevNotes.txt" />
     <None Include="$(GameFolder)config.ini" />
   </ItemGroup>
@@ -267,7 +267,7 @@
     <ClInclude Include="include\msg.h" />
     <ClInclude Include="include\multi.h" />
     <ClInclude Include="include\reflect.h" />
-    <ClInclude Include="include\ScreenShotMaker.h" />
+
     <ClInclude Include="include\serialize.h" />
     <ClInclude Include="include\structs.h" />
     <ClInclude Include="include\sync.h" />
@@ -337,7 +337,7 @@
     <Text Include="res\support.txt" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="src\BloomShader.hlsl">
+    <FxCompile Include="src\shaders\BloomShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_bloom</EntryPointName>
       <ShaderModel>3.0</ShaderModel>
@@ -345,7 +345,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\FogShader.hlsl">
+    <FxCompile Include="src\shaders\FogShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_fog</EntryPointName>
       <ShaderModel>2.0</ShaderModel>
@@ -353,7 +353,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\FXAAShader.hlsl">
+    <FxCompile Include="src\shaders\FXAAShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_fxaa</EntryPointName>
       <ShaderModel>3.0</ShaderModel>
@@ -361,7 +361,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\PerspectiveShader.hlsl">
+    <FxCompile Include="src\shaders\PerspectiveShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_perspective</EntryPointName>
       <ShaderModel>2.0</ShaderModel>
@@ -369,7 +369,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\VignettingShader.hlsl">
+    <FxCompile Include="src\shaders\VignettingShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <HeaderFileOutput>$(ProjectDir)\include\VignettingShader.h</HeaderFileOutput>
@@ -377,7 +377,7 @@
       </ObjectFileOutput>
       <EntryPointName>main_vignetting</EntryPointName>
     </FxCompile>
-    <FxCompile Include="src\FogVenShader.hlsl">
+    <FxCompile Include="src\shaders\FogVenShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <EntryPointName>main_fogven</EntryPointName>
@@ -385,7 +385,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\LineShader.hlsl">
+    <FxCompile Include="src\shaders\LineShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <EntryPointName>main_line</EntryPointName>
@@ -393,7 +393,7 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\PaletteShader.hlsl">
+    <FxCompile Include="src\shaders\PaletteShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <ObjectFileOutput>
