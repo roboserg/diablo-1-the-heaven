@@ -43,6 +43,7 @@ PLAYER_DIALOG CurrentDialogIndex;// 006FECC4
 void GriswoldRestockMenu(PLAYER_DIALOG callerDialog);
 int GetGriswoldBasicalRestockPrice(Player &player);
 int GetGriswoldMagicalRestockPrice(Player &player);
+bool StashEnabled();
 
 void AdriaRestockMenu();
 int GetAdriaRestockPrice(Player &player);
@@ -484,6 +485,9 @@ void GriswoldMainMenu()
     }
 	if( (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM))) && (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN))) && GameMode != GM_CLASSIC){
 		SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_1_BlacksmithMain_Quench, true, "Quench Items", C_0_White, true); 
+	}
+	if( StashEnabled() ){
+		SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_1_BlacksmithMain_Stash, true, "Open stash", C_0_White, true);
 	}
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_1_BlacksmithMain_Leave, true, "Leave the shop", C_0_White, true);
 	SetDialogLine( PT_DialogRows_5_SmallDialog_Separator );
@@ -2479,6 +2483,7 @@ void HandleGriswoldMainMenu ()
         case PT_DialogRows_1_BlacksmithMain_Trade: VisualTrade_Open( VTM_Blacksmith ); break;
 		case PT_DialogRows_1_BlacksmithMain_Craft: if( CanGrind() ) Craft_Open();      break;
 		case PT_DialogRows_1_BlacksmithMain_Quench: Quench_Open();                     break;
+		case PT_DialogRows_1_BlacksmithMain_Stash: if( StashEnabled() ) StashPanel_Open(); break;
         case PT_DialogRows_1_BlacksmithMain_Leave: CurrentDialogIndex = PD_0_None;	   break;
     }
 }
