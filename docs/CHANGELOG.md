@@ -15,6 +15,9 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 - **Heal and Restore Mana at Cain**: When talking to Cain, the player's HP is fully restored and mana is restored (outside Classic mode), similar to Pepin and Adria's services.
 - **No Penalties on Unique/Set Items**: Negative stat penalties on unique and set items are no longer applied or shown in tooltips. Items like Nosferatu's Brooch retain only their positive bonuses, while beneficial negative effects (e.g. reduced damage from enemies) are preserved.
 
+### Changed
+- **Gem insertion is now free**: Gem insertion into sockets is now free (only socketable slot creation and gem extraction cost gold)
+
 ## [0.0.4] - 2026-03-28
 
 ### Added
