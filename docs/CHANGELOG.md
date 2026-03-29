@@ -5,6 +5,7 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 ## [0.1.0] - 2026-03-29
 
 ### Added
+- **Auto Belt Refill**: When using a potion from the belt, matching potions are automatically pulled from inventory (exact match → same type → holy water → any potion).
 - **Quick Save / Quick Load Hotkeys**: F9 for quick save, F12 for quick load during gameplay (single-player, saving-enabled modes only).
 - **Item Info Tooltips Improvements**: Item quality level ("item level: X") and base item cost ("base cost: X gold") are now displayed in tooltips.
 - **Oil and Book Color Changes**: Oils now display in brown and books display in gold (matching unique item color) for easier visual identification.

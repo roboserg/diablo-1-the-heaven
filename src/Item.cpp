@@ -2654,26 +2654,54 @@ bool __fastcall RightClickOnItem(int playerIndex, int invCellIndex, bool mouse, 
 
 		// если спэлл айди из списка то не удаляем, обозначаем вещь как используемую с задержкой. Даже так. Если курсор стал картинкой значит не удаляем
 		if( isBelt ){
-			if (xinput) {
-				bool found = false;
-				for (int i = 0; i < player.InvItemCount; i++) {
-					Item& item2 = player.InventorySlots[i];
-					if( item2.ItemCode != IC_M1_NONE 
-					 && item2.MagicCode == item->MagicCode 
-					 && is(item->MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING, 
+			ClearBeltSlot(playerIndex, itemIndex);
+			int bestMatchIndex = -1;
+			for (int i = 0; i < player.InvItemCount; i++) {
+				Item& item2 = player.InventorySlots[i];
+				if( item2.ItemCode == IC_M1_NONE ) continue;
+				if( !is(item2.MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING, 
 											MC_6_POTION_OF_MANA, MC_7_POTION_OF_FULL_MANA, 
-											MC_18_POTION_OF_REJUVENATION, MC_19_POTION_OF_FULL_REJUVENATION) ){
-						ClearInventorySlot(playerIndex, i);
-						found = true;
+											MC_18_POTION_OF_REJUVENATION, MC_19_POTION_OF_FULL_REJUVENATION) ) continue;
+				if( item2.MagicCode == item->MagicCode ){
+					bestMatchIndex = i;
+					break;
+				}
+			}
+			if( bestMatchIndex == -1 ){
+				for( int i = 0; i < player.InvItemCount; i++ ){
+					Item& item2 = player.InventorySlots[i];
+					if( item2.ItemCode == IC_M1_NONE ) continue;
+					bool sameCategory = 
+						(is(item->MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING) && is(item2.MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING))
+					 || (is(item->MagicCode, MC_6_POTION_OF_MANA, MC_7_POTION_OF_FULL_MANA) && is(item2.MagicCode, MC_6_POTION_OF_MANA, MC_7_POTION_OF_FULL_MANA));
+					if( sameCategory ){ bestMatchIndex = i; break; }
+				}
+			}
+			if( bestMatchIndex == -1 ){
+				bool isHolyUsed = is(item->MagicCode, MC_18_POTION_OF_REJUVENATION, MC_19_POTION_OF_FULL_REJUVENATION);
+				for( int i = 0; i < player.InvItemCount; i++ ){
+					Item& item2 = player.InventorySlots[i];
+					if( item2.ItemCode == IC_M1_NONE ) continue;
+					if( is(item2.MagicCode, MC_18_POTION_OF_REJUVENATION, MC_19_POTION_OF_FULL_REJUVENATION) ){
+						if( isHolyUsed ){ bestMatchIndex = i; break; }
+						else if( bestMatchIndex == -1 ) bestMatchIndex = i;
+					}
+				}
+			}
+			if( bestMatchIndex == -1 ){
+				for( int i = 0; i < player.InvItemCount; i++ ){
+					Item& item2 = player.InventorySlots[i];
+					if( item2.ItemCode == IC_M1_NONE ) continue;
+					if( is(item2.MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING, 
+												MC_6_POTION_OF_MANA, MC_7_POTION_OF_FULL_MANA) ){
+						bestMatchIndex = i;
 						break;
 					}
 				}
-				if (!found) {
-					ClearBeltSlot(playerIndex, itemIndex);
-				}
 			}
-			else {
-				ClearBeltSlot(playerIndex, itemIndex);
+			if( bestMatchIndex != -1 ){
+				player.BeltInventory[itemIndex] = player.InventorySlots[bestMatchIndex];
+				ClearInventorySlot(playerIndex, bestMatchIndex);
 			}
 		}else{
 			ClearInventorySlot(playerIndex, itemIndex, mouse);
