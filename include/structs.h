@@ -2653,14 +2653,14 @@ struct SpellbookHotkeysInfo
 
 struct Aura
 {
-	ushort auraIndex;
-	char auraname[64];
-	ushort auraEffect;
-	int baseMonsterIndex[20];
-	ushort minval;
-	ushort maxval;
-	uchar radius;
-	int sound;
+	ushort auraIndex;              // AUI_ enum, unique aura identifier
+	char auraname[64];             // display name shown in tooltips
+	ushort auraEffect;             // AUEF_ enum, which debuff/effect type is applied
+	int baseMonsterIndex[20];      // BM_ monsters that emit this aura, -1 terminated
+	ushort minval;                 // minimum effect value
+	ushort maxval;                 // maximum effect value (scaled by distance)
+	uchar radius;                  // aura range in tiles
+	int sound;                     // S_ sound effect played while aura is active
 };
 
 struct AdditionalSaveInfo    // 512 byte 

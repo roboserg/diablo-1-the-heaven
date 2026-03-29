@@ -5,15 +5,15 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 ## [0.1.0] - 2026-03-29
 
 ### Added
+- **No Penalties on Unique/Set Items**: Negative stat penalties on unique and set items are no longer applied or shown in tooltips. Items like Nosferatu's Brooch retain only their positive bonuses, while beneficial negative effects (e.g. reduced damage from enemies) are preserved.
+- **Add Socket Service at Griswold**: Magic, and rare items can now have sockets added at Griswold. Price scales with item level and base price.
 - **Auto Belt Refill**: When using a potion from the belt, matching potions are automatically pulled from inventory (exact match → same type → holy water → any potion).
 - **Quick Save / Quick Load Hotkeys**: F9 for quick save, F12 for quick load during gameplay (single-player, saving-enabled modes only).
 - **Item Info Tooltips Improvements**: Item quality level ("item level: X") and base item cost ("base cost: X gold") are now displayed in tooltips.
 - **Oil and Book Color Changes**: Oils now display in brown and books display in gold (matching unique item color) for easier visual identification.
-- **Add Socket Service at Griswold**: Magic, and rare items can now have sockets added at Griswold. Price scales with item level and base price.
 - **Open Stash at Griswold**: Griswold now offers "Open stash" option in his menu, same as Gillian's stash service.
 - **Identify All Items at Cain**: Cain's shop now has a new "Identify all items (X gold)" option that identifies all unidentified items in inventory at once.
 - **Heal and Restore Mana at Cain**: When talking to Cain, the player's HP is fully restored and mana is restored (outside Classic mode), similar to Pepin and Adria's services.
-- **No Penalties on Unique/Set Items**: Negative stat penalties on unique and set items are no longer applied or shown in tooltips. Items like Nosferatu's Brooch retain only their positive bonuses, while beneficial negative effects (e.g. reduced damage from enemies) are preserved.
 
 ### Changed
 - **Gem insertion is now free**: Gem insertion into sockets is now free (only socketable slot creation and gem extraction cost gold)

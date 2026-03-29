@@ -3197,53 +3197,64 @@ PLAYER_FULL_CLASS GetPlayerFullClass( PLAYER_CLASS classId, PLAYER_SUBLASS subcl
     return fullClassId;
 }
 
-bool IsUniquePenaltyEffect(AFFIX_EFFECT id) {
+// Returns true if this affix effect is harmful to the player when its value is negative (e.g. -HP, -resist: bad for the player).
+// Returns false if a negative value is actually beneficial (e.g. -DFE = less damage from enemies).
+// Used to suppress harmful negative effects on unique/set items while preserving beneficial negative effects.
+bool IsHarmfulWhenNegative(AFFIX_EFFECT id) {
 	switch (id) {
-	case AE_STAT:
-	case AE_ALL_STAT:
-	case AE_STAT_PERCENT:
-	case AE_ALL_STAT_PERCENT:
-	case AE_RESIST:
-	case AE_RESIST_All:
-	case AE_AC:
-	case AE_SPECIAL_AC:
-	case AE_PERCENT_AC:
-	case AE_LIFE_REGEN:
-	case AE_LIFE_REGEN_PERCENT:
-	case AE_MANA_REGEN:
-	case AE_MANA_REGEN_PERCENT:
-	case AE_MANA:
-	case AE_HIT_POINTS:
-	case AE_LIFE_PERCENT:
-	case AE_MANA_PERCENT:
-	case AE_TO_HIT:
-	case AE_TO_HIT_DAMAGE:
-	case AE_PERCENT_DAMAGE:
-	case AE_DAMAGE:
-	case AE_BLOCK_CHANCE:
-	case AE_CRIT_CHANCE:
-	case AE_CRIT_DAMAGE:
-	case AE_CRIT_DAMAGE_PERCENT:
-	case AE_CRIT_PERCENT:
-	case AE_MAGIC_FIND:
-	case AE_GOLD_FIND:
-	case AE_XP_GAIN:
-	case AE_XP_GAIN_PERCENT:
-	case AE_GOLD_ABS_FIND:
-	case AE_HIGH_DURABILITY:
-	case AE_SPELLS_LEVEL:
-	case AE_SPELL_LEVEL:
-	case AE_SPELL_DAMAGE:
-	case AE_ELEMENT_DAMAGE:
-	case AE_SUMMON_AC:
-	case AE_SUMMON_AC_PERCENT:
-	case AE_SUMMON_DAMAGE:
-	case AE_SUMMON_DAMAGE_PERCENT:
-	case AE_SUMMON_HP:
-	case AE_SUMMON_HP_PERCENT:
-	case AE_SUMMON_TO_HIT:
+	case AE_STAT:               // base stat (str/dex/mag/vit)
+	case AE_ALL_STAT:           // all stats
+	case AE_STAT_PERCENT:       // % to a stat
+	case AE_ALL_STAT_PERCENT:   // % to all stats
+	case AE_RESIST:             // elemental resistance
+	case AE_RESIST_All:         // all resistances
+	case AE_AC:                 // armor class
+	case AE_SPECIAL_AC:         // special armor class
+	case AE_PERCENT_AC:         // % armor class
+	case AE_LIFE_REGEN:         // life regeneration
+	case AE_LIFE_REGEN_PERCENT: // % life regeneration
+	case AE_MANA_REGEN:         // mana regeneration
+	case AE_MANA_REGEN_PERCENT: // % mana regeneration
+	case AE_MANA:               // max mana
+	case AE_HIT_POINTS:         // max HP
+	case AE_LIFE_PERCENT:       // % max life
+	case AE_MANA_PERCENT:       // % max mana
+	case AE_TO_HIT:             // to-hit chance
+	case AE_TO_HIT_DAMAGE:      // to-hit damage bonus
+	case AE_PERCENT_DAMAGE:     // % damage
+	case AE_DAMAGE:             // flat damage
+	case AE_BLOCK_CHANCE:       // block chance
+	case AE_CRIT_CHANCE:        // critical hit chance
+	case AE_CRIT_DAMAGE:        // critical hit damage
+	case AE_CRIT_DAMAGE_PERCENT:// % critical hit damage
+	case AE_CRIT_PERCENT:       // critical hit %
+	case AE_MAGIC_FIND:         // magic find
+	case AE_GOLD_FIND:          // gold find
+	case AE_XP_GAIN:            // XP gain
+	case AE_XP_GAIN_PERCENT:    // % XP gain
+	case AE_GOLD_ABS_FIND:      // absolute gold find
+	case AE_HIGH_DURABILITY:    // durability
+	case AE_SPELLS_LEVEL:       // all spell levels
+	case AE_SPELL_LEVEL:        // single spell level
+	case AE_SPELL_DAMAGE:       // spell damage
+	case AE_ELEMENT_DAMAGE:     // elemental damage
+	case AE_SUMMON_AC:          // summon armor class
+	case AE_SUMMON_AC_PERCENT:  // % summon armor class
+	case AE_SUMMON_DAMAGE:      // summon damage
+	case AE_SUMMON_DAMAGE_PERCENT: // % summon damage
+	case AE_SUMMON_HP:          // summon HP
+	case AE_SUMMON_HP_PERCENT:  // % summon HP
+	case AE_SUMMON_TO_HIT:          // summon to-hit
+	case AE_SPICIES_DAMAGE:         // flat damage to a monster species (undead/demon/beast)
+	case AE_SPICIES_DAMAGE_PERCENT: // % damage to a monster species
+	case AE_SPICIES_TO_HIT:         // to-hit vs a monster species
+	case AE_SPICIES_AC:             // armor class vs a monster species
+	case AE_SPICIES_AC_PERCENT:     // % armor class vs a monster species
 		return true;
 	default:
+		// e.g. AE_DFE (damage from enemies): negative = less damage taken = beneficial
+		// e.g. AE_SPICIES_DFE: negative = less damage taken from a species = beneficial
+		// e.g. AE_MINUS_LIGHT_RADIUS: handled separately at call sites
 		return false;
 	}
 }
@@ -3372,7 +3383,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			staffSpellsSpeedbook |= 1i64 << ((uchar)spell_ID - 1);
 		}
 		for(Effect& e : item.effect){
-			if (item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsUniquePenaltyEffect(e.id)) continue;
+			if (item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsHarmfulWhenNegative(e.id)) continue;
 			if (item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS) continue;
 			switch( e.id ){
 			case AE_TO_HIT                     : accuracy            += e.chance; break;
