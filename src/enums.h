@@ -7400,6 +7400,7 @@ enum SIZE_CONST
 	EnchantMax_5 = 5,
 	SocketMax_6 = 6,
 	QuenchesMax_1 = 1,
+	MaxAddSockets_2 = 2,
 	MaxAddSockets_4 = 4,
 	MaxDupSounds = 128,
 	BigPatternSize = 6,
@@ -7643,6 +7644,7 @@ enum PLAYER_TRADE: int
 	PT_DialogRows_1_BlacksmithMain_Trade = 14,
 	PT_DialogRows_1_BlacksmithMain_Craft = 16,
 	PT_DialogRows_1_BlacksmithMain_Quench = 18,
+	PT_DialogRows_1_BlacksmithMain_Stash = 20,
 	PT_DialogRows_1_BlacksmithMain_Leave = 22,
 
 	PT_DialogRows_5_WitchMain_Logo = 2,

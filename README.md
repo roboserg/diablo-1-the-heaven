@@ -57,12 +57,7 @@ Want to try the newest features right away? Download the **`nightly`** build fro
 
 ## Planned changes
 
-* Hotkey for quick save/load (where game mode allows)
 * Remove negative penalties from unique items
-* Sockets for magic and rare items
-* Unsocket items
-* Town portal in the center of town
-* Chest in the center of town
 * Re-roll affixes on magic and rare items
 * Item sharing in multiplayer
 
