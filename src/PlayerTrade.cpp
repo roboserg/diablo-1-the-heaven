@@ -1465,6 +1465,9 @@ void TownElderMainMenu()
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_ActionLabel, true, "Would you like to:", C_3_Gold, false);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_Talk, true, "Talk to Cain", C_1_Blue, true);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_IdentifyItems, true, "Identify items", C_0_White, true);
+    int identifyAllPrice = VisualTrade_GetIdentifyAllPrice();
+    sprintf(InfoPanelBuffer, "Identify all items (%i gold)", identifyAllPrice);
+    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_IdentifyAll, true, InfoPanelBuffer, C_0_White, true);
 	if( CanTransmute() ){
     	SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_Transmute, true, "Transmute items", C_0_White, true);
 	}
@@ -2916,6 +2919,10 @@ void HandleKainMainMenu ()
             ChangeTownerDialog(PD_19_Talk);
             break;
         case PT_DialogRows_15_ElderMain_IdentifyItems:	VisualTrade_Open( VTM_Elder ); break;
+        case PT_DialogRows_15_ElderMain_IdentifyAll:
+            VisualTrade_IdentifyAll();
+            TownElderMainMenu();
+            break;
 		case PT_DialogRows_15_ElderMain_Transmute: if( CanTransmute() ) Transmute_Open(); break;
 
 		case PT_DialogRows_15_ElderMain_Leave:			CurrentDialogIndex = PD_0_None;	break;

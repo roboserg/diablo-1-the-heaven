@@ -152,7 +152,10 @@ void Menu_Draw()
 				LogoFrameCount = 1;
 			OldTickCount2 = v0;
 		}
-		Surface_DrawCEL(Screen_LeftBorder + 21 + (ScreenWidth-430)/2, Screen_TopBorder + 102 + (ScreenHeight - GUI_Height)/2, Hf_logo3CELPtr, (unsigned __int8)LogoFrameCount, 430);
+		int logoX = Screen_LeftBorder + (ScreenWidth - GetTextWidthBig("DIABLO 1 THE HEAVEN")) / 2;
+		int logoY = Screen_TopBorder + 60 + (ScreenHeight - GUI_Height) / 2;
+		Font_DrawText(logoX, logoY, "DIABLO 1 THE HEAVEN");
+		Font_DrawText(logoX, logoY - 50, "DIABLO 1 THE HEAVEN");
 		int y = Screen_TopBorder + 160 + (ScreenHeight - GUI_Height)/2; // vertical center
 		for( Menu* i = CurrentMenuWindowPtr; i->FuncPtr; y += 45 ){
 			Menu_DrawItem(i, y);
