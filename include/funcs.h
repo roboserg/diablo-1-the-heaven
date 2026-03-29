@@ -617,7 +617,7 @@ bool __fastcall ItemPlace( int row, int col, int playerIndex = -1	);//	Item
 void  AddInitItems( );//	Item		
 void  InitItems( );//	Item		
 void  PutFragmentsOfReconstructedNote( );//	Item		
-bool IsUniquePenaltyEffect( AFFIX_EFFECT id );//	Item
+bool IsHarmfulWhenNegative( AFFIX_EFFECT id );//	Item
 void __fastcall CalcCharParams( int playerIndex, int canLoadAnimFlag	);//	Item		
 void __fastcall UpdateRelictsState( Player& player );//	Item		
 void __fastcall SetAvailableChargesMask( int playerIndex	);//	Item		
