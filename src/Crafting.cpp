@@ -1460,8 +1460,6 @@ void Craft_Socketing_PlaceItemIntoSocketSlot( int dstSlotId )
     UpdateItem( socketedItem );
     
     optional<Gem> gemInfoOpt = FindGemInfoByBaseItemIndex( baseItemIndex );
-    int price = Craft_Socketing_CalculateGemInsertFinalPrice( gemInfoOpt->grade );
-    ClearGoldByInventoryAsPrice( price );
     
     player.ItemOnCursor.ItemCode = IC_M1_NONE;
     
@@ -1531,12 +1529,8 @@ bool __fastcall Craft_Socketing_TryToPlaceItemIntoCraftSlot()
                     optional<Gem> gemInfoOpt = FindGemInfoByBaseItemIndex( baseItemIndex );
                     if( gemInfoOpt ){
                         if( Craft_Socketing_IsGemSuitableForItem( *gemInfoOpt, socketedItem) ){
-                            int totalGold = Players[CurrentPlayerIndex].TotalGold;
-                            int price = Craft_Socketing_CalculateGemInsertFinalPrice( gemInfoOpt->grade );
-                            if( totalGold >= price ){
-                                Craft_Socketing_PlaceItemIntoSocketSlot( dstSlotId );
-                                return true;
-                            }
+                            Craft_Socketing_PlaceItemIntoSocketSlot( dstSlotId );
+                            return true;
                         }
                     }
                 }

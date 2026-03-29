@@ -791,9 +791,7 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
                     if (isSocketingPanel && !isCraftSlot) {
                         if (Craft_Socketing_IsSocketingItemReady()) {
                             if (Craft_Socketing_IsGemSuitableForCurrentItem(*gemInfoOpt)) {
-                                int price = Craft_Socketing_CalculateGemInsertFinalPrice(gemInfoOpt->grade);
-                                sprintf(InfoPanelBuffer, "Insertion price: %i", price);
-                                Tooltip_AddLine_2(InfoPanelBuffer, player.TotalGold >= price ? C_0_White : C_2_Red);
+                                // Insertion is now free
                             }
                             else {
                                 Tooltip_AddLine_2("Not suitable for current item", C_2_Red);
@@ -1635,9 +1633,7 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
                     if (isSocketingPanel && !isCraftSlot) {
                         if (Craft_Socketing_IsSocketingItemReady()) {
                             if (Craft_Socketing_IsGemSuitableForCurrentItem(*gemInfoOpt)) {
-                                int price = Craft_Socketing_CalculateGemInsertFinalPrice(gemInfoOpt->grade);
-                                sprintf(InfoPanelBuffer, "Insertion price: %i", price);
-                                Tooltip_AddLine_3(InfoPanelBuffer, player.TotalGold >= price ? C_0_White : C_2_Red);
+                                // Insertion is now free
                             }
                             else {
                                 Tooltip_AddLine_3("Not suitable for current item", C_2_Red);
@@ -2585,9 +2581,7 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
                     if( isSocketingPanel && !isCraftSlot ){
                         if( Craft_Socketing_IsSocketingItemReady() ){
                             if( Craft_Socketing_IsGemSuitableForCurrentItem( *gemInfoOpt ) ){
-                                int price = Craft_Socketing_CalculateGemInsertFinalPrice( gemInfoOpt->grade );
-                                sprintf(InfoPanelBuffer, "Insertion price: %i", price);
-                                Tooltip_AddLine(InfoPanelBuffer, player.TotalGold >= price ? C_0_White : C_2_Red);
+                                // Insertion is now free
                             }else{
                                 Tooltip_AddLine("Not suitable for current item", C_2_Red);
                             }
