@@ -39,7 +39,7 @@ Write-Step "Resolving version"
 
 if (-not $Version) {
     $header = Get-Content "tools/version.h" -Raw
-    $match = [regex]::Match($header, 'THE_HELL_VERSION_STRING\s+"v([^\\]+)\\0"')
+    $match = [regex]::Match($header, 'THE_HELL_VERSION_STRING\s+"v([^"]+)"')
     if (-not $match.Success) { Fail "Could not parse version from tools/version.h" }
     $Version = $match.Groups[1].Value
 }

@@ -81,30 +81,38 @@ bool AddSocketPressed;
 DisplayObject AddSocketButton;
 
 //----- (th3) -------------------------------------------------------------
+bool IsMagicOrRare(Item& item)
+{
+	return item.MagicLevel == ML_1_MAGIC
+	    || (item.MagicLevel == ML_2_UNIQUE && (item.dropType & D_RARE));
+}
+
+//----- (th3) -------------------------------------------------------------
+int MaxAddSocketsForItem(Item& item)
+{
+	return IsMagicOrRare(item) ? MaxAddSockets_2 : MaxAddSockets_4;
+}
+
+//----- (th3) -------------------------------------------------------------
 bool AllowSocketing(Item& item)
 {
-	return item.socketsAmount > 0 || item.MagicLevel == ML_0_USUAL && item.dropType & D_ENCHANT;
+	return item.socketsAmount > 0
+	    || (item.MagicLevel == ML_0_USUAL && item.dropType & D_ENCHANT)
+	    || IsMagicOrRare(item);
 }
 
 //----- (th3) -------------------------------------------------------------
-int SocketPrice(int socketAmount)
+int SocketPrice(int socketAmount, int basePrice, int itemLevel)
 {
-	return by(socketAmount - 1, 25'000, 75'000, 150'000, 250'000);
-}
-
-//----- (th3) -------------------------------------------------------------
-int SocketReqClvlToAdd(int socketAmount)
-{
-	return by(socketAmount - 1, 55, 70, 85, 100);
+	return basePrice + itemLevel * 500 * by(socketAmount - 1, 1, 3, 6, 10);
 }
 
 //----- (th3) -------------------------------------------------------------
 int AddSocketPicNumber()
 {
 	Item& item = SocketingItems[SocketingItemSlotIndex];
-	if( item.ItemCode == IC_M1_NONE || !(item.dropType & D_ENCHANT) || item.socketsAmount >= MaxAddSockets_4
-	 || (uint)BuyPrice(SocketPrice(item.socketsAmount + 1)) > CalcTotalGold(CurrentPlayerIndex)
-	 || SocketReqClvlToAdd(item.socketsAmount + 1) > Players[CurrentPlayerIndex].CharLevel ){
+	if( item.ItemCode == IC_M1_NONE || !AllowSocketing(item) || item.socketsAmount >= MaxAddSocketsForItem(item)
+	 || (uint)BuyPrice(SocketPrice(item.socketsAmount + 1, item.basePrice, item.quality)) > CalcTotalGold(CurrentPlayerIndex) ){
 		return SOC_INACTIVE;
 	}else{
 		if( CursorIntoDisplayObject(AddSocketButton) ){
@@ -121,11 +129,11 @@ void ClickAddSocketButton()
 {
 	if( AddSocketPicNumber() != SOC_INACTIVE ){
 		Item& item = SocketingItems[SocketingItemSlotIndex];
-		if( item.socketsAmount < MaxAddSockets_4 && item.socketsAdded < MaxScrollCount_6 ){
+		if( item.socketsAmount < MaxAddSocketsForItem(item) && item.socketsAdded < MaxScrollCount_6 ){
 			item.socketsAdded++;
 			UpdateItem(item);
 			PlayGlobalSound(S_1516_adria_enchant_sfx);
-			ClearGoldByInventoryAsPrice(BuyPrice(SocketPrice(item.socketsAmount)));
+			ClearGoldByInventoryAsPrice(BuyPrice(SocketPrice(item.socketsAmount, item.basePrice, item.quality)));
 		}
 	}
 }
@@ -141,14 +149,13 @@ void DrawAddSocketButton(Item& item)
         Tooltip_Clear();
         Tooltip_SetOffsetBottom();
 
-        if( item.ItemCode == IC_M1_NONE || nextAmount > MaxAddSockets_4 ){
-            Tooltip_AddLine("Add sockets to enchanted item,");
-            Tooltip_AddLine("Clvl 55 required for adding 1 socket,");
-            Tooltip_AddLine("clvl 70 for 2, clvl 85 for 3, clvl 100 for 4");
-		}else if( !(item.dropType & D_ENCHANT) ){
-			Tooltip_AddLine("Adding sockets is possible only for enchanted items", C_2_Red);
+        if( item.ItemCode == IC_M1_NONE || nextAmount > MaxAddSocketsForItem(item) ){
+            Tooltip_AddLine("Add sockets to enchanted, magic or rare item.");
+            Tooltip_AddLine("Enchanted items: max 4 sockets. Magic/rare: max 2.");
+		}else if( !AllowSocketing(item) ){
+			Tooltip_AddLine("Adding sockets is only possible for enchanted, magic or rare items", C_2_Red);
 		}else{
-            sprintf(InfoPanelBuffer, "Add socket to enchanted item, for %i gold", BuyPrice(SocketPrice(nextAmount))/*, SocketReqClvlToAdd(nextAmount)*/);
+            sprintf(InfoPanelBuffer, "Add socket for %i gold", BuyPrice(SocketPrice(nextAmount, item.basePrice, item.quality)));
             Tooltip_AddLine(InfoPanelBuffer);
         }
     }
