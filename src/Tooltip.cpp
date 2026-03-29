@@ -346,7 +346,7 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
     if (rare) {
         Tooltip_AddLine_2("Rare Item", nameColor);
     }
-    else if (item.MagicLevel == ML_2_UNIQUE) {
+    else if (item.MagicLevel >= ML_2_UNIQUE) {
         Tooltip_AddLine_2("Unique Item", nameColor);
     }
     else if (item.MagicLevel == ML_3_SET) {
@@ -604,7 +604,10 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
     if (identified) {
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
-			if( e.id != AE_NO && e.origin < AO_BASE && PrintItemEffectToStringBuffer(e.id, &item, i) ){
+			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsUniquePenaltyEffect(e.id) ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine_2(InfoPanelBuffer, C_1_Blue);
 			}
 		}
@@ -1187,7 +1190,7 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
     if (rare) {
         Tooltip_AddLine_3("Rare Item", nameColor);
     }
-    else if (item.MagicLevel == ML_2_UNIQUE) {
+    else if (item.MagicLevel >= ML_2_UNIQUE) {
         Tooltip_AddLine_3("Unique Item", nameColor);
     }
     else if (item.MagicLevel == ML_3_SET) {
@@ -1445,7 +1448,10 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
     if (identified) {
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
-			if( e.id != AE_NO && e.origin < AO_BASE && PrintItemEffectToStringBuffer(e.id, &item, i) ){
+			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsUniquePenaltyEffect(e.id) ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine_3(InfoPanelBuffer, C_1_Blue);
 			}
 		}
@@ -2146,7 +2152,7 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
     
     if( rare ){
         Tooltip_AddLine("Rare Item", nameColor);
-    }else if( item.MagicLevel == ML_2_UNIQUE ){
+    }else if( item.MagicLevel >= ML_2_UNIQUE ){
         Tooltip_AddLine("Unique Item", nameColor);
     }else if( item.MagicLevel == ML_3_SET ){
         Tooltip_AddLine("Set Item", nameColor);
@@ -2394,7 +2400,10 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
 	if( identified ){
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
-			if( e.id != AE_NO && e.origin < AO_BASE && PrintItemEffectToStringBuffer(e.id, &item, i) ){
+			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsUniquePenaltyEffect(e.id) ) continue;
+			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine(InfoPanelBuffer, C_1_Blue);
 			}
 		}

@@ -3197,6 +3197,57 @@ PLAYER_FULL_CLASS GetPlayerFullClass( PLAYER_CLASS classId, PLAYER_SUBLASS subcl
     return fullClassId;
 }
 
+bool IsUniquePenaltyEffect(AFFIX_EFFECT id) {
+	switch (id) {
+	case AE_STAT:
+	case AE_ALL_STAT:
+	case AE_STAT_PERCENT:
+	case AE_ALL_STAT_PERCENT:
+	case AE_RESIST:
+	case AE_RESIST_All:
+	case AE_AC:
+	case AE_SPECIAL_AC:
+	case AE_PERCENT_AC:
+	case AE_LIFE_REGEN:
+	case AE_LIFE_REGEN_PERCENT:
+	case AE_MANA_REGEN:
+	case AE_MANA_REGEN_PERCENT:
+	case AE_MANA:
+	case AE_HIT_POINTS:
+	case AE_LIFE_PERCENT:
+	case AE_MANA_PERCENT:
+	case AE_TO_HIT:
+	case AE_TO_HIT_DAMAGE:
+	case AE_PERCENT_DAMAGE:
+	case AE_DAMAGE:
+	case AE_BLOCK_CHANCE:
+	case AE_CRIT_CHANCE:
+	case AE_CRIT_DAMAGE:
+	case AE_CRIT_DAMAGE_PERCENT:
+	case AE_CRIT_PERCENT:
+	case AE_MAGIC_FIND:
+	case AE_GOLD_FIND:
+	case AE_XP_GAIN:
+	case AE_XP_GAIN_PERCENT:
+	case AE_GOLD_ABS_FIND:
+	case AE_HIGH_DURABILITY:
+	case AE_SPELLS_LEVEL:
+	case AE_SPELL_LEVEL:
+	case AE_SPELL_DAMAGE:
+	case AE_ELEMENT_DAMAGE:
+	case AE_SUMMON_AC:
+	case AE_SUMMON_AC_PERCENT:
+	case AE_SUMMON_DAMAGE:
+	case AE_SUMMON_DAMAGE_PERCENT:
+	case AE_SUMMON_HP:
+	case AE_SUMMON_HP_PERCENT:
+	case AE_SUMMON_TO_HIT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 //----- (00423965) --------------------------------------------------------
 void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 {
@@ -3321,6 +3372,8 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			staffSpellsSpeedbook |= 1i64 << ((uchar)spell_ID - 1);
 		}
 		for(Effect& e : item.effect){
+			if (item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsUniquePenaltyEffect(e.id)) continue;
+			if (item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS) continue;
 			switch( e.id ){
 			case AE_TO_HIT                     : accuracy            += e.chance; break;
 			case AE_PERCENT_DAMAGE             : damagePercent       += e.minVal; break;
@@ -9709,7 +9762,7 @@ void __fastcall RecreateItem( int itemIndex, short baseItemIndex, int dropType, 
 
 	if( item.genVersion >= 5 || item.MagicLevel >= ML_2_UNIQUE ){
 		bool isMagicOrRare = item.MagicLevel == ML_1_MAGIC
-		    || (item.MagicLevel == ML_2_UNIQUE && (item.dropType & D_RARE));
+		    || (item.MagicLevel >= ML_2_UNIQUE && (item.dropType & D_RARE));
 		if( ! (extraGen & D_ENCHANT) && item.MagicLevel != ML_0_USUAL && !isMagicOrRare ) socketsAdded = 0; // Allow added sockets only for enchanted (Craft), base (Transmute), and magic/rare items
 	}else{
 		socketsAdded = std::max( socketsAdded, item.socketsBase );

@@ -13,6 +13,7 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 - **Open Stash at Griswold**: Griswold now offers "Open stash" option in his menu, same as Gillian's stash service.
 - **Identify All Items at Cain**: Cain's shop now has a new "Identify all items (X gold)" option that identifies all unidentified items in inventory at once.
 - **Heal and Restore Mana at Cain**: When talking to Cain, the player's HP is fully restored and mana is restored (outside Classic mode), similar to Pepin and Adria's services.
+- **No Penalties on Unique/Set Items**: Negative stat penalties on unique and set items are no longer applied or shown in tooltips. Items like Nosferatu's Brooch retain only their positive bonuses, while beneficial negative effects (e.g. reduced damage from enemies) are preserved.
 
 ## [0.0.4] - 2026-03-28
 
