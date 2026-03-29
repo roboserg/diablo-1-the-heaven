@@ -1459,6 +1459,19 @@ void HealerPepinShop()
 //----- (0046EA15) --------------------------------------------------------
 void TownElderMainMenu()
 {
+    Player& player = Players[CurrentPlayerIndex];
+    if (GameMode != GM_COLISEUM) {
+        bool needSound = (player.CurLife != player.MaxCurLife || player.CurMana != player.MaxCurMana);
+        player.CurLife = player.MaxCurLife;
+        player.BaseLife = player.MaxBaseLife;
+        if (GameMode != GM_CLASSIC) {
+            player.CurMana = player.MaxCurMana;
+            player.BaseMana = player.MaxBaseMana;
+        }
+        if (needSound) {
+            PlayGlobalSound(S_88_CAST9);
+        }
+    }
     IsBigMenuBox = false;
     DialogHasScroolBox = false;
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_15_ElderMain_Logo, true, "The Town Elder", C_3_Gold, false);
