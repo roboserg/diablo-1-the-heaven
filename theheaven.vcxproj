@@ -75,13 +75,14 @@
       <ForcedIncludeFiles>
       </ForcedIncludeFiles>
       <ControlFlowGuard>false</ControlFlowGuard>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir);$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir);$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0419</Culture>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>dbghelp.lib;lib\storm.lib;lib\dxguid.lib;lib\ddraw.lib;d3d9.lib;Version.lib;odbc32.lib;odbccp32.lib;lib\smackw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -113,7 +114,7 @@
     </Manifest>
     <FxCompile>
       <ShaderModel>3.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\%(Filename).h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\%(Filename).h</HeaderFileOutput>
       <ObjectFileOutput />
     </FxCompile>
     <FxCompile />
@@ -254,36 +255,36 @@
     <CustomBuild Include="$(SolutionDir)..\.svn\wc.db" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BitsBytes.h" />
-    <ClInclude Include="src\codec.h" />
-    <ClInclude Include="src\common.h" />
-    <ClInclude Include="src\CXBOXController.h" />
-    <ClInclude Include="src\difficulty.h" />
-    <ClInclude Include="src\enums.h" />
-    <ClInclude Include="src\engine.h" />
-    <ClInclude Include="src\game.h" />
-    <ClInclude Include="src\Item.h" />
-    <ClInclude Include="src\msg.h" />
-    <ClInclude Include="src\multi.h" />
-    <ClInclude Include="src\reflect.h" />
-    <ClInclude Include="src\ScreenShotMaker.h" />
-    <ClInclude Include="src\serialize.h" />
-    <ClInclude Include="src\structs.h" />
-    <ClInclude Include="src\sync.h" />
-    <ClInclude Include="src\tmsg.h" />
-    <ClInclude Include="src\track.h" />
-    <ClInclude Include="src\vars.h" />
-    <ClInclude Include="src\vorbisenc.h" />
-    <ClInclude Include="src\vorbisfile.h" />
+    <ClInclude Include="include\BitsBytes.h" />
+    <ClInclude Include="include\codec.h" />
+    <ClInclude Include="include\common.h" />
+    <ClInclude Include="include\CXBOXController.h" />
+    <ClInclude Include="include\difficulty.h" />
+    <ClInclude Include="include\enums.h" />
+    <ClInclude Include="include\engine.h" />
+    <ClInclude Include="include\game.h" />
+    <ClInclude Include="include\Item.h" />
+    <ClInclude Include="include\msg.h" />
+    <ClInclude Include="include\multi.h" />
+    <ClInclude Include="include\reflect.h" />
+    <ClInclude Include="include\ScreenShotMaker.h" />
+    <ClInclude Include="include\serialize.h" />
+    <ClInclude Include="include\structs.h" />
+    <ClInclude Include="include\sync.h" />
+    <ClInclude Include="include\tmsg.h" />
+    <ClInclude Include="include\track.h" />
+    <ClInclude Include="include\vars.h" />
+    <ClInclude Include="include\vorbisenc.h" />
+    <ClInclude Include="include\vorbisfile.h" />
     <ClInclude Include="tools\version.h" />
-    <ClInclude Include="src\funcs.h" />
-    <ClInclude Include="src\IniFile.h" />
-    <ClInclude Include="src\rad.h" />
-    <ClInclude Include="src\stdafx.h" />
-    <ClInclude Include="src\resource.h" />
-    <ClInclude Include="src\hell.h" />
-    <ClInclude Include="src\smack.h" />
-    <ClInclude Include="src\storm.h" />
+    <ClInclude Include="include\funcs.h" />
+    <ClInclude Include="include\IniFile.h" />
+    <ClInclude Include="include\rad.h" />
+    <ClInclude Include="include\stdafx.h" />
+    <ClInclude Include="include\resource.h" />
+    <ClInclude Include="include\hell.h" />
+    <ClInclude Include="include\smack.h" />
+    <ClInclude Include="include\storm.h" />
     <ClInclude Include="lib\pklib\pklib.h" />
     <ResourceCompile Include="src\theheaven.rc" />
     <Image Include="res\th3_dev.ico" />
@@ -340,7 +341,7 @@
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_bloom</EntryPointName>
       <ShaderModel>3.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\BloomShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\BloomShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
@@ -348,7 +349,7 @@
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_fog</EntryPointName>
       <ShaderModel>2.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\FogShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\FogShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
@@ -356,7 +357,7 @@
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_fxaa</EntryPointName>
       <ShaderModel>3.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\FXAAShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\FXAAShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
@@ -364,14 +365,14 @@
       <ShaderType>Pixel</ShaderType>
       <EntryPointName>main_perspective</EntryPointName>
       <ShaderModel>2.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\PerspectiveShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\PerspectiveShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="src\VignettingShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\VignettingShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\VignettingShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
       <EntryPointName>main_vignetting</EntryPointName>
@@ -380,7 +381,7 @@
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <EntryPointName>main_fogven</EntryPointName>
-      <HeaderFileOutput>$(ProjectDir)\src\FogVenShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\FogVenShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
@@ -388,18 +389,17 @@
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
       <EntryPointName>main_line</EntryPointName>
-      <HeaderFileOutput>$(ProjectDir)\src\LineShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\LineShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="src\PaletteShader.hlsl">
       <ShaderType>Pixel</ShaderType>
       <ShaderModel>2.0</ShaderModel>
-      <HeaderFileOutput>PaletteShader.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
       <EntryPointName>main_palette</EntryPointName>
-      <HeaderFileOutput>$(ProjectDir)\src\PaletteShader.h</HeaderFileOutput>
+      <HeaderFileOutput>$(ProjectDir)\include\PaletteShader.h</HeaderFileOutput>
     </FxCompile>
   </ItemGroup>
   <Target Name="CopyResources" Inputs="@(FileToCopy)" Outputs="@(FileToCopy -> '$(OutDir)%(Filename)%(Extension)')">
