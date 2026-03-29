@@ -1,7 +1,4 @@
 ﻿#include "stdafx.h"
-#ifndef OLD_PCX_SCREENSHOT
-#include "ScreenShotMaker.h"
-#endif
 
 LPDIRECT3DDEVICE9 D3dDevice = 0; // Our rendering device
 LPDIRECT3DDEVICE9 SecDevice = 0; // Second win rendering device
