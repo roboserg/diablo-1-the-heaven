@@ -1344,7 +1344,7 @@ void ToggleCharPanel()
     {
         IsQUESTPanelVisible = false;
         IsPerksPanelVisible = false;
-        IsStashPanelVisible = false;
+        StashPanel_Close();
         IsInfoWindowVisible = false;
         VisualTrade_Close();
         Craft_Close();
@@ -1362,7 +1362,7 @@ void ToggleQuestPanel()
     { // Conflicts with
         IsCHARPanelVisible = false;
         IsPerksPanelVisible = false;
-        IsStashPanelVisible = false;
+        StashPanel_Close();
         IsInfoWindowVisible = false;
         VisualTrade_Close();
         Craft_Close();
@@ -1395,7 +1395,7 @@ void OpenPerksPanel()
         IsSpellBookVisible = false;
         IsQUESTPanelVisible = false;
         IsCHARPanelVisible = false;
-        IsStashPanelVisible = false;
+        StashPanel_Close();
         VisualTrade_Close();
         Craft_Close();
 		Enchant_Close();

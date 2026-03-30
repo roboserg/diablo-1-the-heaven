@@ -1,5 +1,9 @@
 ﻿#include "stdafx.h"
 
+#undef strcat_s
+#define SW_IMPL
+#include "stackwalkerc.h"
+
 #define DS_ERRORS_MASK 0x08780000
 #define DD_ERRORS_MASK 0x08760000
 
@@ -165,16 +169,131 @@ char* GetErrorTextForLastError()
 	return GetErrorText(GetLastError());
 }
 
+//----- crash text log ---------------------------------------------------
+static const char* ExceptionCodeToString(DWORD code)
+{
+	switch( code ){
+		case EXCEPTION_ACCESS_VIOLATION:         return "ACCESS_VIOLATION";
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:    return "ARRAY_BOUNDS_EXCEEDED";
+		case EXCEPTION_BREAKPOINT:               return "BREAKPOINT";
+		case EXCEPTION_DATATYPE_MISALIGNMENT:    return "DATATYPE_MISALIGNMENT";
+		case EXCEPTION_FLT_DENORMAL_OPERAND:     return "FLT_DENORMAL_OPERAND";
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:       return "FLT_DIVIDE_BY_ZERO";
+		case EXCEPTION_FLT_INEXACT_RESULT:       return "FLT_INEXACT_RESULT";
+		case EXCEPTION_FLT_INVALID_OPERATION:    return "FLT_INVALID_OPERATION";
+		case EXCEPTION_FLT_OVERFLOW:             return "FLT_OVERFLOW";
+		case EXCEPTION_FLT_STACK_CHECK:          return "FLT_STACK_CHECK";
+		case EXCEPTION_FLT_UNDERFLOW:            return "FLT_UNDERFLOW";
+		case EXCEPTION_ILLEGAL_INSTRUCTION:      return "ILLEGAL_INSTRUCTION";
+		case EXCEPTION_IN_PAGE_ERROR:            return "IN_PAGE_ERROR";
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:       return "INT_DIVIDE_BY_ZERO";
+		case EXCEPTION_INT_OVERFLOW:             return "INT_OVERFLOW";
+		case EXCEPTION_INVALID_DISPOSITION:      return "INVALID_DISPOSITION";
+		case EXCEPTION_NONCONTINUABLE_EXCEPTION: return "NONCONTINUABLE_EXCEPTION";
+		case EXCEPTION_PRIV_INSTRUCTION:         return "PRIV_INSTRUCTION";
+		case EXCEPTION_SINGLE_STEP:              return "SINGLE_STEP";
+		case EXCEPTION_STACK_OVERFLOW:           return "STACK_OVERFLOW";
+		default:                                 return "UNKNOWN";
+	}
+}
+
+struct CrashLogContext {
+	FILE* file;
+};
+
+static void crashlog_symbol_init(const char* search_path, uint32_t sym_opts, void* userptr) {}
+static void crashlog_load_module(const char* img, const char* module, uint64_t base_addr, uint32_t size, void* userptr) {}
+static void crashlog_callstack_begin(void* userptr) {}
+
+static void crashlog_callstack_entry(const sw_callstack_entry* entry, void* userptr)
+{
+	CrashLogContext* ctx = (CrashLogContext*)userptr;
+	if( entry->line_filename[0] )
+		fprintf(ctx->file, "  %s(%d): %s\n", entry->line_filename, entry->line, entry->und_name);
+	else
+		fprintf(ctx->file, "  0x%08llX: %s\n", entry->offset, entry->und_name[0] ? entry->und_name : entry->name);
+}
+
+static void crashlog_callstack_end(void* userptr) {}
+
+void WriteCrashLog(EXCEPTION_POINTERS* pep, const char* errorMessage)
+{
+	FILE* f = fopen("Th4Crash.log", "w");
+	if( !f ) return;
+
+	fprintf(f, "=== Diablo: The Heaven Crash Log ===\n");
+	fprintf(f, "Version: %s\n", THE_HELL_VERSION_HUMAN_STRING);
+#ifdef _DEBUG
+	fprintf(f, "Build: Debug\n");
+#else
+	fprintf(f, "Build: Release\n");
+#endif
+
+	if( errorMessage )
+		fprintf(f, "Error: %s\n", errorMessage);
+
+	if( pep ){
+		DWORD code = pep->ExceptionRecord->ExceptionCode;
+		fprintf(f, "\nException: 0x%08X (%s)\n", code, ExceptionCodeToString(code));
+		if( code == EXCEPTION_ACCESS_VIOLATION && pep->ExceptionRecord->NumberParameters >= 2 ){
+			ULONG_PTR info = pep->ExceptionRecord->ExceptionInformation[0];
+			ULONG_PTR addr = pep->ExceptionRecord->ExceptionInformation[1];
+			fprintf(f, "Attempt: %s at 0x%08IX\n", info == 0 ? "read" : info == 1 ? "write" : "execute", addr);
+		}
+		fprintf(f, "Fault address: 0x%08IX\n", (ULONG_PTR)pep->ExceptionRecord->ExceptionAddress);
+	}
+
+	fprintf(f, "\nCall stack:\n");
+
+	sw_callbacks callbacks;
+	callbacks.symbol_init     = crashlog_symbol_init;
+	callbacks.load_module     = crashlog_load_module;
+	callbacks.callstack_begin = crashlog_callstack_begin;
+	callbacks.callstack_entry = crashlog_callstack_entry;
+	callbacks.callstack_end   = crashlog_callstack_end;
+
+	CrashLogContext ctx;
+	ctx.file = f;
+
+	if( pep ){
+		sw_context* sw = sw_create_context_exception(SW_OPTIONS_ALL, pep, callbacks, &ctx);
+		if( sw ){
+			sw_show_callstack(sw, NULL);
+			sw_destroy_context(sw);
+		}
+	} else {
+		sw_context* sw = sw_create_context_capture(SW_OPTIONS_ALL, callbacks, &ctx);
+		if( sw ){
+			sw_show_callstack(sw, NULL);
+			sw_destroy_context(sw);
+		}
+	}
+
+	fprintf(f, "\n=== End of Crash Log ===\n");
+	fclose(f);
+}
+
 //----- (00401965) --------------------------------------------------------
 __declspec(noreturn) void TerminateWithError(LPCSTR format, ...)
 {
 	if( IsFullScreen ) SwitchFullscreen(1);
 	if( IsDebuggerPresent() ) __debugbreak();
-	va_list va;
-	va_start(va, format);
-	ErrorExitGame();
+
+	char errorMsg[256] = {};
 	if( format ){
-		ShowErrorMessageBox(format, va);
+		va_list va;
+		va_start(va, format);
+		wvsprintfA(errorMsg, format, va);
+		va_end(va);
+	}
+
+	ErrorExitGame();
+
+	if( errorMsg[0] ){
+		if( ghMainWnd ){
+			SetWindowPos(ghMainWnd, (HWND)0xFFFFFFFE, 0, 0, 0, 0, SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOSIZE);
+		}
+		MessageBoxA(ghMainWnd, errorMsg, "ERROR", MB_TASKMODAL|MB_ICONERROR);
 	}
 
 	// copy potential bugged save file for debug
@@ -186,6 +305,9 @@ __declspec(noreturn) void TerminateWithError(LPCSTR format, ...)
 		copy_options op = copy_options::overwrite_existing;
 		copy_file( path, path + ".err", op );
 	}
+
+	// write crash log with stack trace before forcing crash
+	WriteCrashLog(NULL, errorMsg[0] ? errorMsg : NULL);
 
 	CloseGameArchives(0);
 	if( ! IsDebuggerPresent() ){

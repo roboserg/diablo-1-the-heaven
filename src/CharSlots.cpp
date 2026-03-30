@@ -86,6 +86,119 @@ void __fastcall GetSaveArchivePath( char (&saveArchivePath)[MAX_PATH], int strin
 	_strlwr(saveArchivePath);// неоригинальное CharLower(saveFullName);
 }
 
+//----- (th4) -------------------------------------------------------------
+void GetSharedStashArchivePath( char (&archivePath)[MAX_PATH] )
+{
+	if( !GetModuleFileNameA(HInstance, archivePath, MAX_PATH) )
+		TerminateWithError("Unable to get save directory");
+	char* pathEnd = strrchr(archivePath, '\\');
+	if( pathEnd ) *pathEnd = 0;
+	char folder[MAX_PATH];
+	sprintf(folder, "\\%sth4shared.stv", SaveFolder ? SaveFolders[0] : "");
+	strcat(archivePath, folder);
+	_strlwr(archivePath);
+}
+
+//----- (th4) -------------------------------------------------------------
+void WriteSharedStashToArchive()
+{
+	char sharedPath[MAX_PATH];
+	GetSharedStashArchivePath(sharedPath);
+
+	// Save current game save version - StashPanel_Save uses it
+	int savedSaveVersion = SaveVersion;
+
+	// Serialize stash into buffer (version 2 format: includes SharedStashTabsPurchased)
+	CurSaveData = (char*)SaveBuffer_Stash;
+	uint stashSignature = SaveSignature;
+	PutNextHtonl2(stashSignature);
+	PutNextHtonl(2); // shared stash format version
+	PutNextHtonl(SharedStashTabsPurchased);
+	StashPanel_Save();
+
+	// Restore game save version
+	SaveVersion = savedSaveVersion;
+	int actualSize = (uchar*)CurSaveData - SaveBuffer_Stash;
+	if( actualSize > (int)sizeof(SaveBuffer_Stash) ){
+		TerminateWithError("Shared stash buffer overflow: %i > %i", actualSize, sizeof(SaveBuffer_Stash));
+	}
+	int blockSize = CalcEncodeDstBytes(actualSize);
+	EncodeFile( SaveBuffer_Stash, actualSize, blockSize, CryptKey );
+	CurSaveData = nullptr;
+
+	// Write directly to file (not MPQ)
+	HANDLE hFile = CreateFileA(sharedPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if( hFile != INVALID_HANDLE_VALUE ){
+		DWORD written;
+		WriteFile(hFile, SaveBuffer_Stash, blockSize, &written, NULL);
+		CloseHandle(hFile);
+	}
+}
+
+//----- (th4) -------------------------------------------------------------
+void ReadSharedStashFromArchive()
+{
+	OutputDebugStringA("[SharedStash] ReadSharedStashFromArchive ENTER\n");
+	char sharedPath[MAX_PATH];
+	GetSharedStashArchivePath(sharedPath);
+
+	HANDLE hFile = CreateFileA(sharedPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	if( hFile == INVALID_HANDLE_VALUE ){
+		OutputDebugStringA("[SharedStash] File not found, clearing stash\n");
+		ClearVisualStash();
+		SharedStashTabsPurchased = 1;
+		OutputDebugStringA("[SharedStash] EXIT (no file)\n");
+		return;
+	}
+
+	OutputDebugStringA("[SharedStash] File opened\n");
+
+	// Save current game save version - StashPanel_Load uses it
+	int savedSaveVersion = SaveVersion;
+
+	DWORD fileSize = GetFileSize(hFile, NULL);
+	OutputDebugStringA("[SharedStash] File read, decoding\n");
+	if( fileSize > 0 && fileSize <= sizeof(SaveBuffer_Stash) ){
+		DWORD bytesRead;
+		if( ReadFile(hFile, SaveBuffer_Stash, fileSize, &bytesRead, NULL) && bytesRead == fileSize ){
+			int readSize = DecodeFile( SaveBuffer_Stash, bytesRead, CryptKey );
+			OutputDebugStringA("[SharedStash] Decoded, loading stash panel\n");
+			if( readSize > 0 ){
+				CurSaveData = (char*)SaveBuffer_Stash;
+				int stashSignature = GetNextHtonl2();
+				if( stashSignature == SaveSignature ){
+					OutputDebugStringA("[SharedStash] Signature OK\n");
+					int stashFormatVersion = GetNextHtonl();
+					if( stashFormatVersion >= 2 ){
+						SharedStashTabsPurchased = GetNextHtonl();
+					} else {
+						SharedStashTabsPurchased = 100;
+					}
+					OutputDebugStringA("[SharedStash] Calling StashPanel_Load\n");
+					StashPanel_Load();
+					OutputDebugStringA("[SharedStash] StashPanel_Load done\n");
+				}
+				CurSaveData = nullptr;
+			}
+		}
+	}
+	CloseHandle(hFile);
+
+	// Restore game save version
+	SaveVersion = savedSaveVersion;
+	OutputDebugStringA("[SharedStash] EXIT OK\n");
+}
+
+//----- (th4) -------------------------------------------------------------
+void ReloadPersonalStashFromArchive(int slotIndex)
+{
+	HANDLE archiveHandle = OpenArchive(false, slotIndex);
+	if( archiveHandle ){
+		ReadStashInfoFromSave(archiveHandle);
+		CloseArchiveRead(archiveHandle);
+	}
+}
+
 //----- (00456034) --------------------------------------------------------
 void InitSaveDirectory()
 {
@@ -142,18 +255,44 @@ void BackupSaveIfNeed( int slotIndex )
 void UpdatePlayerFile()
 {
 	if( EnforceNoSave ){ return; }
+
 	int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
+
+	// If shared stash was closed (e.g. via ESC) before UpdatePlayerFile ran, swap back to personal
+	if( IsSharedStashOpen && !IsStashPanelVisible ){
+		WriteSharedStashToArchive();
+		ReloadPersonalStashFromArchive(slotIndex);
+		StashTabsPurchased = PersonalStashTabsPurchased;
+		StashCurrentTab    = PersonalStashCurrentTab;
+		IsSharedStashOpen  = false;
+	}
+
 	BackupSaveIfNeed(slotIndex);
 	LastPlayerInfo heroData;
 	if( OpenArchiveWrite(true, slotIndex) ){
 		SavePlayerInfo(&heroData, CurrentPlayerIndex);
 		SaveCharacter(&heroData);
 		WriteWeaponSwapInfoToSave( WeaponSwapItems );
-		WriteStashInfoToSave();
+		if( !IsSharedStashOpen ) WriteStashInfoToSave(); // Don't overwrite personal stash with shared items
 		WriteHotkeysDataToSave();
-		WriteAdditionalHeroDataToSave();
+		// Temporarily restore real StashTabsPurchased so character archive stores the correct value
+		if( IsSharedStashOpen ){
+			int savedPurchased  = StashTabsPurchased;
+			int savedCurrentTab = StashCurrentTab;
+			StashTabsPurchased  = PersonalStashTabsPurchased;
+			StashCurrentTab     = PersonalStashCurrentTab;
+			WriteAdditionalHeroDataToSave();
+			StashTabsPurchased  = savedPurchased;
+			StashCurrentTab     = savedCurrentTab;
+		} else {
+			WriteAdditionalHeroDataToSave();
+		}
 		Transmute_WriteToSave();
 		CloseArchiveWrite(MaxCountOfPlayersInGame == 1, slotIndex);
+	}
+	// If shared stash is still open (player is mid-session with Gillian), also persist it
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
 	}
 }
 

@@ -1686,7 +1686,7 @@ void GillianMainMenu()
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_GilianMain_9_ActionLabel, true, "Would you like to:", C_3_Gold, false);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_GilianMain_12_Talk, true, "Talk to Gillian", C_1_Blue, true);
     if( StashEnabled() ){
-        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_GilianMain_14_Stash, true, "Open stash", C_0_White, true);
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_GilianMain_14_Stash, true, "Open shared stash", C_0_White, true);
     }
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_GilianMain_18_Leave, true, "Say goodbye", C_0_White, true);
     SetDialogLine(PT_DialogRows_5_SmallDialog_Separator);
@@ -1746,7 +1746,7 @@ void __fastcall ChangeTownerDialog(PLAYER_DIALOG dialogIndex)
 {
 	IsSpellBookVisible = false;
 	IsINVPanelVisible = false;
-	IsStashPanelVisible = false;
+	StashPanel_Close();
 	VisualTrade_Close();
 	Craft_Close();
 	// Enchant_Close();
@@ -2499,7 +2499,7 @@ void HandleGriswoldMainMenu ()
         case PT_DialogRows_1_BlacksmithMain_Trade: VisualTrade_Open( VTM_Blacksmith ); break;
 		case PT_DialogRows_1_BlacksmithMain_Craft: if( CanGrind() ) Craft_Open();      break;
 		case PT_DialogRows_1_BlacksmithMain_Quench: Quench_Open();                     break;
-		case PT_DialogRows_1_BlacksmithMain_Stash: if( StashEnabled() ) StashPanel_Open(); break;
+		case PT_DialogRows_1_BlacksmithMain_Stash: if( StashEnabled() ) StashPanel_OpenPersonal(); break;
         case PT_DialogRows_1_BlacksmithMain_Leave: CurrentDialogIndex = PD_0_None;	   break;
     }
 }
@@ -3092,7 +3092,7 @@ void HandleGilianMainMenu ()
         EndIndexOfGossibSpeechByCurrentCityzen = SP_187;
         ChangeTownerDialog(PD_19_Talk);
     }else if( SelectedDialogRow == PT_DialogRows_GilianMain_14_Stash && StashEnabled() ){
-        StashPanel_Open();
+        StashPanel_OpenShared();
     }else if( SelectedDialogRow == PT_DialogRows_GilianMain_18_Leave ){
         CurrentDialogIndex = PD_0_None;
     }

@@ -2318,12 +2318,14 @@ void CreateMiniDump( EXCEPTION_POINTERS* pep )
 	}
 }
 
+void WriteCrashLog(EXCEPTION_POINTERS* pep, const char* errorMessage);
+
 //----- (00409283) -------------------------------------------------------- main
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	__try{
 	#ifdef SHOW_CALL_STACK
-	void InintShowCallStack(); InintShowCallStack();
+	void InitShowCallStack(); InitShowCallStack();
 	#endif
 	InitTH2( &hInstance );
 
@@ -2383,7 +2385,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// ------ Original code end here ---------------------------------------
 
 	ExitTH2();
-	} __except( CreateMiniDump( GetExceptionInformation() ), EXCEPTION_EXECUTE_HANDLER ) {}
+	} __except( WriteCrashLog(GetExceptionInformation(), NULL), CreateMiniDump( GetExceptionInformation() ), EXCEPTION_EXECUTE_HANDLER ) {}
 	
 	return 0;
 }
@@ -2969,7 +2971,7 @@ int EscHandle()
 	if( TalkPanelMode                                  ){ CloseTalkPanel();                                       result = 1; }
 	if( IsGoldSplitPanelVisible                        ){ GoldSplitHandle(VK_27_ESC_KEY);                         result = 1; }
 	if( SelectCurSpellMode                             ){ SelectCurSpellMode = 0;                                 result = 1; }
-	if( IsStashPanelVisible                            ){ IsStashPanelVisible = false; CloseInventoryPanel();     result = 1; }
+	if( IsStashPanelVisible                            ){ StashPanel_Close();                                    result = 1; }
     if( IsVisualTradePanelVisible                      ){ VisualTrade_Close();         CloseInventoryPanel();     result = 1; }
     if( IsCraftPanelVisible                            ){ Craft_Close();               CloseInventoryPanel();     result = 1; }
 	if( IsEnchantPanelVisible                          ){ Enchant_Close();             CloseInventoryPanel();     result = 1; }
@@ -4733,7 +4735,7 @@ void __fastcall KeyPressHandler(WPARAM key)
 		if( key == VK_32_SPACE_KEY ){
 			IsHELPVisible = false;
 			IsINVPanelVisible = false;
-			IsStashPanelVisible = false;
+			StashPanel_Close();
 			VisualTrade_Close();
 			Craft_Close();
 			Enchant_Close();
