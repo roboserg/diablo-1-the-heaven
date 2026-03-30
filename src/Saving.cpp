@@ -87,6 +87,7 @@ void __fastcall LoadGame( int loadFromMainMenu )
 	}
 	LoadPlayer(CurrentPlayerIndex);
 
+
 	CheckInvalidInvItems( CurrentPlayerIndex ); // TODO: check if this funcs corrupt items on load
 	
 	Player& player = Players[CurrentPlayerIndex];

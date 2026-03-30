@@ -1146,7 +1146,7 @@ void CloseInventoryPanel()
 {
 	IsINVPanelVisible = false;
 	IsGoldSplitPanelVisible = false;
-	IsStashPanelVisible = false;
+	StashPanel_Close();
 	VisualTrade_Close();
 	Craft_Close();
 	Enchant_Close();

@@ -1414,6 +1414,12 @@ extern int CeliaUniqsTable[6][9];
 extern int AnvilOfFuryUniqsTable[PLAYER_FULL_CLASS::PFC_COUNT][9];
 
 extern bool IsStashPanelVisible;
+extern bool IsSharedStashOpen;
+extern int & StashCurrentTab;
+extern int & StashTabsPurchased;
+extern int PersonalStashTabsPurchased;
+extern int PersonalStashCurrentTab;
+extern int SharedStashTabsPurchased;
 extern DisplayObject VisualStashPanel;
 
 extern bool IsVisualTradePanelVisible;

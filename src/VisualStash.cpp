@@ -1,6 +1,10 @@
 ﻿#include "stdafx.h"
 
 bool IsStashPanelVisible = false;
+bool IsSharedStashOpen = false;
+int  PersonalStashTabsPurchased = 0;
+int  PersonalStashCurrentTab = 0;
+int  SharedStashTabsPurchased = 1;
 bool Is_LMB_Pressed = false;
 
 static constexpr int Stash_ChangePageButtonsAmount = 2;
@@ -327,10 +331,38 @@ void __fastcall DrawStashItems()
 }
 
 //----- (th2) -------------------------------------------------------------
-void __fastcall StashPanel_Open()
+void __fastcall StashPanel_OpenPersonal()
 {
+	// If shared stash was open, save it and restore personal data before showing personal stash
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
+		int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
+		ReloadPersonalStashFromArchive(slotIndex);
+		StashTabsPurchased = PersonalStashTabsPurchased;
+		StashCurrentTab    = PersonalStashCurrentTab;
+		IsSharedStashOpen  = false;
+	}
 	IsStashPanelVisible = true;
-	IsINVPanelVisible = true;
+	IsINVPanelVisible   = true;
+	Stash_ItemsSortSwitchState = 0;
+	Stash_RecalcTab(StashCurrentTab);
+	CurrentDialogIndex = PD_0_None;
+	PlayGlobalSound(S_75_I_TITLEMOV);
+}
+
+//----- (th4) -------------------------------------------------------------
+void __fastcall StashPanel_OpenShared()
+{
+	// Save current personal stash state
+	PersonalStashTabsPurchased = StashTabsPurchased;
+	PersonalStashCurrentTab    = StashCurrentTab;
+	// Load shared stash into StashTabs[]
+	ReadSharedStashFromArchive();
+	StashTabsPurchased = SharedStashTabsPurchased; // Shared stash tabs loaded from file
+	StashCurrentTab    = 0;
+	IsSharedStashOpen  = true;
+	IsStashPanelVisible = true;
+	IsINVPanelVisible   = true;
 	Stash_ItemsSortSwitchState = 0;
 	Stash_RecalcTab(StashCurrentTab);
 	CurrentDialogIndex = PD_0_None;
@@ -338,10 +370,24 @@ void __fastcall StashPanel_Open()
 }
 
 //----- (th2) -------------------------------------------------------------
+void __fastcall StashPanel_Open() { StashPanel_OpenPersonal(); }
+
+//----- (th2) -------------------------------------------------------------
 void __fastcall StashPanel_Close()
 {
+	if( !IsStashPanelVisible ) return;
 	IsStashPanelVisible = false;
-	IsINVPanelVisible = false;
+	CloseInventoryPanel();
+	// If closing shared stash, persist it and restore personal stash immediately
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
+		SaveGame();
+		int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
+		ReloadPersonalStashFromArchive(slotIndex);
+		StashTabsPurchased = PersonalStashTabsPurchased;
+		StashCurrentTab    = PersonalStashCurrentTab;
+		IsSharedStashOpen  = false;
+	}
 	PlayGlobalSound(S_75_I_TITLEMOV);
 }
 
@@ -352,6 +398,7 @@ void __fastcall StashPanel_BuyTab()
 	if (totalGold >= StashTabPrice)	{
 		ClearGoldByInventoryAsPrice(StashTabPrice);
 		++StashTabsPurchased;
+		if( IsSharedStashOpen ) SharedStashTabsPurchased = StashTabsPurchased;
 		Stash_RecalcTab(StashTabsPurchased - 1);
 		PlayGlobalSound(S_1532);
 	}
@@ -576,10 +623,13 @@ void __fastcall StashPanel_Load()
 	else                        { loadItem = (decltype(loadItem))LoadItem<ItemInfo19>; itemSize = sizeof(ItemInfo19); }
 	for( auto& stashTab : StashTabs ){
 		stashTab.itemCount = GetNextHtonl();
+		if( stashTab.itemCount > Stash_MaxSlot ){
+			TerminateWithError("Shared stash corrupted: itemCount %i > max %i", stashTab.itemCount, Stash_MaxSlot);
+		}
 
 		memcpy(stashTab.usedFlags, CurSaveData, sizeof(stashTab.usedFlags));
 		CurSaveData += sizeof(stashTab.usedFlags);
-		
+
 		for( int currentStashItemIndex = 0; currentStashItemIndex < stashTab.itemCount; ++currentStashItemIndex ){
 			loadItem( (LastItemInfo*)CurSaveData, &stashTab.items[currentStashItemIndex], true );
 			CurSaveData += itemSize;
@@ -1028,6 +1078,9 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 		}
 		SetCursorGraphics(newCursorGraphics);
 	}
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
+	}
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -1043,6 +1096,9 @@ bool __fastcall Stash_MoveItemToInventory(int itemIndex)
 	}else{
 		SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
 		ClearStashSlot(StashCurrentTab, itemIndex);
+	}
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
 	}
 	return true;
 }
@@ -1124,6 +1180,9 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
 			SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
 			FixItemCursor(-1);
 		}
+	}
+	if( IsSharedStashOpen ){
+		WriteSharedStashToArchive();
 	}
 }
 

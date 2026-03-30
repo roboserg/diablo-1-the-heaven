@@ -99,7 +99,7 @@
       <StackReserveSize>10485760</StackReserveSize>
       <DelayLoadDLLs>ddraw.dll;xinput9_1_0.dll</DelayLoadDLLs>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
-      <GenerateMapFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>

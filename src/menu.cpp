@@ -322,6 +322,7 @@ void __fastcall LoadGameMenuHandler(int a1, int a2)
 	PlayersSpellcastQueue[CurrentPlayerIndex] = {};
 	PlayerWall[CurrentPlayerIndex] = {};
 	ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
+	StashPanel_Close();
 	ResetMainMenu();
 	SetCursorGraphics(CM_0_INVISIBLE);
 	AddOnScreenMessage(OM_10_Loading);

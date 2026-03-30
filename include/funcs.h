@@ -1412,6 +1412,10 @@ bool __fastcall ReadAdditionalHeroDataFromSave(HANDLE save); // Stash tabs
 bool __fastcall OpenArchiveWrite( bool notUsedFlag, int heroSlot	);//	CharSlots		
 int SaveType();
 void __fastcall GetSaveArchivePath( char (&saveFullName)[MAX_PATH], int stringSize, int slotNum, int isHellfire	);//	CharSlots		
+void GetSharedStashArchivePath( char (&archivePath)[MAX_PATH] );//	CharSlots
+void WriteSharedStashToArchive();//	CharSlots
+void ReadSharedStashFromArchive();//	CharSlots
+void ReloadPersonalStashFromArchive(int slotIndex);//	CharSlots
 void __fastcall CloseArchiveWrite( bool clearHashTables, int slotNum	);//	CharSlots		
 void  ReleasePlayerFile( );//	CharSlots		
 void __fastcall InitCharData( Player& playerPtr, CharSaveInfo& charInfo, int isHellfire	);//	CharSlots		 
@@ -2189,6 +2193,10 @@ bool	__fastcall	AutoPutCursorItemToStash(int playerIndex);	//	th2	Stash	124
 void __fastcall RecalcBookReq(Item& item, int playerIndex);
 void	__fastcall	StashPanel_RecalcItemsReq();	//	th2	Stash	333
 void	__fastcall	StashPanel_Open();	//	th2	Stash	1116
+void __fastcall StashPanel_OpenPersonal();	//	th4	Stash
+void __fastcall StashPanel_OpenShared();	//	th4	Stash
+void __fastcall StashPanel_Close();	//	th2	Stash
+void __fastcall ClearVisualStash();	//	th2	Stash
 bool __fastcall CursorIntoStashButton(const DisplayObject& button);
 void __fastcall StashPanel_MouseMove();
 void __fastcall StashPanel_MouseClick();
