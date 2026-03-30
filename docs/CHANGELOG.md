@@ -2,7 +2,7 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
-## [Unreleased]
+## [0.2.0] - 2026-03-30
 
 ### Added
 - **Shared Stash**: Gillian now offers a shared stash accessible by all single-player characters. Griswold continues to offer the per-character personal stash.
