@@ -2,6 +2,11 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
+## [0.3.0] - 2026-03-30
+
+### Added
+- **More Base Items Available to All Classes**: All subclasses now share their parent class's item pool. Cross-class items are available to every class. 883 items available to all classes (was 694). Mage gains +189 items, Archer +150, Rogue +127, Savage +96, Monk +107, Warrior +87.
+
 ## [0.2.0] - 2026-03-30
 
 ### Added
