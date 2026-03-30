@@ -90,7 +90,7 @@ if (-not $match.Success) {
 
 Write-Step "Building release"
 
-& "$PSScriptRoot\build.ps1"
+& "$PSScriptRoot\build.ps1" Release
 if ($LASTEXITCODE -ne 0) { Fail "Build failed — aborting release" }
 Write-Ok "Build succeeded"
 
