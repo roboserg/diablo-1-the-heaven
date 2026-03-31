@@ -969,10 +969,9 @@ void MayBeViewInit()
 		ParseCELFile(MainPanelImage, 0, 287, GUI_Width, currentCELFilePtr, 1, GUI_Width);
 		FreeMemZero(currentCELFilePtr);
 		MainPanelSelector = 0;
-		MayPlayersTalk[0] = true;
-		MayPlayersTalk[1] = true;
-		MayPlayersTalk[2] = true;
-		MayPlayersTalk[3] = true;
+		for( int playerIndex = 0; playerIndex < PlayersMax_8; ++playerIndex ){
+			MayPlayersTalk[playerIndex] = true;
+		}
 		TalkPanelButtonState[0] = 0;
 		TalkPanelButtonState[1] = 0;
 		TalkPanelMessage[0] = 0;
@@ -2272,6 +2271,9 @@ LABEL_22:
 		v1 += sizeof(Player);
 		playerIndex++;
 		if( ++playerIndex > PlayersMax_4 ) return;
+	}
+	if( v7 >= std::size(TalkPanelButtonState) ){
+		goto LABEL_22;
 	}
 	if( MayPlayersTalk[v11] ){
 		v8 = 3;
