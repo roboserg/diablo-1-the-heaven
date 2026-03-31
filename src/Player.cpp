@@ -7516,7 +7516,11 @@ void ClearPlayerStatusMessages()
 //----- (0045F14B) --------------------------------------------------------
 void DrawPlayerStatusMessages()
 {
-	static const char colorTable[PlayersMax_4 + 1] = { C_0_White, C_0_White, C_0_White, C_0_White, C_3_Gold };
+	static const char colorTable[PlayersMax_8 + 1] = {
+		C_0_White, C_1_Blue, C_2_Red, C_4_Orange,
+		C_5_Yellow, C_6_Brownish, C_7_Grey, C_8_Pink,
+		C_3_Gold
+	};
 	int x = 10 + Screen_LeftBorder;
 	int y = 70 + Screen_TopBorder;
 	unsigned int rightTextCoordinate = 620;

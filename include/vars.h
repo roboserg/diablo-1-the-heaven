@@ -462,8 +462,8 @@ extern ClassProperty ClassPropTable[6];//
 extern ClassVelocity ClassVel[6];//
 extern const char* ClassGroupsNames[PCG_COUNT];//
 //extern PlayerStat MaxStat[6];//	начало блока
-extern int TownStartingRow[4];//	начало блока
-extern int TownStartingCol[4];//	
+extern int TownStartingRow[PlayersMax_8];//	начало блока
+extern int TownStartingCol[PlayersMax_8];//
 extern BaseQuest BaseQuests[Quest_Count];//
 extern char MapDeltaRangeRow[8];//	
 extern char MapDeltaRangeCol[8];//	
@@ -567,7 +567,7 @@ extern int MainPanelSelector;//
 extern char* CtrlPan_GolddropCEL;//	
 extern char* Data_SpellBkBCEL;//	
 extern char InfoPanelBuffer[256];//	начало блока
-extern char MayPlayersTalk[4];//	
+extern char MayPlayersTalk[PlayersMax_8];//
 extern int CurrentSpellBookPage;//	
 extern char SelectedSpellType;//	
 extern int PentSpn2PicIndex;//	
@@ -947,11 +947,11 @@ extern bool BlockLoaded;
 extern char NetPlayerCount;//
 extern uchar MaxCountOfPlayersInGame;//	1 == Single Player
 extern uchar sgbNetUpdateRate;//
-extern int gdwMsgLenTbl[4];//	size of arraydata 0x006DE0A8
+extern int gdwMsgLenTbl[PlayersMax_8];//	size of arraydata 0x006DE0A8
 extern CRITICAL_SECTION FrameSyncCritSection;//	
 extern uint DeltaBytesPerSecond;//	
 extern uint gdwTurnsInTransit;//	the number of calls before data is sent over the network // between 2 and 8; single player is set to 1
-extern uint* glpMsgTbl[4];//
+extern uint* glpMsgTbl[PlayersMax_8];//
 extern uint SyncNetFrameTimeThreadId;//	multi
 extern char sgbSyncCountdown;//	net multithreading sync
 extern int NetTurnNeedSync;//	
@@ -1489,7 +1489,7 @@ extern Aura Auras[1000];
 extern bool AuraSoundStates[5];
 extern int AuraCooldown[5];
 
-extern std::array<std::queue<int>, 4> PlayersSpellcastQueue;
+extern std::array<std::queue<int>, PlayersMax_8> PlayersSpellcastQueue;
 extern std::array<std::array<std::array<int, WallParamCount>, WallTypeCount>, PlayersMax_4> PlayerWall;
 extern unordered_map<short, uchar> SpellIdxToWallType;
 

@@ -612,7 +612,7 @@ bool NetInit( bool singleGame, bool* exitProgram )
         clientInfo.Product = (('4H' + charInfo.GameMode) << 16) | TH4_REVISION; //th2 ? TH2_REVISION : TH1_REVISION; // 1216 - The Hell version
         clientInfo.Verbyte = 42; // 43 // раньше было 34
         clientInfo.gameCriteriaData = 0;
-        clientInfo.MaxPlayers = 4;
+        clientInfo.MaxPlayers = PlayersMax_8;
         clientInfo.gameTemplate = &sgGameInitInfo;
         clientInfo.gameTemplateSize = 8;
         clientInfo.Unk9 = 0;

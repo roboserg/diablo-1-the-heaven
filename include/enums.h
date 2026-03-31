@@ -7366,7 +7366,8 @@ enum SIZE_CONST
 	MaxIronmanObjects = 3,
 
 	// Counts Parameters
-	PlayersMax_4 = 4,
+	PlayersMax_8 = 8,
+	PlayersMax_4 = PlayersMax_8,
 	PlayerMaxLevel_150 = 150,
 	SpellLevelMax_200 = 200,
 	SpellLevelBookMax_100 = 100,
@@ -7387,7 +7388,7 @@ enum SIZE_CONST
 	MapDirty_16 = 16,
 	FineMap_112 = 2 * (Map_40 + MapDirty_16),
 	SummonMonstersPerPlayer_Count = 12,
-	SummonMonsters_Count = SummonMonstersPerPlayer_Count * PlayersMax_4,
+	SummonMonsters_Count = SummonMonstersPerPlayer_Count * PlayersMax_8,
 	Original_Monsters_SeedingSize_Max = 4000,
 	Golem_Seeding_Size = 386,
 	// Golem and other summons image size no longer counts. So we need adjust max image size.
