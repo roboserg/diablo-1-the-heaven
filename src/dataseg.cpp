@@ -2086,8 +2086,8 @@ const char* ClassGroupsNames[PCG_COUNT] = {
 //	{ 250,	 20,	130,	240 },	// 5 Gladiator
 //};
 
-int TownStartingRow[4] = { 57, 59, 61, 63 }; // координаты выхода из портала 
-int TownStartingCol[4] = { 40, 40, 40, 40 };
+int TownStartingRow[PlayersMax_8] = { 57, 59, 61, 63, 65, 67, 69, 71 }; // координаты выхода из портала
+int TownStartingCol[PlayersMax_8] = { 40, 40, 40, 40, 40, 40, 40, 40 };
 
 int* dungeonTilesOffset = DungeonTilesOffset;
 // 004B6D7D
@@ -2147,7 +2147,7 @@ char* CtrlPan_GolddropCEL;
 char* Data_SpellBkBCEL;
 char InfoPanelHeader[MAX_PATH];      // было [255] 004D12F0
 char InfoPanelBuffer[256]; // 004D11C0
-char MayPlayersTalk[4];    // some flags for drawing button // was char MayPlayersTalk[5]
+char MayPlayersTalk[PlayersMax_8];    // some flags for drawing button // was char MayPlayersTalk[5]
 int CurrentSpellBookPage;
 int CurCellIndex;
 int TalkPanelMode;
@@ -2422,8 +2422,8 @@ char GameVersionString[MAX_PATH] = "internal version unknown";
 module_info ModuleInfo; // 00684A70
 uchar sgbNetUpdateRate;
 uint gdwTurnsInTransit; // 006DE0A0
-uint* glpMsgTbl[4];
-int gdwMsgLenTbl[4];
+uint* glpMsgTbl[PlayersMax_8];
+int gdwMsgLenTbl[PlayersMax_8];
 char HeroName[16];
 HANDLE helldataMPQPtr;
 HANDLE hellfireMPQPtr;
@@ -2931,7 +2931,7 @@ SpellbookHotkeysInfo SpellHotkeys;
 
 AdditionalSaveInfo AdditionalStateData;
 
-array<queue<int>,4> PlayersSpellcastQueue;
+array<queue<int>, PlayersMax_8> PlayersSpellcastQueue;
 array<array<array<int, WallParamCount>, WallTypeCount>, PlayersMax_4> PlayerWall = {};
 unordered_map<short, uchar> SpellIdxToWallType{ {PS_6_FIRE_WALL, 0}, {PS_19_FLAME_RING, 1}, {PS_40_LIGHTING_WALL, 2}, {PS_17_LIGHTING_RING, 3} };
 
