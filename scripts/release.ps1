@@ -10,6 +10,15 @@
 .PARAMETER Version
     Optional version override (e.g. "0.0.1"). If not provided, reads from tools/version.h.
 
+.PARAMETER TagPrefix
+    Optional tag prefix override (e.g. "experimental-"). Applied before the version tag.
+
+.PARAMETER TagSuffix
+    Optional tag suffix override (e.g. "mp8-test1"). Appended after the version tag as "-suffix".
+
+.PARAMETER Prerelease
+    If set, creates the GitHub release as a prerelease.
+
 .PARAMETER DryRun
     If set, performs all steps except actually creating the GitHub release.
 
@@ -17,9 +26,13 @@
     .\scripts\release.ps1
     .\scripts\release.ps1 -DryRun
     .\scripts\release.ps1 -Version "0.0.2"
+    .\scripts\release.ps1 -TagPrefix "experimental-" -TagSuffix "mp8-test1"
 #>
 param(
     [string]$Version,
+    [string]$TagPrefix = "",
+    [string]$TagSuffix = "",
+    [switch]$Prerelease,
     [switch]$DryRun
 )
 
@@ -44,7 +57,10 @@ if (-not $Version) {
     $Version = $match.Groups[1].Value
 }
 
-$tag = "v$Version"
+$tag = "${TagPrefix}v$Version"
+if ($TagSuffix) {
+    $tag = "$tag-$TagSuffix"
+}
 Write-Ok "Version: $tag"
 
 # ── Safety checks ────────────────────────────────────────────────────────────
@@ -151,15 +167,27 @@ Write-Ok "Created $zipName ($zipSize MB)"
 
 Write-Step "Creating GitHub release $tag"
 
+$releaseArgs = @($tag, $zipPath, "--title", $tag, "--notes-file", "")
+if ($Prerelease) {
+    Write-Ok "Release type: prerelease"
+} else {
+    Write-Ok "Release type: stable"
+}
+
 if ($DryRun) {
     Write-Warn "DryRun mode — skipping gh release create"
     Write-Host "`nWould run:" -ForegroundColor DarkGray
-    Write-Host "  gh release create `"$tag`" `"$zipPath`" --title `"$tag`" --notes `"...`"" -ForegroundColor DarkGray
+    $dryRunSuffix = if ($Prerelease) { " --prerelease" } else { "" }
+    Write-Host "  gh release create `"$tag`" `"$zipPath`" --title `"$tag`" --notes `"...`"$dryRunSuffix" -ForegroundColor DarkGray
 } else {
     $notesFile = [System.IO.Path]::GetTempFileName()
     [System.IO.File]::WriteAllText($notesFile, $releaseNotes, [System.Text.Encoding]::UTF8)
     try {
-        gh release create $tag $zipPath --title $tag --notes-file $notesFile
+        $releaseArgs[5] = $notesFile
+        if ($Prerelease) {
+            $releaseArgs += "--prerelease"
+        }
+        gh release create @releaseArgs
         if ($LASTEXITCODE -ne 0) { Fail "gh release create failed" }
         Write-Ok "Release published: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$tag"
         Remove-Item $zipPath -Force
