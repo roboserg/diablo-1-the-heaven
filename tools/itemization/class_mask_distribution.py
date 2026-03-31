@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Print distribution of ITEM_PLAYER_CLASS_MASK (RequiredClassMask) across BaseItems, UniqueItems, and UniqueSets."""
 
+import argparse
 import re
 from collections import Counter
 
@@ -47,6 +48,83 @@ IPCM_MAP = {
     "IPCM_ANY_SAVAGE": "Any Savage",
     "IPCM_ALL_CLASSES": "All Classes",
 }
+
+# 6 base classes (from PLAYER_FULL_CLASS enum)
+CLASS_GROUPS = {
+    "Warrior": {"Any Warrior", "Warrior", "Inquisitor", "Guardian", "Templar"},
+    "Archer": {"Any Archer", "Archer", "Scout", "Sharpshooter", "Trapper"},
+    "Mage": {
+        "Any Mage",
+        "Any Summoner",
+        "Mage",
+        "Elementalist",
+        "Demonologist",
+        "Necromancer",
+        "Beastmaster",
+        "Warlock",
+    },
+    "Monk": {"Any Monk", "Monk", "Kensei", "Shugoki", "Shinobi"},
+    "Rogue": {"Any Rogue", "Rogue", "Assassin", "Iron Maiden", "Bombardier"},
+    "Savage": {
+        "Any Savage",
+        "Any Exile",
+        "Any Gladiator",
+        "Savage",
+        "Berserker",
+        "Executioner",
+        "Thraex",
+        "Murmillo",
+        "Dimachaerus",
+        "Secutor",
+        "Druid",
+    },
+}
+
+GROUP_COLORS = {
+    "Warrior": "#e74c3c",
+    "Archer": "#2ecc71",
+    "Mage": "#3498db",
+    "Monk": "#e67e22",
+    "Rogue": "#8e44ad",
+    "Savage": "#00bcd4",
+}
+
+TOP_LEVEL = {
+    "Any Warrior",
+    "Any Archer",
+    "Any Mage",
+    "Any Monk",
+    "Any Rogue",
+    "Any Savage",
+}
+
+
+def lighten(hex_color, factor=0.6):
+    """Lighten a hex color by blending with white."""
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+    r = int(r + (255 - r) * factor)
+    g = int(g + (255 - g) * factor)
+    b = int(b + (255 - b) * factor)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def mask_group(mask):
+    """Return the parent class group for a mask label."""
+    for group, members in CLASS_GROUPS.items():
+        if mask in members:
+            return group
+    return "All Classes"
+
+
+def mask_color(mask):
+    """Return bar color: full color for top-level class, lighter for subgroups."""
+    group = mask_group(mask)
+    base = GROUP_COLORS.get(group, "#888888")
+    if mask in TOP_LEVEL:
+        return base
+    return lighten(base)
 
 
 def parse_base_items():
@@ -162,7 +240,62 @@ def print_table(base_counter, uniq_counter, set_counter):
     print()
 
 
+def print_chart(base_counter, uniq_counter, set_counter):
+    """Print a horizontal 3-column matplotlib bar chart."""
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+    except ImportError:
+        print("matplotlib not installed. pip install matplotlib")
+        return
+
+    def sorted_items(counter):
+        return sorted(counter.items(), key=lambda x: x[1], reverse=True)
+
+    titles = ["BaseItems", "Unique Items", "Unique Set Pieces"]
+    counters = [base_counter, uniq_counter, set_counter]
+
+    fig, axes = plt.subplots(1, 3, figsize=(20, 9))
+
+    for ax, title, counter in zip(axes, titles, counters):
+        items = sorted_items(counter)
+        labels = [k for k, _ in items]
+        values = [v for _, v in items]
+        colors = [mask_color(l) for l in labels]
+
+        ax.barh(labels[::-1], values[::-1], color=colors[::-1])
+        ax.set_title(title, fontsize=13, fontweight="bold")
+        ax.set_xlabel("Count")
+        for i, v in enumerate(values[::-1]):
+            ax.text(v + max(values) * 0.01, i, f" {v}", va="center", fontsize=7)
+
+        for tick, label in zip(ax.get_yticklabels(), labels[::-1]):
+            group = mask_group(label)
+            tick.set_color(GROUP_COLORS.get(group, "#888888"))
+
+    # Legend
+    patches = [mpatches.Patch(color=c, label=g) for g, c in GROUP_COLORS.items()]
+    fig.legend(
+        handles=patches,
+        loc="lower center",
+        ncol=6,
+        fontsize=9,
+        frameon=False,
+        bbox_to_anchor=(0.5, -0.02),
+    )
+
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
+    fig.savefig("class_mask_chart.png", dpi=150, bbox_inches="tight")
+    print("Chart saved to class_mask_chart.png")
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Class mask distribution analysis")
+    parser.add_argument(
+        "-c", "--chart", action="store_true", help="Show horizontal bar chart"
+    )
+    args = parser.parse_args()
+
     base_map = parse_base_items()
     uniq_map = parse_unique_items()
     unique_sets = parse_unique_sets()
@@ -185,6 +318,9 @@ def main():
                 set_counter[f"Unknown(uniqId={uid})"] += 1
 
     print_table(base_counter, uniq_counter, set_counter)
+
+    if args.chart:
+        print_chart(base_counter, uniq_counter, set_counter)
 
 
 if __name__ == "__main__":
