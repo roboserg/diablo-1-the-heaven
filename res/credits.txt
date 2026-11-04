@@ -1,0 +1,53 @@
+			The Hell 4 mod
+				   (by TH team)
+
+	 	 
+ Mod Development Started:
+	2025-06-29
+	 
+ Game Designer:
+	Mordor
+	 
+ Lead Programmer:
+	Desert Dragon
+	 
+ Programming:
+	Yarik
+	Filip Sobczak 
+	Unexpect3D
+	Potterman28wxcv
+	Nemesis Ra Algoras
+	Gribnik
+	 
+ Additional GFX & Animation:
+	Unexpect3D
+	Mordor
+	Gladoo
+	Nathok
+	Rexorcorum
+	 
+ Sound Design, SFX & Audio Engineering:
+	Mordor
+         
+ Online Database Support:
+	Kozel
+	 
+ Additional Music:
+	Raphael Reed
+	Kirill Polyanskiy
+	Ben Wallace
+	Christopher Purnell
+	Julian Culme-Seymour
+	Alex Trz
+
+
+ Extra thanks for support:
+	Jeff "Westwind" Holland
+    
+ Last but not least:
+	Thanks to each and every patron of the mod,
+	those who left and those who stay, and those
+	who will join in future.
+
+
+
