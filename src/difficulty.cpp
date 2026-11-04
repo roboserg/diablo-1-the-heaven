@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "MenuPortrait.h"
 
 int Difficulty;
 int SelectedDifficulty;
@@ -48,29 +49,77 @@ void __fastcall SetSelectedDifficulty( int difficulty )
 const char* DifName(int dif /*= -1*/)
 {
 	if( dif == -1 ) dif = Difficulty;
-	static char name[DL_COUNT][32] = {0};
-	if( ! *name[dif] ){ sprintf(name[dif], "%d. %s", dif + 1, DifficultyText[dif][GameMode == GM_CLASSIC].name); }
-	return name[dif];
+	// (th4) Cache per classic/non-classic mode. DifficultyText has separate name columns
+	// for classic vs non-classic; a cache keyed only by dif froze the wrong names when the
+	// mode changed after first use (e.g. non-classic list names leaking into a Classic game).
+	const int classic = (GameMode == GM_CLASSIC) ? 1 : 0;
+	static char name[DL_COUNT][2][32] = {0};
+	if( ! *name[dif][classic] ){ sprintf(name[dif][classic], LMenu("%d. %s"), dif + 1, LMenu(DifficultyText[dif][classic].name)); }
+	return name[dif][classic];
+}
+
+//----- (th4) -------------------------------------------------------------
+// UNTRANSLATED difficulty name, for the tilde status line only -- that line is a
+// diagnostic string and is deliberately English in every language. Same reason as
+// getGameModeNameEnglish() in GameModes.cpp: the RU OVL_MENU values are DiabloFont-
+// encoded (CP1251 - 0x40, bytes 0x80..0x9F), which the in-game CEL font maps to
+// frame 0 = blank, so the name vanished and the line read "difficulty = 1. ,".
+// Own cache, because DifName() stores differently-encoded text for the same dif.
+const char* DifNameEnglish(int dif /*= -1*/)
+{
+	if( dif == -1 ) dif = Difficulty;
+	const int classic = (GameMode == GM_CLASSIC) ? 1 : 0;
+	static char name[DL_COUNT][2][32] = {0};
+	if( ! *name[dif][classic] ){ sprintf(name[dif][classic], "%d. %s", dif + 1, DifficultyText[dif][classic].name); }
+	return name[dif][classic];
+}
+
+//----- (th4) -------------------------------------------------------------
+// Difficulty name for text drawn with the IN-GAME CEL font (the on-screen version line).
+//
+// DifName() is correct for menus, but it builds its string from LMenu()/OVL_MENU, and the
+// RU values there are DiabloFont-encoded: CP1251 minus 0x40, i.e. bytes 0x80..0x9F. The
+// menu atlas expects that; the in-game CEL font does not, and maps those bytes to frame 0
+// = blank. So the version line rendered as "THE HELL 4 V0.532 1." with the name missing.
+// Same trap DifNameEnglish() documents for the tilde line.
+//
+// Rather than keep a second translation table, shift those bytes back into the CP1251
+// range the CEL font renders. Languages that are not byte-shifted are unaffected: their
+// text has no bytes in 0x80..0x9F to move.
+const char* DifNameInGame(int dif /*= -1*/)
+{
+	if( dif == -1 ) dif = Difficulty;
+	const int classic = (GameMode == GM_CLASSIC) ? 1 : 0;
+	static char name[DL_COUNT][2][32] = {0};
+	if( ! *name[dif][classic] ){
+		strncpy_s(name[dif][classic], DifName(dif), _TRUNCATE);
+		for( uchar* p = (uchar*)name[dif][classic]; *p; ++p ){
+			if( *p >= 0x80 && *p <= 0x9F ) *p += 0x40;   // DiabloFont -> CP1251
+		}
+	}
+	return name[dif][classic];
 }
 
 //----- (th3) -------------------------------------------------------------
 const char* DifDesc1(int dif /*= -1*/)
 {
 	if( dif == -1 ) dif = Difficulty;
-	static char desc1[DL_COUNT][128] = {0};
-	auto& difText = DifficultyText[dif][GameMode == GM_CLASSIC];
-	if( ! *desc1[dif] ){ sprintf(desc1[dif], "%s difficulty\n%s", difText.name, difText.desc1); }
-	return desc1[dif];
+	const int classic = (GameMode == GM_CLASSIC) ? 1 : 0;
+	static char desc1[DL_COUNT][2][128] = {0};
+	auto& difText = DifficultyText[dif][classic];
+	if( ! *desc1[dif][classic] ){ sprintf(desc1[dif][classic], LMenu("%s difficulty\n%s"), LMenu(difText.name), LMenu(difText.desc1)); }
+	return desc1[dif][classic];
 }
 
 //----- (th3) -------------------------------------------------------------
 const char* DifDesc2(int dif /*= -1*/)
 {
 	if( dif == -1 ) dif = Difficulty;
-	static char desc2[DL_COUNT][256] = {0};
-	auto& difText = DifficultyText[dif][GameMode == GM_CLASSIC];
-	if( ! *desc2[dif] ){ sprintf(desc2[dif], "%s difficulty\n%s%s", difText.name, difText.desc1, difText.desc2); }
-	return desc2[dif];
+	const int classic = (GameMode == GM_CLASSIC) ? 1 : 0;
+	static char desc2[DL_COUNT][2][256] = {0};
+	auto& difText = DifficultyText[dif][classic];
+	if( ! *desc2[dif][classic] ){ sprintf(desc2[dif][classic], LMenu("%s difficulty\n%s%s"), LMenu(difText.name), LMenu(difText.desc1), LMenu(difText.desc2)); }
+	return desc2[dif][classic];
 }
 
 //----- (th3) -------------------------------------------------------------
@@ -102,6 +151,18 @@ int DifCount()
 	}
 	if( IsMultiplayer() ){
 		return dlCount;
+	}else if( GameMode == GM_OUTBREAK ){
+		// (th4) OUTBREAK cannot advance difficulty the normal way: allowedDifficulty is only
+		// raised by killing Uber Diablo (MonsterHitToDeath -> UpdateAllowedDifficulty), and
+		// Outbreak never generates DUN_24_CRYPT_4 -- its only level is the Church 1 arena.
+		// So it uses the MULTIPLAYER policy instead: difficulties unlock by character level,
+		// with the same thresholds enforced for multi in UiAuthCallback (Hell.cpp).
+		// tags (for finding) multiplayer difficulty clvl requirements
+		static const int difClvl[DL_COUNT] = { 0, 20, 35, 43, 51, 59, 67, 75, 83 };
+		int clvl = curCharSaveInfo->Level;
+		int allowed = 1;
+		while( allowed < dlCount && clvl >= difClvl[allowed] ) ++allowed;
+		return allowed;
 	}else{
 		return std::min(1 + curCharSaveInfo->allowedDifficulty, (int)dlCount);
 	}
@@ -187,10 +248,10 @@ void __fastcall ResetDifClassicButtons(HWND hdlg, int topDif)
 //----- (th3) ------------------------------------------------------------
 void __fastcall SetDifInfoText( HWND hdlg, int dif )
 {
-	WriteTextToElemData( (TextWin *) GetWindowLongA( GetDlgItem( hdlg, ID_SOME_LABEL ), GWL_USERDATA ), DifficultyText[dif][GameMode == GM_CLASSIC].name );
+	WriteTextToElemData( (TextWin *) GetWindowLongA( GetDlgItem( hdlg, ID_SOME_LABEL ), GWL_USERDATA ), LMenu(DifficultyText[dif][GameMode == GM_CLASSIC].name) );
 	DrawTextToElemList( hdlg, DifficultyCtextList, 5 );
 	WriteTextToElemData( (TextWin *) GetWindowLongA( GetDlgItem( hdlg, ID_DIFFICULTY_DESCRIPTION_2 ), GWL_USERDATA ), DifDesc2(dif) );
-	DrawTextToElemList( hdlg, DifficultyLtextList, 1 );
+	DrawTextToElemList( hdlg, DifficultyLtextList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 }
 
 
@@ -315,6 +376,10 @@ LRESULT __stdcall DifSelectButtonProc( const HWND button, unsigned int Msg, WPAR
 }
 
 //----- (20003EB0) --------------------------------------------------------
+// (th4) Set only on the path that actually starts a game, so WM_DESTROY can tell an accept
+// from a cancel. See the MenuPortrait_Clear call there for why the difference matters.
+static bool DifGameStarting = false;
+
 void __fastcall CreateNewGame_2( HWND hdlg, int difficulty = -1 )
 {
 	HWND hdlg_1; // ebp@1
@@ -349,15 +414,16 @@ void __fastcall CreateNewGame_2( HWND hdlg, int difficulty = -1 )
 			0,
 			PlayerId ) ){
 			PlaySoundTitleSelect();
+			DifGameStarting = true;	// (th4) accept path -- NewGame()/FadePalette() follows
 			SDlgKillTimer( hdlg_1, 1 );
 			SDlgEndDialog( hdlg_1,  1 );
 		}else{
 			ErrorCode = GetLastError();
 			if( ErrorCode == ERROR_ALREADY_EXISTS ){
-				LoadStringA( HInstance, STR_73_Game_already_exists, errorText, 127 );
+				LoadStringL( STR_73_Game_already_exists, errorText, 127, "", "Unable to create game. The game \"%s\" already exists." );
 				sprintf( errorBuf, errorText, GameName_1 );
 			}else{
-				LoadStringA( HInstance, STR_38_Unable_create, errorBuf, 191 );
+				LoadStringL( STR_38_Unable_create, errorBuf, 191, "\n\n", "Unable to create game." );
 			}
 			SelectOk_2( hdlg_1, errorBuf, 0, 0 );
 		}
@@ -412,10 +478,10 @@ void __fastcall CreateNewGame_3( HWND hdlg )
 			}else{
 				ErrorCode = GetLastError();
 				if( ErrorCode == ERROR_ALREADY_EXISTS ){
-					LoadStringA( HInstance, STR_73_Game_already_exists, gameAlreadyExists, 127 );
+					LoadStringL( STR_73_Game_already_exists, gameAlreadyExists, 127, "", "Unable to create game. The game \"%s\" already exists." );
 					sprintf( unableCreateGame, gameAlreadyExists, GameName_1 );
 				}else{
-					LoadStringA( HInstance, STR_38_Unable_create, unableCreateGame, 191 );
+					LoadStringL( STR_38_Unable_create, unableCreateGame, 191, "\n\n", "Unable to create game." );
 				}
 				SelectOk_2( hdlg_1, unableCreateGame, 0, 0 );
 			}
@@ -437,6 +503,13 @@ int __stdcall DialogSelectDifficulty( HWND hDlg, unsigned int msg, WPARAM wParam
 	switch( msg ){
 	case WM_INITDIALOG:
 	{
+		// (th4) This box opens over the New Hero dialog, whose ID_PLAYER_PORTRAIT
+		// control stays alive underneath -- so the true-colour overlay keeps re-reading
+		// it and paints the hero portrait through onto the difficulty screen. It cannot
+		// tell it is covered; tell it. Balanced in WM_DESTROY, which fires on every
+		// teardown path. Harmless on the MP entry (no live portrait there).
+		MenuPortrait_Suppress( 1 );
+		DifGameStarting = false;	// (th4) cleared here, raised only by CreateNewGame_2
 		for( int i = 0; DifButtonList[i] != 0; ++i ){
 			int saveButtonId = DifButtonList[i];
 			HWND saveButton = GetDlgItem( hDlg, saveButtonId );
@@ -458,9 +531,17 @@ int __stdcall DialogSelectDifficulty( HWND hDlg, unsigned int msg, WPARAM wParam
 			LoadDialogBackground( hDlg, 0, "popup", -1, 1, "ui_art\\seldiff.pcx", &textWin->surface, &textWin->size, 0 );
 		}
 		InitButtonListProc( hDlg, DifButtonList );
+		// Caption/subcaption/buttons via LMenu (English build returns input unchanged).
+		// Applies to RU and ID (both have overlay entries); EN falls through unchanged.
+		if( GameLanguage != LANG_EN ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), LMenu("Create Game") );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SUBCAPTION ), LMenu("Select Difficulty") );
+			SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), LMenu("OK") );
+			SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+		}
 		InitTextElemList( hDlg, DifficultyTitleList, 5 );
 		InitTextElemList( hDlg, DifficultyCtextList, 5 );
-		InitTextElemList( hDlg, DifficultyLtextList, 1 );
+		InitTextElemList( hDlg, DifficultyLtextList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 		InitButtonListText( hDlg, DifficultyOkCancelList, 4, 0 );
 		InitButtonListText( hDlg, DifButtonList, 2, 1 );
 		ResetDifButtons( hDlg, 0 );
@@ -476,6 +557,25 @@ int __stdcall DialogSelectDifficulty( HWND hDlg, unsigned int msg, WPARAM wParam
 	}
 	case WM_DESTROY:
 	{
+		// (th4) Balance the WM_INITDIALOG suppress -- the counter must come back to
+		// zero or every later portrait stays hidden.
+		MenuPortrait_Suppress( 0 );
+		// (th4) ...but un-suppressing alone re-arms the overlay while the New Hero dialog
+		// underneath is STILL alive and still holding this portrait, and on the accept path
+		// NewGame() then runs FadePalette() before it ends that dialog. The fade walks the
+		// 8-bit palette; the overlay is an alpha-blended RGBA quad that ignores the palette
+		// completely -- so the portrait sat at full brightness over a menu fading to black.
+		// Drop it instead.
+		//
+		// ONLY on the accept path. This used to be unconditional, on the assumption that
+		// "whatever dialog comes next paints its own portrait through MenuPortrait_Set" --
+		// which is false on cancel, because nothing comes next. Cancel drops back into the
+		// GAME FILE EXISTS box, which was already open and never repaints, and the character
+		// list only calls MenuPortrait_Set when the SELECTION changes. So the overlay stayed
+		// cleared and the raw 8-bit row showed through until you clicked another hero.
+		if( DifGameStarting ){
+			MenuPortrait_Clear();
+		}
 		DeleteElementListData( hDlg, DifButtonList );
 		DeleteElementListData( hDlg, DifficultyOkCancelList );
 		DeleteElementListData( hDlg, DifficultyLtextList );

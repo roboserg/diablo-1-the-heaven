@@ -147,6 +147,8 @@ void XinputHandleAButtonLeftClick()
 			HandlePerksWindowClick();
 		}else if( IsInfoWindowVisible && CursorIntoDisplayObject(InfoWindowRect) ){
 			InfoWindow_MouseDown();
+		}else if( IsChatHistoryVisible && CursorIntoDisplayObject(ChatHistoryRect) ){
+			// overlay absorbs the A-button click; no specific action (scroll handled by wheel/dpad)
 		}else if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){
 			DropCursorItemBeforeTrig();
 			if( NetItem ) SetCursorGraphics(Players[CurrentPlayerIndex].ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
@@ -688,6 +690,7 @@ void DrawXinputGuide()
 bool XinputDontHideCursor()
 {
 	return IsPopupScreenOpen
+		|| IsChatHistoryVisible      && CursorIntoDisplayObject(ChatHistoryRect)
 		|| IsPerksPanelVisible       && CursorIntoDisplayObject(PerksPanelPos)
 		|| IsInfoWindowVisible       && CursorIntoDisplayObject(InfoWindowRect)
 		|| IsStashPanelVisible       && CursorIntoDisplayObject(VisualStashPanel)

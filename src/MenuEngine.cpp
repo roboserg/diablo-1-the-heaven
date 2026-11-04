@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"	// (th4) the menu must sit above inventory item overlays
 
 //----- (0041C99A) --------------------------------------------------------
 void Menu_ShowPause()
@@ -8,7 +9,9 @@ void Menu_ShowPause()
 	}
 	if( !CurrentMenuWindowPtr ){
 		DarkLevel = 0;
-		Font_DrawText(Screen_LeftBorder + ScreenWidth/2 - GetTextWidthBig("Pause")/2 , ScreenHeight/2, "Pause");
+		// (th4) Localized through the Ui table; languages without a "Pause" row fall back to English.
+		const char* pauseText = L("Pause");
+		Font_DrawText(Screen_LeftBorder + ScreenWidth/2 - GetTextWidthBig(pauseText)/2 , ScreenHeight/2, (char*)pauseText);
 	}
 }
 
@@ -24,12 +27,58 @@ char __fastcall Font_DrawText(int aXpos, int aYpos, char* aText)
 	CharPtr = (unsigned char*)aText;
 	Ypos = aYpos;
 	Xpos = aXpos;
+	// (th4) ARABIC: shape and reorder the whole string, then paint, and return. The
+	// loop below walks bytes and would hand ChiLetterID's -1 straight to
+	// Font_DrawChar. Big-font cells are fixed width like the CJK path; the engine
+	// ring is off here because the Arabic bigtgold already carries a baked rim.
+	if( GameLanguage == LANG_AR ){
+		static AR_Glyph g[ 512 ];
+		const int gn = AR_Layout( aText, g, 512 );
+		for( int k = 0; k < gn; ++k ){
+			if( g[k].isForm ){
+				Font_DrawChar( Xpos, Ypos, (char*)FontSpriteBig, AR_FIRST_ID + g[k].cell, AR_CELL_W_BIG );
+				Xpos += AR_Advance( g[k].cell, 2 );
+			}else if( g[k].raw ){
+				const unsigned char ci = FontIndexBigPtr[ Codepage[ g[k].raw ] ];
+				// (th4) whitespace ADVANCES but never paints. FontIndexBigPtr[Codepage[' ']]
+				// is not zero, and in the Arabic bigtgold that frame is not blank, so every
+				// space came out as a stray dot between the words.
+				if( ci && g[k].raw > ' ' ) Font_DrawChar( Xpos, Ypos, (char*)FontSpriteBig, ci, 46 );
+				Xpos += FontWidthBigPtr[ ci ] + 2;
+			}
+		}
+		return gn ? (char)1 : (char)0;
+	}
+	// Loop invariant: at the top of each iteration CharPtr points AT CurChar, so
+	// CharPtr[1] is the following byte. (th4) GB2312 is double-byte and cannot be
+	// expressed in the 256-entry FontIndex tables, so pairs are detected here and
+	// resolved straight to a CJK frame -- the same way Tooltip.cpp does for the small
+	// font. IsChiLead() is false for every non-CHI language, so this is a no-op there
+	// and the original path below runs byte-for-byte unchanged.
 	for( CurChar = *aText; *CharPtr; CurChar = *CharPtr ){
+		if( IsChiLead( CurChar ) && IsChiTrail( CharPtr[1] ) ){
+			// (th4) JAPANESE AND CHINESE ONLY -- Ibragim's call after looking at all
+			// three in game. This branch is shared by CHI, KO and JA (IsChiLead() is
+			// true for each), but KOREAN IS DELIBERATELY EXCLUDED: its bigtgold.cel
+			// already carries a baked rim that reads correctly on its own, and adding
+			// the engine ring on top only thickens text that already looks right.
+			// So this is an explicit language test, not a ride on the CJK branch.
+			// Latin and Cyrillic never reach this code at all.
+			// (th4) HINDI joins JA/CHI here: its bigtgold carries NO baked rim, so the
+			// engine draws the ring. Korean stays out because its art already has one.
+			const int bigOutline = is( GameLanguage, LANG_JA, LANG_CHI, LANG_HIN ) ? 0 : -1;
+			Font_DrawChar(Xpos, Ypos, (char*)FontSpriteBig, ChiLetterID( CurChar, CharPtr[1] ), CHI_CELL_W_BIG, bigOutline);
+			Xpos += ( GameLanguage == LANG_HIN   // (th4) see HindiText.cpp
+			        ? HIN_Advance( ChiLetterID( CurChar, CharPtr[1] ) - HIN_FIRST_ID, 2 )
+			        : CHI_CELL_W_BIG ) + 2;
+			CharPtr += 2;
+			continue; // `continue` still runs the CurChar = *CharPtr step
+		}
 		++CharPtr;
-		CharIndex = FontIndexBig[Codepage[CurChar]];
+		CharIndex = FontIndexBigPtr[Codepage[CurChar]];
 		if( CharIndex )
 			Font_DrawChar(Xpos, Ypos, (char*)FontSpriteBig, CharIndex, 46);
-		Xpos += FontWidthBig[CharIndex] + 2;
+		Xpos += FontWidthBigPtr[CharIndex] + 2;
 	}
 	return CurChar;
 }
@@ -139,9 +188,40 @@ LABEL_10:
 void Menu_Draw()
 {
 	if( CurrentMenuWindowPtr ){
+		// (th4) The menu is 8-bit ink in WorkingSurface; the true-colour item overlay is
+		// drawn afterwards, so an item lying in the inventory behind the menu covered the
+		// logo, the text and the pentagram.
+		//
+		// Same policy the tooltips use: claim the band the menu occupies and snapshot it
+		// BEFORE drawing into it. Every pixel the menu then changes counts as ink and is
+		// re-drawn over the icons. Factor 1.0f, because the menu is not a darkened box --
+		// the icons keep their brightness and only the ink lands on top.
+		//
+		// The item on the CURSOR is exempt: it is drawn after this patch pass, so dragging
+		// something over the menu still shows it above the text. See ItemOverlay.cpp.
+		{
+			// Exactly as wide as the menu actually draws, and no wider: claiming the full
+			// screen width would swallow the inventory panel, which is drawn AFTER this
+			// point, and its own 8-bit art would then be painted back over the item icons.
+			//
+			// Widest line wins, and the two pentagrams hang off either end of it -- the left
+			// one 54px before the text starts, the right one 4px after it ends, both 48
+			// wide. The logo is 430, so that is the floor.
+			int widest = 430;
+			for( Menu* i = CurrentMenuWindowPtr; i->FuncPtr; ++i ){
+				const int w = (int)Menu_GetItemTextWidth(i);
+				if( w > widest ) widest = w;
+			}
+			const int span = widest + 54 + 48 + 4 + 48;
+			const int left = ((int)WorkingWidth - widest) / 2 - 54 - (int)Screen_LeftBorder;
+			const int top    = 90 + (ScreenHeight - GUI_Height) / 2;
+			const int bottom = 160 + 45 * 7 + (ScreenHeight - GUI_Height) / 2;
+			ItemOverlay_QueueDimRect(left, top, span, bottom - top, 1.0f);
+			ItemOverlay_SnapshotDimRect();
+		}
 		if( MainMenuHandlerPtr )
 			MainMenuHandlerPtr();
-		i64 v0 = GetTickCountTh(); // это таймер не влияет на гемплей, не перехватываем
+		i64 v0 = GetTickCountTh(); // (rt) this timer doesn't affect gameplay, not intercepted
 		i64 v1 = v0;
         if( OldTickCount2 == 0 ){
             OldTickCount2 = v0;
@@ -175,7 +255,7 @@ void __fastcall Menu_DrawItem(Menu* itemPtr, int itemYPos)
 {
 	uint itemTextWidth = Menu_GetItemTextWidth((struct Menu*)itemPtr);
 	if( itemPtr->Flags & MENU_SLIDER ){ 
-		uint HalfAnd80 = itemTextWidth / 2 + Screen_LeftBorder + 16; // itemTextWidth = 490 тут GUI_Width - 490 = 150 если 150/2 = 75 отступ с каждой стороны
+		uint HalfAnd80 = itemTextWidth / 2 + Screen_LeftBorder + 16; // (rt) itemTextWidth = 490 here, GUI_Width - 490 = 150; 150/2 = 75 margin on each side
 		Surface_DrawCEL(HalfAnd80 + (ScreenWidth-GUI_Width)/2, itemYPos - 10, OptbarCELPtr, 1, 287);
 		uint max_val = (itemPtr->Flags >> 12) & 0x00000FFF;
 		if( max_val < 2 ){
@@ -217,6 +297,15 @@ void* __fastcall Menu_DrawItemBackground(int a1, int a2, size_t Size, int a4)
 		v6 = a4;
 		do{
 			result = memset(v5, 205, Size);
+			// Approach B (A8L8): clear LightSurface so slider bar renders at full brightness.
+			if( LightSurface ) memset( LightSurface + ((uchar*)v5 - WorkingSurface), 0, Size );
+			// (th4) Stage 2 (2026-09-04): same for the alpha overlay under the
+			// slider background row — menu UI must not be ghosted by
+			// occluded-sprite RGB.
+			AlphaOverlayClearRow((uchar*)v5, (int)Size);
+			// (th4) Stage 3 (2026-09-05): same for the colored-light tint — the
+			// slider bar row must not be multiplied by the world's light color.
+			TintClearRow((uchar*)v5, (int)Size);
 			v5 = (char*)v5 - WorkingWidth;
 			--v6;
 		}while( v6 );
@@ -236,12 +325,36 @@ int __fastcall Menu_GetItemTextWidth(struct Menu* aMenu)
 	}else{
 		v2 = aMenu->NamePtr;
 		v3 = 0;
+		if( GameLanguage == LANG_AR ){
+			// (th4) THIS is what threw the in-game menu off centre. With no Arabic arm the
+			// loop below charges a full CJK cell per unit while Font_DrawText advances by
+			// the PROPORTIONAL AR_Advance, so the width came out several times too large:
+			// textStartPos = WorkingWidth/2 - width/2 shoved every row left -- further the
+			// longer the row -- and flung the two pentagrams out to the screen edges.
+			// Measure exactly what Font_DrawText draws.
+			static AR_Glyph mg[ 512 ];
+			const int mn = AR_Layout( (const char*)aMenu->NamePtr, mg, 512 );
+			for( int k = 0; k < mn; ++k ){
+				if( mg[k].isForm )   v3 += AR_Advance( mg[k].cell, 2 );
+				else if( mg[k].raw ) v3 += FontWidthBigPtr[ FontIndexBigPtr[ Codepage[ mg[k].raw ] ] ] + 2;
+			}
+			return v3 > 2 ? (uint)( v3 - 2 ) : 0u;
+		}
 		while( 1 ){
 			v4 = *(uchar*)v2;
 			if( !*(uchar*)v2 )
 				break;
+			if( IsChiLead( v4 ) && IsChiTrail( ((uchar*)v2)[1] ) ){ // (th4) GB2312 pair
+				// (th4) read the trail BEFORE v2 advances -- must match Font_DrawText above.
+				const uchar hinTrail = ((uchar*)v2)[1];
+				v2 = (char*)v2 + 2;
+				v3 += ( GameLanguage == LANG_HIN
+				      ? HIN_Advance( ChiLetterID( v4, hinTrail ) - HIN_FIRST_ID, 2 )
+				      : CHI_CELL_W_BIG ) + 2;
+				continue;
+			}
 			v2 = (char*)v2 + 1;
-			v3 += FontWidthBig[FontIndexBig[Codepage[v4]]] + 2;
+			v3 += FontWidthBigPtr[FontIndexBigPtr[Codepage[v4]]] + 2;
 		}
 		result = v3 - 2;
 	}
@@ -311,8 +424,8 @@ void __fastcall Menu_RegulateItem(int aDirection)
 	}
 }
 
-// сюда есть jmp из jmp-call функции 0040A3F6 j_Menu_ItemMouseClick
-// но для сверки это не важно, так как подменяются байт на вход в полную функцию
+// (rt) there is a jmp here from the jmp-call function 0040A3F6 j_Menu_ItemMouseClick
+// (rt) but for the comparison this doesn't matter, since the entry bytes into the full function are substituted
 //----- (0041CECE) --------------------------------------------------------
 int __fastcall Menu_ItemMouseClick(int a1)
 {
@@ -363,9 +476,9 @@ int __fastcall Menu_CheckMouseClick(bool mouseButtonState)
 		IsMenuVisible = false;
 		return true;
 	}
-	// всё что дальше выполняется исключительно по MOUSE_BUTTON_DOWN
+	// (rt) everything below runs only on MOUSE_BUTTON_DOWN
 
-	int menuTop = 117 + (ScreenHeight - GUI_Height)/2; // Возможно наоборот. Я не помню где у экранной высоты 0 вверху как обычно или внизу
+	int menuTop = 117 + (ScreenHeight - GUI_Height)/2; // (rt) Possibly the other way round; not certain whether screen height 0 is at the top as usual or at the bottom
 	int menuDown = 352 + (ScreenHeight - GUI_Height)/2 + (39 + 45) * (CurrentMenuWindowPtr == OptionsMenu);
 	int screenWidthCenter = ScreenWidth/2;
 	uint cursorAbsDistanceToWidthCentr = abs(screenWidthCenter - CursorX);
@@ -397,9 +510,9 @@ int __fastcall Menu_CheckMouseClick(bool mouseButtonState)
 		Menu_ItemMouseClick(someFlag); ////////////////////////
 	}else{
 		//menuItemUnderCursor.FuncPtr(1);
-		((int(*)(int))CurrentMenuItem->FuncPtr)(1); // Какаято каша в качестве аргументов передаётся
-		// не говоря уже о том что аргументы ни одной функцией из меню структ не используются.
-		// по крайней мере таких функций не нашёл.
+		((int(*)(int))CurrentMenuItem->FuncPtr)(1); // (rt) The arguments passed are inconsistent
+		// (rt) and besides, the arguments aren't used by any function of the menu struct.
+		// (rt) at least no such functions were found.
 	}
 	return true;
 }

@@ -21,6 +21,14 @@ line_vertex AutomapPoints[20000];
 line_vertex AutomapLines[10000];
 
 int AutomapRotated;
+
+// (th4) AUTOMAP SHADOW (config AutomapShadow, local only -- nothing here is synced or saved): the map
+// lines of DrawAutoMap's cell loop are drawn twice, first as a black copy shifted one pixel right
+// and down, then normally on top. AutomapDrawLine and AutomapDrawPoint1 do the shifting and
+// recolouring while AutomapShadowPass is set, in both of their paths (the D3D line / point lists
+// used with MapBlend, and the software Bresenham into the 8-bit frame), so the shadow keeps the
+// map's transparency. Players, monsters and items on the map are not shadowed.
+bool AutomapShadowPass = false;
 uchar AutomapCurrentDrawColor;
 int Xofs, Yofs; // Player center on screen buf ( x + Screen_LeftBorder, y + ScreenTopEnd ) 
 
@@ -108,7 +116,7 @@ void InitDungeonAutomapData()
 	int size;
 	char* amp = (char*)LoadFile(levelAmpFile, &size);
 	for( int i = 0; i < size; i += 2 ){
-		LevelAutomapData[i / 2 + 1] = amp[i] + (amp[i + 1] << 8); // аппаратно независимая загрузка word
+		LevelAutomapData[i / 2 + 1] = amp[i] + (amp[i + 1] << 8); // (rt) hardware-independent word load
 	}
 	FreeMem(amp);
 
@@ -252,6 +260,7 @@ void DrawAutoMap()
 				|| IsQuenchPanelVisible
                 || IsPerksPanelVisible
 				|| IsInfoWindowVisible
+				|| IsChatHistoryVisible
                 || SelectCurSpellMode
                 || IsGoldSplitPanelVisible
                 || IsHELPVisible
@@ -267,43 +276,43 @@ void DrawAutoMap()
 	    return;
     }
 	
-	if( DevelopMode || Dungeon->genType || Dungeon->isQuest ){ // можно рисовать автокарту в городе, пока рисуется только стрелка
+	if( DevelopMode || Dungeon->genType || Dungeon->isQuest ){ // (rt) the automap could be drawn in town; for now only the arrow is drawn
 		//WorkingSurfaceDrawEnd = (WorkingSurface + WorkingHeight * WorkingWidth);/*512*/
 
-		int playerMapRowOffset = (PlayerRowPos - 16) >> 1;// положение стрелки и карты относительно нас по умолчанию
+		int playerMapRowOffset = (PlayerRowPos - 16) >> 1;// (rt) default position of the arrow and the map relative to us
 		int playerMapColOffset = (PlayerColPos - 16) >> 1;
 
-		int fullMapRowPos = AutomapRow + playerMapRowOffset;// предположительно AutomapXPos отвечает за смещение карты относительно игрока по х а v3 позиция игрока на карте
+		int fullMapRowPos = AutomapRow + playerMapRowOffset;// (rt) presumably AutomapXPos is the map's x offset relative to the player, and v3 the player's position on the map
 		int fullMapColPos = AutomapCol + playerMapColOffset;
 
-		//MapRowPos = fullMapRowPos;// Присваивается значение, но нигде не считывается
-		//MapColPos = fullMapColPos;// Опять значение присваивается, но не используется
+		//(rt) MapRowPos = fullMapRowPos;// Assigned, but never read
+		//(rt) MapColPos = fullMapColPos;// Again assigned, but not used
 
-		if( fullMapRowPos < 0 ){ //юго-восточная блокировка. Т.е. по x не должны выходить за максимальное значение
-			AutomapRow = -playerMapRowOffset;// Если положение игрока плюс смещение отрицательное, делаем его положительным
-		}else if( fullMapRowPos >= 40 ){ // северо-западная блокировка. Т.е. по x не должны выходить за 0 значение
+		if( fullMapRowPos < 0 ){ //(rt) south-east clamp: x must not exceed the maximum value
+			AutomapRow = -playerMapRowOffset;// (rt) If the player's position plus the offset is negative, make it positive
+		}else if( fullMapRowPos >= 40 ){ // (rt) north-west clamp: x must not go below 0
 			AutomapRow = 39 - playerMapRowOffset;
 		}
-		if( fullMapColPos < 0 ){ // северо-восточная блокировка. Т.е. по y не должны выходить за 0 значение
+		if( fullMapColPos < 0 ){ // (rt) north-east clamp: y must not go below 0
 			AutomapCol = -playerMapColOffset;
-		}else if( fullMapColPos >= 40 ){ //юго-западная блокировка. Т.е. по y не должны выходить за максимальное значение
+		}else if( fullMapColPos >= 40 ){ //(rt) south-west clamp: y must not exceed the maximum value
 			AutomapCol = 39 - playerMapColOffset;
 		}
 
 		fullMapRowPos = AutomapRow + playerMapRowOffset;
 		fullMapColPos = AutomapCol + playerMapColOffset;
-		//MapRowPos = fullMapRowPos;// Присваивается значение, но нигде не считывается
-		//MapColPos = fullMapColPos;// Опять значение присваивается, но не используется
+		//(rt) MapRowPos = fullMapRowPos;// Assigned, but never read
+		//(rt) MapColPos = fullMapColPos;// Again assigned, but not used
 	
 		int automapZoomOffset = AutomapZoomOffset[(AutomapZoomFactor /*-50*/) / 5];
-		automapZoomOffset *= 2; // Сделано чтобы отображалась карта на весь экран, а не на часть. Увы это плохо скажется на быстродействии
-		if( (Scroll.yOfs + PlayerShiftX) + (Scroll.xOfs + PlayerShiftY) ){// Отсуп связанный с перемещением игрока в текущий момент
+		automapZoomOffset *= 2; // (rt) Done so that the map is shown across the whole screen, not part of it. This costs performance
+		if( (Scroll.yOfs + PlayerShiftX) + (Scroll.xOfs + PlayerShiftY) ){// (rt) Offset related to the player's current movement
 			automapZoomOffset++;
 		}
 
-		int mapRowOnPlayer = fullMapRowPos - automapZoomOffset;// Переменная обозначающая какая координата по x карты в данный момент рисуется под игроком. 0 означает центр карты
-		int mapColOnPlayer = fullMapColPos - 1; // Переменная обозначающая какая координата по y карты в данный момент рисуется под игроком. 0 означает край карты
-		int landX = 0; // положение карты, а не стрелки героя
+		int mapRowOnPlayer = fullMapRowPos - automapZoomOffset;// (rt) The map x coordinate currently drawn under the player. 0 means the centre of the map
+		int mapColOnPlayer = fullMapColPos - 1; // (rt) The map y coordinate currently drawn under the player. 0 means the edge of the map
+		int landX = 0; // (rt) position of the map, not of the hero's arrow
 		int landY = 0;
 
 		if( automapZoomOffset & 1 ){
@@ -342,22 +351,27 @@ void DrawAutoMap()
 			mapRowOnPlayer = 20 - automapZoomOffset;
 			mapColOnPlayer = 20 - 1;
 		}
+		// AUTOMAP SHADOW: pass 0 draws the black shifted copy, pass 1 the map itself
+		const int shadowRow0 = mapRowOnPlayer, shadowCol0 = mapColOnPlayer, shadowY0 = yCenter;
+		for( int pass = AutomapShadow ? 0 : 1; pass < 2; ++pass ){
+		AutomapShadowPass = pass == 0;
+		mapRowOnPlayer = shadowRow0; mapColOnPlayer = shadowCol0; yCenter = shadowY0;
 		for( int j = 0; j < automapZoomOffset * 2; j++){
 			int screenx = xCenter;
-			for( int i = 0; i < automapZoomOffset; screenx += AutomapZoom32, i++ ){// Рисуем половину карты. В шахматном порядке
+			for( int i = 0; i < automapZoomOffset; screenx += AutomapZoom32, i++ ){// (rt) Draw half of the map, in a checkerboard pattern
 				int mapX = mapRowOnPlayer + i;
 				int mapY = mapColOnPlayer - i;
-				short staticObjectFlags = GetStaticObjectFlags(mapX, mapY, IsNotMapOpen); // 1 - только открытая карта, 0 - вся карта
+				short staticObjectFlags = GetStaticObjectFlags(mapX, mapY, IsNotMapOpen); // (rt) 1 - only the explored map, 0 - the whole map
 				if( staticObjectFlags ){
 					AutomapDrawStaticObject(screenx, yCenter, staticObjectFlags);
 				}
 			}
-			mapColOnPlayer++; // За счёт этого смещения рисуются остальные клетки карты.
+			mapColOnPlayer++; // (rt) The remaining map cells are drawn using this offset.
 			screenx = xCenter - AutomapZoom16;
 			for( int i = 0; i <= automapZoomOffset; screenx += AutomapZoom32, i++ ){
 				int mapX = mapRowOnPlayer + i;
 				int mapY = mapColOnPlayer - i;
-				short staticObjectFlags = GetStaticObjectFlags(mapX, mapY, IsNotMapOpen); // 1 - только открытая карта, 0 - вся карта
+				short staticObjectFlags = GetStaticObjectFlags(mapX, mapY, IsNotMapOpen); // (rt) 1 - only the explored map, 0 - the whole map
 				if( staticObjectFlags ){
 					AutomapDrawStaticObject(screenx, yCenter + AutomapZoom8, staticObjectFlags);
 				}
@@ -365,6 +379,8 @@ void DrawAutoMap()
 			mapRowOnPlayer++;
 			yCenter += AutomapZoom16;
 		}
+		}
+		AutomapShadowPass = false;
 		if( Dungeon->genType || Dungeon->isQuest ){
 			AutomapDrawPlayers();
 		}
@@ -391,7 +407,7 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 {
 	const uchar color1 = 200;
 	const uchar color2 = 144;
-	if( staticObjectFlags & BIT(15) ){ // Пустая клетка, недоступная для нахождения. Обозначается точками
+	if( staticObjectFlags & BIT(15) ){ // (rt) An empty, inaccessible cell. Shown as dots
 		AutomapDrawPoint1(x, y, color1);
 		AutomapDrawPoint1(x - AutomapZoom4, y - AutomapZoom2, color1);
 		AutomapDrawPoint1(x - AutomapZoom4, y + AutomapZoom2, color1);
@@ -409,7 +425,7 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 		AutomapDrawPoint1(x + AutomapZoom4, y + AutomapZoom8 - AutomapZoom2, color1);
 		AutomapDrawPoint1(x, y + AutomapZoom8, color1);
 	}
-	if( staticObjectFlags & BIT(16) ){// Рисуется лестница
+	if( staticObjectFlags & BIT(16) ){// (rt) Stairs are drawn
 		AutomapDrawLine(x - AutomapZoom4, y - AutomapZoom4 - AutomapZoom2, AutomapZoom8 + x + AutomapZoom4, y + AutomapZoom2, color2);
 		AutomapDrawLine(x - AutomapZoom8, y - AutomapZoom4, x + AutomapZoom8, y + AutomapZoom4, color2);
 		AutomapDrawLine(x - AutomapZoom8 - AutomapZoom4, y - AutomapZoom2, x + AutomapZoom4, AutomapZoom4 + y + AutomapZoom2, color2);
@@ -419,7 +435,7 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 	bool isMainDiagWall = false;
 	bool isMainDiagCaveWall = false;
 	bool isPobDiagCaveWall = false;
-	switch( (staticObjectFlags & 0xF) - 1 ){// 1111 нижние полбайта
+	switch( (staticObjectFlags & 0xF) - 1 ){// (rt) 1111 lower half-byte
 		case 0:
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8 + AutomapZoom16, y - AutomapZoom4, color1);
@@ -451,8 +467,8 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 		default:
 			break;
 	}
-	if( isPobDiagWall ){// стена по побочной диагонали а также часть колонн
-		if( staticObjectFlags & BIT(9) ){// Дверь для вхождения по главной диагонали
+	if( isPobDiagWall ){// (rt) wall along the secondary diagonal, and some of the columns
+		if( staticObjectFlags & BIT(9) ){// (rt) Door entered along the main diagonal
 			AutomapDrawLine(x,					y - AutomapZoom8,	x - AutomapZoom4,					y - AutomapZoom8 + AutomapZoom2,	color1);
 			AutomapDrawLine(x - AutomapZoom16,	y,					x - AutomapZoom16 + AutomapZoom4,	y - AutomapZoom2,					color1);
 			AutomapDrawLine(x - AutomapZoom8,	y - AutomapZoom8,	x - AutomapZoom16,					y - AutomapZoom4,					color2);
@@ -460,22 +476,22 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 			AutomapDrawLine(x - AutomapZoom8,	y,					x - AutomapZoom16,					y - AutomapZoom4,					color2);
 			AutomapDrawLine(x - AutomapZoom8,	y,					x,									y - AutomapZoom4,					color2);
 		}
-		if( staticObjectFlags & BIT(13) ){ // рещетчатые стены по побочной диагонали
+		if( staticObjectFlags & BIT(13) ){ // (rt) lattice walls along the secondary diagonal
 			AutomapDrawLine(x - AutomapZoom8, y - AutomapZoom4, x - AutomapZoom16, y, color1);
 			staticObjectFlags |= BIT(11);
 		}
-		if( staticObjectFlags & BIT(11) ){ // Дверные проёмы без двери. Обозначаются квадратами. Решётчатые стены тоже так обозначаются.
+		if( staticObjectFlags & BIT(11) ){ // (rt) Doorways without a door. Shown as squares. Lattice walls are shown this way too.
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8 + AutomapZoom16, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y, x - AutomapZoom8, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y, x - AutomapZoom8 + AutomapZoom16, y - AutomapZoom4, color1);
 		}
-		if( !(staticObjectFlags & (BIT(9)|BIT(11)|BIT(13))) ){ // Собственно сама стена
+		if( !(staticObjectFlags & (BIT(9)|BIT(11)|BIT(13))) ){ // (rt) The wall itself
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom16, y, color1);
 		}
 	}
-	if( isMainDiagWall ){ // стена по главной диагонали а также часть колонн
-		if( staticObjectFlags & BIT(10) ){ // Дверь для вхождения по побочной диагонали
+	if( isMainDiagWall ){ // (rt) wall along the main diagonal, and some of the columns
+		if( staticObjectFlags & BIT(10) ){ // (rt) Door entered along the secondary diagonal
 			AutomapDrawLine(x,					y - AutomapZoom8,	x + AutomapZoom4,					y - AutomapZoom8 + AutomapZoom2,	color1);
 			AutomapDrawLine(x + AutomapZoom16,	y,					x + AutomapZoom16 - AutomapZoom4,	y - AutomapZoom2,					color1);
 			AutomapDrawLine(x + AutomapZoom8,	y - AutomapZoom8,	x,									y - AutomapZoom4,					color2);
@@ -483,22 +499,22 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 			AutomapDrawLine(x + AutomapZoom8,	y,					x,									y - AutomapZoom4,					color2);
 			AutomapDrawLine(x + AutomapZoom8,	y,					x + AutomapZoom16,					y - AutomapZoom4,					color2);
 		}
-		if( staticObjectFlags & BIT(14) ){ // рещетчатые стены по главной диагонали
+		if( staticObjectFlags & BIT(14) ){ // (rt) lattice walls along the main diagonal
 			AutomapDrawLine(x + AutomapZoom8, y - AutomapZoom4, x + AutomapZoom16, y, color1);
 			staticObjectFlags |= BIT(12);
 		}
-		if( staticObjectFlags & BIT(12) ){ // Дверные проёмы без двери. Обозначаются квадратами. Решётчатые стены тоже так обозначаются.
+		if( staticObjectFlags & BIT(12) ){ // (rt) Doorways without a door. Shown as squares. Lattice walls are shown this way too.
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y - AutomapZoom8, x - AutomapZoom8 + AutomapZoom16, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y, x - AutomapZoom8, y - AutomapZoom4, color1);
 			AutomapDrawLine(x, y, x - AutomapZoom8 + AutomapZoom16, y - AutomapZoom4, color1);
 		}
-		if( !(staticObjectFlags & (BIT(10)|BIT(12)|BIT(14))) ){ // Собственно сама стена
+		if( !(staticObjectFlags & (BIT(10)|BIT(12)|BIT(14))) ){ // (rt) The wall itself
 			AutomapDrawLine(x, y - AutomapZoom8, x + AutomapZoom16, y, color1);
 		}
 	}
 	if( isMainDiagCaveWall ){
-		if( staticObjectFlags & BIT(9) ){ // Дверной проём в пещерах для прохода в направлении побочной диагонали
+		if( staticObjectFlags & BIT(9) ){ // (rt) Doorway in the caves for passing along the secondary diagonal
 			AutomapDrawLine(x,					y + AutomapZoom8,	x - AutomapZoom4,					y + AutomapZoom8 - AutomapZoom2,	color1);
 			AutomapDrawLine(x - AutomapZoom16,	y,					x - AutomapZoom16 + AutomapZoom4,	y + AutomapZoom2,					color1);
 			AutomapDrawLine(x - AutomapZoom8,	y + AutomapZoom8,	x - AutomapZoom16,					y + AutomapZoom4,					color2);
@@ -506,11 +522,11 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 			AutomapDrawLine(x - AutomapZoom8,	y,					x - AutomapZoom16,					y + AutomapZoom4,					color2);
 			AutomapDrawLine(x - AutomapZoom8,	y,					x,									y + AutomapZoom4,					color2);
 		}else{
-			AutomapDrawLine(x, y + AutomapZoom8, x - AutomapZoom16, y, color1); // стена главной диагонали в пещерах. При этом не каждая
+			AutomapDrawLine(x, y + AutomapZoom8, x - AutomapZoom16, y, color1); // (rt) main-diagonal wall in the caves (not every one)
 		}
 	}
 	if( isPobDiagCaveWall ){
-		if( staticObjectFlags & BIT(10) ){// Дверной проём в пещерах для прохода в направлении главной диагонали
+		if( staticObjectFlags & BIT(10) ){// (rt) Doorway in the caves for passing along the main diagonal
 			AutomapDrawLine(x,					y + AutomapZoom8,	x + AutomapZoom4,					y + AutomapZoom8 - AutomapZoom2,	color1);
 			AutomapDrawLine(x + AutomapZoom16,	y,					x + AutomapZoom16 - AutomapZoom4,	y + AutomapZoom2,					color1);
 			AutomapDrawLine(x + AutomapZoom8,	y + AutomapZoom8,	x,									y + AutomapZoom4,					color2);
@@ -518,7 +534,7 @@ void __fastcall AutomapDrawStaticObject(int x, int y, int staticObjectFlags)
 			AutomapDrawLine(x + AutomapZoom8,	y,					x,									y + AutomapZoom4,					color2);
 			AutomapDrawLine(x + AutomapZoom8,	y,					x + AutomapZoom16,					y + AutomapZoom4,					color2);
 		}else{
-			AutomapDrawLine(x, y + AutomapZoom8, x + AutomapZoom16, y, color1); // стена побочной диагонали в пещерах. При этом не каждая
+			AutomapDrawLine(x, y + AutomapZoom8, x + AutomapZoom16, y, color1); // (rt) secondary-diagonal wall in the caves (not every one)
 		}
 	}
 }
@@ -546,6 +562,30 @@ void AutoMapIsometricCalc(int row, int col, int& x, int& y)
 };
 
 int ColorShifter = 0;
+
+// (th4) THE LAST MONSTERS MARKER: a red dot on the map for every monster still alive once the level is down to
+// its last few (at most 10; 30 in Outbreak). Only in Ironman, Survival and Outbreak, or with the config
+// ShowObjectsOnMiniMap on -- on purpose (Mordor: those modes are about clearing levels). Its colour was meant to
+// cycle (228 + ColorShifter / 2), but ColorShifter++ is commented out in AutomapDrawItems, so it is a steady red.
+// WHERE THE TWO MAPS LOOK (AutomapDrawItems below -- the same rules for items and chests):
+//   AutomapMode 1, the big automap over the screen: only cells within 8 of the hero, explored or not.
+//   AutomapMode 2, the minimap in the corner: the whole level -- items and chests only in cells the player
+//     has explored (AutoMap[][], unless config IsNotMapOpen is "open"); THIS MARKER in every cell: the last
+//     monsters hide exactly where the player has not been yet, and the marker is there to find them
+//     (a player's report, 2026-10-08: the big map showed the last monster, the minimap did not).
+// monstersLeft = GetNumberOfMonstersInDungeon(), worked out once per frame by the caller.
+static void AutomapDrawLastMonster( int r, int c, int monstersLeft )
+{
+	if( !( GameMode == GM_IRONMAN || GameMode == GM_SURVIVAL || GameMode == GM_OUTBREAK || ShowObjectsOnMiniMap ) ) return;
+	const int monLeftMax = GameMode == GM_OUTBREAK ? 30 : 10;
+	const int monsterNum = MonsterMap[ r ][ c ];
+	if( monstersLeft <= monLeftMax && monsterNum >= SummonMonsters_Count ){
+		int x = 0, y = 0;
+		AutoMapIsometricCalc( r, c, x, y );
+		AutomapDrawOneItem( x, y, 228 + ( ColorShifter / 2 ) ); //flashing_red
+	}
+}
+
 //----- (004029A7) --------------------------------------------------------
 void AutomapDrawItems()
 {
@@ -580,17 +620,24 @@ void AutomapDrawItems()
 	LimitToRange(yMax, 0, 112);
 
 	if( AutomapMode == 2 ){ if( Dungeon->genType || Dungeon->isQuest ){ xMin = 16; xMax = 96; yMin = 16; yMax = 96; }else{ xMin = 0; xMax = 112; yMin = 0; yMax = 112; } }
+	// (th4) THE LAST MONSTERS MARKER (above): the count, once per frame -- it was counted again for every map cell
+	const int monstersLeft = GetNumberOfMonstersInDungeon();
 	for( int r = xMin; r < xMax; r++ ){
 		for( int c = yMin; c < yMax; c++ ){
 
 			int x = 0, y = 0;
 
-			if( AutomapMode == 2 && IsNotMapOpen && (Dungeon->genType || Dungeon->isQuest) && !AutoMap[(r-16)/2][(c-16)/2] ) continue; // TODO: check and comment WTF is this
+			// (th4) the minimap skips cells the player has not explored (AutoMap[] is the 40 x 40 map of them, hence
+			// (r - 16) / 2): no items or chests there -- but THE LAST MONSTERS MARKER is drawn there too (above)
+			if( AutomapMode == 2 && IsNotMapOpen && (Dungeon->genType || Dungeon->isQuest) && !AutoMap[(r-16)/2][(c-16)/2] ){
+				AutomapDrawLastMonster( r, c, monstersLeft );
+				continue;
+			}
 			if( int itemNum = ItemMap[ r ][ c ]; itemNum > 0 ){ //gets in to chunk only if the item is on the floor
 				AutoMapIsometricCalc(r, c, x, y);
-				uchar color = 129; // синим магические вещи
+				uchar color = 129; // (rt) magic items in blue
 				Item& item = Items[itemNum - 1];
-				if( item.MagicLevel >= ML_2_UNIQUE ) color = 155; // оранжевым уники и сеты
+				if( item.MagicLevel >= ML_2_UNIQUE ) color = 155; // (rt) uniques and sets in orange
 					
 				if( item.dropType & D_RARE ){
 					color = 137; //pink
@@ -606,7 +653,7 @@ void AutomapDrawItems()
 				else if (is(item.MagicCode, MC_2_POTION_OF_FULL_HEALING, MC_3_POTION_OF_HEALING)) color = 139; // red healing pots
 				else if (is(item.MagicCode, MC_18_POTION_OF_REJUVENATION, MC_19_POTION_OF_FULL_REJUVENATION)) color = 176; // white holy waters
 				else if( is( item.MagicCode, MC_6_POTION_OF_MANA, MC_7_POTION_OF_FULL_MANA ) ) UserPotionB || GameMode == GM_CLASSIC ? color = 132 : color = 246; // mana pots blue or grey
-				else if( item.MagicCode >= MC_10_ELIXIR_OF_STRENGTH && item.MagicCode <= MC_13_ELIXIR_OF_VITALITY || item.MagicCode == MC_44_SPECTRAL_ELIXIR ) color = 155; // эликсиры оранжевым как уники
+				else if( item.MagicCode >= MC_10_ELIXIR_OF_STRENGTH && item.MagicCode <= MC_13_ELIXIR_OF_VITALITY || item.MagicCode == MC_44_SPECTRAL_ELIXIR ) color = 155; // (rt) elixirs in orange, like uniques
 				else if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) color = 152; // oils beige
 				AutomapDrawOneItem(x, y, color);
 			}
@@ -618,7 +665,7 @@ void AutomapDrawItems()
 				DT_4_HELL, 
 				DT_5_CRYPT, 
 				DT_6_ABYSS)
-				&& */(GameMode == GM_IRONMAN || GameMode == GM_SURVIVAL))
+				&& */(GameMode == GM_IRONMAN || GameMode == GM_SURVIVAL || GameMode == GM_OUTBREAK))
 				|| ShowObjectsOnMiniMap) {		//copy paste position calculation from items to barrels and chests using the same Row/Col loop
 				if (int objectNum = ObjectsMap[r][c]) {		//gets in to chunk only if the item is on the floor
 					Object& object2 = Objects[objectNum - 1];
@@ -646,7 +693,8 @@ void AutomapDrawItems()
 
 					AutoMapIsometricCalc(r, c, x, y);
 					int objLeft = GetNumberOfObjectsInDungeon();
-					if (objLeft <= 10) {
+					int obj_left_trk = GameMode == GM_OUTBREAK ? 0 : 10;
+					if (objLeft <= obj_left_trk) {
 						AutomapDrawOneItem(x, y, 240 + (ColorShifter / 2)); //Leftover objects flashing in white when remaining object count is low.
 					} else {
 						AutomapDrawOneItem(x, y, 243); //lite_grey
@@ -658,12 +706,7 @@ void AutomapDrawItems()
 					//	if (object2.selectable) 
 					//		AutomapDrawOneItem(x, y, color); //draw barrels and chests
 				}
-				int monsterNum = MonsterMap[r][c];
-				int monstersleft = GetNumberOfMonstersInDungeon();
-				if ( monstersleft <= 10 && monsterNum >= SummonMonsters_Count) {
-					AutoMapIsometricCalc(r, c, x, y);
-					AutomapDrawOneItem(x, y, 228 + (ColorShifter/2)); //flashing_red
-				}
+				AutomapDrawLastMonster( r, c, monstersLeft );	// (th4) THE LAST MONSTERS MARKER (above)
 			}
 		}
 	}
@@ -675,7 +718,10 @@ struct HighlightName
 	char magicLevel;
 	char text[64];
 	HighlightName( short x, short y, short width, short height, short row, short col, short itemId, char magicLevel, const char* text ):
-		itemId(itemId), row(row), col(col), x(x), y(y), x_(-1), y_(-1), width(width), height(height), magicLevel( magicLevel ){ strcpy( this->text, text ); }
+		itemId(itemId), row(row), col(col), x(x), y(y), x_(-1), y_(-1), width(width), height(height), magicLevel( magicLevel )
+	{	// (th4) bounded copy: textOnGround is 256 bytes, a long name with the level prefix overflowed text[64]
+		strncpy( this->text, text, sizeof( this->text ) - 1 ); this->text[ sizeof( this->text ) - 1 ] = 0;
+	}
 };
 CObjectUnderCursor HighlightedItem;
 //----- (004029A7) --------------------------------------------------------
@@ -683,8 +729,22 @@ void HighlightItemsNameOnMap()
 {
 	if (GamePaused) return;
 
+	// (th4) PERFORMANCE, with the on-screen result kept exactly as before:
+	//  - the label list is static (cleared, never reallocated) instead of a new vector per frame;
+	//  - the overlap solver below is the original one, step for step, but only compares a label
+	//    with the earlier labels close enough vertically to ever overlap it (y never changes while
+	//    solving -- only x moves), and its "positions already tried" set is a flat array instead
+	//    of a std::map allocated per label per frame;
+	//  - the solved layout is CACHED: the solver only uses differences between label positions,
+	//    so moving the camera shifts every label by the same amount and the solution does not
+	//    change. While the same labels are on screen in the same relative places (standing still,
+	//    or walking without items entering / leaving the view), last frame's shifts are reused.
+	//  - a hard cap on retries per label keeps a pathological pile from stalling the game (the
+	//    original could bounce a label between already-tried positions for a very long time).
 	char textOnGround[ 256 ];
-	vector<HighlightName> HighlightNames; HighlightNames.reserve(MaxItems_255 < 1024 ? MaxItems_255 : 1024);
+	static vector<HighlightName> HighlightNames;
+	if( HighlightNames.capacity() < MaxItems_255 ) HighlightNames.reserve( MaxItems_255 );
+	HighlightNames.clear();
 	short zoomFactor = IsZoomDisable ? 1 : 2;
 	int textHeight = 13;
 	for( int i = 0; i < ItemsCount; i++ ){
@@ -693,13 +753,25 @@ void HighlightItemsNameOnMap()
 		int col = (item.MapCol - PlayerColPos) * zoomFactor;
 		// items on ground name highlighting
 		if( item.ItemCode == IC_11_GOLD ){
-			sprintf( textOnGround, "%i gold", item.amount );
+			sprintf( textOnGround, L("%i gold"), item.amount );
 		} else{
 			const bool identified = item.Identified || item.MagicLevel == ML_0_USUAL;
-			sprintf(textOnGround, "%s", identified ? item.FullMagicalItemName : item.Name);
+			// (th4) config ShowItemLevelOnGround: "(clvl) Name" for UNIDENTIFIED MAGIC items only
+			// (white items count as identified above; unique ML_2 and set ML_3 items are skipped by
+			// request -- their requirement is not what players look at). The number is the REQUIRED
+			// CHARACTER LEVEL, Item::RequiredLevel -- not the drop level (Item::quality) nor the base
+			// item level (BaseItems[].itemLevel). It is already final while the item is unidentified.
+			// 0 = no level requirement: no prefix.
+			if( ShowItemLevelOnGround && !identified && item.RequiredLevel > 0
+			 && item.MagicLevel != ML_2_UNIQUE && item.MagicLevel != ML_3_SET ){
+				sprintf(textOnGround, "(%i) %s", (int)item.RequiredLevel, identified ? item.FullMagicalItemName : item.Name);
+			}else{
+				sprintf(textOnGround, "%s", identified ? item.FullMagicalItemName : item.Name);
+			}
 		}
 		int x = 32 * (row - col) + (200 * zoomFactor * (Scroll.xOfs + PlayerShiftY) / 100 >> 1) + Xofs - Screen_LeftBorder;
 		int y = 16 * (row + col) + (200 * zoomFactor * (Scroll.yOfs + PlayerShiftX) / 100 >> 1) + Yofs - Screen_TopBorder - 30;
+		DynZoom_WorldToScreen( x, y );	// (th4) DYNAMIC ZOOM: over the item where it is SHOWN (no-op without it)
 		int textWidth = GetTextWidth( textOnGround );
 		if( x >= 0 && x < ScreenWidth && y - textHeight > 0 && y < ScreenHeight ){
 			HighlightNames.emplace_back( x - textWidth / 2, y, textWidth, textHeight, item.MapRow, item.MapCol, ItemActive[ i ], item.MagicLevel, textOnGround );
@@ -707,42 +779,80 @@ void HighlightItemsNameOnMap()
 	}
 	enum { borderX = 5 };
 	bool highlightItem = false;
-	for( uint i = 0, ie = HighlightNames.size(); i < ie; ++i ){
+
+	// ---- layout cache (see the note at the top) ----
+	int camX = ( 200 * zoomFactor * ( Scroll.xOfs + PlayerShiftY ) / 100 >> 1 ) + Xofs - Screen_LeftBorder;
+	int camY = ( 200 * zoomFactor * ( Scroll.yOfs + PlayerShiftX ) / 100 >> 1 ) + Yofs - Screen_TopBorder;
+	DynZoom_WorldToScreen( camX, camY );	// (th4) DYNAMIC ZOOM: in the labels' space (the cache compares label - camera)
+	static int cacheCount = -1;
+	static short cacheId[ MaxItems_255 ], cacheW[ MaxItems_255 ], cacheDx[ MaxItems_255 ];
+	static int cacheRelX[ MaxItems_255 ], cacheRelY[ MaxItems_255 ];
+	const uint labelCount = (uint)HighlightNames.size();
+	bool cacheHit = (int)labelCount == cacheCount && labelCount <= MaxItems_255;
+	for( uint i = 0; cacheHit && i < labelCount; ++i ){
+		const HighlightName& n = HighlightNames[ i ];
+		cacheHit = n.itemId == cacheId[ i ] && n.width == cacheW[ i ] && n.x - camX == cacheRelX[ i ] && n.y - camY == cacheRelY[ i ];
+	}
+	if( cacheHit ){
+		for( uint i = 0; i < labelCount; ++i ){
+			HighlightName& n = HighlightNames[ i ];
+			n.x_ = n.x + cacheDx[ i ]; n.y_ = n.y;
+		}
+	}
+	static short tried[ 4096 ];				// positions already tried for the current label
+	static uint cand[ MaxItems_255 ];			// earlier labels close enough vertically to overlap
+	for( uint i = 0, ie = cacheHit ? 0 : labelCount; i < ie; ++i ){
 		if( HighlightNames[ i ].x_ == -1 && HighlightNames[ i ].y_ == -1 ){
 			HighlightNames[ i ].x_ = HighlightNames[ i ].x; HighlightNames[ i ].y_ = HighlightNames[ i ].y;
 		}
-		map<short, bool> backtrace;
+		uint candCount = 0;
+		for( uint j = 0; j < i; ++j ){
+			if( abs( HighlightNames[ j ].y_ - HighlightNames[ i ].y_ ) < HighlightNames[ i ].height + 2 ) cand[ candCount++ ] = j;
+		}
+		int triedCount = 0;
+		auto wasTried = [&]( short pos ){ for( int t = 0; t < triedCount; ++t ) if( tried[ t ] == pos ) return true; return false; };
+		auto markTried = [&]( short pos ){ if( triedCount < 4096 && !wasTried( pos ) ) tried[ triedCount++ ] = pos; };
+		int guard = 0;
 		bool overlap;
 		do{
 			overlap = false;
-			for( uint j = 0; j < i; ++j ){
+			for( uint c = 0; c < candCount; ++c ){
+				const uint j = cand[ c ];
 				if( abs( HighlightNames[ j ].y_ - HighlightNames[ i ].y_ ) < HighlightNames[ i ].height + 2 ){
 					if( HighlightNames[ j ].x_ >= HighlightNames[ i ].x_ && HighlightNames[ j ].x_ - HighlightNames[ i ].x_ < HighlightNames[ i ].width + borderX ){
 						overlap = true;
 						int newpos = HighlightNames[ j ].x_ - HighlightNames[ i ].width - borderX;
-						if( backtrace.find( newpos ) == backtrace.end() ){
+						if( !wasTried( (short)newpos ) ){
 							HighlightNames[ i ].x_ = newpos;
-							backtrace[newpos] = true;
+							markTried( (short)newpos );
 						} else{
 							newpos = HighlightNames[ j ].x_ + HighlightNames[ j ].width + borderX;
 							HighlightNames[ i ].x_ = newpos;
-							backtrace[newpos] = true;
+							markTried( (short)newpos );
 						}
 					}else if( HighlightNames[ j ].x_ < HighlightNames[ i ].x_ && HighlightNames[ i ].x_ - HighlightNames[ j ].x_ < HighlightNames[ j ].width + borderX ){
 						overlap = true;
-						int newpos = HighlightNames[ j ].x_ + HighlightNames[ j ].width + borderX;;
-						if( backtrace.find( newpos ) == backtrace.end() ){
+						int newpos = HighlightNames[ j ].x_ + HighlightNames[ j ].width + borderX;
+						if( !wasTried( (short)newpos ) ){
 							HighlightNames[ i ].x_ = newpos;
-							backtrace[newpos] = true;
+							markTried( (short)newpos );
 						}else{
 							newpos = HighlightNames[ j ].x_ - HighlightNames[ i ].width - borderX;
 							HighlightNames[ i ].x_ = newpos;
-							backtrace[newpos] = true;
+							markTried( (short)newpos );
 						}
 					}
 				}
 			}
-		}while( overlap );
+		}while( overlap && ++guard < 20000 );	// (th4) cap: only a pathological pile ever gets near it
+	}
+	if( !cacheHit ){	// remember this layout for the next frames
+		cacheCount = (int)labelCount;
+		for( uint i = 0; i < labelCount && i < MaxItems_255; ++i ){
+			const HighlightName& n = HighlightNames[ i ];
+			cacheId[ i ] = n.itemId; cacheW[ i ] = n.width; cacheRelX[ i ] = n.x - camX; cacheRelY[ i ] = n.y - camY;
+			cacheDx[ i ] = (short)( ( n.x_ == -1 && n.y_ == -1 ? n.x : n.x_ ) - n.x );
+		}
 	}
 
 	for( HighlightName& name: HighlightNames){
@@ -763,6 +873,11 @@ void HighlightItemsNameOnMap()
 			}
 			DrawBox( {x, y, name.width + 1, name.height}, bgcolor );
 			DrawText( x + 1, y - 2 + textHeight, 0, name.text, ItemColor(Items[ name.itemId ]) );
+			// (th4) Stage 2: no rect clear is recorded here — the label ink clears
+			// AlphaSurface/SpriteLayerSurface per pixel at draw time, exactly like
+			// LightSurface: DrawBox clears every box row (AlphaOverlayClearRow) and
+			// DrawLetterPixel clears every glyph pixel (AlphaOverlayClearPixel). A
+			// bounding-rect clear over-cleared pixels around the label (2026-09-07).
 		}
 	}
 
@@ -996,12 +1111,12 @@ void DrawLevelInfo()
 		}
 	}
 	if( DevelopMode ){
-		sprintf( buffer, "%s, Level: %i", Dungeon->name, Dungeon->level );
+		sprintf( buffer, "%s, Level: %i", LocalizedWarpName( Dungeon->name ), Dungeon->level ); // (th4) localize dungeon label
 	}else if( Dungeon > DUN_0_TOWN ){
 		if( Dungeon->isQuest ){
-			sprintf( buffer, "%s", Dungeon->name );
+			sprintf( buffer, "%s", LocalizedWarpName( Dungeon->name ) ); // (th4) localize dungeon label
 		}else{
-			sprintf( buffer, "Level: %i", Dungeon->level );
+			sprintf( buffer, L("Level: %i"), Dungeon->level ); // (th4) localize
 		}
 	}else return;
 	if(  MaxCountOfPlayersInGame > 1u ){
@@ -1172,6 +1287,7 @@ bool isPointInPanel( int x, int y )
 //----- (004199E7) --------------------------------------------------------
 void __fastcall AutomapDrawPoint1( int xPos, int yPos, uchar color )
 {
+	if( AutomapShadowPass ){ ++xPos; ++yPos; color = 0; }	// (th4) AUTOMAP SHADOW (entry 0 = black)
 	if( yPos >= Screen_TopBorder && yPos < Screen_TopBorder + ScreenHeight && xPos >= Screen_LeftBorder && xPos < WorkingWidth - Screen_LeftBorder ){
 		//if( curPixel < WorkingSurfaceEnd ){
 		if( MapBlend && DrawMode ){
@@ -1182,9 +1298,10 @@ void __fastcall AutomapDrawPoint1( int xPos, int yPos, uchar color )
             }
 			line_vertex& a = AutomapPoints[ AutomapPointsCount ];
 			PALETTEENTRY p = ScreenPalette[ color ];
+		if( AutomapShadowPass ){ p.peRed = p.peGreen = p.peBlue = 0; }	// (th4) AUTOMAP SHADOW: true black whatever entry 0 is
 			a.pos.x = (float)(xPos - Screen_LeftBorder);
 			a.pos.y = (float)(yPos - Screen_TopBorder);
-			// в режиме фильтрации масштабируется корректно автоматически, а без фильтрации миникарта лучше выглядит немасштабированная
+			// (rt) with filtering it scales correctly automatically; without filtering the minimap looks better unscaled
 			//if( !FilteringMode ){ a.pos.x *= AspectX; a.pos.y *= AspectY; }
 			a.pos.z = 0.0;
 			a.pos.w = 1.0;
@@ -1219,10 +1336,11 @@ void __fastcall AutomapDrawPoint( int xPos, int yPos )
 	//}
 }
 
-// функция полностью переписана, согласно алгоритма Брезенхэма.
+// (rt) the function is completely rewritten, following Bresenham's algorithm.
 //----- (00419AAF) --------------------------------------------------------
 void __fastcall AutomapDrawLine( int x1, int y1, int x2, int y2, uchar color )
 {
+	if( AutomapShadowPass ){ ++x1; ++y1; ++x2; ++y2; color = 0; }	// (th4) AUTOMAP SHADOW (entry 0 = black)
 	AutomapCurrentDrawColor = color;
 	if( x1 < Screen_LeftBorder || x1 >= WorkingWidth - Screen_RightBorder ){
 		return;
@@ -1244,6 +1362,7 @@ void __fastcall AutomapDrawLine( int x1, int y1, int x2, int y2, uchar color )
 		line_vertex& a1 = AutomapLines[ AutomapLinePointsCount ];
 		line_vertex& a2 = AutomapLines[ AutomapLinePointsCount + 1 ];
 		PALETTEENTRY p = ScreenPalette[ color ];
+		if( AutomapShadowPass ){ p.peRed = p.peGreen = p.peBlue = 0; }	// (th4) AUTOMAP SHADOW: true black whatever entry 0 is
 		a1.pos.x = (float) (x1 - Screen_LeftBorder);
 		a1.pos.y = (float) (y1 - Screen_TopBorder);
 		a1.pos.z = 0;
@@ -1259,7 +1378,7 @@ void __fastcall AutomapDrawLine( int x1, int y1, int x2, int y2, uchar color )
 		a2.pos.z = 0;
 		a2.pos.w = 1.0;
 		a2.color = a1.color;
-		// в режиме фильтрации масштабируется корректно автоматически, а без фильтрации миникарта лучше выглядит немасштабированная
+		// (rt) with filtering it scales correctly automatically; without filtering the minimap looks better unscaled
 		//if( !FilteringMode ){ a1.pos.x *= AspectX; a1.pos.y *= AspectY; a2.pos.x *= AspectX; a2.pos.y *= AspectY; }
 		AutomapLinePointsCount += 2;
 		return;
@@ -1503,9 +1622,9 @@ void __fastcall LovecraftDoVision( int row, int col, int lightRadius, int someFl
 							FlagMap[ 0 ][ cell ] |= CF_128_DISCOVERED;
 						}
 						//if( someFlag2 ){
-						//	FlagMap[ 0 ][ cell ] |= CF_64_VISIBLE_BY_CURSOR;   // не отображаются монстры
+						//	(rt) FlagMap[ 0 ][ cell ] |= CF_64_VISIBLE_BY_CURSOR;   // monsters are not shown
 						//}
-						FlagMap[ 0 ][ cell ] |= CF_2_VISIBLE_BY_PLAYER;     // не видят монстры
+						FlagMap[ 0 ][ cell ] |= CF_2_VISIBLE_BY_PLAYER;     // (rt) monsters don't see
 						if( !cellBlockSight ){
 							int transparentWallsMap = TransMap[ 0 ][ cell ];
 							if( transparentWallsMap ){
@@ -1577,9 +1696,9 @@ void __fastcall LovecraftDoVision( int row, int col, int lightRadius, int someFl
 						//	FlagMap[ 0 ][ cell ] |= CF_128_DISCOVERED;
 						//}
 						if( someFlag2 ){
-							FlagMap[ 0 ][ cell ] |= CF_64_VISIBLE_BY_CURSOR;   // не отображаются монстры
+							FlagMap[ 0 ][ cell ] |= CF_64_VISIBLE_BY_CURSOR;   // (rt) monsters are not shown
 						}
-						//FlagMap[ 0 ][ cell ] |= CF_2_VISIBLE_BY_PLAYER;     // не видят монстры
+						//(rt) FlagMap[ 0 ][ cell ] |= CF_2_VISIBLE_BY_PLAYER;     // monsters don't see
 						if( !cellBlockSight ){
 							int transparentWallsMap = TransMap[ 0 ][ cell ];
 							if( transparentWallsMap ){

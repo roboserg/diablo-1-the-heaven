@@ -103,7 +103,7 @@ void GameHelp()
 				if( v3 < 577 )
 					goto LABEL_18;
 				LABEL_15:
-				// Было v2 = &BeforeSomeString2[v2], но v2 согласно алгоритма не может быть тут меньше 1
+				// (rt) Was v2 = &BeforeSomeString2[v2], but by the algorithm v2 can't be less than 1 here
 				v5 = &InfoPanelBuffer[v2 - 1];
 				while( *v5 != ' ' ){
 					--helpTextIndex;
@@ -120,9 +120,9 @@ void GameHelp()
 	do{
 		v7 = 0;
 		v6 = 0;
-		// Мистика. Есть строка HelpText. Есть указатель fn, присваиваем fn адрес HelpText, а fn принимает какое то другое значение. Не адрес HelpText
-		// Затем делаю fn индексом HelpText. Читаю 0е значение и опять ошибка при чтении. Причём адрес какой то отличный от адреса HelpText
-		// Может всё дело в размере или содержимом HelpText?
+		// (rt) Unexplained behaviour: there is a string HelpText and a pointer fn; fn is assigned the address of HelpText, but fn takes some other value, not HelpText's address
+		// (rt) Then fn is made an index into HelpText. Reading element 0 fails again, and the address differs from HelpText's
+		// (rt) Maybe the problem is HelpText's size or contents?
 		while( !HelpText[helpTextIndex] ){// Break with error - incorrect pointer 0x79654b24
 			++helpTextIndex;
 		}
@@ -184,20 +184,22 @@ char __fastcall DrawHelpText(int a1, int a2, int a3, char aFontSize)
 	char result; // al@1
 	int v5;      // ebx@1
 	int v6;      // edi@1
-	char v7;     // al@2
+	int v7;      // al@2  (th4) widened: CJK letterIDs reach 8434, a char caps at 127
 	int v8;      // esi@2
 	v5 = 0;
 	v6 = YOffsetHashTable[StringRowYPosition[a2] + 204] + a1 + 96;
-	for( result = *(uchar*)a3; *(uchar*)a3; result = *(uchar*)a3 ){
-		++a3;
-		v7 = FontIndexSmall[Codepage[result]];
-		v8 = (unsigned __int8)v7;
-		v5 += FontWidthSmall[v7] + 1;
+	result = *(uchar*)a3;
+	while( *(uchar*)a3 ){ // (th4) CHI: step by character (1 or 2 bytes), not byte
+		int w;
+		result = *(uchar*)a3;
+		a3 += ChiNextSmall( (const uchar*)a3, &v7, &w );
+		v8 = v7;
+		v5 += w + 1;
 		if( v7 ){
 			if( v5 <= 577 )
-				DrawLetter(v6, (unsigned __int8)v7, aFontSize);
+				DrawLetter(v6, v7, aFontSize);
 		}
-		v6 += FontWidthSmall[v8] + 1;
+		v6 += w + 1;
 	}
 	return result;
 }

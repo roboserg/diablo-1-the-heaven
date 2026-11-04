@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "AnimOrbs.h"
 
 bool MouseMoved = false;
 bool IsMainDraw = false;
@@ -61,7 +62,7 @@ void InitItemsCel(char* itemSprites, int firstIndex)
 	int lastItem = *(int*) itemSprites;
 	for( i = 0; i < lastItem; ++i ){
 		char* item = itemSprites + ((int*) itemSprites)[i + 1];
-		item += *(short*)item; // начало пикселей спрайта
+		item += *(short*)item; // (rt) start of the sprite's pixels
 
 		width = 0;
 
@@ -138,24 +139,25 @@ void InitItemsCel(char* itemSprites, int firstIndex)
 //----- (00407A46) -------------------------------------------------------- interface infopanel
 void InitItemsCELArrays()
 {
-	if( !ClassicItemSprites ) ClassicItemSprites = (char*) LoadFile( "Data\\Inv\\Objcurs.CEL" ); // diablo.mpq
-	//if( !AddonItemSprites ) AddonItemSprites = (char*) LoadFile( "Data\\Inv\\Objcurs2.CEL" ); // hellfire.mpq не используется, в раздаче его нет, thdata.mor это он же измененный
-	if( !ClassicModItemSprites ) ClassicModItemSprites = (char*) LoadFile( "Data\\Inv\\invobj1.CEL" ); // thdata.mor
-	if( !AddonModItemSprites ) AddonModItemSprites = (char*) LoadFile( "data\\inv\\TH2objcurs.cel" ); // thdata.mor, th3data.mor
-	if( !Th3ItemSprites ) Th3ItemSprites = (char*) LoadFile( "data\\inv\\TH3objcurs.cel" ); // th3data.mor
+	if( !Classic_Item_Sprites ) Classic_Item_Sprites = (char*) LoadFile( "Data\\Inv\\Objcurs.CEL" ); // diablo.mpq
+	//(rt) if( !AddonItemSprites ) AddonItemSprites = (char*) LoadFile( "Data\\Inv\\Objcurs2.CEL" ); // hellfire.mpq isn't used, it's not in the distribution, thdata.mor is the same thing modified
+	if( !Invobj1_item_sprites ) Invobj1_item_sprites = (char*) LoadFile( "Data\\Inv\\invobj1.CEL" ); // thdata.mor
+	if( !TH2objcurs_Item_Sprites ) TH2objcurs_Item_Sprites = (char*) LoadFile( "data\\inv\\TH2objcurs.cel" ); // thdata.mor, th3data.mor
+	if( !TH3objcurs_Item_Sprites ) TH3objcurs_Item_Sprites = (char*) LoadFile( "data\\inv\\TH3objcurs.cel" ); // th3data.mor
 	ZeroCursorImageWidth();
-	InitItemsCel(AddonModItemSprites, 168 + 12);
-	InitItemsCel(Th3ItemSprites, 3716 + 168 + 12 + 1);
+	InitItemsCel(TH2objcurs_Item_Sprites, 168 + 12);
+	InitItemsCel(TH3objcurs_Item_Sprites, 3716 + 168 + 12 + 1);
+	AnimOrbs_Init(); // decode animated life/mana orb frames from the MPQ
 }
 
 //----- (00407A6D) -------------------------------------------------------- interface infopanel
 void FreeItemsCELArrays()
 {
-	FreeMemZero( ClassicItemSprites );
+	FreeMemZero( Classic_Item_Sprites );
 	//FreeMemZero( AddonItemSprites );
-	FreeMemZero( ClassicModItemSprites);
-	FreeMemZero( AddonModItemSprites );
-	FreeMemZero( Th3ItemSprites );
+	FreeMemZero( Invobj1_item_sprites);
+	FreeMemZero( TH2objcurs_Item_Sprites );
+	FreeMemZero( TH3objcurs_Item_Sprites );
 	ZeroCursorImageWidth();
 }
 
@@ -170,9 +172,9 @@ void __fastcall SetupItemSizes(int graphicsIndex)
 	ItemWidthCells = w / CELL_SIZE; ItemHeightCells = h / CELL_SIZE;
 }
 
-// сюда какое то адовое количестово и jmp и call на обе функции, как бы не упало при сверке
+// (rt) many jmps and calls to both functions here; may be fragile in the comparison
 //----- (00407ACA) --------------------------------------------------------
-//----- (00407AED) --------------------------------------------------------// джамп на 00407ACA
+//(rt) ----- (00407AED) --------------------------------------------------------// jump to 00407ACA
 void __fastcall SetCursorGraphics( int graphicsIndex )
 {
 	Cur.GraphicsID = graphicsIndex;
@@ -212,13 +214,21 @@ void ShowTownPortalDescription()
 		if( cursorRow == row - 1 && cursorCol == col 
 			|| cursorRow == row && cursorCol == col - 1 
 			|| (cursorRow == row - 1 || cursorRow == row - 2) && (cursorCol == col - 1 || cursorCol == col - 2)
-			|| cursorRow == row && cursorCol == col ){// треугольник над курсором проверяется
-				IswarpUnderCursor = true;
-				InfoPanel_ClearBody();
-				strcpy(InfoPanelHeader, "Town Portal");
-				sprintf(InfoPanelBuffer, "from %s", Players[spell.CasterIndex].playerName);
+			|| cursorRow == row && cursorCol == col ){// (rt) the triangle above the cursor is checked
+			IswarpUnderCursor = true;
+			InfoPanel_ClearBody();
+			if (Dungeon == DUN_0_TOWN && MaxCountOfPlayersInGame == 1 && GameMode != GM_CLASSIC) {
+				// Single-player (non-classic) town portal: show where it leads instead of who cast it.
+				strcpy(InfoPanelHeader, (char*)L("Town Portal"));
+				sprintf(InfoPanelBuffer, L("To %s"), LocalizedWarpNameAccusative(Dungeons[Portals[spell.CasterIndex].dungeon].warpName));
 				InfoPanel_AddLine(InfoPanelBuffer, true);
-				cursorRow = row;
+			}
+			else {
+				strcpy(InfoPanelHeader, (char*)L("Town Portal"));
+				sprintf(InfoPanelBuffer, L("from %s"), Players[spell.CasterIndex].playerName);
+				InfoPanel_AddLine(InfoPanelBuffer, true);
+			}
+			cursorRow = row;
 				cursorCol = col;
 				Cur.Row = row;
 				Cur.Col = cursorCol;
@@ -250,21 +260,27 @@ void ShowUnholyPortalDescription()
 		if( cursorRow == row - 1 && cursorCol == col 
 		 || cursorRow == row && cursorCol == col - 1 
 		 || (cursorRow == row - 1 || cursorRow == row - 2) && (cursorCol == col - 1 || cursorCol == col - 2)
-		 || cursorRow == row && cursorCol == col ){// треугольник над курсором проверяется
+		 || cursorRow == row && cursorCol == col ){// (rt) the triangle above the cursor is checked
+			// (th4) DARK CAMPAIGN: mission portals -- both the outbound one in the Hideout and
+			// the return one in a cleared mission level -- are labelled by their own handler
+			// (ShowDungeonEntryDescriptions_DarkLordHideout / _remain) so they name the real
+			// destination. This generic handler hardcodes "level 15" for any quest floor and
+			// spans a several-tile block; both wrong for a single-tile mission portal.
+			if( GameMode == GM_DARK_CAMPAIGN ) continue;
 			IswarpUnderCursor = true;
 			InfoPanel_ClearBody();
-			strcpy(InfoPanelHeader, "Portal to");
+			strcpy(InfoPanelHeader, (char*)L("Portal to"));
 			char* levelName;
 			if( Dungeon->isQuest ){
 				if( is (Dungeon, DUN_44_RAVENHOLM, DUN_46_COLISEUM) ){
-					levelName = "Tristram";
+					levelName = (char*)L("Tristram");
 				}else{
-					levelName = "level 15";
+					levelName = (char*)L("level 15");
 				}
 			}else if( Dungeon == DUN_0_TOWN ){
-				levelName = "RavenHolm";
+				levelName = (char*)L("RavenHolm");
 			}else{
-				levelName = "The Unholy Altar";
+				levelName = (char*)L("The Unholy Altar");
 			}
 			strcpy(InfoPanelBuffer, levelName);
 			InfoPanel_AddLine(InfoPanelBuffer, true);
@@ -353,6 +369,63 @@ bool CursorInMainPanel()
 
 #define check_pi(v) (uint)v <= 3 ? v : -1 // check player index
 //----- (00407DA9) -------------------------------------------------------- land interface
+// (th4) Total THORNS damage for the character panel, summed into ONE X-Y range.
+// Returns false when no line should be drawn.
+//
+// Iron Maiden only: thorns is not class-gated in the engine, but she is the class built
+// around it and Ibragim asked for the line to be hers alone.
+//
+// THORNS IS PER ACTION, NOT PER ITEM. Item.cpp writes a SEPARATE EffectAction for each
+// thorns source: the base item roll (~3656, chance hardcoded 100) and every thorns AFFIX
+// (~3585, chance copied off the affix). One shield can therefore contribute TWO actions --
+// e.g. a Buckler with base "Thorns damage 29-34" plus a "Barbs" affix "+(17-20), chance
+// 96%". OnTakeMeleeTrigger walks them all and rolls RNG(100) < chance for EACH, so one
+// incoming melee hit can fire PvM_Melee(isThorns=true) several times. Each of those calls
+// adds the flat PERK_ANTISOCIAL and the A-Rose-With-Thorns CharLevel/2 bonus of its own
+// (Player.cpp ~5158) -- so the flat bonus is counted once PER ACTION, which is why a
+// single two-action shield counts it twice. That is the engine's behaviour; note the
+// Antisocial perk text says "per armor piece", so the two disagree.
+//
+// EXPECTED VALUE (Ibragim's choice). Each action is scaled by its own proc chance, with
+// the flat bonus INSIDE the scaling -- the engine only adds it inside PvM_Melee, which
+// only runs when that action's proc landed:
+//     contribution = (roll + flatBonus) * chance / 100
+// The midpoint of the printed range is then the true average damage per hit. Trade-off
+// accepted when choosing this: the printed MAX is no longer a number that appears on
+// screen -- a landed "Lances" proc (515-750 at 11-15% chance) really deals ~700 while it
+// contributes ~90 here. The line reads as sustained output, not as one hit.
+// Ignoring chance instead would overstate a Lances build roughly sixfold.
+//
+// NOT included, checked deliberately: Bouncer/Destroyer/Frenzied sit in the non-thorns
+// branch; the DREAD and RUIN item effects (EA_RANDOM_DAMAGE, EA_MORE_DAMAGE_CHANCE) do
+// reach thorns but Ibragim asked to skip them; Wrecking Block is a different mechanic
+// entirely (it reflects the MONSTER's attack roll, not your thorns).
+//
+// PRE-MITIGATION, like every other damage line in this panel: the to-hit roll, the
+// monster block check, per-monster resistances, the boss -50% and Old Habit x3 all
+// happen later in PvM_Melee and none of them are knowable without a target.
+static bool CalcThornsDamage_Display( int playerIndex, int& minOut, int& maxOut )
+{
+	const Player& player = Players[ playerIndex ];
+	if( player.fullClassId != PFC_IRON_MAIDEN ) return false;
+	const int flatBonus = PerkValue( PERK_ANTISOCIAL, playerIndex )
+	                    + ( HasTrait( playerIndex, TraitId::ARoseWithThorns ) ? player.CharLevel / 2 : 0 );
+	bool any = false;
+	int mn = 0, mx = 0;
+	for( int i = 0; player.effectAction[i].id != EA_NO; ++i ){   // same walk OnTakeMeleeTrigger does
+		const EffectAction& a = player.effectAction[i];
+		if( a.id != EA_THORNS ) continue;
+		any = true;
+		int chance = a.chance;
+		LimitToRange( chance, 0, 100 );
+		mn += ( a.minVal + flatBonus ) * chance / 100;
+		mx += ( a.maxVal + flatBonus ) * chance / 100;
+	}
+	if( !any ) return false;                                    // no thorns equipped: no line
+	minOut = mn; maxOut = mx;
+	return true;
+}
+
 void DispatchCursorAboveIsoland() // CheckCursMove
 {
 	if (IsController() && !XinputAutoTargettingOff) {
@@ -374,6 +447,8 @@ void DispatchCursorAboveIsoland() // CheckCursMove
     VisualTrade_ClearInfostring();
 	int curX = CursorX;
 	int curY = CursorY;
+	DynZoom_ScreenToWorld( curX, curY );	// (th4) DYNAMIC ZOOM: back to the 1x world frame first (the zoom is applied after the warp)
+	Perspective_ScreenToWorld( curX, curY );	// (th4) clicks follow the warped world (Draw.cpp)
 	if( !IsZoomDisable ){
 		curX >>= 1;
 		curY >>= 1;
@@ -461,7 +536,7 @@ LABEL_44:
 			Cur.Col = curCol;
 			return;
 		}
-		// показываем подсказку если над панелью
+		// (rt) show the hint if over the panel
 		if( CursorInMainPanel() ){
 			PopUpHelpOnButton();
 			return;
@@ -469,6 +544,7 @@ LABEL_44:
 		if( IsPopupScreenOpen ){
 		    return;
         }
+		if( IsChatHistoryVisible && CursorIntoDisplayObject(ChatHistoryRect) ) return;
 		
         if( IsPerksPanelVisible && CursorIntoDisplayObject(PerksPanelPos) ){
             PerksPanel_MouseMove();
@@ -492,6 +568,10 @@ LABEL_44:
         }
 		if (IsEnchantPanelVisible && CursorIntoDisplayObject(EnchantPanel)) {
 			Enchant_MouseMove();
+			return;
+		}
+		if (IsPowerupPanelVisible && CursorIntoDisplayObject(PowerupPanel)) {
+			Powerup_MouseMove();
 			return;
 		}
 		if (IsQuenchPanelVisible && CursorIntoDisplayObject(QuenchPanel)) {
@@ -521,7 +601,7 @@ LABEL_44:
                     {
                         Tooltip_Clear();
                         Tooltip_SetOffsetRight();
-                        sprintf(InfoPanelBuffer, "Current %s: %i", name, value );
+                        sprintf(InfoPanelBuffer, L("Current %s: %i"), name, value );
                         Tooltip_AddLine(InfoPanelBuffer, C_0_White);
                     };
                 
@@ -537,91 +617,115 @@ LABEL_44:
 			if (CursorIntoDisplayObject(CharPanelBaseStrRect)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
-				Tooltip_AddLine("strength affects:", C_1_Blue);
+				Tooltip_AddLine(L("strength affects:"), C_1_Blue);
 				if (not(player.fullClassId, PFC_TRAPPER, PFC_BOMBARDIER, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER,
 					PFC_MAGE, PFC_WARLOCK, PFC_ELEMENTALIST)) {
 					if (is(player.fullClassId, PFC_ROGUE, PFC_DRUID) || HasTrait(CurrentPlayerIndex, TraitId::Paladin) || HasTrait(CurrentPlayerIndex, TraitId::Black_Witchery)) {
-						Tooltip_AddLine("damage in melee combat", C_0_White);
+						Tooltip_AddLine(L("damage in melee combat"), C_0_White);
 					}
 					else if (!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
-						Tooltip_AddLine("damage in melee and ranged combat", C_0_White);
+						Tooltip_AddLine(L("damage in melee and ranged combat"), C_0_White);
 					}
 				}
 				if ((is(player.ClassID, PC_0_WARRIOR, PC_3_MONK, PC_4_ROGUE, PC_5_SAVAGE) || HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) && GameMode != GM_CLASSIC) {
-					Tooltip_AddLine("knockback resistance", C_0_White);
+					Tooltip_AddLine(L("knockback resistance"), C_0_White);
 				}
 				if(is(player.fullClassId, PFC_WARRIOR, PFC_TEMPLAR, PFC_INQUISITOR, PFC_MONK, PFC_SHINOBI, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_THRAEX, PFC_MURMILLO, PFC_SECUTOR)
 					&& (!HasTrait(CurrentPlayerIndex, TraitId::Fechtmeister, TraitId::Ranger))) {
-					Tooltip_AddLine("melee hit block chance", C_0_White);
+					Tooltip_AddLine(L("melee hit block chance"), C_0_White);
 				}
-				Tooltip_AddLine("ability to equip items", C_0_White);
+				Tooltip_AddLine(L("ability to equip items"), C_0_White);
 			}
 			else if (CursorIntoDisplayObject(CharPanelBaseMagRect)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();				
-				Tooltip_AddLine("magic affects:", C_1_Blue);
-				Tooltip_AddLine("maximum mana points", C_0_White);
-				Tooltip_AddLine("spell accuracy", C_0_White);
-				Tooltip_AddLine("spell damage", C_0_White);	
-				if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC) {
-					Tooltip_AddLine("mana regeneration speed", C_0_White);
+				Tooltip_AddLine(L("magic affects:"), C_1_Blue);
+				if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+					Tooltip_AddLine(L("maximum mana points"), C_0_White);
+					Tooltip_AddLine(L("spell accuracy"), C_0_White);
+					Tooltip_AddLine(L("spell damage"), C_0_White);
+					if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC) {
+						Tooltip_AddLine(L("mana regeneration speed"), C_0_White);
+					}
+					if (is(player.fullClassId, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER)) {
+						Tooltip_AddLine(L("summoned minion stats"), C_0_White);
+					}
 				}
-				if (is(player.fullClassId, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER)) {
-					Tooltip_AddLine("summoned minion stats", C_0_White);
-				}
-				Tooltip_AddLine("ability to equip items", C_0_White);
+				if (GameMode != GM_CLASSIC) { Tooltip_AddLine(L("ability to equip items"), C_0_White); }
 			}
 			else if (CursorIntoDisplayObject(CharPanelBaseDexRect)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
-				Tooltip_AddLine("dexterity affects:", C_1_Blue);
+				Tooltip_AddLine(L("dexterity affects:"), C_1_Blue);
 				if (not(player.fullClassId, PFC_TRAPPER, PFC_BOMBARDIER, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER, 
 					PFC_MAGE, PFC_WARLOCK, PFC_ELEMENTALIST)) {
 					if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
-						Tooltip_AddLine("accuracy with pistols", C_0_White);
-						Tooltip_AddLine("damage with pistols", C_0_White);
+						if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+							Tooltip_AddLine(L("accuracy with minigun"), C_0_White);
+							Tooltip_AddLine(L("damage with minigun"), C_0_White);
+						}
+						else if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+							Tooltip_AddLine(L("accuracy with weapons"), C_0_White);
+							Tooltip_AddLine(L("damage with weapons"), C_0_White);
+						}
+						else {
+							Tooltip_AddLine(L("accuracy with pistols"), C_0_White);
+							Tooltip_AddLine(L("damage with pistols"), C_0_White);
+						}
 					}
 					else if (is(player.fullClassId, PFC_ROGUE, PFC_DRUID) || HasTrait(CurrentPlayerIndex, TraitId::Paladin) || HasTrait(CurrentPlayerIndex, TraitId::Black_Witchery)) {
-						Tooltip_AddLine("accuracy of melee attacks", C_0_White);
+						Tooltip_AddLine(L("accuracy of melee attacks"), C_0_White);
 					}
 					else {
-						Tooltip_AddLine("accuracy of melee and ranged attacks", C_0_White);
+						Tooltip_AddLine(L("accuracy of melee and ranged attacks"), C_0_White);
 					}
 				}
-				Tooltip_AddLine("armor class", C_0_White);
+				Tooltip_AddLine(L("armor class"), C_0_White);
 				if (is(player.fullClassId, PFC_WARRIOR, PFC_TEMPLAR, PFC_INQUISITOR, PFC_MONK, PFC_SHINOBI, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_THRAEX, PFC_MURMILLO, PFC_SECUTOR)
 					&& (!HasTrait(CurrentPlayerIndex, TraitId::Fechtmeister, TraitId::Ranger))) {
-					Tooltip_AddLine("melee hit block chance", C_0_White);
-					Tooltip_AddLine("arrow hit block chance", C_0_White);
+					Tooltip_AddLine(L("melee hit block chance"), C_0_White);
+					Tooltip_AddLine(L("arrow hit block chance"), C_0_White);
 				}
-				Tooltip_AddLine("ability to equip items", C_0_White);
+				Tooltip_AddLine(L("ability to equip items"), C_0_White);
 			}
 			else if (CursorIntoDisplayObject(CharPanelBaseVitRect)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
-				Tooltip_AddLine("vitality affects:", C_1_Blue);
-				Tooltip_AddLine("maximum hit points", C_0_White);
-				if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC) {
-					Tooltip_AddLine("life regeneration speed", C_0_White);
+				Tooltip_AddLine(L("vitality affects:"), C_1_Blue);
+				if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+					Tooltip_AddLine(L("maximum hit points"), C_0_White);
+					if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC) {
+						Tooltip_AddLine(L("life regeneration speed"), C_0_White);
+					}
 				}
 				if (GameMode != GM_CLASSIC) {
-					Tooltip_AddLine("stun threshold", C_0_White);
+					Tooltip_AddLine(L("stun threshold"), C_0_White);
 				}
-				//Tooltip_AddLine("DFE limit", C_0_White);
+				//Tooltip_AddLine(L("DFE limit"), C_0_White);
 				if (!HasTrait(CurrentPlayerIndex, TraitId::Stoneform)) {
 					if ((!HasTrait(CurrentPlayerIndex, TraitId::Barbarian)) && GameMode != GM_CLASSIC) {
-						Tooltip_AddLine("melee damage resistance", C_0_White);
-						Tooltip_AddLine("arrow damage resistance", C_0_White);
+						Tooltip_AddLine(L("melee damage resistance"), C_0_White);
+						Tooltip_AddLine(L("arrow damage resistance"), C_0_White);
 					}
 					if (GameMode != GM_CLASSIC){
-						Tooltip_AddLine("fire damage resistance", C_0_White);
-					Tooltip_AddLine("lightning damage resistance", C_0_White);
-					Tooltip_AddLine("magic damage resistance", C_0_White);
-					Tooltip_AddLine("cold damage resistance", C_0_White);
-					Tooltip_AddLine("acid damage resistance", C_0_White);
+						Tooltip_AddLine(L("fire damage resistance"), C_0_White);
+					Tooltip_AddLine(L("lightning damage resistance"), C_0_White);
+					Tooltip_AddLine(L("magic damage resistance"), C_0_White);
+					Tooltip_AddLine(L("cold damage resistance"), C_0_White);
+					Tooltip_AddLine(L("acid damage resistance"), C_0_White);
 					}
 				}
-				Tooltip_AddLine("ability to equip items", C_0_White);
+				if (GameMode != GM_CLASSIC) { Tooltip_AddLine(L("ability to equip items"), C_0_White); }
+			}
+
+			// --------------------------------------------------------- TOTAL KILLS (th4) -----------------------------------------
+			// Opt-in via the "total_kills" config option (off by default). Single player only,
+			// and not in Coliseum -- that's a PvP-only mode where the stat is meaningless.
+			else if (total_kills && MaxCountOfPlayersInGame == 1 && GameMode != GM_COLISEUM
+			      && CursorIntoDisplayObject(CharPanelNameRect)) {
+				Tooltip_Clear();
+				sprintf(InfoPanelBuffer, L("total monsters killed : %u"), player.totalKills);
+				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 			}
 
 			// --------------------------------------------------------- DAMAGE ---------------------------------------------------
@@ -629,51 +733,16 @@ LABEL_44:
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				// ---- main description ----
-				Tooltip_AddLine("damage affects:", C_1_Blue);
-				Tooltip_AddLine("how much damage your attacks do to enemies,", C_0_White); 
+				Tooltip_AddLine(L("damage affects:"), C_1_Blue);
+				Tooltip_AddLine(L("how much damage your attacks do to enemies,"), C_0_White); 
 				int c = 128 + C_1_Blue;
 				if (HasTrait(CurrentPlayerIndex, TraitId::Psion)) {					
 					int psionic_dmg = (3 + player.CharLevel * player.CurMagic / 150) + PerkValue(PERK_PSYCHOKINESIS, CurrentPlayerIndex);
-					sprintf(InfoPanelBuffer, "Psionic damage: %c%i", c, psionic_dmg);
+					sprintf(InfoPanelBuffer, L("Psionic damage: %c%i"), c, psionic_dmg);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					if (PerkValue(PERK_AMPLIFY_DAMAGE, CurrentPlayerIndex) > 0) {
 						psionic_dmg += psionic_dmg * (PerkValue(PERK_AMPLIFY_DAMAGE, CurrentPlayerIndex)) / 100;
-						sprintf(InfoPanelBuffer, "Amplified: %c%i", c, psionic_dmg);
-						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					}					
-				}
-				else if (HasTrait(CurrentPlayerIndex, TraitId::Devastator)) {
-					if (PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex)
-						+ PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex)
-						+ PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex)
-						+ PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex) > 0) {
-						int rad = 3 + (PerkValue(PERK_AURA_RADIUS, CurrentPlayerIndex) / 10) + (PerkValue(SYNERGY_BASTION_OF_ELEMENTS, CurrentPlayerIndex) / 10);
-						sprintf(InfoPanelBuffer, "Elemental aura radius: %c%i", c, rad);
-						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					}
-					int aura_mastery_boost = PerkValue(SYNERGY_AURA_MASTERY, CurrentPlayerIndex);
-					int damageAcid = PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex);
-					damageAcid += aura_mastery_boost * damageAcid / 100;
-					int damageFire = PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex);
-					damageFire += aura_mastery_boost * damageFire / 100;
-					int damageArcane = PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex);
-					damageArcane += aura_mastery_boost * damageArcane / 100;
-					int damageLightning = PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex);
-					damageLightning += aura_mastery_boost * damageLightning / 100;
-					if (PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex) > 0) {
-						sprintf(InfoPanelBuffer, "Fire aura damage: %c%i", c, damageFire);
-						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					}
-					if (PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex) > 0) {
-						sprintf(InfoPanelBuffer, "Lightning aura damage: %c%i", c, damageLightning);
-						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					}
-					if (PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex) > 0) {
-						sprintf(InfoPanelBuffer, "Arcane aura damage: %c%i", c, damageArcane);
-						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					}
-					if (PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex) > 0) {
-						sprintf(InfoPanelBuffer, "Toxic aura damage: %c%i", c, damageAcid);
+						sprintf(InfoPanelBuffer, L("Amplified: %c%i"), c, psionic_dmg);
 						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					}					
 				}
@@ -681,20 +750,75 @@ LABEL_44:
 					if (HasTrait(CurrentPlayerIndex, TraitId::HolyAura)) {
 						int holyAuraDamage = 1 + player.CharLevel * player.CurMagic / 40;
 						holyAuraDamage += PerkValue(PERK_RIGHTEOUS_ANGER, CurrentPlayerIndex);
-						sprintf(InfoPanelBuffer, "Holy aura damage: %c%i", c, holyAuraDamage);
+						sprintf(InfoPanelBuffer, L("Holy aura damage: %c%i"), c, holyAuraDamage);
 						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					}
 					if (MaxDmgFromChar != MinDmgFromChar) {
 						int av_dmg = (MinDmgFromChar + MaxDmgFromChar) / 2;
-						sprintf(InfoPanelBuffer, "Average damage: %c%i", c, av_dmg);
+						sprintf(InfoPanelBuffer, L("Average damage: %c%i"), c, av_dmg);
 						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+					}
+					// (th4) species damage lines: Purge / Exorcism / Lethality (mapping per the
+					// perk tooltips: PURGE->undead, EXORCISM->demons, LETHALITY->beasts). Shown for
+					// Warriors, Archers except Scout, and Ranger-trait holders; never in Coliseum;
+					// only with a bow / crossbow (both IC_3_BOW) or trap equipped -- the same
+					// "arrows / bolts / traps" scope the perks themselves state.
+					// Per Mordor: if ANY of the three perks is taken, list ALL THREE species --
+					// zero-perk species simply show the unmodified range. The same rule reshapes
+					// the Thief's Shadow Strike section below.
+					static const struct { int perk; const char* label; } speciesTip[3] = {
+						{ PERK_PURGE,     "vs undead" },
+						{ PERK_EXORCISM,  "vs demons" },
+						{ PERK_LETHALITY, "vs beasts" },
+					};
+					bool anySpeciesPerk = PerkValue(PERK_PURGE,     CurrentPlayerIndex) > 0
+					                   || PerkValue(PERK_EXORCISM,  CurrentPlayerIndex) > 0
+					                   || PerkValue(PERK_LETHALITY, CurrentPlayerIndex) > 0;
+					{
+						Item& tipLeft  = player.OnBodySlots[IS_LeftHand];
+						Item& tipRight = player.OnBodySlots[IS_RightHand];
+						bool speciesWeapon = ( is(tipLeft.ItemCode,  IC_3_BOW, IC_19_TRAP) && tipLeft.IsReqMet )
+						                  || ( is(tipRight.ItemCode, IC_3_BOW, IC_19_TRAP) && tipRight.IsReqMet );
+						// Warrior qualifies ONLY as a Ranger (class + trait); Archers by class, minus Scout
+						bool speciesClasses = (player.ClassID == PC_0_WARRIOR && HasTrait(CurrentPlayerIndex, TraitId::Ranger))
+						                   || (player.ClassID == PC_1_ARCHER && player.fullClassId != PFC_SCOUT);
+						if (speciesClasses && speciesWeapon && GameMode != GM_COLISEUM && anySpeciesPerk) {
+							for (int t = 0; t < 3; t++) {
+								int v = PerkValue((PERKS)speciesTip[t].perk, CurrentPlayerIndex);
+								sprintf(InfoPanelBuffer, L("%s: %c%i - %i"), L(speciesTip[t].label), c,
+									MinDmgFromChar * (100 + v) / 100, MaxDmgFromChar * (100 + v) / 100);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+						}
+					}
+					// (th4) THIEF: show her strike-from-the-dark numbers -- 500% base plus
+					// Shadow Strike perk (value column carries the extra %).
+					if (HasTrait(CurrentPlayerIndex, TraitId::Thief) && player.IsBowInHand) {
+						int ssMult = 500 + PerkValue(PERK_SHADOW_STRIKE, CurrentPlayerIndex);
+						Tooltip_AddLine(L("Shadow Strike:"), C_1_Blue);
+						sprintf(InfoPanelBuffer, L("multiplier: %c%i%%"), c, ssMult);
+						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+						// (th4) with any species perk taken, the flat damage line is REPLACED by
+						// the three per-species ranges (species bonus and multiplier together)
+						if (anySpeciesPerk) {
+							for (int t = 0; t < 3; t++) {
+								int v = PerkValue((PERKS)speciesTip[t].perk, CurrentPlayerIndex);
+								sprintf(InfoPanelBuffer, L("%s: %c%i - %i"), L(speciesTip[t].label), c,
+									MinDmgFromChar * (100 + v) / 100 * ssMult / 100,
+									MaxDmgFromChar * (100 + v) / 100 * ssMult / 100);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+						}else{
+							sprintf(InfoPanelBuffer, L("damage: %c%i - %i"), c, MinDmgFromChar * ssMult / 100, MaxDmgFromChar * ssMult / 100);
+							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+						}
 					}					
 					if( Players[CurrentPlayerIndex].effectFlag[EA_MORE_DAMAGE_CHANCE] ){
-						sprintf(InfoPanelBuffer, "(RUIN) 30%% chance for +50%% damage: %c%i - %i%c", c, MinDmgFromChar * 15 / 10, MaxDmgFromChar * 15 / 10, c);
+						sprintf(InfoPanelBuffer, L("(RUIN) 30%% chance for +50%% damage: %c%i - %i%c"), c, MinDmgFromChar * 15 / 10, MaxDmgFromChar * 15 / 10, c);
 						Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					}
 					// ---------------------------------------------------------------- DISPLAY OF SPECIES MELEE DAMAGE -----------------------------------------------
-					if ((is(player.fullClassId, PFC_WARRIOR, PFC_GUARDIAN, PFC_TEMPLAR, PFC_MONK, PFC_SHINOBI, PFC_SHUGOKI, PFC_KENSEI, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN,
+					if ((is(player.fullClassId, PFC_WARRIOR, PFC_GUARDIAN, PFC_TEMPLAR, PFC_MONK, PFC_SHINOBI, PFC_SHUGOKI, PFC_KENSEI, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_GLADIATRIX,
 						PFC_SAVAGE, PFC_BERSERKER, PFC_EXECUTIONER, PFC_THRAEX, PFC_MURMILLO, PFC_DIMACHAERUS, PFC_SECUTOR, PFC_DRUID) || HasTrait(CurrentPlayerIndex, TraitId::Mamluk))
 						&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))) && GameMode != GM_COLISEUM
 						) {
@@ -720,6 +844,11 @@ LABEL_44:
 							mdvu_min += mdvu_min * 15 / 100; mdvu_max += mdvu_max * 15 / 100;
 							mdvd_min += mdvd_min * 15 / 100; mdvd_max += mdvd_max * 15 / 100;
 							mdvb_min += mdvb_min * 15 / 100; mdvb_max += mdvb_max * 15 / 100;
+						}
+						if (HasTrait(CurrentPlayerIndex, TraitId::Frenzied)) {
+							mdvu_min += mdvu_min * 75 / 100; mdvu_max += mdvu_max * 75 / 100;
+							mdvd_min += mdvd_min * 75 / 100; mdvd_max += mdvd_max * 75 / 100;
+							mdvb_min += mdvb_min * 75 / 100; mdvb_max += mdvb_max * 75 / 100;
 						}
 						int weaponClass = -1;
 						int leftHandItemCode = player.OnBodySlots[IS_LeftHand].ItemCode;
@@ -852,61 +981,281 @@ LABEL_44:
 						mdvu_max = mdvu_max < mdvu_min ? mdvu_min : mdvu_max;
 						if (!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
 							if (mdvu_min == mdvu_max) {
-								sprintf(InfoPanelBuffer, "to Undead: %c%i", c, mdvu_min);
+								sprintf(InfoPanelBuffer, L("to Undead: %c%i"), c, mdvu_min);
 							}
 							else {
-								sprintf(InfoPanelBuffer, "to Undead: %c%i%c - %c%i%c, average %c%i%c", c, mdvu_min, c, c, mdvu_max, c, c, (mdvu_min + mdvu_max) / 2, c);
+								sprintf(InfoPanelBuffer, L("to Undead: %c%i%c - %c%i%c, average %c%i%c"), c, mdvu_min, c, c, mdvu_max, c, c, (mdvu_min + mdvu_max) / 2, c);
 							}
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 						}
 						if (player.fullClassId == PFC_MONK && player.OnBodySlots[IS_LeftHand].ItemCode == IC_10_STAFF) {
 							mdvu_min = 1;
 							mdvu_max = mdvu_max * (100 + PerkValue(PERK_CLEAVE, CurrentPlayerIndex)) / 200;
-							sprintf(InfoPanelBuffer, "sweep damage to Undead: %c%i%c - %c%i%c, average %c%i%c", c, mdvu_min, c, c, mdvu_max, c, c, (mdvu_min + mdvu_max) / 2, c);
+							sprintf(InfoPanelBuffer, L("sweep damage to Undead: %c%i%c - %c%i%c, average %c%i%c"), c, mdvu_min, c, c, mdvu_max, c, c, (mdvu_min + mdvu_max) / 2, c);
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 						}
 						mdvd_max = mdvd_max < mdvd_min ? mdvd_min : mdvd_max;
 						if (!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
 							if (mdvd_min == mdvd_max) {
-								sprintf(InfoPanelBuffer, "to Demons: %c%i", c, mdvd_min);
+								sprintf(InfoPanelBuffer, L("to Demons: %c%i"), c, mdvd_min);
 							}
 							else {
-								sprintf(InfoPanelBuffer, "to Demons: %c%i%c - %c%i%c, average %c%i%c", c, mdvd_min, c, c, mdvd_max, c, c, (mdvd_min + mdvd_max) / 2, c);
+								sprintf(InfoPanelBuffer, L("to Demons: %c%i%c - %c%i%c, average %c%i%c"), c, mdvd_min, c, c, mdvd_max, c, c, (mdvd_min + mdvd_max) / 2, c);
 							}
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 						}
 						if (player.fullClassId == PFC_MONK && player.OnBodySlots[IS_LeftHand].ItemCode == IC_10_STAFF) {
 							mdvd_min = 1;
 							mdvd_max = mdvd_max * (100 + PerkValue(PERK_CLEAVE, CurrentPlayerIndex)) / 200;
-							sprintf(InfoPanelBuffer, "sweep damage to Demons: %c%i%c - %c%i%c, average %c%i%c", c, mdvd_min, c, c, mdvd_max, c, c, (mdvd_min + mdvd_max) / 2, c);
+							sprintf(InfoPanelBuffer, L("sweep damage to Demons: %c%i%c - %c%i%c, average %c%i%c"), c, mdvd_min, c, c, mdvd_max, c, c, (mdvd_min + mdvd_max) / 2, c);
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 						}
 						mdvb_max = mdvb_max < mdvb_min ? mdvb_min : mdvb_max;
 						if (!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
-							if (mdvd_min == mdvd_max) {
-								sprintf(InfoPanelBuffer, "to Beasts: %c%i", c, mdvb_min);
+							if (mdvb_min == mdvb_max) { // (th4) was mdvd_* -- tested the DEMONS pair, so a real beast range could show as one number
+								sprintf(InfoPanelBuffer, L("to Beasts: %c%i"), c, mdvb_min);
 							}
 							else {
-								sprintf(InfoPanelBuffer, "to Beasts: %c%i%c - %c%i%c, average %c%i%c", c, mdvb_min, c, c, mdvb_max, c, c, (mdvb_min + mdvb_max) / 2, c);
+								sprintf(InfoPanelBuffer, L("to Beasts: %c%i%c - %c%i%c, average %c%i%c"), c, mdvb_min, c, c, mdvb_max, c, c, (mdvb_min + mdvb_max) / 2, c);
 							}
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 						}
 						if (player.fullClassId == PFC_MONK && player.OnBodySlots[IS_LeftHand].ItemCode == IC_10_STAFF) {
 							mdvb_min = 1;
 							mdvb_max = mdvb_max * (100 + PerkValue(PERK_CLEAVE, CurrentPlayerIndex)) / 200;
-							sprintf(InfoPanelBuffer, "sweep damage to Beasts: %c%i%c - %c%i%c, average %c%i%c", c, mdvb_min, c, c, mdvb_max, c, c, (mdvb_min + mdvb_max) / 2, c);
+							sprintf(InfoPanelBuffer, L("sweep damage to Beasts: %c%i%c - %c%i%c, average %c%i%c"), c, mdvb_min, c, c, mdvb_max, c, c, (mdvb_min + mdvb_max) / 2, c);
 							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+						}
+						// (th4) SECUTOR and DRUID: Jackal Technique proc numbers. The perk (PerksData.cpp, PERK_JACKAL_TECHNIQUE)
+						// has two value columns: 0 = proc chance %, 1 = extra melee damage %. The hit itself is
+						// applied in Player.cpp (search "jackal"): damage += damage * col1 / 100 on RNG(100) < col0.
+						// That runs AFTER the species/weapon modifiers this tooltip has already folded into the
+						// mdv*_ values above, so the proc lines are simply those values scaled the same way.
+						// It runs BEFORE boss reduction, Fatality and the Armored affix -- like the plain lines
+						// above, these show damage against an ordinary monster.
+						// Must stay AFTER the Monk sweep blocks: those overwrite mdv*_min/max with sweep values
+						// (harmless here only because a Monk never has this perk).
+						// The class list must match the proc in Player.cpp (Secutor || Druid) and the perk's class
+						// mask (IPCM_SECUTOR | IPCM_DRUID in PerksData.cpp): a class that can take the perk must see it here.
+						// The three species lines reuse the translated "to Undead/Demons/Beasts" keys, so only the
+						// header key below is new to the localization tables.
+						if ((player.fullClassId == PFC_SECUTOR || player.fullClassId == PFC_DRUID) && PerkPoints(PERK_JACKAL_TECHNIQUE, CurrentPlayerIndex) > 0) {
+							int jackalChance = PerkValue(PERK_JACKAL_TECHNIQUE, CurrentPlayerIndex, 0);
+							int jackalBonus  = PerkValue(PERK_JACKAL_TECHNIQUE, CurrentPlayerIndex, 1);
+							sprintf(InfoPanelBuffer, L("Jackal Technique damage (%c%i%%%c chance):"), c, jackalChance, c);
+							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							static const char* jackalSpecies[3][2] = {
+								{ "to Undead: %c%i", "to Undead: %c%i%c - %c%i%c, average %c%i%c" },
+								{ "to Demons: %c%i", "to Demons: %c%i%c - %c%i%c, average %c%i%c" },
+								{ "to Beasts: %c%i", "to Beasts: %c%i%c - %c%i%c, average %c%i%c" },
+							};
+							const int jMin[3] = { mdvu_min, mdvd_min, mdvb_min };
+							const int jMax[3] = { mdvu_max, mdvd_max, mdvb_max };
+							for (int t = 0; t < 3; t++) {
+								int jlo = jMin[t] + jMin[t] * jackalBonus / 100;
+								int jhi = jMax[t] + jMax[t] * jackalBonus / 100;
+								if (jlo == jhi) {
+									sprintf(InfoPanelBuffer, L(jackalSpecies[t][0]), c, jlo);
+								}
+								else {
+									sprintf(InfoPanelBuffer, L(jackalSpecies[t][1]), c, jlo, c, c, jhi, c, c, (jlo + jhi) / 2, c);
+								}
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
 						}
 						if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
 							if (PerkValue(PERK_PIERCING_BULLETS, CurrentPlayerIndex) > 0) {
-								sprintf(InfoPanelBuffer, "bullet pierce chance: %c%i%%%c", c, PerkValue(PERK_PIERCING_BULLETS, CurrentPlayerIndex), c);
+								sprintf(InfoPanelBuffer, L("bullet pierce chance: %c%i%%%c"), c, PerkValue(PERK_PIERCING_BULLETS, CurrentPlayerIndex), c);
 								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 							}
 							if (PerkValue(PERK_STOPPING_POWER, CurrentPlayerIndex) > 0) {
-								sprintf(InfoPanelBuffer, "monster stun threshold overpower: %c%i%%%c", c, PerkValue(PERK_STOPPING_POWER, CurrentPlayerIndex), c);
+								sprintf(InfoPanelBuffer, L("monster stun threshold overpower: %c%i%%%c"), c, PerkValue(PERK_STOPPING_POWER, CurrentPlayerIndex), c);
 								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 							}
 						}
+						// by (th4): Blessed Hammer per-hit damage, shown LAST (Templar only, perk level >= 1)
+						if (player.fullClassId == PFC_TEMPLAR && PerkPoints(PERK_BLESSED_HAMMER, CurrentPlayerIndex) >= 1) {
+							sprintf(InfoPanelBuffer, L("Blessed Hammer damage: %c%i"), c, PerkValue(PERK_BLESSED_HAMMER, CurrentPlayerIndex));
+							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+						}
+					}
+					// -----------------weapon elemental damage shown------------------------
+					else if (is(player.fullClassId, PFC_INQUISITOR, PFC_SCOUT)) {
+
+						// Check if Inquisitor has ranged weapon (bow or crossbow)
+						bool inquisitorHasRanged = false;
+						Item& leftHand = player.OnBodySlots[IS_LeftHand];
+						Item& rightHand = player.OnBodySlots[IS_RightHand]; 
+						if (player.fullClassId == PFC_INQUISITOR) {							
+							// Check for bow OR crossbow (IC_3_BOW, or add IC_CROSSBOW if exists)
+							if (leftHand.ItemCode == IC_3_BOW || rightHand.ItemCode == IC_3_BOW) {
+								inquisitorHasRanged = true;
+							}
+						}
+
+						for (int elem = ET_1_FIRE; elem <= ET_6_COLD; elem++) {
+							int idx = elem - 1;
+							int tempMin, tempMax;
+							int flatMin, flatMax;
+
+							// Choose correct source based on class and weapon type
+							if (player.fullClassId == PFC_INQUISITOR) {
+								if (inquisitorHasRanged) {
+									// Inquisitor with ranged weapon 
+									tempMin = player.effectActionValue[EA_ARROW_FIRE + idx].minVal;
+									tempMax = player.effectActionValue[EA_ARROW_FIRE + idx].maxVal;
+								}
+								else {
+									// Inquisitor with melee
+									tempMin = player.effectActionValue[EA_MELEE_FIRE + idx].minVal;
+									tempMax = player.effectActionValue[EA_MELEE_FIRE + idx].maxVal;
+								}
+							}
+							else { // Scout always uses ranged
+								tempMin = player.effectActionValue[EA_ARROW_FIRE + idx].minVal;
+								tempMax = player.effectActionValue[EA_ARROW_FIRE + idx].maxVal;
+							}
+
+							// Apply percent to temp FIRST (exactly like PvM_Ranged)
+							tempMin += tempMin * player.elementPercent[elem] / 100;
+							tempMax += tempMax * player.elementPercent[elem] / 100;
+
+							// THEN add flat elemental damage (exactly like PvM_Ranged adds addDamage)
+							flatMin = tempMin + player.elementMinDamage[elem];
+							flatMax = tempMax + player.elementMaxDamage[elem];
+
+							if (flatMin == 0 && flatMax == 0) continue;
+							if (player.fullClassId == PFC_SCOUT && leftHand.ItemCode != IC_3_BOW) continue;
+
+							// Apply ModifyElementalWeaponDamage formula
+							double classCoef = 1.0;
+
+							if (player.fullClassId == PFC_INQUISITOR) {
+								switch (elem) {
+								case ET_5_HOLY:      classCoef = 0.5; break;
+								case ET_1_FIRE:      classCoef = 1.0 + PerkValue(PERK_EXTRA_CRISPY, playerIndex) / 100.0; break;
+								case ET_2_LIGHTNING: classCoef = 1.0 + PerkValue(PERK_FULLY_CHARGED, playerIndex) / 100.0; break;
+								case ET_3_ARCAN:     classCoef = 1.0 + PerkValue(PERK_CHAOS_BORN, playerIndex) / 100.0; break;
+								case ET_6_COLD:      classCoef = 1.0 + PerkValue(PERK_DEEP_FREEZE, playerIndex) / 100.0; break;
+								case ET_4_ACID:      classCoef = 1.0 + PerkValue(PERK_TOXICITY, playerIndex) / 100.0; break;
+								}
+								if (HasTrait(playerIndex, TraitId::Tormentor)) classCoef += 0.2;
+							}
+							else if (player.fullClassId == PFC_SCOUT) {
+								switch (elem) {
+								case ET_1_FIRE:      classCoef = 1.0 + PerkValue(PERK_EXTRA_CRISPY, playerIndex) / 100.0; break;
+								case ET_2_LIGHTNING: classCoef = 1.0 + PerkValue(PERK_FULLY_CHARGED, playerIndex) / 100.0; break;
+								case ET_5_HOLY:      classCoef = 1.0 + PerkValue(PERK_BLESSED_ARROWS, playerIndex) / 100.0; break;
+								case ET_4_ACID:      classCoef = 1.0 + PerkValue(PERK_TOXICITY, playerIndex) / 100.0; break;
+								case ET_3_ARCAN:     classCoef = 1.0 + PerkValue(PERK_CHAOS_BORN, playerIndex) / 100.0; break;
+								case ET_6_COLD:      classCoef = 1.0 + PerkValue(PERK_DEEP_FREEZE, playerIndex) / 100.0; break;
+								}
+							}
+
+							double baseDamageCoef = 0.06 * player.BaseDamage;
+
+							// Apply Fury bonus
+							if (player.activeBuffFlag & BF_2_FURY_ACTIVE) {
+								classCoef += 0.2;
+							}
+
+							int finalMin = (int)((baseDamageCoef * flatMin + 5 + player.CharLevel / 2.0) * classCoef);
+							int finalMax = (int)((baseDamageCoef * flatMax + 5 + player.CharLevel / 2.0) * classCoef);
+
+							// Double damage for Scout with crossbow (AnimationDelay)
+							if (player.fullClassId == PFC_SCOUT) {
+								Item& leftHand = player.OnBodySlots[IS_LeftHand];
+								Item& rightHand = player.OnBodySlots[IS_RightHand];
+								if ((leftHand.ItemCode != IC_M1_NONE && BaseItems[leftHand.baseItemIndex].AnimationDelay) ||
+									(rightHand.ItemCode != IC_M1_NONE && BaseItems[rightHand.baseItemIndex].AnimationDelay)) {
+									finalMin *= 2;
+									finalMax *= 2;
+								}
+							}
+
+							if (finalMin < 1) finalMin = 1;
+							if (finalMax < 1) finalMax = 1;
+
+							int avgDamage = (finalMin + finalMax) / 2;
+
+							// Build the string with average damage in blue brackets
+							if (player.fullClassId == PFC_INQUISITOR) {
+								if (inquisitorHasRanged) {
+									if (finalMin == finalMax) {
+										sprintf(InfoPanelBuffer, L("%s (ranged): %d"), L(Elements[elem]), finalMin);
+									}
+									else {
+										sprintf(InfoPanelBuffer, L("%s (ranged): %d-%d [avg %c%d%c]"), L(Elements[elem]), finalMin, finalMax, 128 + C_1_Blue, avgDamage, 128 + C_1_Blue);
+									}
+								}
+								else {
+									if (finalMin == finalMax) {
+										sprintf(InfoPanelBuffer, L("%s (melee): %d"), L(Elements[elem]), finalMin);
+									}
+									else {
+										sprintf(InfoPanelBuffer, L("%s (melee): %d-%d [avg %c%d%c]"), L(Elements[elem]), finalMin, finalMax, 128 + C_1_Blue, avgDamage, 128 + C_1_Blue);
+									}
+								}
+							}
+							else { // Scout
+								if (finalMin == finalMax) {
+									sprintf(InfoPanelBuffer, L("%s arrow: %d"), L(Elements[elem]), finalMin);
+								}
+								else {
+									sprintf(InfoPanelBuffer, L("%s arrow: %d-%d [avg %c%d%c]"), L(Elements[elem]), finalMin, finalMax, 128 + C_1_Blue, avgDamage, 128 + C_1_Blue);
+								}
+							}
+							Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+						}
+						// devastator auras -----------------
+						if (HasTrait(CurrentPlayerIndex, TraitId::Devastator)) {
+							if (PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex)
+								+ PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex)
+								+ PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex)
+								+ PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex) > 0) {
+								int rad = 3 + (PerkValue(PERK_AURA_RADIUS, CurrentPlayerIndex) / 10) + (PerkValue(SYNERGY_BASTION_OF_ELEMENTS, CurrentPlayerIndex) / 10);
+								Tooltip_AddLine(L("Auras:"), C_0_White);
+								sprintf(InfoPanelBuffer, L("Elemental aura radius: %c%i"), c, rad);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+							int aura_mastery_boost = PerkValue(SYNERGY_AURA_MASTERY, CurrentPlayerIndex);
+							int damageAcid = PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex);
+							damageAcid += aura_mastery_boost * damageAcid / 100;
+							int damageFire = PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex);
+							damageFire += aura_mastery_boost * damageFire / 100;
+							int damageArcane = PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex);
+							damageArcane += aura_mastery_boost * damageArcane / 100;
+							int damageLightning = PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex);
+							damageLightning += aura_mastery_boost * damageLightning / 100;
+							if (PerkValue(PERK_SEARING_AURA, CurrentPlayerIndex) > 0) {
+								sprintf(InfoPanelBuffer, L("Fire aura damage: %c%i"), c, damageFire);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+							if (PerkValue(PERK_STATIC_AURA, CurrentPlayerIndex) > 0) {
+								sprintf(InfoPanelBuffer, L("Lightning aura damage: %c%i"), c, damageLightning);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+							if (PerkValue(PERK_THEURGIC_AURA, CurrentPlayerIndex) > 0) {
+								sprintf(InfoPanelBuffer, L("Magic aura damage: %c%i"), c, damageArcane);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+							if (PerkValue(PERK_TOXIC_AURA, CurrentPlayerIndex) > 0) {
+								sprintf(InfoPanelBuffer, L("Toxic aura damage: %c%i"), c, damageAcid);
+								Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+							}
+						}
+						// end of devastator auras- ------------------------------------
+					}
+					// ----------- end of elem damage -------------------------
+
+				}
+				// (th4) THORNS -- one summed line, outside the Psion/else split above so it
+				// shows whatever else the character has.
+				{
+					int thMin = 0, thMax = 0;
+					if( CalcThornsDamage_Display( CurrentPlayerIndex, thMin, thMax ) ){
+						sprintf( InfoPanelBuffer, L("Thorns damage: %c%i - %i"), c, thMin, thMax );
+						Tooltip_AddLine( InfoPanelBuffer, C_0_White );
 					}
 				}
 			}
@@ -917,14 +1266,19 @@ LABEL_44:
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				// ---- main description ----
-				//Tooltip_AddLine("life regeneration determines:", C_1_Blue); 
+				//Tooltip_AddLine(L("life regeneration determines:"), C_1_Blue); 
 				int c = 128 + C_1_Blue; 
 				double lps = 20.00f * (double)HealthRegen / 64.00f;
-				sprintf(InfoPanelBuffer, "hit points restored per second: %c%.1f", c, lps ); 
-				Tooltip_AddLine(InfoPanelBuffer, C_0_White);			
+				int srt = 100 + PerkValue(PERK_IRIDIUM_POWER_CELL, playerIndex, 0);
+				sprintf(InfoPanelBuffer, L("hit points restored per second: %c%.1f"), c, lps ); 
+				Tooltip_AddLine(InfoPanelBuffer, C_0_White);	
+				if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+					sprintf(InfoPanelBuffer, L("critical self-repair threshold: %c%d"), c, srt);
+					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+				}
 				EffectAction& ea = player.effectActionValue[EA_LIFE_STEAL];
 				if (ea.maxVal > 0) {
-					sprintf(InfoPanelBuffer, ea.minVal == ea.maxVal ? "life stolen per melee hit: +%i" : "life stolen per melee hit: +(%i-%i)", ea.minVal, ea.maxVal);
+					sprintf(InfoPanelBuffer, ea.minVal == ea.maxVal ? L("life stolen per melee hit: +%i") : L("life stolen per melee hit: +(%i-%i)"), ea.minVal, ea.maxVal);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 			}
@@ -937,11 +1291,11 @@ LABEL_44:
 				// ---- main description ----
 				int c = 128 + C_1_Blue; 
 				double mps = 20.00f * (double)ManaRegen / 64.00f;
-				sprintf(InfoPanelBuffer, "mana points restored per second: %c%.1f", c, mps);
+				sprintf(InfoPanelBuffer, L("mana points restored per second: %c%.1f"), c, mps);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				EffectAction& ea = player.effectActionValue[EA_MANA_STEAL];
 				if (ea.maxVal > 0) {
-					sprintf(InfoPanelBuffer, ea.minVal == ea.maxVal ? "mana stolen per melee hit: +%i" : "mana stolen per melee hit: +(%i-%i)", ea.minVal, ea.maxVal);
+					sprintf(InfoPanelBuffer, ea.minVal == ea.maxVal ? L("mana stolen per melee hit: +%i") : L("mana stolen per melee hit: +(%i-%i)"), ea.minVal, ea.maxVal);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 			}	
@@ -1013,8 +1367,28 @@ LABEL_44:
 				int minCritDmg = minDamage + (minDamage * critBonusDamagePercent / 100) + (player.fullClassId == PFC_TRAPPER ? 0 : damageMin2);
 				int maxCritDmg = maxDamage + (maxDamage * critBonusDamagePercent / 100) + (player.fullClassId == PFC_TRAPPER ? 0 : damageMax2);
 				double acd = ((double)minCritDmg + (double)maxCritDmg) / 2;
-				sprintf(InfoPanelBuffer, "average crit damage: %c%.1f", c, acd);
+				sprintf(InfoPanelBuffer, L("average crit damage: %c%.1f"), c, acd);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+				// (th4) THORNS crit. Thorns DOES crit: ActCriticalHit is called on the thorns
+				// damage too (Player.cpp ~5310) and is gated only on class, never on isThorns.
+				// It always takes the MELEE crit row -- PvM_Melee passes baseMissileIndex -1 for
+				// thorns regardless of what is in hand -- so this uses CR_MELEE and NOT the
+				// weapon-derived critType computed above for the main line.
+				// The PFC_TRAPPER guard the main line carries is omitted on purpose: this line
+				// is Iron Maiden only, so the branch could never be taken.
+				{
+					int thMin = 0, thMax = 0;
+					if( CalcThornsDamage_Display( CurrentPlayerIndex, thMin, thMax ) ){
+						BaseCrit bcT   = GetBaseCrits( CR_MELEE, CurrentPlayerIndex );
+						int tPercent   = bcT.percent   + player.critPercent;
+						int tFlatMin   = bcT.damageMin + player.critDamageMin;
+						int tFlatMax   = bcT.damageMax + player.critDamageMax;
+						int tMinCrit   = thMin + thMin * tPercent / 100 + tFlatMin;
+						int tMaxCrit   = thMax + thMax * tPercent / 100 + tFlatMax;
+						sprintf( InfoPanelBuffer, L("Thorns crit damage: %c%i - %i"), c, tMinCrit, tMaxCrit );
+						Tooltip_AddLine( InfoPanelBuffer, C_0_White );
+					}
+				}
 			}
 			// -------- END OF CRIT DMG -------------
 			
@@ -1025,14 +1399,14 @@ LABEL_44:
 					BaseCrit bc = GetBaseCrits(CR_MAGIC, CurrentPlayerIndex);
 					int cc = bc.chance;
 					int c = 128 + C_1_Blue;
-					sprintf(InfoPanelBuffer, "spell crit chance: %c%i%%", c, cc);
+					sprintf(InfoPanelBuffer, L("spell crit chance: %c%i%%"), c, cc);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 				else if (player.fullClassId == PFC_INQUISITOR) {
 					BaseCrit bc = GetBaseCrits(CR_ELEMENTAL, CurrentPlayerIndex);
 					int cc = bc.chance;
 					int c = 128 + C_1_Blue;
-					sprintf(InfoPanelBuffer, "weapon elemental damage crit chance: %c%i%%", c, cc);
+					sprintf(InfoPanelBuffer, L("weapon elemental damage crit chance: %c%i%%"), c, cc);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 			}
@@ -1043,8 +1417,8 @@ LABEL_44:
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 					// ---- main description ----
-				Tooltip_AddLine("armor class affects:", C_1_Blue);
-				Tooltip_AddLine("percentage of enemy attacks deflected,", C_0_White);
+				Tooltip_AddLine(L("armor class affects:"), C_1_Blue);
+				Tooltip_AddLine(L("percentage of enemy attacks deflected,"), C_0_White);
 					// -- stun --
 				int minST, maxST; 
 				tie(minST, maxST) = GetPlayerStunThreshold(player);
@@ -1052,11 +1426,11 @@ LABEL_44:
 				LimitToMin(maxST, 0);
 				int stun_avoid_chance = PerkValue(PERK_RESILIENCE, CurrentPlayerIndex) + PerkValue(PERK_FOOTWORK, CurrentPlayerIndex) + PerkValue(SYNERGY_PERSEVERANCE, CurrentPlayerIndex);
 				int c = 128 + C_1_Blue ;
-				if (minST == maxST ){ sprintf(InfoPanelBuffer, "Stun Threshold: %c%i", c, minST); }
-				else { sprintf(InfoPanelBuffer, "Stun Threshold: %c%i - %i%c", c, minST, maxST, c); }
+				if (minST == maxST ){ sprintf(InfoPanelBuffer, L("Stun Threshold: %c%i"), c, minST); }
+				else { sprintf(InfoPanelBuffer, L("Stun Threshold: %c%i - %i%c"), c, minST, maxST, c); }
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				if (stun_avoid_chance > 0) {
-					sprintf(InfoPanelBuffer, "Stun avoid chance: %c%i%%", c, stun_avoid_chance);
+					sprintf(InfoPanelBuffer, L("Stun avoid chance: %c%i%%"), c, stun_avoid_chance);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 
@@ -1066,14 +1440,25 @@ LABEL_44:
 				int spell_deflect_chance = 95 - playerAC / 50 - PerkValue(PERK_SPELL_DEFLECTION, CurrentPlayerIndex);
 				Limit_MvP_Ranged_Magical_ToHit_Chance(CurrentPlayerIndex, spell_deflect_chance); // is this line even needed ?
 				spell_deflect_chance = 100 - spell_deflect_chance;
-				sprintf(InfoPanelBuffer, "Spell deflect chance: %c%i%%", c, spell_deflect_chance);
-				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+				sprintf(InfoPanelBuffer, L("Spell deflect chance: %c%i%%"), c, spell_deflect_chance);
+				
+				if (GameMode != GM_CLASSIC) { Tooltip_AddLine(InfoPanelBuffer, C_0_White); }
 
-					// ------- palading's mana shield eefficiency -------
+					// ------- IDR -----------
+				if (GameMode != GM_CLASSIC && GameMode != GM_COLISEUM) {
+					int damage = 100;
+					damage = AddDamageReduction(CurrentPlayerIndex, damage);
+					int damage_spell = 100 - damage;
+					int damage_arr = 100 - 3 * damage / 2;
+					sprintf(InfoPanelBuffer, L("IDR: Spell %c%i%%%c, Arrow: %c%i%%%c"), c, damage_spell, c, c, damage_arr, c);
+					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
+				}
+
+					// ------- paladin's mana shield efficiency -------
 
 				if (HasTrait(CurrentPlayerIndex, TraitId::Paladin)) {
 					int drMS = 100 - PerkValue(PERK_FORTIFIED_SHIELD, CurrentPlayerIndex);
-					sprintf(InfoPanelBuffer, "Mana Shield damage modifier: %c%i%%", c, drMS);
+					sprintf(InfoPanelBuffer, L("Mana Shield damage modifier: %c%i%%"), c, drMS);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 
@@ -1087,27 +1472,26 @@ LABEL_44:
 						-a_rose_with_thorns_trait_penalty
 						+ two_towers_trait_benefit_1
 						- PerkValue(SYNERGY_AGGRESSION, CurrentPlayerIndex, 0);
-					sprintf(InfoPanelBuffer, "Max block chance vs melee: %c%i%%", c, maxBlockChance);
+					sprintf(InfoPanelBuffer, L("Max block chance vs melee: %c%i%%"), c, maxBlockChance);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 
 					// ------- block rate (melee) -------
 					int playerBlockChance = 0;
 					//MvP_Melee_Block_Chance(0, playerIndex, playerBlockChance);// mor: not sure monsterIndex is needed here (could even cause issues)				
-					playerBlockChance = player.BlockBonus + player.blockChance
+					playerBlockChance = player.blockChance	// (th4) class block bonus retired
 						+ ((player.BaseDexterity + player.BaseStrength/* - monster.ArmorClass*/) / 2)
 						- a_rose_with_thorns_trait_penalty
 						+ two_towers_trait_benefit_1
 						- PerkValue(SYNERGY_AGGRESSION, CurrentPlayerIndex, 0);
 					LimitToMin(playerBlockChance, 0); 
 					//playerBlockChance += PerkValue(PERK_TUCK_TAILS, playerIndex)/* + player.blockChance*/;
-					sprintf(InfoPanelBuffer, "Block rating vs melee hits: %c%i", c, playerBlockChance);
+					sprintf(InfoPanelBuffer, L("Block rating vs melee hits: %c%i"), c, playerBlockChance);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 
 					// ------- block rate (ranged) -------
 				int a_rose_with_thorns_trait_penalty_ranged = HasTrait(CurrentPlayerIndex, TraitId::ARoseWithThorns) ? (player.CharLevel / 3) : 0;
-				int blockChanceRanged = player.BlockBonus
-					+ player.BaseDexterity
+				int blockChanceRanged = player.BaseDexterity	// (th4) class block bonus retired
 					+ player.blockChance
 					- a_rose_with_thorns_trait_penalty_ranged
 					- PerkValue(SYNERGY_AGGRESSION, CurrentPlayerIndex, 0)
@@ -1129,13 +1513,13 @@ LABEL_44:
 				LimitToMin(finalMaxBlockRate, 0);
 				if (is(player.fullClassId, PFC_GUARDIAN, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_MAGE, PFC_ELEMENTALIST, PFC_WARLOCK, PFC_DEMONOLOGIST,
 					PFC_BEASTMASTER, PFC_KENSEI, PFC_SHUGOKI, PFC_ROGUE, PFC_EXECUTIONER, PFC_BERSERKER, PFC_SAVAGE, PFC_DIMACHAERUS)
-					|| HasTrait(CurrentPlayerIndex, TraitId::Fechtmeister, TraitId::Ranger)) {
+					|| HasTrait(CurrentPlayerIndex, TraitId::Fechtmeister, TraitId::Ranger, TraitId::Scissor)) {
 					finalMaxBlockRate = 0;
 				}
 				if (finalMaxBlockRate > 0) {
-					sprintf(InfoPanelBuffer, "Max block chance vs arrows: %c%i%%", c, finalMaxBlockRate);
+					sprintf(InfoPanelBuffer, L("Max block chance vs arrows: %c%i%%"), c, finalMaxBlockRate);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-					sprintf(InfoPanelBuffer, "Block rating vs arrows: %c%i", c, blockChanceRanged);
+					sprintf(InfoPanelBuffer, L("Block rating vs arrows: %c%i"), c, blockChanceRanged);
 					Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 				}
 
@@ -1143,18 +1527,18 @@ LABEL_44:
 				int autoHit = 20;
 				int automiss = 100;
 				MvP_Melee_Autohit_chance(CurrentPlayerIndex, autoHit, automiss);
-				sprintf(InfoPanelBuffer, "Min chance to get hit (melee): %c%i%%", c, autoHit);
+				sprintf(InfoPanelBuffer, L("Min chance to get hit (melee): %c%i%%"), c, autoHit);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-				sprintf(InfoPanelBuffer, "Max chance to get hit (melee): %c%i%%", c, automiss);
+				sprintf(InfoPanelBuffer, L("Max chance to get hit (melee): %c%i%%"), c, automiss);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 					// ------- autohit min-max (arrows) -------
 				int Autohit = 14;
 				int Automiss = 95;
 				int realToHitChance = 0;
 				Limit_MvP_Ranged_Arrow_ToHit_Chance(CurrentPlayerIndex, realToHitChance, Autohit, Automiss);
-				sprintf(InfoPanelBuffer, "Min chance to get hit (arrows): %c%i%%", c, Autohit);
+				sprintf(InfoPanelBuffer, L("Min chance to get hit (arrows): %c%i%%"), c, Autohit);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
-				sprintf(InfoPanelBuffer, "Max chance to get hit (arrows): %c%i%%", c, Automiss);
+				sprintf(InfoPanelBuffer, L("Max chance to get hit (arrows): %c%i%%"), c, Automiss);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 			}
 			// --- END OF ARMOR CLASS ---
@@ -1164,8 +1548,8 @@ LABEL_44:
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				// ---- main description ----
-				Tooltip_AddLine("to hit chance affects:", C_1_Blue);
-				Tooltip_AddLine("accuracy of your attacks against enemies,", C_0_White);
+				Tooltip_AddLine(L("to hit chance affects:"), C_1_Blue);
+				Tooltip_AddLine(L("accuracy of your attacks against enemies,"), C_0_White);
 				int c = 128 + C_1_Blue;				
 				int hitChance = player.CurMagic + 25;
 				switch (player.fullClassId) {
@@ -1187,7 +1571,7 @@ LABEL_44:
 				if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {	hitChance += 30;}
 				hitChance += PerkValue(PERK_MASTER_CASTER, playerIndex) + PerkValue(PERK_SANCTITY, playerIndex);
 				if (HasTrait(playerIndex, TraitId::Paladin)) {	hitChance += 30;}
-				sprintf(InfoPanelBuffer, "Spell accuracy rating: %c%i", c, hitChance);
+				sprintf(InfoPanelBuffer, L("Spell accuracy rating: %c%i"), c, hitChance);
 				Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 			}
 			// -------- END OF TO HIT -----------
@@ -1196,35 +1580,35 @@ LABEL_44:
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				int c = 128 + ResistColor(player.resistPercent[ET_4_ACID]);
-				sprintf(InfoPanelBuffer, "%c%.2f%%%c acid damage resisted", c, player.resistPercent[ET_4_ACID] * 100, c );
+				sprintf(InfoPanelBuffer, L("%c%.2f%%%c acid damage resisted"), c, player.resistPercent[ET_4_ACID] * 100, c );
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
 			else if (CursorIntoDisplayObject(CharPanelResistMagic)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				int c = 128 + ResistColor(player.resistPercent[ET_3_ARCAN]);
-				sprintf(InfoPanelBuffer, "%c%.2f%%%c arcane damage resisted", c, player.resistPercent[ET_3_ARCAN] * 100, c );
+				sprintf(InfoPanelBuffer, L("%c%.2f%%%c magic damage resisted"), c, player.resistPercent[ET_3_ARCAN] * 100, c );
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
 			else if (CursorIntoDisplayObject(CharPanelResistFire)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				int c = 128 + ResistColor(player.resistPercent[ET_1_FIRE]);
-				sprintf(InfoPanelBuffer, "%c%.2f%%%c fire damage resisted", c, player.resistPercent[ET_1_FIRE] * 100, c );
+				sprintf(InfoPanelBuffer, L("%c%.2f%%%c fire damage resisted"), c, player.resistPercent[ET_1_FIRE] * 100, c );
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
 			else if (CursorIntoDisplayObject(CharPanelResistCold)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				int c = 128 + ResistColor(player.resistPercent[ET_6_COLD]);
-				sprintf(InfoPanelBuffer, "%c%.2f%%%c cold damage resisted", c, player.resistPercent[ET_6_COLD] * 100, c );
+				sprintf(InfoPanelBuffer, L("%c%.2f%%%c cold damage resisted"), c, player.resistPercent[ET_6_COLD] * 100, c );
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
 			else if (CursorIntoDisplayObject(CharPanelResistLightning)) {
 				Tooltip_Clear();
 				Tooltip_SetOffsetRight();
 				int c = 128 + ResistColor(player.resistPercent[ET_2_LIGHTNING]);
-				sprintf(InfoPanelBuffer, "%c%.2f%%%c lightning damage resisted", c, player.resistPercent[ET_2_LIGHTNING] * 100, c );
+				sprintf(InfoPanelBuffer, L("%c%.2f%%%c lightning damage resisted"), c, player.resistPercent[ET_2_LIGHTNING] * 100, c );
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
 			else if (CursorIntoDisplayObject(CharPanelResistArrow)) { //  ------------------ ARROW DAMAGE RESIST CELL --------------------------
@@ -1233,10 +1617,10 @@ LABEL_44:
 				int c1 = 128 + (player.resistPercentArrowMin > 0 ? (player.resistPercentArrowMin < player.resistPercentArrowMinLimit ? C_1_Blue : C_3_Gold) : C_0_White);
 				int c2 = 128 + (player.resistPercentArrowMax > 0 ? (player.resistPercentArrowMax < player.resistPercentArrowMaxLimit ? C_1_Blue : C_3_Gold) : C_0_White);
 				if (player.resistPercentArrowMin == player.resistPercentArrowMax) {
-					sprintf(InfoPanelBuffer, "%c%.2f%%%c arrow damage resisted", c1, player.resistPercentArrowMin * 100, c1);
+					sprintf(InfoPanelBuffer, L("%c%.2f%%%c arrow damage resisted"), c1, player.resistPercentArrowMin * 100, c1);
 				}
 				else {
-					sprintf(InfoPanelBuffer, "%c%.2f%%%c to %c%.2f%%%c arrow damage resisted, (avg %c%.2f%%%c)", c1, player.resistPercentArrowMin * 100, c1, c2, player.resistPercentArrowMax * 100, c2, 129, (player.resistPercentArrowMin * 100 + player.resistPercentArrowMax * 100) / 2, 129);
+					sprintf(InfoPanelBuffer, L("%c%.2f%%%c to %c%.2f%%%c arrow damage resisted, (avg %c%.2f%%%c)"), c1, player.resistPercentArrowMin * 100, c1, c2, player.resistPercentArrowMax * 100, c2, 129, (player.resistPercentArrowMin * 100 + player.resistPercentArrowMax * 100) / 2, 129);
 				}
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
@@ -1246,10 +1630,10 @@ LABEL_44:
 				int c1 = 128 + (player.resistPercentMeleeMin > 0 ? (player.resistPercentMeleeMin < player.resistPercentMeleeMinLimit ? C_1_Blue : C_3_Gold) : C_0_White);
 				int c2 = 128 + (player.resistPercentMeleeMax > 0 ? (player.resistPercentMeleeMax < player.resistPercentMeleeMaxLimit ? C_1_Blue : C_3_Gold) : C_0_White);
 				if (player.resistPercentMeleeMin == player.resistPercentMeleeMax) {
-					sprintf(InfoPanelBuffer, "%c%.2f%%%c melee damage resisted", c1, player.resistPercentMeleeMin * 100, c1);
+					sprintf(InfoPanelBuffer, L("%c%.2f%%%c melee damage resisted"), c1, player.resistPercentMeleeMin * 100, c1);
 				}
 				else {
-					sprintf(InfoPanelBuffer, "%c%.2f%%%c to %c%.2f%%%c melee damage resisted, (avg %c%.2f%%%c)", c1, player.resistPercentMeleeMin * 100, c1, c2, player.resistPercentMeleeMax * 100, c2, 129, (player.resistPercentMeleeMin * 100 + player.resistPercentMeleeMax * 100)/2, 129);
+					sprintf(InfoPanelBuffer, L("%c%.2f%%%c to %c%.2f%%%c melee damage resisted, (avg %c%.2f%%%c)"), c1, player.resistPercentMeleeMin * 100, c1, c2, player.resistPercentMeleeMax * 100, c2, 129, (player.resistPercentMeleeMin * 100 + player.resistPercentMeleeMax * 100)/2, 129);
 				}
 				Tooltip_AddLine(InfoPanelBuffer);
 			}
@@ -1272,7 +1656,7 @@ LABEL_44:
 			int curCell = 112 * curRow + curCol;
 			{
 				if( !(Dungeon->genType || Dungeon->isQuest) ){
-					// добавить отображение надписи на могильной плите
+					// (rt) add display of the inscription on the gravestone
 					CheckSignes( curRow, curCol ); // signes patch (5)
 					if( cursorOnNear ){
 						if( curCol < FineMap_112 - 1 ){
@@ -1790,7 +2174,7 @@ void SyncUniqDead()
 	// See function InitDead() to understand what this is all about
 	for( int i = 0; i < MonstersCount; i++ ){
 		Monster& monster = Monsters[MonsterIndexes[i]];
-		if( monster.newBossId ){ // (3) расширение номера босса
+		if( monster.newBossId ){ // (rt) (3) boss number extension
 			for (int col = 0; col < 112; col++) {
 				for (int row = 0; row < 112; row++) {
 					if( (DeathMonstersMap[row][col] & 0xff) == monster.udeadNum ){ // original was 0x1f, expaned to byte
@@ -1816,19 +2200,38 @@ void SetBossLightActive()
 			//}
 
 			//above chunk used to be potential fix for bosses light getting misplaced, but in some cases replaced player's light with the boss light
+			// (th4): THREE bugs fixed here, together they were the "replaced player's light"
+			// mystery the comment above describes, and the lights-off-after-load bug:
+			// 1) LightIndex 0 means "boss has no light" (Ragehorn/Guardian/Hazeweaver, see
+			//    CreateBoss), but 0 is a real LightList slot and ChangeLightPos only rejects
+			//    -1 -- so the unguarded calls below hijacked LightList[0], typically the
+			//    player's torch. Same guard as the book/pedestal handlers in Object.cpp.
+			// 2) The boss check and the guarded call used Monsters[i] (RAW loop counter)
+			//    while `monster` resolves through MonsterIndexes[i]. The two diverge as soon
+			//    as any monster has died (DelMonster swap-removes), so the wrong monster's
+			//    identity was tested and the wrong monster's light was moved.
+			// 3) The pedestal scan walked raw Objects[i] slots; live objects are reached
+			//    through ObjectActive[] (as the save/load loops do).
+			//if (!monster.LightIndex) continue; // (th4) ORIGINAL: 0 meant "no boss light" — kept as reference
+			// (th4) Rev 2.46: the full-deactivation bosses now carry the -1
+			// no-light sentinel (CreateBoss), so the old truthiness guard would
+			// let them through and re-run the position logic for nothing (the
+			// ChangeLightPos(-1, ...) calls are no-ops, but the skip semantics
+			// should be preserved).
+			if (monster.LightIndex <= 0) continue;
 			bool pedestalActivated = false;
 			if (IsQuestOnLevel(Q_9_VALOR)) {
-				for (int i = 0; i < ObjectsCount; i++)
+				for (int objIdx = 0; objIdx < ObjectsCount; objIdx++)
 				{
-					if (Objects[i].BaseObjectIndex == BO_73_PEDESTAL_OF_BLOOD) {
-						pedestalActivated = Objects[i].maybeFrameIndex == 3;
+					if (Objects[ObjectActive[objIdx]].BaseObjectIndex == BO_73_PEDESTAL_OF_BLOOD) {
+						pedestalActivated = Objects[ObjectActive[objIdx]].maybeFrameIndex == 3;
 					}
 				}
 			}
 			int bossie = GameMode == GM_CLASSIC ? UM_C_902_RAGEHORN : UM_677_Guardian_of_Valor;
-			if (Monsters[i].newBossId - 1 == bossie) {
+			if (monster.newBossId - 1 == bossie) {
 				if (pedestalActivated) {
-					ChangeLightPos(Monsters[i].LightIndex, Monsters[i].Row, Monsters[i].Col);
+					ChangeLightPos(monster.LightIndex, monster.Row, monster.Col);
 				}
 			}
 			else {
@@ -2070,7 +2473,7 @@ GAME_MODE_TYPE GameModeType()
 
 bool isTownPortalForbidden()
 {
-	return GameModeType() == GAME_MODE_TYPE::NIGHTMARE || GameModeType() == GAME_MODE_TYPE::IRON;
+	return GameModeType() == GAME_MODE_TYPE::NIGHTMARE || GameModeType() == GAME_MODE_TYPE::IRON || GameMode == GM_OUTBREAK;
 }
 
 double FramePart;
@@ -2134,7 +2537,7 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 			worldSleep = ! NThreadRunGameLoop(false);
 		}
 
-		if( !worldSleep ){ // не всегда в SinglePlayer, возможно ждет когда сообщения закончаться
+		if( !worldSleep ){ // (rt) not always in SinglePlayer, maybe waits for the messages to finish
 			Player& player = Players[CurrentPlayerIndex];
 			if( IsAutoPickup ){
 				GoldAutoPickup(CurrentPlayerIndex);
@@ -2149,10 +2552,10 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 					isShiftPressed |= GetAsyncKeyState(VK_XBUTTON2) < 0;
 				}
 				if (shiftPressed && !isShiftPressed /*&& MouseButtonPressed != MBP_0_NONE*/) {
-					ShiftReleasedEvent = true; // ShiftPressedEvent = false; // убрано потому что на обработать // почему то было убрано, пока верну
+					ShiftReleasedEvent = true; // (rt) ShiftPressedEvent = false; // removed because on process // for some reason it had been removed, restoring for now
 				}
 				else if (!shiftPressed && isShiftPressed /*&& MouseButtonPressed == MBP_1_LEFT*/) {
-					ShiftPressedEvent = true; // ShiftReleasedEvent = false; // убрано чтобы обработалось одноразовое событие, почему то было убрано и было движение вместо удара с шифтом иногда
+					ShiftPressedEvent = true; // (rt) ShiftReleasedEvent = false; // removed so the one-shot event gets processed; for some reason it had been removed, and sometimes there was movement instead of a shift-attack
 				}
 				shiftPressed = isShiftPressed;
 				IsShiftPressed = isShiftPressed;
@@ -2165,7 +2568,7 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 						Repeat_Mouse_LButtonDown();
 					}
 				}
-				// разбираюсь
+				// (rt) looking into it
 				if (!RButtonEvent && player.CurAction != PCA_9_SPELL) {
 					Repeat_Mouse_RButtonDown();
 				}
@@ -2187,20 +2590,20 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 			IsMainDraw = false;
 			MouseMoved = false;
 		}else{
-			// отрисовка скроллинга экрана до 240 fps ( дополнительная плавность без изменения скорости 20 fps геймплея )
-			// сдвиг для активных иконок mana shield, reflect или вообще для всех спеллов
+			// (rt) screen scrolling drawn at up to 240 fps (extra smoothness without changing the 20 fps gameplay speed)
+			// (rt) offset for the active mana shield / reflect icons, or for all spells in general
 			// Missile.WholeDeltaX, Missile.DeltaX, MissileAction, ManaShieldAction
 			i64 tick = GetTickCountTh();
-			i64 dt = MainFrameTimer - tick; // MainFrameTime - время следующего кадра (50ms)
+			i64 dt = MainFrameTimer - tick; // (rt) MainFrameTime - time of the next frame (50ms)
 			int frameToDraw = int( ((double)(MAX_FPS / ENGINE_FPS) - dt) * FramePart );
 			if( InterpolationFrame < frameToDraw && frameToDraw < FramesMax ){
 				InterpolationFrame = frameToDraw;
 				if( !IsGameMenuActive() && !NetCursorItemId ){ DispatchCursorAboveIsoland(); }
 				MainDrawFunc(); ++AllDrawCount;
 			}else{
-				//if( ! TalkPanelMode ) // медленно набирается текст в чате, но это практически не помогло
+				//(rt) if( ! TalkPanelMode ) // chat text is typed slowly, but this barely helped
 				if( LowCpuUsage || MaxFPS < 40 ){
-					Sleep(1); // в TH1 15 ms // разгрузка процессора
+					Sleep(1); // (rt) 15 ms in TH1 // CPU offload
 				}
 			}
 		}
@@ -2243,9 +2646,10 @@ void __fastcall ClearPrevSessionData(int msg)
 	UberDiabloKilled = false;
 	ResetSpeedrunTimer();
 	IsZoomDisable = !ForceZoom;
+	DynZoom_Reset();	// (th4) DYNAMIC ZOOM: every game starts unzoomed (not saved)
 	InitItemsCELArrays();
 	LoadSquareCEL();
-	StopMusic();
+	StopMusic( true );	// (th4) fades out under the loading screen; the next level's music fades in (SoundBuffer.cpp MUSIC_FADE_MS; not in Classic)
 	StopAmbient();
 	ShowProgress(msg);
 	Menu_Init();
@@ -2279,8 +2683,14 @@ bool NoMyExec()
 }
 
 //-----  crash minidump functional ----------------------------------------
+// (th4) 2026-09-10: one full-memory dump per process. The VEH first-chance
+// handler below and WinMain's __except can both see the same crash; without
+// this guard the (multi-second) dump would be written twice per crash.
+static volatile LONG g_Th4DumpWritten = 0;
+
 void CreateMiniDump( EXCEPTION_POINTERS* pep )
 {
+	if( InterlockedCompareExchange( &g_Th4DumpWritten, 1, 0 ) != 0 ) return;
 	// Open the file 
 
 	HANDLE hFile = CreateFile( _T( "Th4CrashDump.dmp" ), GENERIC_READ | GENERIC_WRITE,
@@ -2319,10 +2729,67 @@ void CreateMiniDump( EXCEPTION_POINTERS* pep )
 	}
 }
 
+// (th4) 2026-09-10 diagnostics (d3d9 callback-crash investigation): capture
+// crashes that kill the process at a user-callback boundary. An AV raised
+// inside a window procedure or a storm callback is converted by the OS to
+// STATUS_FATAL_USER_CALLBACK_EXCEPTION and terminates the process BEFORE
+// WinMain's __except can run — that class left no Th4CrashDump.dmp and no
+// error dialog ("closes to desktop"). A vectored handler sees the ORIGINAL
+// first-chance exception, so the dump + log now cover it.
+// Writes: "th4_d3d_diag.log" (always) + "Th4CrashDump.dmp" via CreateMiniDump
+// (once per process; the __except handler shares that one-shot guard).
+// (th4) Compiled out of release builds -- see TH4_CRASH_CAPTURE_ENABLED in funcs.h.
+// Left as source rather than deleted: this is the tool that found the MP "New Game"
+// reentrancy crash, and the next one will want it.
+#ifdef TH4_CRASH_CAPTURE_ENABLED
+static volatile LONG g_Th4VehSeen = 0;
+static LONG CALLBACK Th4VehHandler( EXCEPTION_POINTERS* eps )
+{
+	if( eps && eps->ExceptionRecord ){
+		const DWORD code = eps->ExceptionRecord->ExceptionCode;
+		// AV / fatal user-callback / fail-fast — the codes that end the process.
+		if( code == 0xC0000005 || code == 0xC000041D || code == 0xC0000409 ){
+			const bool first = InterlockedCompareExchange( &g_Th4VehSeen, 1, 0 ) == 0;
+			char where[128];
+			D3dDiagAddr( where, sizeof(where), eps->ExceptionRecord->ExceptionAddress );
+			char line[256];
+			// (th4) 2026-09-10: _snprintf_s + _TRUNCATE (same rule as D3dDiagLog) —
+			// sprintf_s would raise the CRT invalid-parameter handler on overflow,
+			// i.e. kill the process from inside its own crash handler.
+			_snprintf_s( line, sizeof(line), _TRUNCATE,
+				"VEH first-chance: code=0x%08X at %s (tid %lu) - %s",
+				(unsigned)code, where, GetCurrentThreadId(),
+				first ? "writing Th4CrashDump.dmp" : "dump already written" );
+			D3dDiagLogRaw( line );
+			if( first ) CreateMiniDump( eps );
+		}
+	}
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void InstallTh4VehCrashHandler()
+{
+	// 1 = call before any other vectored handler.
+	AddVectoredExceptionHandler( 1, Th4VehHandler );
+}
+#endif // TH4_CRASH_CAPTURE_ENABLED
+
 //----- (00409283) -------------------------------------------------------- main
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
+	#ifdef TH4_CRASH_CAPTURE_ENABLED
+	InstallTh4VehCrashHandler(); // (th4) diagnostics: must be armed before __try
+	#endif
 	__try{
+	#ifdef _DEBUG
+	// Phase 1 debug harness: "TH4.exe -lightlutcheck" runs the A8L8 light-falloff
+	// LUT self-check over all graphType x OriginalLightLevels combos and exits
+	// before any game initialization (report: A8L8LightBright_selfcheck.txt).
+	if( strstr( lpCmdLine, "-lightlutcheck" ) ){
+		RunA8L8LightBrightLutSelfCheck();
+		return 0;
+	}
+	#endif
 	#ifdef SHOW_CALL_STACK
 	void InintShowCallStack(); InintShowCallStack();
 	#endif
@@ -2339,11 +2806,11 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	InitializeHashSource();
 	AllocPlayers();
 
-	// Исключения в th2 пока не перехватываем
+	// (rt) Exceptions are not caught in th2 for now
 	#ifdef EXCEPTION
 	OldTopLevelExceptionFilter = (int(__stdcall*)(struct _EXCEPTION_POINTERS*))SetUnhandledExceptionFilter((LONG(__stdcall*)(struct _EXCEPTION_POINTERS*))TopLevelExceptionFilter);
 	#endif
-	// Проверки на уже запущенность
+	// (rt) Checks for an already running instance
 	if( !DevelopMode && (AlreadyHasWindow("THEHELL4") || !NoMyExec()) ){ 
 		return 0;
 	}
@@ -2546,7 +3013,7 @@ void __fastcall Character_Passive_Life_and_Mana_Regeneration( int playerIndex ) 
 		case DUN_39_FROZEN_LOCH:		player.fullClassId == PFC_EXECUTIONER ? lifeAdd -= ( 40 + 15 * Difficulty / 2 ) : lifeAdd -= ( 8 + Difficulty * 4 ); break;
 		case DUN_40_ISLAND:			lifeAdd = 2 * lifeAdd + 1; break;
 		case DUN_30_HALLS_OF_ANGUISH:
-		case DUN_31_ANDARIELS_THRONE: player.fullClassId == PFC_EXECUTIONER ? lifeAdd -= player.CurVitality / 2 : lifeAdd -= player.CurVitality / 4; break; // тренируюсь с тернарным оператором, не факт что правильно
+		case DUN_31_ANDARIELS_THRONE: player.fullClassId == PFC_EXECUTIONER ? lifeAdd -= player.CurVitality / 2 : lifeAdd -= player.CurVitality / 4; break; // (rt) ternary form; correctness not verified
 		}
 	}	
 
@@ -2578,7 +3045,20 @@ void __fastcall Character_Passive_Life_and_Mana_Regeneration( int playerIndex ) 
 			lifeAdd = 0;
 		}
 	}
-
+	// terminator: no regen
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+		lifeAdd = 0;
+		if (Dungeon == DUN_0_TOWN && player.Xp == 0) {
+			lifeAdd = 250;
+		}
+		else if (player.CurLife < ((100 + PerkValue(PERK_IRIDIUM_POWER_CELL, playerIndex, 0)) << 6)) {
+			lifeAdd = 2 + PerkValue(PERK_RECONSTRUCTION, playerIndex);
+		}
+		else { lifeAdd = 0 + PerkValue(SYNERGY_ALLOY_MEMORY, playerIndex); }
+		if (!IsSomeMonstersActivated()) {
+			lifeAdd += lifeAdd * PerkValue(SYNERGY_COMBAT_LOGS, playerIndex) / 100;
+		}
+	}
 	player.CurLife += lifeAdd;
 	player.BaseLife += lifeAdd;
 	if( Dungeon->genType == DT_0_TOWN && !Dungeon->isQuest ){
@@ -2713,6 +3193,9 @@ void __fastcall Character_Passive_Life_and_Mana_Regeneration( int playerIndex ) 
 
 	if( player.CurMana <= 0 && manaAdd <= 0 ){
 		manaAdd = 0;
+	}
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+		manaAdd = 1;
 	}
 	player.CurMana += manaAdd;
 	player.BaseMana += manaAdd;
@@ -2885,7 +3368,7 @@ int __fastcall MyLoadModule(HMODULE hModule)
 	memset(&ApplicationName[1], 0, 0x100u);
 	*(ushort*)&ApplicationName[257] = 0;
 	ApplicationName[259] = 0;
-	//strcpy(ApplicationName,"d:\\проекты\\TheHell\\TheHell2\\th.exe");
+	//(rt) strcpy(ApplicationName,"d:\\projects\\TheHell\\TheHell2\\th.exe");
 	GetModuleFileNameA(HInstance, ApplicationName, 0x104u);
 	sprintf(Name, "Reload-%s", ApplicationName);
 	v1 = Name;
@@ -2974,10 +3457,12 @@ int EscHandle()
     if( IsVisualTradePanelVisible                      ){ VisualTrade_Close();         CloseInventoryPanel();     result = 1; }
     if( IsCraftPanelVisible                            ){ Craft_Close();               CloseInventoryPanel();     result = 1; }
 	if( IsEnchantPanelVisible                          ){ Enchant_Close();             CloseInventoryPanel();     result = 1; }
+	if (IsPowerupPanelVisible						   ){ Powerups_Close();            CloseInventoryPanel();     result = 1; }
 	if( IsQuenchPanelVisible                           ){ Quench_Close();              CloseInventoryPanel();     result = 1; }
 	if( IsTransmutePanelVisible                        ){ Transmute_Close();           CloseInventoryPanel();     result = 1; }
     if( IsPerksPanelVisible                            ){ ClosePerksPanel();                                      result = 1; }
 	if( IsInfoWindowVisible                            ){ InfoWindow_Close();                                     result = 1; }
+	if( IsChatHistoryVisible                           ){ IsChatHistoryVisible = false;                           result = 1; }
 	return result;
 }
 
@@ -3077,7 +3562,7 @@ void SwitchGodMode()
 }
 
 //int CurShrine;
-// main window proc, используется в игровом процессе, вызывается как Handler1 в CallHandler1IfExists
+// (rt) main window proc, used during gameplay, called as Handler1 in CallHandler1IfExists
 //----- (00409A1A) --------------------------------------------------------
 int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -3101,7 +3586,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				if (wParam == VK_16_SHIFT || wParam & MK_XBUTTON2) {
 					IsShiftPressed = true;
 				}
-				else if (wParam == VK_CAPITAL && DevelopMode) { // CapsLock отключения интерфейса
+				else if (wParam == VK_CAPITAL && DevelopMode) { // (rt) CapsLock turns the interface off
 					IsInterface = !IsInterface;
 					//IsInterface ? CursorOff() : CursorOn();
 				}
@@ -3112,7 +3597,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				if (wParam == VK_16_SHIFT) {
 					IsShiftPressed = true;
 				}
-				else if (wParam == VK_CAPITAL && DevelopMode) { // CapsLock отключения интерфейса
+				else if (wParam == VK_CAPITAL && DevelopMode) { // (rt) CapsLock turns the interface off
 					IsInterface = !IsInterface;
 					//IsInterface ? CursorOff() : CursorOn();
 				}
@@ -3145,7 +3630,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						//	if( Objects[CurShrine].ShrineIndex > 33 ) Objects[CurShrine].ShrineIndex = 0;
 						//	Objects[CurShrine].selectable = 1;
 						//}
-						break; // убирает Idle Sys Menu Loop по Alt (по Alt+Space входит в меню как обычно)
+						break; // (rt) removes the Idle Sys Menu Loop on Alt (Alt+Space enters the menu as usual)
 #if CHEATS
 					case VK_40_DOWN_ARROW_KEY : { extern volatile int ShiftY; ShiftY++; } break;
 					case VK_38_UP_ARROW_KEY   : { extern volatile int ShiftY; ShiftY--; } break;
@@ -3311,12 +3796,15 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						break;
 						//free key to bind
 #endif
-					case VK_90_Z_KEY: // Alt + Z, переключение zoom
+					case VK_90_Z_KEY: // (rt) Alt + Z, toggle zoom
 						if( !ForceZoom ) IsZoomDisable = !IsZoomDisable;
 						break;
 					//case VK_82_R_KEY: // Alt + Shift + R, Resetting the image output window //mor: under cheats, this gives an error and doesn't compile!
 					//	if( IsShiftPressed ){ SwitchFullscreen(); SwitchFullscreen(); }
 					//	break;
+					case VK_77_M_KEY: // Alt + M, toggle multiplayer chat history overlay
+						ChatHistory_Toggle();
+						break;
 					default:
 						if( CheckF10Message(wParam) ) return 0; // is handled gameplay keys ( 2 ) F10 ?
 						return DefaultHandler(hWnd, msg, wParam, lParam);
@@ -3393,7 +3881,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			SetCapture(hWnd);
 			LButtonEvent = true;
-			isGameObject = Mouse_LButtonDown(wParam); // в wParam передается состояние шифта 
+			isGameObject = Mouse_LButtonDown(wParam); // (rt) the shift state is passed in wParam 
 			if (Berserk) {				
 				TrackInit(false);
 			}
@@ -3410,7 +3898,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			SetCapture( hWnd );
 			LButtonEvent = true;
-			isGameObject = Mouse_LButtonDown(wParam); // в wParam передается состояние шифта 
+			isGameObject = Mouse_LButtonDown(wParam); // (rt) the shift state is passed in wParam 
 			if (Berserk) {
 				TrackInit(false);
 			}
@@ -3451,16 +3939,16 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 	if( msg == WM_RBUTTONDOWN ){
-		if( CurrentMenuWindowPtr ){ // правая кнопка в меню в игре
+		if( CurrentMenuWindowPtr ){ // (rt) right button in the in-game menu
 			PlayGlobalSound( S_75_I_TITLEMOV );
 			if( CurrentMenuWindowPtr == OptionsMenu ){
-				SelectMainMenu(); // выход в главное меню
+				SelectMainMenu(); // (rt) exit to the main menu
 			}else{
-				Menu_SetupMenuWindow( 0, 0 ); // закрытие меню
+				Menu_SetupMenuWindow( 0, 0 ); // (rt) close the menu
 			}
 			return 0;
 		}
-		if( CurrentDialogIndex ){ // по правой кнопке возрат в диалоге назад (как Esc)
+		if( CurrentDialogIndex ){ // (rt) right button goes back in a dialog (like Esc)
 			EscHandle();
 			return 0;
 		}
@@ -3503,7 +3991,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if( ! RButtonEvent ){
 				//ShiftReleasedEvent = false;
 				//ShiftPressedEvent = false;
-				isGameObject = Mouse_LButtonDown( wParam ); // в wParam передается состояние шифта 
+				isGameObject = Mouse_LButtonDown( wParam ); // (rt) the shift state is passed in wParam 
                 TrackInit( isGameObject );
 			}
 			return 0;
@@ -3519,9 +4007,9 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	if( msg == WM_MBUTTONDOWN ){
 		if( CurrentDialogIndex ){
 			if( FirstVisibleItem < ItemCount - 1 && SelectedDialogRow != BottomSelectedRow ){
-				while( DialogPageDown() ); // вниз списка
+				while( DialogPageDown() ); // (rt) down the list
 			}else{
-				while( DialogPageUp() ); // вверх списка
+				while( DialogPageUp() ); // (rt) up the list
 			}
 		}
 	}
@@ -3546,23 +4034,26 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	if( Menu_CheckMouseClick(MOUSE_BUTTON_DOWN) || TalkPanel_CheckMouseClick() || NetCursorItemId ){
 		return 0;
 	}
-	if( IsPlayerDead ){ // Какое то действие с мэссэдж панелью
+	if( IsPlayerDead ){ // (rt) Some action with the message panel
 		Check_MenuORSendMessage();
 		return 0;
 	}
-	if( GamePaused == 2 ){ // Если поставили на паузу, ЛКМ для дальнейших действий не обрабатываем
+	if( GamePaused == 2 ){ // (rt) If paused, the left mouse button isn't processed further
 		return 0;
 	}
 	if( IsPopupScreenOpen ){
 		ClosePopupScreen();
 		return 0;
 	}
-	if( SelectCurSpellMode ){ // Если сейчас выбор заклинания, пробуем выбрать. (даже если нажатие будет не по иконке, любое нажатие закроет выбор заклинания)
+	if( SelectCurSpellMode ){ // (rt) If a spell is being selected, try to select it. (even if the click isn't on an icon, any click closes the spell selection)
 		SelectCurrentSpell();
 		return 0;
 	}
-	if( CurrentDialogIndex ){ // Если болтаем с неписями, проверяем куда попали в их диалоге
+	if( CurrentDialogIndex ){ // (rt) If talking to NPCs, check where in their dialog the click landed
 		if( CheckDialogMouseClick() ) return 0;
+	}
+	if( IsChatHistoryVisible && CursorIntoDisplayObject(ChatHistoryRect) ){
+		return 0;
 	}
 	if( CursorInMainPanel() ){
 		if( /*Berserk*/HasTrait(CurrentPlayerIndex, TraitId::Psychotic) && (Players[CurrentPlayerIndex].activeBuffFlag & BF_2_FURY_ACTIVE) && Dungeon != DUN_0_TOWN ){
@@ -3581,6 +4072,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 	if( IsQUESTPanelVisible && CursorIntoDisplayObject(QuestPanelRect) ){
+		if( QuestPanel_CheckArrowClick() ) return 0;	// (th4) scroll arrows, outside the text area
 	    if( CursorIntoDisplayObject(QuestPanelTextAreaRect) ){
 		    QuestPanel_CheckLButtonClick();
         }
@@ -3601,6 +4093,10 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 	if (IsEnchantPanelVisible && CursorIntoDisplayObject(EnchantPanel)) {
 		Enchant_LButtonDown();
+		return 0;
+	}
+	if (IsPowerupPanelVisible && CursorIntoDisplayObject(PowerupPanel)) {
+		Powerups_LButtonDown();
 		return 0;
 	}
 	if (IsQuenchPanelVisible && CursorIntoDisplayObject(QuenchPanel)) {
@@ -3640,7 +4136,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		InfoWindow_MouseDown();
 		return 0;
 	}
-	if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){ //  если к курсору подвешена шмотка
+	if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){ //  (rt) if an item is attached to the cursor
 		if( DropCursorItemBeforeTrig() ){
 			FixItemCursor(-1);
 		}
@@ -3653,11 +4149,11 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		CheckLevelUpButton();
 	}
 	if( !IsCursorOnLevelUpButton && !IsCursorOnPerkUpButton ){
-		int isoLand = IsoLand_CheckLButtonClick((wParam & MK_SHIFT) /*wParam == 5*/ /* нажат Shift */, 0); // клик на игровом поле ( передвижение, атака, выстрел )
+		int isoLand = IsoLand_CheckLButtonClick((wParam & MK_SHIFT) /*wParam == 5*/ /* (rt) Shift pressed */, 0); // (rt) click on the game field ( movement, attack, shot )
 		if (ExtraMouseButtons) {
 			isoLand = IsoLand_CheckLButtonClick((wParam & MK_SHIFT) || (wParam & MK_XBUTTON2), 0);
 		}
-		if( IsStashPanelVisible || IsVisualTradePanelVisible || IsCraftPanelVisible || IsEnchantPanelVisible || IsQuenchPanelVisible || (IsTransmutePanelVisible && !IsShiftPressed) ){
+		if(IsPowerupPanelVisible || IsStashPanelVisible || IsVisualTradePanelVisible || IsCraftPanelVisible || IsEnchantPanelVisible || IsQuenchPanelVisible || (IsTransmutePanelVisible && !IsShiftPressed) ){
 		    CloseInventoryPanel();
         }
 		return isoLand;
@@ -3665,11 +4161,50 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-// return 1 это клик на пустой пол (для простого движения)
+// (rt) return 1 means a click on empty floor (for plain movement)
 //----- (00409E8C) -------------------------------------------------------- interface
 int __fastcall IsoLand_CheckLButtonClick(int shiftPressed, int repeat)
 {
 	Player& player = Players[CurrentPlayerIndex];
+
+	// (th4) DARK CAMPAIGN HUB: no shift-attacks in the Hideout. Killed here, at the input
+	// dispatch, so the click never becomes a command at all -- no CMD_55_SATTACKXY (melee
+	// in place) and no CMD_13_RATTACKXY (bow in place) are ever sent. Clearing the flag
+	// rather than returning early means a shift-click still behaves like a plain click
+	// (walk / pick up / talk) instead of being swallowed.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		shiftPressed = 0;
+	}
+
+	// SUPER MUTANT MINIGUN BURST PROTECTION
+	if (MaxCountOfPlayersInGame == 1
+		&& player.gameChanger & BIT(GC_28_SUPERMUTANT)
+		&& is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+		//&& is(BI_2733_MINIGUN_01, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)
+		) {
+
+		// Block new attacks during burst (frames 1-23 while in ranged attack)
+		if (player.CurAction == PCA_5_RANGE_ATTACK && player.currentAnimationFrame <= 23) {
+			return 0;
+		}
+	}
+	// end of minigun burst protection
+	
+	// ENCLAVE SOLDIER ATTACK SPEED PROTECTION
+	else if (MaxCountOfPlayersInGame == 1
+		&& player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)
+		&& is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+		) {
+
+		// Block new attacks during animation (frames 1-15), allow auto-repeat on frame 16
+		if (player.CurAction == PCA_5_RANGE_ATTACK && player.currentAnimationFrame > 0 && player.currentAnimationFrame < 13) {
+			return 0;
+		}
+	}
+	// end of ES attack speed protection
+
+
+
 	if (Berserk) {
 		return 0;
 	}
@@ -3680,63 +4215,127 @@ int __fastcall IsoLand_CheckLButtonClick(int shiftPressed, int repeat)
 	if( (IsAltPressed || AltHighlight) && HighlightedItem.ItemID != -1 && !repeat ){ // Mouse over highlighted item
         NetSendCmdLocParam1( 1, IsINVPanelVisible ? CMD_41_GOTOGETITEM : CMD_42_GOTOAGETITEM, HighlightedItem.Row, HighlightedItem.Col, HighlightedItem.ItemID );
 		ShiftReleasedEvent = false; // try to fix not getting item after shift
-	}else if( !(Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_20_RAVENHOLM*/) ){ // Если город
+	}else if( !(Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_20_RAVENHOLM*/) ){ // (rt) If town
 		if( itemId != -1 && Cur.GraphicsID == CM_1_NORMAL_HAND && !repeat ){
-            NetSendCmdLocParam1( 1, IsINVPanelVisible ? CMD_41_GOTOGETITEM : CMD_42_GOTOAGETITEM, Cur.Row, Cur.Col, itemId ); // Поднятие вещи с пола города. Работает с шифтом тоже
+            NetSendCmdLocParam1( 1, IsINVPanelVisible ? CMD_41_GOTOGETITEM : CMD_42_GOTOAGETITEM, Cur.Row, Cur.Col, itemId ); // (rt) Picking up an item from the town floor. Works with shift too
 			ShiftReleasedEvent = false; // try to fix not getting item after shift
 		}else if( CurMon != -1 && !repeat ){
-            NetSendCmdLocParam1( 1, CMD_29_TALKXY, Cur.Row, Cur.Col, CurMon ); // Клик на горожанина
+            NetSendCmdLocParam1( 1, CMD_29_TALKXY, Cur.Row, Cur.Col, CurMon ); // (rt) Click on a townsperson
 		}else{
-			return all( -1, itemId, CurMon, Cur.playerIndex ); // движение если пол
+			return all( -1, itemId, CurMon, Cur.playerIndex ); // (rt) movement if floor
 		}
-	}else if( itemId != -1 && Cur.GraphicsID == CM_1_NORMAL_HAND && !shiftPressed && !repeat){ // Клик на вещь лежащую на полу подземелья
+	}else if( itemId != -1 && Cur.GraphicsID == CM_1_NORMAL_HAND && !shiftPressed && !repeat){ // (rt) Click on an item lying on the dungeon floor
 		NetSendCmdLocParam1( 1, IsINVPanelVisible ? CMD_41_GOTOGETITEM : CMD_42_GOTOAGETITEM, Cur.Row, Cur.Col, itemId );
 		ShiftReleasedEvent = false; // try to fix not getting item after shift
 	}else if( Cur.ObjectIndex != -1 && ( ! shiftPressed || abs(player.Row - Cur.Row) < 2 && abs(player.Col - Cur.Col) < 2
-	 && Objects[Cur.ObjectIndex].destructable == 1) && !repeat ){// Если под курсором объект и он находится на рассоянии 1 клетки
-        NetSendCmdLocParam1( 1, Cur.GraphicsID == CM_5_TRAP_DISARM ? CMD_17_DISARMXY : CMD_16_OPOBJXY, Cur.Row, Cur.Col, Cur.ObjectIndex );// активация объекта
+	 && Objects[Cur.ObjectIndex].destructable == 1) && !repeat ){// (rt) If there is an object under the cursor and it is 1 cell away
+        NetSendCmdLocParam1( 1, Cur.GraphicsID == CM_5_TRAP_DISARM ? CMD_17_DISARMXY : CMD_16_OPOBJXY, Cur.Row, Cur.Col, Cur.ObjectIndex );// (rt) activate the object
 		//ShiftPressedEvent = false;
 		//ShiftReleasedEvent = false;
-	}else if( !(player.IsBowInHand || player.IsFlaskInHand) ){ // не лук (мили оружие / без оружия)
-		if( shiftPressed ){ // мили с шифтом
+	}else if( !(player.IsBowInHand || player.IsFlaskInHand) ){ // (rt) not a bow (melee weapon / unarmed)
+		if( shiftPressed ){ // (rt) melee with shift
 			if( CurMon == -1 || !MonsterTalking(CurMon) ){
-                NetSendCmdLoc( PRIORITY_LOW, CMD_55_SATTACKXY, Cur.Row, Cur.Col );// C шифтом атака нелучником в пустоту
-				return 0; // и стоим на месте
+                NetSendCmdLoc( PRIORITY_LOW, CMD_55_SATTACKXY, Cur.Row, Cur.Col );// (rt) With shift, a non-archer attacks into empty space
+				return 0; // (rt) and stands still
 			}
-		}else{ // мили клик без шифта
-			if( CurMon == -1 ){ // нет монстра под курсором
+		}else{ // (rt) melee click without shift
+			if( CurMon == -1 ){ // (rt) no monster under the cursor
 				if( Cur.playerIndex != -1 && !PlayerFriendly() ){
-					NetSendCmdParam1( 0, CMD_19_ATTACKPID, Cur.playerIndex );// мили атака другого игрока
+					NetSendCmdParam1( 0, CMD_19_ATTACKPID, Cur.playerIndex );// (rt) melee attack on another player
 				}else{
-					return all( -1, itemId, Cur.ObjectIndex, CurMon, Cur.playerIndex ); // движение если пол
+					return all( -1, itemId, Cur.ObjectIndex, CurMon, Cur.playerIndex ); // (rt) movement if floor
 				}
 			}
 		}
 		if( Cur.GraphicsID != CM_7_TELEKINESIS ){
-			if( CurMon >= SummonMonsters_Count ){
-				NetSendCmdParam1( 0, CMD_18_ATTACKID, CurMon );// Без шифта атака монстра (не голем/суммон)
+			if( !IsPlayerSideMonster( CurMon ) ){	// (th4) summons and the DC escort are not targets
+				NetSendCmdParam1( 0, CMD_18_ATTACKID, CurMon );// (rt) Without shift, attack a monster (not a golem/summon)
 			}else{
-				return true; // подходим к своим мобам/голему
+				// (th4) DC mission 13: clicking Lazarus once the lair is clear works like clicking a
+				// towner -- the player walks over (that is what the return below already does)
+				// and the talk fires from QuestsActions once he is adjacent. Only arm it while
+				// the mission is still open, so he cannot be milked after the way home appears.
+				// (th4) DC mission 13: clicking Lazarus works like clicking a towner -- the player
+				// walks over (the return below already does that) and QuestsActions plays the
+				// thanks once he is adjacent. Arming does NOT test that the lair is clear: the
+				// firing side does, so a click made while heroes are still up is simply
+				// remembered rather than thrown away.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+				 && !DarkCampaignLazarusThanked && CurMon == DarkCampaignLazarusIndex() ){
+					DarkCampaignLazarusTalkWanted = true;
+				}
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO
+				 && !DarkCampaignHephastoThanked && CurMon == DarkCampaignHephastoIndex()
+				 && DarkCampaignHephastoAtForge() ){
+					DarkCampaignHephastoTalkWanted = true;
+				}
+				// (th4) DC mission 26: clicking the Dark Lord in the ruins arms his last
+				// words; they fire from Quests.cpp once the player has reached him.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_44_RAVENHOLM
+				 && CurMon == DarkCampaignEndLordIndex() ){
+					DarkCampaignEndTalkWanted = true;
+				}
+				// (th4) DC mission 25: clicking the caged Butcher arms his line and walks the
+				// player to DC_BUTCHER_TALK_ROW/COL, the tile in front of the cell. Walking
+				// at the monster itself would put him inside the cell; the line fires from
+				// Quests.cpp once he is standing on that tile.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_111_CHURCH_SACRISTY
+				 && !DarkCampaignButcherIsFreed() && CurMon == DarkCampaignButcherIndex() ){
+					DarkCampaignButcherTalkWanted = true;
+					NetSendCmdLoc( PRIORITY_LOW, CMD_1_WALKXY, DC_BUTCHER_TALK_ROW, DC_BUTCHER_TALK_COL );
+					return true;
+				}
+				return true; // (rt) walk up to one's own minions/golem
 			}
 		}
-	}else{ // лук или фласки
+	}else{ // (rt) bow or flasks
 		if( shiftPressed ){
-            NetSendCmdLoc( PRIORITY_LOW, CMD_13_RATTACKXY, Cur.Row, Cur.Col ); // Стрельба луком с шифтом
-		}else{ // с луком без шифта
-			if( CurMon == -1 ){ // Что то связанное с монстрами и скорее всего луком, ибо атаки не луком уже были
+            NetSendCmdLoc( PRIORITY_LOW, CMD_13_RATTACKXY, Cur.Row, Cur.Col ); // (rt) Shooting a bow with shift
+		}else{ // (rt) with a bow, without shift
+			if( CurMon == -1 ){ // (rt) Something to do with monsters and most likely the bow, since non-bow attacks were handled already
 				if( Cur.playerIndex != -1 && !PlayerFriendly() ){
-					NetSendCmdParam1( 0, CMD_21_RATTACKPID, Cur.playerIndex );// Атака луком игрока
+					NetSendCmdParam1( 0, CMD_21_RATTACKPID, Cur.playerIndex );// (rt) Bow attack on a player
 				}else{
-					return all( -1, itemId, Cur.ObjectIndex, CurMon, Cur.playerIndex ); // движение если пол
+					return all( -1, itemId, Cur.ObjectIndex, CurMon, Cur.playerIndex ); // (rt) movement if floor
 				}
-			}else if( CurMon >= SummonMonsters_Count ){
-				NetSendCmdParam1( 0, MonsterTalking( CurMon ) ? CMD_18_ATTACKID : CMD_20_RATTACKID, CurMon ); // Атака луком монстра (не голем), говорящих монстров бьем ногой с луком
+			}else if( !IsPlayerSideMonster( CurMon ) ){	// (th4) summons and the DC escort are not targets
+				NetSendCmdParam1( 0, MonsterTalking( CurMon ) ? CMD_18_ATTACKID : CMD_20_RATTACKID, CurMon ); // (rt) Bow attack on a monster (not a golem); talking monsters are kicked when holding a bow
 			}else{
-				return true; // подходим к своим мобам/голему
+				// (th4) DC mission 13: clicking Lazarus works like clicking a towner -- the player
+				// walks over (the return below already does that) and QuestsActions plays the
+				// thanks once he is adjacent. Arming does NOT test that the lair is clear: the
+				// firing side does, so a click made while heroes are still up is simply
+				// remembered rather than thrown away.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+				 && !DarkCampaignLazarusThanked && CurMon == DarkCampaignLazarusIndex() ){
+					DarkCampaignLazarusTalkWanted = true;
+				}
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO
+				 && !DarkCampaignHephastoThanked && CurMon == DarkCampaignHephastoIndex()
+				 && DarkCampaignHephastoAtForge() ){
+					DarkCampaignHephastoTalkWanted = true;
+				}
+				// (th4) DC mission 26: clicking the Dark Lord in the ruins arms his last
+				// words; they fire from Quests.cpp once the player has reached him.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_44_RAVENHOLM
+				 && CurMon == DarkCampaignEndLordIndex() ){
+					DarkCampaignEndTalkWanted = true;
+				}
+				// (th4) DC mission 25: clicking the caged Butcher arms his line and walks the
+				// player to DC_BUTCHER_TALK_ROW/COL, the tile in front of the cell. Walking
+				// at the monster itself would put him inside the cell; the line fires from
+				// Quests.cpp once he is standing on that tile.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_111_CHURCH_SACRISTY
+				 && !DarkCampaignButcherIsFreed() && CurMon == DarkCampaignButcherIndex() ){
+					DarkCampaignButcherTalkWanted = true;
+					NetSendCmdLoc( PRIORITY_LOW, CMD_1_WALKXY, DC_BUTCHER_TALK_ROW, DC_BUTCHER_TALK_COL );
+					return true;
+				}
+				return true; // (rt) walk up to one's own minions/golem
 			}
 		}
 	}
-	return 0; // сюда по идее можно поставить return all, а все остальные return вообще убрать из функции
+	return 0; // (rt) in theory you could put return all here and remove all the other returns from the function
 }
 
 //----- (0040A0D9) -------------------------------------------------------- game
@@ -3745,15 +4344,15 @@ bool CursorSkillApply() // TryIconCurs
 	bool applied = true;
 	switch (Cur.GraphicsID ){
 		case CM_8_RISING:
-			//if(ObjectUnderCursor.playerIndex != -1){ // этой проверки нет в th1
+			//(rt) if(ObjectUnderCursor.playerIndex != -1){ // th1 has no such check
             NetSendCmdParam1(1, CMD_26_RESURRECT, Cur.playerIndex);
-			//MinusManaOrChargeOrRelicByPriceOfSSpell(CurrentPlayerIndex, 0); // этого вызова нет в th1
+			//(rt) MinusManaOrChargeOrRelicByPriceOfSSpell(CurrentPlayerIndex, 0); // th1 has no such call
 			//}
 			break;
 		case CM_10_HEAL_OTHER:
-			//if(ObjectUnderCursor.playerIndex != -1){ // это проверки нет в th1
+			//(rt) if(ObjectUnderCursor.playerIndex != -1){ // th1 has no such check
             NetSendCmdParam1(1, CMD_85_HEALOTHER, Cur.playerIndex);
-			//MinusManaOrChargeOrRelicByPriceOfSSpell(CurrentPlayerIndex, PS_34_HEAL_OTHER); // этого вызова нет в th1
+			//(rt) MinusManaOrChargeOrRelicByPriceOfSSpell(CurrentPlayerIndex, PS_34_HEAL_OTHER); // th1 has no such call
 			//}
 			break;
 		case CM_7_TELEKINESIS:
@@ -3849,24 +4448,25 @@ bool CursorSkillApply() // TryIconCurs
 	return applied;
 }
 
-
-bool CursorOnManaGlobe() {
-	int centerX = ScreenWidth / 2 + 182;
-	int centerY = ScreenHeight - 100;
-	return (abs(centerX - CursorX)*abs(centerX - CursorX) + abs(centerY - CursorY)*abs(centerY - CursorY)) < 1600;
-}
-
-bool CursorOnHealthGlobe() {
-	int centerX = ScreenWidth / 2 - 182;
-	int centerY = ScreenHeight - 100;
-	return (abs(centerX - CursorX)*abs(centerX - CursorX) + abs(centerY - CursorY)*abs(centerY - CursorY)) < 1600;
-}
+// (th4) Orb-click toggle of the life / mana numbers -- switched off (see OnMouseLButtonUp), kept for reference.
+//bool CursorOnManaGlobe() {
+//	int centerX = ScreenWidth / 2 + 182;
+//	int centerY = ScreenHeight - 100;
+//	return (abs(centerX - CursorX)*abs(centerX - CursorX) + abs(centerY - CursorY)*abs(centerY - CursorY)) < 1600;
+//}
+//
+//bool CursorOnHealthGlobe() {
+//	int centerX = ScreenWidth / 2 - 182;
+//	int centerY = ScreenHeight - 100;
+//	return (abs(centerX - CursorX)*abs(centerX - CursorX) + abs(centerY - CursorY)*abs(centerY - CursorY)) < 1600;
+//}
 
 //----- (0040A2C9) -------------------------------------------------------- interface
 void OnMouseLButtonUp()
 {
 	perkUpArrowPressed = false;
 	perkDownArrowPressed = false;
+	questUpArrowPressed = questDownArrowPressed = false;	// (th4) quest log scroll arrows
 	Menu_CheckMouseClick(MOUSE_BUTTON_UP);
 	TalkPanel_LButtonUp();
 	if( MainPanelButtonFlag ){
@@ -3898,6 +4498,9 @@ void OnMouseLButtonUp()
 	if (IsEnchantPanelVisible) {
 		Enchant_MouseClick();
 	}
+	if (IsPowerupPanelVisible) {
+		Powerup_MouseClick();
+	}
 	if (IsQuenchPanelVisible) {
 		Quench_MouseClick();
 	}
@@ -3907,29 +4510,32 @@ void OnMouseLButtonUp()
 	if (IsInfoWindowVisible) {
 		InfoWindow_MouseUp();
 	}
-	if (CursorOnHealthGlobe()) {
-		ShowNumbersOnHealth = !ShowNumbersOnHealth;
-		PlayGlobalSound(75);
-	}
-	else if (CursorOnManaGlobe()) {
-		ShowNumbersOnMana = !ShowNumbersOnMana;
-		PlayGlobalSound(75);
-	}
+	// (th4) Clicking the life / mana orb no longer toggles their numbers: that was easy to hit by accident
+	// and the numbers seemed to vanish for no reason. They follow only the config options
+	// showNumbersOnHealth / showNumbersOnMana (also in the in-game options menu, menu.cpp).
+	//if (CursorOnHealthGlobe()) {
+	//	ShowNumbersOnHealth = !ShowNumbersOnHealth;
+	//	PlayGlobalSound(75);
+	//}
+	//else if (CursorOnManaGlobe()) {
+	//	ShowNumbersOnMana = !ShowNumbersOnMana;
+	//	PlayGlobalSound(75);
+	//}
 
 }
 
 //----- (th2) -------------------------------------------------------------
 bool __fastcall SpellCasting()
 {
-	// Если курсор изменил изображение -- не кастуем
-	if (Cur.GraphicsID != CM_1_NORMAL_HAND) // Любой нестандарный вид курсора (вещь, телекинез, речардж и т.п)
+	// (rt) If the cursor changed its picture -- don't cast
+	if (Cur.GraphicsID != CM_1_NORMAL_HAND) // (rt) Any non-standard cursor (item, telekinesis, recharge, etc.)
 		return false;
 
 	Player& player = Players[CurrentPlayerIndex];
 	PlayerClass& playerClass = PlayerClasses[player.ClassID];
 	int currentSpellNumber = player.CurrentSpellIndex;
 
-	// Заклинания кастуемые без указания положения курсора
+	// (rt) Spells cast without specifying the cursor position
 	switch (currentSpellNumber) {
 		// personal
 	case PS_2_HEALING:
@@ -3949,35 +4555,36 @@ bool __fastcall SpellCasting()
 	case PS_28_TRAP_DISARM:
 		break;
 	default:
-		// При прочих заклинаниях не кастуем если:
-		if (CursorInMainPanel() // Курсор над основной панелью
-			|| (IsCHARPanelVisible && CursorIntoDisplayObject(CharPanelRect)) // Курсор над панелью с характеристиками
-			|| (IsINVPanelVisible && CursorIntoDisplayObject(InventoryPanelRect)) // Курсор над инвентарём
-			|| (IsPerksPanelVisible && CursorIntoDisplayObject(PerksPanelPos)) // Курсор над панелью перков
-			|| (IsQUESTPanelVisible && CursorIntoDisplayObject(QuestPanelRect)) // Курсор над панелью квестов
-			|| (IsSpellBookVisible && CursorIntoDisplayObject(SpellBookRect)) // Курсор над панелью заклинаний
-			|| (IsInfoWindowVisible && CursorIntoDisplayObject(InfoWindowRect)) // Курсор над окном game changers
+		// (rt) For other spells, don't cast if:
+		if (CursorInMainPanel() // (rt) The cursor is over the main panel
+			|| (IsCHARPanelVisible && CursorIntoDisplayObject(CharPanelRect)) // (rt) The cursor is over the character panel
+			|| (IsINVPanelVisible && CursorIntoDisplayObject(InventoryPanelRect)) // (rt) The cursor is over the inventory
+			|| (IsPerksPanelVisible && CursorIntoDisplayObject(PerksPanelPos)) // (rt) The cursor is over the perks panel
+			|| (IsQUESTPanelVisible && CursorIntoDisplayObject(QuestPanelRect)) // (rt) The cursor is over the quests panel
+			|| (IsSpellBookVisible && CursorIntoDisplayObject(SpellBookRect)) // (rt) The cursor is over the spells panel
+			|| (IsInfoWindowVisible  && CursorIntoDisplayObject(InfoWindowRect))  // Cursor over game changers window
+			|| (IsChatHistoryVisible && CursorIntoDisplayObject(ChatHistoryRect)) // Cursor over chat history overlay
 			)
 		{
 			return false;
 		}
 	}
 
-	// Звуки издаваемые героями при попытке скастовать заклинание
+	// (rt) Sounds made by heroes when trying to cast a spell
 	int voiceIndex;
 
-	if (currentSpellNumber == -1) { // Если не установлено заклинание
+	if (currentSpellNumber == -1) { // (rt) If no spell is set
 		voiceIndex = playerClass.Voice[PLAYER_VOICE_NO_SPELL_CHANGED];
 		PlayGlobalSound(voiceIndex);
 		return false;
 	}
-	if (!IsSpellEnabledHere(currentSpellNumber, CurrentPlayerIndex)) { // Если заклинание недоступно
+	if (!IsSpellEnabledHere(currentSpellNumber, CurrentPlayerIndex)) { // (rt) If the spell is unavailable
 		voiceIndex = playerClass.Voice[PLAYER_VOICE_SPELL_DISABLE_IN_TOWN];
 		PlayGlobalSound(voiceIndex);
 		return false;
 	}
 
-	if (CooldownCheck(CurrentPlayerIndex, currentSpellNumber)) { // Если отсчитывает счётчик кулдауна
+	if (CooldownCheck(CurrentPlayerIndex, currentSpellNumber)) { // (rt) If the cooldown counter is running
 		switch (player.ClassID) {
 			case PC_5_SAVAGE:
 			case PC_0_WARRIOR: voiceIndex = S_766_WAR_37; break;
@@ -3991,7 +4598,7 @@ bool __fastcall SpellCasting()
 		return false;
 	}
 
-	// Проверяем условия наличия ресурсов для каста
+	// (rt) Check that there are resources for casting
 	int spellType = player.SpellType;
 	bool checkCastRequirementPassed = false;
 	switch (spellType) {
@@ -4009,14 +4616,14 @@ bool __fastcall SpellCasting()
 		break;
 	}
 
-	// Если ресурсов недостаточно, проигрываем звук
+	// (rt) If resources are insufficient, play a sound
 	if (!(DevelopMode && FreeSpell) && !checkCastRequirementPassed) {
 		voiceIndex = playerClass.Voice[PLAYER_VOICE_WITH_SPELL_TYPE];
 		PlayGlobalSound(voiceIndex);
 		return false;
 	}
 
-	// Условия ниже полностью перенесены из "int __fastcall Mouse_RButtonDown( int repeat );"
+	// (rt) The conditions below are moved over entirely from "int __fastcall Mouse_RButtonDown( int repeat );"
 
 	//if the distance is more than 10 cells, move 10 cells in the direction of the click
 	if (!(DevelopMode && FreeSpell) //bypass 10 range limit if cheats are on
@@ -4102,14 +4709,23 @@ int __fastcall Mouse_RButtonDown( int repeat )
 	}
 	int currentSpellNumber = player.CurrentSpellIndex;
 	
-	if( IsGameMenuActive() || NetCursorItemId || GamePaused == 2 || Players[CurrentPlayerIndex].notHittableInTransition ){// Какое-то странное условие
+	if( IsGameMenuActive() || NetCursorItemId || GamePaused == 2 || Players[CurrentPlayerIndex].notHittableInTransition ){// (rt) Unclear condition
 		return 0;
 	}
 	if( IsPopupScreenOpen ){
 		if( !repeat ) ClosePopupScreen();
 		return 0;
 	}
-	if( CurrentDialogIndex || IsPerksPanelVisible || IsInfoWindowVisible){
+	if( CurrentDialogIndex || IsPerksPanelVisible || IsInfoWindowVisible
+		|| (IsChatHistoryVisible && CursorIntoDisplayObject(ChatHistoryRect))
+	){
+		// by (th4): the belt (bottom hotbar) sits outside these panels, so still allow using a
+		// belt item (e.g. quaffing a healing potion) by right-clicking it while a panel is open.
+		if( !repeat && !CurrentDialogIndex
+		 && Cur.InventoryCellID >= IS_50_47_Belt_Start
+		 && Cur.InventoryCellID <  IS_50_47_Belt_Start + IS_8_Belt_Count ){
+			RightClickOnItem(CurrentPlayerIndex, Cur.InventoryCellID, true);
+		}
 		return 0;
 	}
 	if( SelectCurSpellMode != 0 && !repeat ){
@@ -4118,25 +4734,55 @@ int __fastcall Mouse_RButtonDown( int repeat )
 	}
 	if( repeat && (Cur.InventoryCellID != -1 && !EnteredPanelWithAutoClick || currentSpellNumber == -1) ) return 0;
 	
-	if( !repeat && IsInterface && !( (!IsSpellBookVisible || !CursorIntoDisplayObject(SpellBookRect)) // Исправление глюка с поясом 5-8
-	 && ( CursorInMainPanel() || ! CursorSkillApply() /*Что то связанное с нет командами*/
-	 && ( Cur.InventoryCellID == -1 /*Если нет вещи под курсором вроде бы это в следующем сабе проверяется*/ 
+	if( !repeat && IsInterface && !( (!IsSpellBookVisible || !CursorIntoDisplayObject(SpellBookRect)) // (rt) Fix for the belt 5-8 glitch
+	 && ( CursorInMainPanel() || ! CursorSkillApply() /*(rt) Something to do with net commands*/
+	 && ( Cur.InventoryCellID == -1 /*(rt) If there is no item under the cursor; this seems to be checked in the next sub*/ 
 	 || !RightClickOnItem(CurrentPlayerIndex, Cur.InventoryCellID, true) ) ) ) ){ // may be duplicate call (of below) and needs to remove, or a decompile error
 		return 0;
 	}
 	if( Cur.GraphicsID != CM_1_NORMAL_HAND && !repeat ){
 		return 0;
 	}
-	// тут не срабатывали реликты, так как срабатывал repeat
+	// RIGHT-CLICK ON A BELT/INVENTORY ITEM -- READ THIS BEFORE CHANGING THE GUARDS HERE.
+	//
+	// Original note (translated from Russian): "relics did not fire here, because repeat
+	// fired [instead]". That is why the line below tests !repeat: without it the auto-
+	// repeat re-entered this function and consumed the click before the item path could
+	// run, so a relic never went off. Keep that guard.
+	//
+	// (th4) What that guard did NOT cover, and what sItemUsedThisPress above now does:
+	// using a belt item empties its slot, so Cur.InventoryCellID becomes -1. The repeat
+	// then arrives with no item under the cursor, !repeat skips this block, and control
+	// runs on to SpellCasting() at the end of the function -- casting whatever spell is
+	// SELECTED. It was reported as "right-clicking a relic casts Identify instead of the
+	// relic", but it is not Identify-specific and not relic-specific: a frame trace showed
+	// the relic firing correctly on the press and the selected spell firing on the repeat,
+	// whichever spell that was. Potions do the same when the last one in a slot is used.
+	//
+	// So there are TWO separate things to keep working here, and they pull in opposite
+	// directions:
+	//   press  (repeat == 0) -> must reach RightClickOnItem so the item is used
+	//   repeat (repeat == 1) -> must NOT re-use the item, and must NOT cast a spell
+	//                           either, if the press already used something
+	// Holding the button on open ground still repeat-casts as before: the flag is only
+	// set when an item was actually consumed.
+	static bool sItemUsedThisPress = false;   // see the note above
+	if( !repeat ) sItemUsedThisPress = false;   // a fresh press starts clean
+	if( repeat && sItemUsedThisPress ) return 0;
 	if( !repeat && Cur.InventoryCellID != -1 ){
-		// Использование реликтов похоже
-		if( RightClickOnItem(CurrentPlayerIndex, Cur.InventoryCellID, true) ) return 0;
+		// Relic use goes through here too -- RightClickOnItem dispatches to
+		// UsePotionOrScroll, which handles MC_21/MC_22 relics alongside potions,
+		// scrolls, runes and books (Item.cpp, UsePotionOrScroll).
+		if( RightClickOnItem(CurrentPlayerIndex, Cur.InventoryCellID, true) ){
+			sItemUsedThisPress = true;
+			return 0;
+		}
 	}
 	if( (unsigned int)CurrentPlayerIndex >= 4 ){
 		TerminateWithError("CheckPlrSpell: illegal player %d", CurrentPlayerIndex);
 	}
 		//Unexpect3D:
-		//По видимому там срабатывает "репит", при зажимании правой кнопки мыши.
+		//(rt) Apparently the "repeat" fires there when the right mouse button is held.
 		/* the fix */
 	if (repeat && IsINVPanelVisible && CursorIntoDisplayObject(InventoryPanelRect)) {
 		return 0;
@@ -4323,10 +4969,10 @@ void __fastcall KeyPressHandler(WPARAM key)
 		}
 		// New Spell Shortcuts System
 		if (NewShortcuts) {
-			// Список заклинаний с информацией по-умолчанию для новой системы шоткатов
-			// 26 букв английского алфавита, 12 функциональных клавиш и CTRL (левый и правый).
-			// До восьми заклинаний на каждой клавише
-			// ToDo: можно переместить в "dataseg.cpp"
+			// (rt) List of spells with default info for the new hotkey system
+			// (rt) 26 letters of the English alphabet, 12 function keys and CTRL (left and right).
+			// (rt) Up to eight spells per key
+			// (rt) ToDo: could be moved to "dataseg.cpp"
 			static constexpr int shortcuts_amount = 40; // static inline const [C++03]
 			static constexpr int shortcut_capacity = 8; // static inline const [C++03]
 			static volatile int GlobalCustomKeys[shortcuts_amount][shortcut_capacity] = {
@@ -4372,10 +5018,10 @@ void __fastcall KeyPressHandler(WPARAM key)
 				/*RCTRL*/{PS_26_ITEM_REPAIR,PS_27_STAFF_RECHARGE,PS_5_IDENTIFY,PS_28_TRAP_DISARM,PS_9_INFRAVISION,0,0,0}
 			};
 
-			static bool CustomKeysFileLoaded = false; // "CustomKeysLoad" будем вызывать только единожды
+			static bool CustomKeysFileLoaded = false; // (rt) "CustomKeysLoad" will be called only once
 
-			// Загрузка файла "config.ini" (ранее "CustomKeys.txt") с глобальными клавишами заклинаний
-			// ToDo: можно переместить в "IniFile.cpp" / "Config.cpp"
+			// (rt) Loading "config.ini" (formerly "CustomKeys.txt") with the global spell keys
+			// (rt) ToDo: could be moved to "IniFile.cpp" / "Config.cpp"
 			auto CustomKeysLoad = [](char* txtFileName) {
 				int ch = -1;
 				int spell = 0;
@@ -4471,24 +5117,24 @@ void __fastcall KeyPressHandler(WPARAM key)
 						// else if (!_stricmp(data, "BERSERK"))		spell = PS_44_BERSERK;
 						else continue;
 
-						// назначаем в слот к шоткату переопределённое заклинание
+						// (rt) assign the overridden spell to the hotkey's slot
 						user_keys[ch][cnt[ch]] = spell; 
 
 						if (cnt[ch] < (shortcut_capacity - 1))
-							cnt[ch] += 1; // переходим к следующему свободному слоту (до крайнего)
+							cnt[ch] += 1; // (rt) move to the next free slot (up to the last one)
 					}
 					fclose(file);
 
 					//extern volatile int GlobalCustomKeys[shortcuts_amount][shortcut_capacity];
 
-					// проверяем были ли переопределены клавиши в "config.ini"
+					// (rt) check whether keys were overridden in "config.ini"
 					ch = 0;
 					for (int i = 0; i < shortcuts_amount; ++i)
 						if (cnt[i] > 0) {
 							ch = 1;
 							break;
 					}
-					// если клавиши переопределены, то заменяем ими определения по-умолчанию
+					// (rt) if keys were overridden, replace the defaults with them
 					if(ch)
 						for (int i = 0, j; i < shortcuts_amount; ++i)
 							for (j = 0; j < shortcut_capacity; ++j)
@@ -4498,8 +5144,8 @@ void __fastcall KeyPressHandler(WPARAM key)
 
 			auto ApplyHotkey = [&CustomKeysLoad, &player](int key) {
 				
-				// Вызов загрузки файла с горячими клавишами (грузим один раз)
-				// ToDo: хорошо бы переместить в "Config.cpp"
+				// (rt) Call the hotkey file loading (loaded once)
+				// (rt) ToDo: would be good to move to "Config.cpp"
 				if (!CustomKeysFileLoaded) {
 					CustomKeysLoad("config.ini");
 					CustomKeysFileLoaded = true;
@@ -4549,16 +5195,16 @@ void __fastcall KeyPressHandler(WPARAM key)
 							return 1;
 						}
 					}
-				//if (!SkipUnusableSpells) { // выставляем иконку "отсутствия заклинания"
+				//(rt) if (!SkipUnusableSpells) { // set the "no spell" icon
 				//	player.CurrentSpellNumber = PS_M1_NONE;
 				//	player.SpellType = SO_4_DISABLE;
 				//}
 				return 0;
 			};
 
-			// Отлавливаем клавиши [A]-[Z], [F1]-[F8], [CTRL]
+			// (rt) Catch the keys [A]-[Z], [F1]-[F8], [CTRL]
 			if (key >= VK_65_A_KEY && key <= VK_90_Z_KEY) {
-				switch (key) { // клавиши-исключения
+				switch (key) { // (rt) exception keys
 				case VK_67_C_KEY: // Character panel
 				case VK_86_V_KEY: // Swap weapon
 				case VK_73_I_KEY: // Inventory
@@ -4646,6 +5292,8 @@ void __fastcall KeyPressHandler(WPARAM key)
 				PerkPanel_Shift(-1);
 			}else if (IsInfoWindowVisible) {
 				InfoWindow_Prev();
+			}else if( IsChatHistoryVisible ){
+				ChatHistory_ScrollUp();
 			}else if( IsHELPVisible ){
 				ShiftHelpUp();
 			}else if( AutomapMode ){
@@ -4666,6 +5314,8 @@ void __fastcall KeyPressHandler(WPARAM key)
 				PerkPanel_Shift(1);
 			}else if (IsInfoWindowVisible) {
 				InfoWindow_Next();
+			}else if( IsChatHistoryVisible ){
+				ChatHistory_ScrollDown();
 			}else if( IsHELPVisible ){
 				ShiftHelpDown();
 			}else if( AutomapMode ){
@@ -4740,10 +5390,12 @@ void __fastcall KeyPressHandler(WPARAM key)
 			VisualTrade_Close();
 			Craft_Close();
 			Enchant_Close();
+			Powerups_Close();
 			Quench_Close();
 			Transmute_Close();
 			IsPerksPanelVisible = false;
 			IsInfoWindowVisible = false;
+			IsChatHistoryVisible = false;
 			IsCHARPanelVisible = false;
 			IsSpellBookVisible = false;
 			SelectCurSpellMode = false;
@@ -4799,17 +5451,27 @@ void __fastcall KeyPressHandler(WPARAM key)
 			case VK_55_7_KEY or VK_NUMPAD7: beltItemNumberToUse = 7; break; // shift + 7
 			case VK_56_8_KEY or VK_NUMPAD8: beltItemNumberToUse = 8; break; // shift + 8
 			case VK_192_TILDA: // th1 doesn't have status string functional (?)
-				char buf[100]; // for status string (~)
-				GameMode == GM_COLISEUM ? sprintf(buf, "%s, mode = %s", THE_HELL_VERSION_HUMAN_STRING, getGameModeName(player.gameMode)) :
-				sprintf(buf, "%s, difficulty = %s, mode = %s", THE_HELL_VERSION_HUMAN_STRING, DifName(), getGameModeName(player.gameMode)); // TheHellVersion
+				// §10 fix: buf was char[100]; use MaxChatString_128 and snprintf to
+				// prevent latent overflow if version or mode strings grow.
+				char buf[MaxChatString_128];
+				// (th4) This line is INTENTIONALLY NEVER TRANSLATED -- it is a diagnostic
+				// string. It also must not be: it is drawn with the in-game CEL font, and the
+				// RU menu-overlay values that getGameModeName()/DifName() return are encoded
+				// for the title-screen DiabloFont (CP1251 - 0x40), which that font maps to a
+				// blank glyph -- the mode and difficulty names showed as nothing. The *English
+				// accessors return the raw table entries. Do not swap these for L()/LMenu().
+				if( GameMode == GM_COLISEUM )
+					snprintf(buf, sizeof(buf), "%s, mode = %s", THE_HELL_VERSION_HUMAN_STRING, getGameModeNameEnglish(player.gameMode));
+				else
+					snprintf(buf, sizeof(buf), "%s, difficulty = %s, mode = %s", THE_HELL_VERSION_HUMAN_STRING, DifNameEnglish(), getGameModeNameEnglish(player.gameMode));
 				NetSendString(1 << CurrentPlayerIndex, buf);
 				break;
 			}
 		if( beltItemNumberToUse != 0 ){
 			int beltItemIndexToUse = beltItemNumberToUse - 1;
 			if( not( player.BeltInventory[beltItemIndexToUse].ItemCode, IC_M1_NONE, IC_11_GOLD) ){
-				// если курсор с предметом или спец.указателем,
-				// то с пояса по кнопкам используем только предметы без таргета
+				// (rt) if the cursor holds an item or a special pointer,
+				// (rt) then only items without a target are used from the belt via keys
 				if (Cur.GraphicsID != CM_1_NORMAL_HAND
 					&& not(player.BeltInventory[beltItemIndexToUse].MagicCode,
 						MC_2_POTION_OF_FULL_HEALING,
@@ -4977,6 +5639,8 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 	Cur.InventoryCellID = -1; // fixing annoying bug that made helmet tooltip show under cursor after starting the game
 	PlayerLastDrawnHealth = -1; // fixing bug that shows hp and manaloss floats after playing with different character
 	PlayerLastDrawnMana = -1; // same
+	void ResetFloatingHealthManaAccumulators(); ResetFloatingHealthManaAccumulators();
+	IsChatHistoryVisible = false; // Auto-close overlay on map change (history is preserved)
 	if( SomeLevelRandSeed ){
 		DungeonRandSeed[(DUNGEON)Dungeon] = SomeLevelRandSeed;
 	}
@@ -4984,14 +5648,15 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 	SetCursorGraphics(CM_1_NORMAL_HAND);
 	SetRndSeed(DungeonRandSeed[(DUNGEON)Dungeon]);
 	ProgressUpdate();
-	MakeLightTable(); // здесь задаются палитры разной яркости, из которых потом создаются тайлы разной яркости
+	MakeLightTable(); // (rt) palettes of different brightness are set up here, from which tiles of different brightness are then created
 	LoadLvlGFX();
 	ProgressUpdate();
 	if( startNewGame ){
 		LoadPanelsGraphic();
 		LoadFlipItemCELFiles();
 		LoadSpeechPanelData();
-		for( int i = 0; i < MaxCountOfPlayersInGame; i++ ){ // TODO: Выполнение IsSinglePlayerMode раз - ошибка?
+		AnimSizeCounted = 0; // reset so SelectPlrAnimation re-scans with correct GC flags for this session
+		for( int i = 0; i < MaxCountOfPlayersInGame; i++ ){ // (rt) TODO: Running IsSinglePlayerMode once - a mistake?
 			InitPlrGFXMem(i);
 		}
 		InitInterface();
@@ -4999,7 +5664,10 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 		ResetHelp();
 	}
 	SetRndSeed(DungeonRandSeed[(DUNGEON)Dungeon]);
-	if( Dungeon == DUN_0_TOWN /*|| Dungeon == DUN_35_PASSAGE_OF_FIRE*/ ){
+	// (th4) DARK CAMPAIGN HUB: the hub vendors sell TOWN stock, but that stock is only ever
+	// generated on entering town -- and a Dark Campaign never visits town, so every shop
+	// array stayed empty and the vendors had nothing to offer. Stock the hub the same way.
+	if( Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT /*|| Dungeon == DUN_35_PASSAGE_OF_FIRE*/ ){
 		ShopItemsGenerationByPlayerLevel();
 	}
 	ProgressUpdate();
@@ -5007,10 +5675,54 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 	if( Dungeon != DUN_0_TOWN && lvlDir != LVL_4_NODIR ){
 		InitLighting();
 		InitVision();
+	}else if( Dungeon == DUN_0_TOWN && g_ARGBLighting ){
+		// (th4) Rev 2.49 Stage-4 item-4 fix: town has no dynamic lights of its own,
+		// but the per-level light list survives a dungeon->town transition (vanilla
+		// Hellfire skips InitLighting for town too). A stale colored light — the
+		// dungeon-side town portal light, which is never LightOff'd when the player
+		// travels through the portal (AddWarpMissile adds it only in dungeons and the
+		// town-side warp missile adds none) — keeps the Stage-3 idle gate
+		// g_LightTintActive ON in town AND across game sessions (a new game also
+		// starts in town, which would skip this reset again). The gate then runs the
+		// whole Stage-3 per-frame machinery (tint cache snapshot/restore, zoom
+		// upscale, ClearTintUnderUI, s3 upload) for nothing: town's LightMap is
+		// all-zero, so the V2 fill takes the zeroAmbient fast path and the tint
+		// field stays white either way — output is byte-identical, only the skipped
+		// work differs (~0.6 ms/frame in town with a portal left behind).
+		// Gated on g_ARGBLighting: non-ultra never observes a colored light and keeps
+		// its code path byte-for-byte unchanged. FullLighting is re-set to 1 by town
+		// generation inside CreateLevel, which runs AFTER this block.
+		InitLighting();
+	}
+	// (th4) A new game or a savegame load must not inherit summons from a previous session.
+	// The snapshot itself is taken in InitLevelChange(), where the summons actually die.
+	if( startNewGame || lvlDir == LVL_4_NODIR ){
+		ClearCarriedSummons();
+		ClearCarriedManaShield();
+		ClearCarriedReflect();
 	}
 	InitMonsterSlots();
 	ProgressUpdate();
 	ClearWarps();
+	// (th4) Rev 2.46 Option C: the colored static bake map is per-level state.
+	// Reset it on EVERY level entry (town/gen/load/quest). (th4) Rev 2.50: the
+	// colors are then rebuilt with the single first-`==`-match replay rule
+	// (RebuildStaticTintMap) right after the static baseline is final — fresh
+	// generation, save-game loads, per-level-file re-entry and quest maps all
+	// use the same rule, so a level looks identical freshly generated and
+	// after any save/load round trip. Without the reset a quest floor (or
+	// town) entered after a colored dungeon would sample the previous level's
+	// colors at the same coordinates.
+	if( g_ARGBLighting ){
+		// (th4) Step-1 P1 fix: fill with the CPU white sentinel TINT_WHITE
+		// (0x00FFFFFF, A byte 0), NOT 0xFF — a 0xFFFFFFFF word is misread by
+		// the V2 static pre-fill as "colored at full strength", poisoning the
+		// ambient mass and hard-switching dynamic tint colors per cell.
+		for( int r = 0; r < FineMap_112; r++ )
+			for( int c = 0; c < FineMap_112; c++ )
+				StaticTintMap[r][c] = TINT_WHITE;
+		g_StaticTintActive = false;
+	}
 	if( ! Dungeon->isQuest ){
 		LoadQuestPatterns();
 		CreateLevel(lvlDir);
@@ -5089,6 +5801,7 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 				DungeonSeedCheck2[(DUNGEON)Dungeon] = GetRndSeed(); // second dungeon generation check point for debug multi
 				// Init objects
 				InitObjects();
+				MoveMonstersOffBlockingObjects();	// (th4) nobody stands inside a door (Monster.cpp)
 				// Init items
 				InitItems();
 				if( Dungeon < DUN_17_ABYSS_1 || Dungeon > DUN_20_ABYSS_4 ){
@@ -5107,6 +5820,11 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 				}
 				ProgressUpdate();
 				SavePreLighting();
+				// (th4) Rev 2.50: colored static bake via the single replay
+				// rule once the static baseline is final (fresh == all load
+				// paths byte-identically).
+				RebuildStaticTintMap();
+				ProcessLightList(); // Apply player/boss dynamic lights on top of static baseline
 			}else{
 				// Init monsters so uniques are loaded
 				InitMonsters();
@@ -5118,6 +5836,9 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 				ProgressUpdate();
 				// Load where things were
 				LoadLevel();
+				// (th4) Rev 2.50: static colors for a level restored from its
+				// per-level file (SP re-entry) — same rule as generation.
+				RebuildStaticTintMap();
 				ProgressUpdate();
 			}
 			if( MaxCountOfPlayersInGame == 1 ){
@@ -5210,15 +5931,20 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 				// Init items
 				InitItems();
 				SavePreLighting();
+				RebuildStaticTintMap();
+				ProcessLightList(); // Apply player/boss dynamic lights on top of static baseline
 			}else{
 				// Load where things were
 				LoadLevel();
+				RebuildStaticTintMap();
 			}
 		}else{ // MP quest area. DeltaLoadLevel() makes sure monsters and items are sync'd for quest area.  However, because quest area and its base Dlvl share the same sgLevels[], now monsters killed in base Dlvl will drop items and decrease monster count in quest area, and vice versa.  Player may not be able to finish the quest cuz monster count cannot drop to 0 due to shared sgLevels[].  Must separate sgLevels[] for quest area and its base Dlvl!
 			if( startNewGame || lvlDir == LVL_4_NODIR || !Players[CurrentPlayerIndex].dungeonVisited[(DUNGEON)Dungeon] ){
 				InitItems();
 			}
-			SavePreLighting(); // No dark square around player in PWS
+			SavePreLighting(); // Save static baseline (wall lights only, no player/boss)
+			RebuildStaticTintMap();
+			ProcessLightList(); // Apply player/boss dynamic lights on top
 			DeltaLoadLevel(); // Ensures monster count and item drop sync
 			MPResyncQuests();
 		}
@@ -5229,6 +5955,17 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 		SetReturnDungeonPos(Dungeon); // reset return point from quest on load (and return?)
 	}
 	SyncPortals();
+	// (th4) Stage 3 load fix: SyncPortals just (re-)cast the warp missiles and
+	// their lights — the visited level's town portal on a stair re-entry, the
+	// red portal in Ravenholm — with the default WHITE tint. The per-tick
+	// ProcessMissiles assert that normally colors them runs only at the NEXT
+	// logic tick, so every frame drawn before it showed the pool untinted and
+	// g_LightTintActive still off ("portal flashes white for a split second,
+	// then colors on"). Apply the same rule once now, after the last tinted
+	// light of this load has been created, so the first drawn frame is already
+	// colored. Zero per-frame cost. (Save-game loads get their own call in
+	// LoadGame, where the restored missile list is final.)
+	ReassertAllMissileLightTints();
 
 	for( int playerIndex = 0; playerIndex < 4; playerIndex++ ){
 		Player& player = Players[playerIndex];
@@ -5269,11 +6006,16 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 	}
 
 	if( lvlDir == LVL_4_NODIR ) srand(NonGameplaySeed); // restore music on load game
-	PlayMusic();
+	// (th4) a level change crossfades, except in Classic (the old track is fading out, ClearPrevSessionData); coming from the
+	// meta menu (startNewGame: a new game, a save loaded from the main menu) starts at once (SoundBuffer.cpp MUSIC_FADE_MS).
+	// A save loaded IN GAME (lvlDir LVL_4_NODIR: only Saving.cpp loads that way) into a different level type -- church to
+	// caves, town to hell... -- also switches at once: the fading old track is cut (Mordor). Same level type: crossfade.
+	const bool loadedOtherBiome = lvlDir == LVL_4_NODIR && Music_GraphType() != Dungeon->graphType;
+	PlayMusic( 0, !startNewGame && !loadedOtherBiome );
 	PlayAmbient();
 
-	while( !ProgressUpdate() ); // Что будет выполняться в цикле? Нужно это проверить пошагово
-	// Скорее всего полоску которая ещё не дошла до конца, доведут до него.
+	while( !ProgressUpdate() ); // (rt) What will run in the loop? Need to check this step by step
+	// (rt) Most likely a bar that hasn't reached the end yet will be brought to it.
 
 	Quest& kingLeoricQuest = Quests[Q_12_THE_CURSE_OF_KING_LEORIC];
 	if( Dungeon->isQuest && Dungeon == DUN_25_KING_LEORICS_TOMB && kingLeoricQuest.status == QS_2_IN_PROGRESS ){
@@ -5289,7 +6031,18 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 			}
 		}
 	}
+	// (th4) DC m25: LoadLevel() drops him from a revisited hub. NOT on the savegame path --
+	// LoadGame re-reads every monster after this returns, so creating him here would burn a
+	// boss light row and then be overwritten. LoadGame calls this itself, after the restore.
+	if( lvlDir != LVL_4_NODIR ){
+		DarkCampaignSpawnButcherIfMissing();
+	}
+	DarkCampaignCollapseDuplicateButchers();	// (th4) DC m25: never leave two of him
+	RestoreCarriedSummons();	// (th4) rebuild the carried summons next to the player
+	RestoreCarriedManaShield();	// (th4) and put his mana shield back up
+	RestoreCarriedReflect();	// (th4) and his reflect, if he still has charges
 	ValidateMonsters();
+	//AuditMonsterMap("end of LoadGameLevel"); // (th4) MonsterMap ghost detector -- see TH4_MONSTERMAP_DEBUG in Monster.cpp
 	//if (OverwriteGolemHP && GolemCurrentHealthDuringLevelTransition > 0 && DungeonLevel) {
 	//	int someInt = PlayerCastSummaryLevel(CurrentPlayerIndex, PS_21_GOLEM);
 	//	NetSendCmdLocParam2(1, CMD_SPELLXY, Players[CurrentPlayerIndex].Row, Players[CurrentPlayerIndex].Col, PS_21_GOLEM, someInt);
@@ -5325,6 +6078,45 @@ void __fastcall GameLoop(int startup) // game_loop
 bool IsPausedInMenu()
 {
 	return MaxCountOfPlayersInGame == 1 && !is( GameMode, GM_NIGHTMARE, GM_IRONMAN, GM_SPEEDRUN ) && IsGameMenuActive(); // Mordor: don't change
+}
+
+//----- (th4) ------------------------------------------------------------- ambient event sfx
+// One random "event" caw per series on its designated levels. Cosmetic only:
+// uses local rand() (no synced-RNG / no MP desync) and a plain tick countdown
+// at ENGINE_FPS (no GetTickCountTh(), no global time mutation).
+void ProcessAmbientSfx()
+{
+	enum { AMB_RAVEN, AMB_WIND, AMB_MOAN, AMB_THUMP, AMB_SCREAM };
+
+	bool iceAge = Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE);
+	bool isQuest = Dungeon->isQuest;
+	DUNGEON_TYPE graph = Dungeon->graphType;
+
+	// series, first enum, count, period-in-seconds, condition
+	struct { int idx, first, count, period; bool play; } amb[] = {
+		{ AMB_RAVEN,  S_1919_AMB_RAVEN_1, 5,  70, Dungeon == DUN_0_TOWN },
+		{ AMB_WIND,   S_1924_COLD_WIND_1, 4, 100, (iceAge && Dungeon == DUN_0_TOWN)
+												|| (iceAge && Dungeon == DUN_44_RAVENHOLM)
+												|| is(Dungeon, DUN_38_GLACIAL_CAVERNS, DUN_39_FROZEN_LOCH) },
+		{ AMB_MOAN,   S_1928_MOAN_1,      6, 100, graph == DT_6_ABYSS && !isQuest },
+		{ AMB_THUMP,  S_1934_THUMP,       6, 100, graph == DT_4_HELL && !isQuest },
+		{ AMB_SCREAM, S_1940_SCREAM,      6, 100, graph == DT_5_CRYPT && !isQuest },
+	};
+
+	for (auto& a : amb) {
+		if (!a.play) {
+			AmbientSfxCountdown[a.idx] = 0; // 0 = disarmed; re-arm (not play) on next entry
+			continue;
+		}
+		int spread = (a.idx == AMB_RAVEN) ? 40 : 30; // raven 70+rnd(40); others 100+rnd(30)
+		if (AmbientSfxCountdown[a.idx] <= 0) {        // freshly entered this level: arm, don't play
+			AmbientSfxCountdown[a.idx] = (a.period + rand() % spread) * ENGINE_FPS;
+		}
+		else if (--AmbientSfxCountdown[a.idx] <= 0) { // timer elapsed: play, then re-arm
+			PlayGlobalSound(a.first + rand() % a.count);
+			AmbientSfxCountdown[a.idx] = (a.period + rand() % spread) * ENGINE_FPS;
+		}
+	}
 }
 
 //----- (0040B74C) -------------------------------------------------------- game
@@ -5364,19 +6156,22 @@ void GameLogic()
 				ProcessItems();
 				ProcessLightList();
 				ProcessVisionList();
-			}else{ // town
+			}
+			else { // town
 				ProcessTowners();
 				ProcessItems();
 				ProcessMissiles();
 			}
+			ProcessAmbientSfx(); // th4: town ravens + per-level event ambience
 			UpdateSound();
+
 			CheckPlayerStatusMessagesTimeout();
 			CheckTriggers();
 			QuestsActions();
 			if( MaxCountOfPlayersInGame != 1 
 				|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_1_AUTO_SAVE))
 				|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM)) ){        // network game
-				i64 tickCount = GetTickCountTh(); // сетевая игра, перехватываем вызов
+				i64 tickCount = GetTickCountTh(); // (rt) network game, intercept the call
 				if( tickCount - AutoSaveTickCount > 60000_ms ){ // once per minute
 					AutoSaveTickCount = tickCount;
 					UpdatePlayerFile();
@@ -5410,10 +6205,18 @@ void __fastcall TimeOutCursor(bool timeout)
 void AnimateLevelPalette()
 {
 	i64 battletrance = BattleTrance ? (MAX_FPS / ENGINE_FPS) : 0_ms;
-	i64 tick = GetTickCountTh(); // это таймер не влияет на гемплей, не перехватываем
+	i64 tick = GetTickCountTh(); // (rt) this timer doesn't affect gameplay, not intercepted
 	if( tick - PaletteFrameSync >= battletrance + (MAX_FPS / ENGINE_FPS)){
 		PaletteFrameSync = tick;
-		if( Dungeon->genType == DT_4_HELL ){
+		if( Dungeon->genType == DT_0_TOWN ){
+			// (th4) day/night cycle -- real town only. Ravenholm has its own perpetual
+			// palette, and Classic mode has no cycle at all (stays full day). Skipping
+			// the call leaves the town palette as loaded, which is the daytime look.
+			if( Dungeon != DUN_44_RAVENHOLM && GameMode != GM_CLASSIC ){
+				AnimateTownPalette();
+			}
+			PlayAmbient(); // (th4) re-eval town-tileset ambience each palette frame (town day/night swap; Ravenholm always-night). No-op unless it changed.
+		}else if( Dungeon->genType == DT_4_HELL ){
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest) {
 				// do not animate
 			}
@@ -5433,9 +6236,12 @@ void AnimateLevelPalette()
 			}
 		}
 		else if (Dungeon->genType == DT_3_CAVE) {
-			if (!UseReservedSystemPalette) {
+			if( Dungeon == DUN_52_MOSSY_GROTTO ){
+				AnimateGrottoHallucination();
+			}
+			else if (!UseReservedSystemPalette) {
 				AnimateCavePalette();
-				// превращение лавы в лед, Lost Treasure Quest
+				// (rt) turning lava into ice, Lost Treasure Quest
 			}
 			else if (Dungeon->isQuest && Dungeon == DUN_39_FROZEN_LOCH) {
 				// don't animate
@@ -5548,7 +6354,42 @@ void ProcessBerserk(Player& player, bool& autoClick)
 		}
 
 		if (closestDistanceMonsterIndex != -1) {
-			NetSendCmdParam1(1, CMD_18_ATTACKID, closestDistanceMonsterIndex);
+			// Berserk weapon auto-switch (Approach A: mimic the manual 'V' swap).
+			// Default weapon is the axe (melee). If the target is a pure shooter that
+			// kites us, switch to the crossbow set (if one is equipped) and shoot it
+			// from range; otherwise make sure we are on the axe set and melee it.
+			// We only ever swap when the desired weapon differs from what's in hand,
+			// so the weapon doesn't thrash every frame.
+			Player& berserker = Players[CurrentPlayerIndex];
+			Monster& berserkTarget = Monsters[closestDistanceMonsterIndex];
+			// Only treat the target as a "shoot it" shooter if it is actually in line of
+			// sight; otherwise the crossbow would fire through walls. No LoS -> melee
+			// (which paths toward the target around the obstacle).
+			bool targetIsShooter = IsShooterAi(berserkTarget.ai)
+				&& CheckCastInSight(berserker.Row, berserker.Col, berserkTarget.Row, berserkTarget.Col);
+			bool useCrossbow = false;
+
+			if (targetIsShooter && berserker.OnBodySlots[IS_LeftHand].ItemCode != IC_3_BOW) {
+				// want crossbow; switch only if one exists in a set
+				useCrossbow = SwapToWeaponSetWith(IC_3_BOW);
+			}
+			else if (targetIsShooter && berserker.OnBodySlots[IS_LeftHand].ItemCode == IC_3_BOW) {
+				useCrossbow = true; // already holding the crossbow
+			}
+			else if (!targetIsShooter && berserker.OnBodySlots[IS_LeftHand].ItemCode != IC_2_AXE) {
+				// want melee; only switch to the axe (never melee with the crossbow).
+				// If no axe set exists, leave the current set as-is.
+				SwapToWeaponSetWith(IC_2_AXE);
+			}
+
+			// If we ended up holding the crossbow against a shooter, shoot from range;
+			// otherwise melee.
+			if (useCrossbow && berserker.OnBodySlots[IS_LeftHand].ItemCode == IC_3_BOW) {
+				NetSendCmdParam1(1, CMD_20_RATTACKID, closestDistanceMonsterIndex);
+			}
+			else {
+				NetSendCmdParam1(1, CMD_18_ATTACKID, closestDistanceMonsterIndex);
+			}
 		}
 
 		if (closestDistanceMonsterIndex == -1) {
@@ -5687,4 +6528,59 @@ void RestrictMouseToWindow(HWND mWindow)
 			ClipCursor(0);
 		}
 	}
+}
+
+//----- (th4) --------------------------------------------------------
+// (th4) Hold the mouse inside the meta menu.
+//
+// Why ClipCursor rather than clamping the position the game reports: the menu runs in THREE
+// coordinate spaces at once -- the window client (e.g. 1920x1080), the gameplay resolution
+// ScreenWidth x ScreenHeight (e.g. 1056x594) and the 640x480 GUI the dialogs are actually laid
+// out in. Clamping what GetCursorPos_ hands back changes nothing visible, because that value is
+// not what positions the drawn hand. ClipCursor sidesteps the whole question: Windows stops the
+// physical pointer, so none of those spaces has to agree with any other.
+//
+// menuRect arrives in ghMainWnd CLIENT pixels and is mapped to screen here, the way
+// RestrictMouseToWindow does above. The caller passes the 640x480 DIALOG space, not the
+// stretched rect the menu is drawn into -- see the note at the call site.
+//
+// No config gate, unlike the gameplay version: leaving the menu releases it, losing focus
+// releases it, and Windows drops any clip when another app comes to the foreground, so it
+// cannot strand the pointer.
+static bool PrevMenuRestrictState = false;
+
+void RestrictMouseToMenu(HWND mWindow, const RECT& menuRect)
+{
+	if( !mWindow ) return;
+	const bool restrictState = !gbRunGame && !VideoWindowExists && IsMainWindowActive && !IsSizingWindow;
+
+	if( !restrictState ){
+		if( !PrevMenuRestrictState ) return;				// nothing of ours to drop
+		PrevMenuRestrictState = false;
+		ClipCursor(nullptr);
+		// (th4) That also drops a clip RestrictMouseToWindow may have just set: it fires from the
+		// window proc and can beat this to it on the way into a game. It only acts on a CHANGE, so
+		// it would never notice and the gameplay restriction would stay dead for the session.
+		// Reset its cached state so it re-applies.
+		PrevRestrictState = false;
+		return;
+	}
+
+	POINT ul{ menuRect.left,  menuRect.top    };
+	POINT lr{ menuRect.right, menuRect.bottom };
+	MapWindowPoints(mWindow, nullptr, &ul, 1);
+	MapWindowPoints(mWindow, nullptr, &lr, 1);
+	// ClipCursor's right and bottom are EXCLUSIVE; the rect passed in ends on the last pixel.
+	const RECT rect = { ul.x, ul.y, lr.x + 1, lr.y + 1 };
+
+	// (th4) Ask the OS what the clip actually IS rather than trusting a cached flag. Windows
+	// silently drops any clip when another application takes the foreground, and if the window
+	// stops rendering while minimised this function never sees the deactivation at all -- so a
+	// "did my own state change" test would come back, find nothing changed, and leave the menu
+	// unclipped for the rest of the session. One cheap syscall per menu frame buys that back.
+	RECT current;
+	if( PrevMenuRestrictState && GetClipCursor(&current) && EqualRect(&current, &rect) ) return;
+
+	PrevMenuRestrictState = true;
+	ClipCursor(&rect);
 }

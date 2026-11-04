@@ -12,8 +12,8 @@
 #define SetBit		( value, bitMask ) value	|=	( bitMask )	// OR 
 #define CheckBit	( value, bitMask )(value	&	( bitMask ))// AND
 #define ChangeBit	( value, bitMask ) value	^=	( bitMask )	// XOR
-__forceinline DWORD MostBit( DWORD val ) { DWORD i = 0; _BitScanReverse( &i, val ); return i; } // версия без проверки на нулевое входное значение
-//__forceinline DWORD MostBit( DWORD val ) { DWORD i; if( _BitScanReverse( &i, val ) ) return i; else return -1; } // если подали нуль, возвращаем -1
+__forceinline DWORD MostBit( DWORD val ) { DWORD i = 0; _BitScanReverse( &i, val ); return i; } // (rt) version without the zero input check
+//(rt) __forceinline DWORD MostBit( DWORD val ) { DWORD i; if( _BitScanReverse( &i, val ) ) return i; else return -1; } // returns -1 for a zero input
 
 #define LOBYTE_IDA(x)   (*((uchar*)&(x)))   // low byte
 #define LOWORD_IDA(x)   (*((ushort*)&(x)))   // low word

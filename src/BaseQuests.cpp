@@ -22,7 +22,7 @@ BaseQuest BaseQuests[Quest_Count] = {
 	{ Q_16_HORAZON_S_DEMONS,                    QF_SINGLE|QF_MULTI, DUN_23_CRYPT_3,   DUN_23_CRYPT_3,   DUN_23_CRYPT_3,   DT_1_CHURCH,   DUN_32_HORAZONS_HAVEN,          DUN_32_HORAZONS_HAVEN,           0,  1, SP_361,                                 "Horazon's Demons"          }, 
 	{ Q_17_FALLEN_ANGEL,                        QF_SINGLE|QF_MULTI, DUN_19_ABYSS_3,   DUN_19_ABYSS_3,   DUN_19_ABYSS_3,   DT_3_CAVE,     DUN_35_PASSAGE_OF_FIRE,         DUN_35_PASSAGE_OF_FIRE,          1,  0, SP_364,                                 "The Fallen Angel"          }, 
 	{ Q_18_LITTLE_GIRL,                         QF_SINGLE,          DUN_17_ABYSS_1,   DUN_NO,           DUN_17_ABYSS_1,   DT_M1_CUR,     DUN_NO,                         DUN_NO,                          1,  0, SP_283,                                 "Celia's Toy"               }, 
-	{ Q_19_LOST_TREASURE,                       QF_SINGLE|QF_MULTI, DUN_0_TOWN,       DUN_0_TOWN,       DUN_0_TOWN,       DT_1_CHURCH,   DUN_37_DISUSED_RELIQUARY,       DUN_37_DISUSED_RELIQUARY,        0,  1, SP_374,                                 "Lost Treasure"             }, // могила слева от входа в церковь, открывается картой, три этажа, лед
+	{ Q_19_LOST_TREASURE,                       QF_SINGLE|QF_MULTI, DUN_0_TOWN,       DUN_0_TOWN,       DUN_0_TOWN,       DT_1_CHURCH,   DUN_37_DISUSED_RELIQUARY,       DUN_37_DISUSED_RELIQUARY,        0,  1, SP_374,                                 "Lost Treasure"             }, // (rt) grave to the left of the church entrance, opened with a map, three levels, ice
 	{ Q_20_SUNLESS_SEA,                         QF_SINGLE|QF_MULTI, DUN_11_CAVE_3,    DUN_11_CAVE_3,    DUN_11_CAVE_3,    DT_3_CAVE,     DUN_40_ISLAND,                  DUN_40_ISLAND,                   1,  1, SP_381,                                 "Island of the Sunless Sea" }, 
 	{ Q_21_THE_CURSED_BLADE,                    QF_SINGLE|QF_MULTI, DUN_14_HELL_2,    DUN_14_HELL_2,    DUN_14_HELL_2,    DT_4_HELL,     DUN_41_FLESHDOOM,               DUN_41_FLESHDOOM,                1,  0, SP_389,                                 "The Cursed Blade"          },
 	{ Q_22_MAIDEN_OF_ANGUISH,                   QF_SINGLE|QF_MULTI, DUN_0_TOWN,       DUN_0_TOWN,       DUN_0_TOWN,       DT_4_HELL,     DUN_30_HALLS_OF_ANGUISH,        DUN_30_HALLS_OF_ANGUISH,         0,  1, SP_296,                                 "Maiden of Anguish"         }, 
@@ -42,6 +42,8 @@ BaseQuest BaseQuests[Quest_Count] = {
 	{ Q_36_CLEAR_WATER,                         QF_SINGLE|QF_MULTI, DUN_11_CAVE_3,    DUN_11_CAVE_3,    DUN_11_CAVE_3,    DT_3_CAVE,     DUN_112_STILL_SPRINGS,          DUN_112_STILL_SPRINGS,           1,  0, SP_440,                                 "Clear Water"               },
 	{ Q_37_PRICE_OF_HUBRIS,                     QF_SINGLE|QF_MULTI, DUN_13_HELL_1,    DUN_13_HELL_1,    DUN_13_HELL_1,    DT_4_HELL,     DUN_113_THE_MAZE,               DUN_113_THE_MAZE,                1,  0, SP_443,                                 "The Price of Hubris"       },
 	{ Q_38_OGDENS_SIGN_MP,                                QF_MULTI, DUN_NO,           DUN_4_CHURCH_4,   DUN_NO,           DT_1_CHURCH,   DUN_NO,                         DUN_114_LOWER_SCRIPTORIUM,       0,  1, SP_12,                                  "Ogden's Sign"              },
+	{ Q_39_VALOR_MP,									  QF_MULTI, DUN_NO,           DUN_5_CATACOMB_1, DUN_NO,           DT_2_CATACOMB, DUN_NO,                         DUN_115_VALOR_TOMB,			  0,  1, SP_236,                                 "Valor"					 },
+	{ Q_40_SECRETS_OF_MAGIC,					QF_SINGLE|QF_MULTI, DUN_10_CAVE_2,    DUN_10_CAVE_2,	DUN_NO,           DT_3_CAVE,	 DUN_116_MINING_CAVES,			 DUN_116_MINING_CAVES,			  1,  0, SP_ADRIA_SOM_QUEST_SP_1,                "Secrets of Magic"			 },
 };
 
 BaseDungeon Dungeons[DungeonCount] = {
@@ -160,7 +162,14 @@ BaseDungeon Dungeons[DungeonCount] = {
 	{ DUN_111_CHURCH_SACRISTY,		   DT_1_CHURCH,	  DT_1_CHURCH,	  1, 1, "Church Sacristy"		   , "the Church Sacristy"		, 0 },
 	{ DUN_112_STILL_SPRINGS,		   DT_3_CAVE,	  DT_3_CAVE,	 12, 1, "Still Springs"			   , "the Still Springs"		, 0 },
 	{ DUN_113_THE_MAZE,				   DT_4_HELL,	  DT_4_HELL,	 14, 1, "Maze"					   , "the Maze"					, 0 },
-	{ DUN_114_LOWER_SCRIPTORIUM,	   DT_1_CHURCH,	  DT_1_CHURCH,	  4, 1, "Lower Scriptorium"		   , "the Lower Scriptorium"	, 0 }
+	{ DUN_114_LOWER_SCRIPTORIUM,	   DT_1_CHURCH,	  DT_1_CHURCH,	  4, 1, "Lower Scriptorium"		   , "the Lower Scriptorium"	, 0 },
+	{ DUN_115_VALOR_TOMB,			   DT_2_CATACOMB, DT_2_CATACOMB,  5, 1, "Valor Tomb"			   , "the Valor Tomb"			, 0 },
+	{ DUN_116_MINING_CAVES,			   DT_3_CAVE,	  DT_3_CAVE,	 10, 1, "Mining Caves"			   , "the Mining Caves"			, 0 },
+	{ DUN_117_DARKLORD_HIDEOUT,		   DT_1_CHURCH,	  DT_5_CRYPT,	  0, 1, "The Deep Sanctum"		   , "the Deep Sanctum"			, 0 },
+	{ DUN_118_POISONED_WATER_SUPPLY_DC, DT_3_CAVE,	  DT_3_CAVE,	 10, 1, "Poisoned Water Supply"	   , "the Poisoned Water Supply", 0 },	// (th4) DC mission 10
+	{ DUN_119_DEEPER_CAVES,             DT_3_CAVE,	  DT_3_CAVE,	 11, 1, "Deeper Caves"			   , "the Deeper Caves"			, 0 },	// (th4) DC mission 11
+	{ DUN_120_PANDEMONIUM_DC,           DT_4_HELL,	  DT_4_HELL,	 16, 1, "Pandemonium"			   , "Pandemonium"				, 0 },	// (th4) DC mission 12
+	{ DUN_121_UNHOLY_ALTAR_DC,          DT_1_CHURCH,  DT_1_CHURCH,	 15, 1, "Unholy Altar"		   , "Unholy Altar"				, 0 }	// (th4) DC mission 13
 
 };
 

@@ -1,133 +1,132 @@
-cmake_minimum_required(VERSION 2.8)
+# clion project. Not to build
+cmake_minimum_required(VERSION 3.10)
+project(th2)
 
-project(thehell2_lib)
+set(CMAKE_CXX_STANDARD 17)
 
-set (th_sources
-    Affixes.cpp
-    BaseItems.cpp
-    BaseMonster.cpp
-    BaseObjectsOnMap.cpp
-    BaseQuests.cpp
-    CastSprites.cpp
-    CharSlots.cpp
-    CodeSave.cpp
-    Draw.cpp
-    Engine.cpp
-    Entry.cpp
-    Error.cpp
-    Exception.cpp
-    File.cpp
-    GenerateMap.cpp
-    GenerateQuestFloor.cpp
-    Halls.cpp
-    Hell.cpp
-    #HellDataNew.cpp
-    Help.cpp
-    IniFile.cpp
-    Item.cpp
-    Lights.cpp
-    LoadingScreen.cpp
-    Main.cpp
-    MainMenu.cpp
-    MenuEngine.cpp
-    Missile.cpp
-    Monster.cpp
-    MpqSave.cpp
-    Net.cpp
-    NetSync.cpp
-    Object.cpp
-    Panel.cpp
-    Path.cpp
-    Player.cpp
-    PlayerTrade.cpp
-    PlayersSync.cpp
-    PopupScreens.cpp
-    Quests.cpp
-    Room.cpp
-    SHA.cpp
-    SaveInfo.cpp
-    Saving.cpp
-    ScreenShotMaker.cpp
-    SomeSpell.cpp
-    SoundBuffer.cpp
-    SoundCache.cpp
-    Speeches.cpp
-    SpellCasts.cpp
-    Spells.cpp
-    Storm.cpp
-    Tests.cpp
-    TownMap.cpp
-    UberDiabloQuest.cpp
-    UniqueItems.cpp
-    UniqueMonsters.cpp
-    UsePotionOrScroll.cpp
-    Warp.cpp
-    Windows.cpp
-    automap.cpp
-    dataseg.cpp
-    dx.cpp
-    dx_utility.cpp
-    menu.cpp
-    palette.cpp
-    serialize.cpp
-    storm_sblt.cpp
-    storm_sbmp.cpp
-    storm_scmd.cpp
-    storm_scode.cpp
-    storm_sdlg.cpp
-    storm_sdraw.cpp
-    storm_serr.cpp
-    storm_sevt.cpp
-    storm_sfile.cpp
-    storm_sgdi.cpp
-    storm_smem.cpp
-    storm_smsg.cpp
-    storm_snet.cpp
-    storm_sreg.cpp
-    storm_strans.cpp
-    storm_svid.cpp
-    structs_sounds.cpp
-    structs_speech.cpp
-    thehell2.cpp
-    thread.cpp
-    vorbis.cpp
-)
+include_directories(.)
+include_directories(lib)
+include_directories(lib/bzip2)
+include_directories(lib/huffman)
+include_directories(lib/misc)
+include_directories(lib/pklib)
+include_directories(lib/wave)
+include_directories(lib/zfs/include)
+include_directories(lib/zlib)
+include_directories(src)
+include_directories(tools)
 
-if (MSVC)
-    enable_language(ASM_MASM)
-elseif(APPLE)
-    enable_language(ASM-ATT)
-endif()
-set(th_asms
-	HellData.asm
-	StormData.asm
-)
+add_executable(th2
+        src/automap.cpp
+        src/dataseg.cpp
+        src/dx_utility.cpp
+        src/IniFile.cpp
+        src/menu.cpp
+        src/palette.cpp
+        src/serialize.cpp
+        src/BaseItems.cpp
+        src/BaseMonster.cpp
+        src/Localization.cpp
+        src/UniqueItems.cpp
+        src/Affixes.cpp
+        src/UniqueMonsters.cpp
+        src/Spells.cpp
+        src/SpellCasts.cpp
+        src/BaseObjectsOnMap.cpp
+        src/thehell2.cpp
+        src/structs_sounds.cpp
+        src/structs_speech.cpp
+        src/CastSprites.cpp
+        src/Lights.cpp
+        src/BaseQuests.cpp
+        src/PlayerTrade.cpp
+        src/PopupScreens.cpp
+        src/Engine.cpp
+        src/CodeSave.cpp
+        src/SHA.cpp
+        src/Speeches.cpp
+        src/UberDiabloQuest.cpp
+        src/GenerateQuestFloor.cpp
+        src/Quests.cpp
+        src/CharSlots.cpp
+        src/Room.cpp
+        src/Warp.cpp
+        src/Saving.cpp
+        src/Draw.cpp
+        src/TownMap.cpp
+        src/Panel.cpp
+        src/Missile.cpp
+        src/Error.cpp
+        src/Main.cpp
+        src/GenerateMap.cpp
+        src/thread.cpp
+        src/dx.cpp
+        src/Halls.cpp
+        src/Help.cpp
+        src/Windows.cpp
+        src/LoadingScreen.cpp
+        src/Item.cpp
+        src/MainMenu.cpp
+        src/Monster.cpp
+        src/MpqSave.cpp
+        src/Net.cpp
+        src/Object.cpp
+        src/SaveInfo.cpp
+        src/Path.cpp
+        src/Player.cpp
+        src/Entry.cpp
+        src/SoundBuffer.cpp
+        src/SomeSpell.cpp
+        src/SoundCache.cpp
+        src/File.cpp
+        src/MenuEngine.cpp
+        src/stdafx.cpp
+        src/th2_proposals.cpp
+        src/Config.cpp
+        src/Hell.cpp
+        src/th2data.cpp
+        src/TH1dll.cpp
+        src/AffixEffects.cpp
+        src/AffixesRare.cpp
+        src/Perks.cpp
+        src/FlasksInfo.cpp
+        src/TrapsInfo.cpp
+        src/VisualStash.cpp
+        src/VisualTrade.cpp
+        src/Tooltip.cpp
+        src/CharPanel.cpp
+        src/InventoryPanel.cpp
+        src/SpellPanel.cpp
+        src/UniqueSets.cpp
+        src/track.cpp
+        src/msg.cpp
+        src/sync.cpp
+        src/multi.cpp
+        src/tmsg.cpp
+        src/PerksData.cpp
+        src/Traits.cpp
+        src/GameModes.cpp
+        src/vorbis.cpp
+        src/ScreenShotMaker.cpp
+        src/Crafting.cpp
+        )
 
-set(th_includes
-	codec.h
-	common.h
-	enums.h
-	ExeMap.h
-	ScreenShotMaker.h
-	structs.h
-	thehell2.h
-	vars.h
-	vorbisenc.h
-	vorbisfile.h
-	funcs.h
-	IniFile.h
-	rad.h
-	reflect.h
-	stdafx.h
-	resource.h
-	hell.h
-	smack.h
-	storm.h
-)
+# old content
+# project(TheHell2)
+# cmake_minimum_required(VERSION 2.8)
 
-if (MSVC)
-	ADD_MSVC_PRECOMPILED_HEADER(stdafx.h stdafx.cpp th_sources)
-endif(MSVC)
+# set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-add_library(thehell2_lib STATIC ${th_sources} ${th_asms} ${th_includes})
-target_compile_definitions(thehell2_lib PUBLIC NEW_EXE)
+# include("utils")
+
+# include_directories(${CMAKE_SOURCE_DIR})
+
+# RESET_DEPS()
+
+# add_subdirectory("External_Deps")
+# add_subdirectory("lib")
+# add_subdirectory("src")
+# add_subdirectory("Tests")
+
+
+# BUILD_DEPS()

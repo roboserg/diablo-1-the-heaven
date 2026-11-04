@@ -112,6 +112,9 @@ void __fastcall IW_DrawRegularCel(int Xpos, int Ypos, const char* image, int fra
 	const int* img = reinterpret_cast<const int*>(image);
 	int size = img[frame + 1] - img[frame];
 	const char* src = image + img[frame];
+	// Approach B (A8L8): clear LightSurface so UI sprites render at full brightness.
+	const intptr_t lightOfs = LightSurface
+		? (intptr_t)LightSurface - (intptr_t)WorkingSurface : 0;
 
 	// skip header
 	if (src[0] == 10 && src[1] == 0) {
@@ -127,12 +130,24 @@ void __fastcall IW_DrawRegularCel(int Xpos, int Ypos, const char* image, int fra
 		}
 		if (src[i] == 127) {
 			for (k = 0; k < 127; ++k) dst[j + k] = src[i + k + 1];
+			if (lightOfs) memset((char*)((intptr_t)(dst+j) + lightOfs), 0, 127);
+			// (th4) Stage 2 + 3 (2026-09-05): per-ink clears for the alpha overlay
+			// AND the colored-light tint — the frame art is not a rectangle (the
+			// 4 corner decorations stick out), so both follow the LightSurface
+			// pattern instead of the bounding-box rect (the rect over-cleared
+			// 4 thin strips along the edges).
+			AlphaOverlayClearRow((uchar*)dst + j, 127);
+			TintClearRow((uchar*)dst + j, 127);
 			i += 127;
 			j += 127;
 		}
 		else if (src[i] == -128) j += 128;
 		else if (src[i] >= 0) {
 			for (k = 0; k < src[i]; ++k) dst[j + k] = src[i + k + 1];
+			if (lightOfs && src[i]) memset((char*)((intptr_t)(dst+j) + lightOfs), 0, (unsigned char)src[i]);
+			// (th4) Stage 2 + 3: same per-ink clears as the 127-run.
+			if (src[i]) AlphaOverlayClearRow((uchar*)dst + j, (unsigned char)src[i]);
+			if (src[i]) TintClearRow((uchar*)dst + j, (unsigned char)src[i]);
 			j += src[i];
 			i += src[i];
 		}
@@ -141,90 +156,195 @@ void __fastcall IW_DrawRegularCel(int Xpos, int Ypos, const char* image, int fra
 }
 
 // ---- th2 -------------------------------------------------------------------------------
-void __fastcall IW_TransparentBackground(int xPosition, int yPosition, int width, int height)
+// DrawBackground_LUT — LUT-optimised transparent background
+// ---------------------------------------------------------------------------
+// Improved replacement for IW_TransparentBackground.  Builds a 256-entry
+// lookup table once per call (negligible cost), then applies it with a
+// branch-free inner loop — eliminating ~3x the per-pixel branching overhead
+// of the original function-pointer-based implementation.
+//
+// Dungeon type mapping:
+//   DT_0_TOWN:              cutColors=128, low indices -> town shade formula
+//   DT_4_HELL:              cutColors=16,  low indices -> 0
+//   DT_3_CAVE/5_CRYPT/6_ABYSS: cutColors=32, low indices -> 0
+//   DT_1_CHURCH / default:  cutColors=0,   bit-ops only
+//
+// Note: IW_TransparentBackground has a defect — its cave/crypt/abyss case
+//   uses `or` (C++ ||), evaluating to 1 (== DT_1_CHURCH), so those dungeon
+//   types fell through to default.  This function uses explicit case labels.
+// ---------------------------------------------------------------------------
+void __fastcall DrawBackground_LUT(int xPosition, int yPosition, int width, int height)
 {
-	size_t position = 0;
+	// --- Build LUT ---
+	uchar lut[256];
 	uchar cutColors = 0;
-	uchar clrVal = 0;
+	bool  townMode  = false;
 
-	struct color {
-		inline static void town(const int& position) { WorkingSurface[position] = 252 + (WorkingSurface[position] >> 5); };
-		inline static void dungeon(const int& position) { WorkingSurface[position] = 0; };
-	};
+	switch (Dungeon->graphType) {
+	case DT_0_TOWN:   cutColors = 128u; townMode = true; break;
+	case DT_4_HELL:   cutColors =  16u;                  break;
+	case DT_3_CAVE:
+	case DT_5_CRYPT:
+	case DT_6_ABYSS:  cutColors =  32u;                  break;
+	case DT_1_CHURCH:
+	default:          cutColors =   0u;                  break;
+	}
 
-	void (*redrawColor)(const int&) = nullptr;
-
-	switch( Dungeon->graphType ){
-	case DT_0_TOWN: cutColors = 128u; redrawColor = color::town;    break;
-	case DT_4_HELL: cutColors = 16u;  redrawColor = color::dungeon; break;
-	case DT_3_CAVE
-	  or DT_5_CRYPT
-	  or DT_6_ABYSS: cutColors = 32u; redrawColor = color::dungeon; break;
-	case DT_1_CHURCH: break;
-	};
-
-	for (int i = 0, j; i < height; ++i) {
-		position = WorkingWidth * (yPosition + i) + xPosition;
-		for (j = 0; j < width; ++j) {
-			clrVal = WorkingSurface[position];
-			if (clrVal) {
-				if (clrVal < cutColors)
-					redrawColor(position);
-				else if ((clrVal >= 128 && clrVal <= 135) || (clrVal >= 144 && clrVal <= 151) || (clrVal >= 136 && clrVal <= 143) || (clrVal > 152 && clrVal < 159))
-					WorkingSurface[position] = (clrVal & 0b11111000) + ((clrVal & 0b00000111) >> 2) + 6;
-				else
-					WorkingSurface[position] = (clrVal & 0b11110000) + ((clrVal & 0b00001111) >> 2) + 12;
-			}
-			++position;
+	lut[0] = 0;// pixel index 0 is never modified (mirrors original `if (clrVal)` guard)
+	for (int c = 1; c < 256; ++c) {
+		uchar u = (uchar)c;
+		if (u < cutColors) {
+			lut[c] = townMode ? (uchar)(252u + (u >> 5)) : 0u;
+		} else if ((u >= 128 && u <= 135) || (u >= 136 && u <= 143) ||
+		           (u >= 144 && u <= 151) || (u  > 152 && u  < 159)) {
+			lut[c] = (u & 0b11111000u) + ((u & 0b00000111u) >> 2) + 6;
+		} else {
+			lut[c] = (u & 0b11110000u) + ((u & 0b00001111u) >> 2) + 12;
 		}
+	}
+
+	// --- Pre-loop bounds clamp ---
+	if (yPosition < 0)                      { height += yPosition; yPosition = 0; }
+	if (xPosition < 0)                      { width  += xPosition; xPosition = 0; }
+	if (yPosition + height > WorkingHeight) { height  = WorkingHeight - yPosition; }
+	if (xPosition + width  > WorkingWidth)  { width   = WorkingWidth  - xPosition; }
+	if (width <= 0 || height <= 0) return;
+
+	// --- Apply LUT (branch-free inner loop) ---
+	for (int row = 0; row < height; ++row) {
+		uchar* p = &WorkingSurface[WorkingWidth * (yPosition + row) + xPosition];
+		for (int col = 0; col < width; ++col)
+			p[col] = lut[p[col]];
+		// Approach B (A8L8): clear LightSurface so the background renders at the
+		// LUT-transformed palette brightness, without extra dungeon-shadow darkening.
+		if (LightSurface) memset(LightSurface + (p - WorkingSurface), 0, width);
 	}
 }
 
 // ---- th2 -------------------------------------------------------------------------------
 void __fastcall InfoWindow_DrawLongText(int xPos, int yPos, const char* stringPtr, int fontColor)
 {
+	// (th4) CHI: steps by CHARACTER, not by byte, and never returns a position that
+	// splits a GB2312 pair. Two things broke here for Chinese:
+	//   1. ++text walked one byte, so the window could stop between a lead and a trail.
+	//   2. Chinese has NO spaces, so `last` was never assigned; a line longer than
+	//      textSize bytes with no '\n' inside the window returned `text` unchanged.
+	//      The caller then did `firstInLine = ++lastInLine`, advancing ONE byte onto a
+	//      trail byte -- every character after that decoded from the wrong boundary and
+	//      the panel filled with garbage.
+	// CJK breaks legally between any two characters, so when no space is available we
+	// return the last character boundary that fit. Same rule the speech wrap already
+	// uses (Speeches.cpp). Latin behaviour is byte-for-byte unchanged: for ASCII the
+	// pair test never fires and `bound` tracks `text` exactly as `++text` used to.
 	auto InfoWindow_CropText = [](const char* text, int textSize = 22) {
-		const char* last = text;
+		// (th4) The original initialised `last = text`, so a line with no space returned
+		// its own start: the caller then drew nothing for that line and crawled forward a
+		// byte at a time. Starting null and falling back to the last character boundary
+		// fixes it for every language -- CJK (which never has spaces) and any Latin word
+		// longer than the line. Not CHI-gated: the Latin behaviour was also wrong.
+		const char* last = nullptr;		// last space seen (word-break point)
+		const char* bound = text;		// last valid character boundary
 		for (int i = 0; i < textSize; ++i) {
+			if (IsChiLead((uchar)text[0]) && IsChiTrail((uchar)text[1])) {
+				text += 2; ++i;			// consume the pair atomically
+				bound = text;
+				continue;
+			}
 			if (*text == ' ') {
 				last = text;
 			}
 			else if (*text == '\0' || *text == '\n') {
-				last = text;
-				break;
+				return text;
 			}
 			++text;
+			bound = text;
 		}
-		return last;
+		// Prefer a word break; with no space (i.e. CJK) fall back to the character
+		// boundary. Never return the start -- that is what desynced the caller.
+		return last ? last : bound;
 	};
 
 	int textWidth;
-	char LetterID;
+	int LetterID; // (th4) widened: CJK letterIDs reach 8434, a char caps at 127
 	int SurfaceOffset;
 
 	const char* firstInLine = stringPtr;
 	const char* lastInLine = nullptr;
 
 	for (int i = 0; i < 24; ++i) {
-		if (lastInLine) firstInLine = ++lastInLine;
+		// (th4) CHI: the old `firstInLine = ++lastInLine` assumed lastInLine always
+		// points AT a 1-byte separator (space or '\n') to be consumed. That holds for
+		// Latin, but a CJK line has no space to break on, so the crop returns a bare
+		// character boundary instead -- and blindly skipping a byte there would eat a
+		// GB2312 lead byte and desync the rest of the panel. Only step over an actual
+		// separator; a boundary is already the next line's first byte.
+		// (th4) MEMORY SAFETY, ALL LANGUAGES -- deliberately not CHI-gated.
+		// The original `firstInLine = ++lastInLine` assumed lastInLine always points AT a
+		// 1-byte separator to be consumed. It does not: when the crop stops at the end of
+		// the string it returns a pointer AT the '\0', and ++ then steps PAST the
+		// terminator. The i<24 loop keeps calling the crop, which scans unallocated memory
+		// a byte at a time -- measured at ~660 out-of-bounds reads for one ordinary
+		// English item string. It has gone unnoticed because the `firstInLine ==
+		// lastInLine` guard below suppresses drawing whatever it finds and the bytes after
+		// the string are normally zero, but a string near a page boundary would fault.
+		// (For CJK it is worse still: skipping a byte at a bare character boundary eats a
+		// GB2312 lead byte and desyncs the rest of the panel.)
+		// Only step over an ACTUAL separator; a boundary is already the next line's start.
+		if (lastInLine) {
+			firstInLine = lastInLine;
+			if (*firstInLine == ' ' || *firstInLine == '\n') ++firstInLine;
+		}
 		lastInLine = InfoWindow_CropText(firstInLine, 30);
 		if (firstInLine == lastInLine) continue;
 		textWidth = 0;
 
 		const char* tmp = firstInLine;
-		while (tmp != lastInLine){
-			LetterID = FontIndexSmall[Codepage[*tmp]];
-			textWidth += FontWidthSmall[LetterID] + 1;;
-			++tmp;
+		// (th4) ARABIC: shape the line and measure the GLYPHS. Byte stepping asks
+		// ChiLetterID for an id it deliberately returns -1 for, so the width came out
+		// wrong and the draw loop below painted nothing at all -- this is why the
+		// game-changer info panel was blank.
+		static AR_Glyph arG[ 512 ];
+		int arN = 0;
+		if( GameLanguage == LANG_AR ){
+			char arBuf[ 512 ];
+			size_t arLen = (size_t)( lastInLine - firstInLine );
+			if( arLen > sizeof( arBuf ) - 1 ) arLen = sizeof( arBuf ) - 1;
+			memcpy( arBuf, firstInLine, arLen );
+			arBuf[ arLen ] = 0;
+			arN = AR_Layout( arBuf, arG, 512 );
+			for( int k = 0; k < arN; ++k ){
+				if( arG[k].isForm )   textWidth += AR_Advance( arG[k].cell, 0 );
+				else if( arG[k].raw ) textWidth += FontWidthSmall[ FontIndexSmall[ Codepage[ arG[k].raw ] ] ] + 1;
+			}
+		}else
+		while (tmp != lastInLine){ // (th4) CHI: step by character, not byte
+			int w;
+			tmp += ChiNextSmall( (const uchar*)tmp, &LetterID, &w );
+			textWidth += w + 1;
 		}
 
 		SurfaceOffset = YOffsetHashTable[yPos + Screen_TopBorder + 14 * i] + xPos + Screen_LeftBorder - textWidth / 2;
-		do {
-			LetterID = FontIndexSmall[Codepage[*firstInLine]];
+		if( GameLanguage == LANG_AR ){
+			for( int k = 0; k < arN; ++k ){
+				if( arG[k].isForm ){
+					DrawLetter( SurfaceOffset, AR_FIRST_ID + arG[k].cell, fontColor );
+					SurfaceOffset += AR_Advance( arG[k].cell, 0 );
+				}else if( arG[k].raw > ' ' ){
+					const int li = FontIndexSmall[ Codepage[ arG[k].raw ] ];
+					if( li ) DrawLetter( SurfaceOffset, li, fontColor );
+					SurfaceOffset += FontWidthSmall[ li ] + 1;
+				}else if( arG[k].raw ){
+					SurfaceOffset += FontWidthSmall[ FontIndexSmall[ Codepage[ arG[k].raw ] ] ] + 1;
+				}
+			}
+			firstInLine = lastInLine;
+		}else
+		do { // (th4) CHI: step by character; the old (uint8_t) cast truncated CJK letterIDs
+			int w;
+			firstInLine += ChiNextSmall( (const uchar*)firstInLine, &LetterID, &w );
 			if (LetterID)
-				DrawLetter(SurfaceOffset, (uint8_t)LetterID, fontColor);
-			SurfaceOffset += FontWidthSmall[LetterID] + 1;;
-			++firstInLine;
+				DrawLetter(SurfaceOffset, LetterID, fontColor);
+			SurfaceOffset += w + 1;
 		} while (firstInLine != lastInLine && *firstInLine);
 
 		if (*firstInLine == '\0') break;
@@ -237,6 +357,13 @@ void __fastcall InfoWindow_DrawRect(int xPosition, int yPosition, int width, int
 	uchar* dst = &WorkingSurface[WorkingWidth * yPosition + xPosition];
 	for (int i = 0; i < height; ++i) {
 		memset(dst, color, width);
+		// Approach B (A8L8): clear LightSurface so the rect renders at full brightness.
+		if (LightSurface) memset(LightSurface + (dst - WorkingSurface), 0, width);
+		// (th4) Stage 2 + 3 (2026-09-05): same per-row clears for the alpha
+		// overlay and the colored-light tint — the scroll indicator must never
+		// be ghosted or tinted by the world.
+		AlphaOverlayClearRow(dst, width);
+		TintClearRow(dst, width);
 		dst += WorkingWidth;
 	}
 }
@@ -245,7 +372,7 @@ void __fastcall InfoWindow_DrawRect(int xPosition, int yPosition, int width, int
 void __fastcall InfoWindow_Draw()
 {
 	// Background (transparent)
-	IW_TransparentBackground(
+	DrawBackground_LUT(
 		InfoWindowRect.Left + Screen_LeftBorder + 16,
 		InfoWindowRect.Top + Screen_TopBorder + 16,
 		IW_width - 32,
@@ -261,9 +388,11 @@ void __fastcall InfoWindow_Draw()
 	);
 
 	// Left main text
-	DrawLevelInfoText(-GetTextWidth(IW_headTexts[0]) / 2 + InfoWindowRect.Left + 165, InfoWindowRect.Top + 44, IW_headTexts[0], C_3_Gold);
+	const char* iwHead0 = LocalizedGCInfoHeader( IW_headTexts[0] ); // (th4) RU in-game GC panel header
+	DrawLevelInfoText(-GetTextWidth(iwHead0) / 2 + InfoWindowRect.Left + 165, InfoWindowRect.Top + 44, iwHead0, C_3_Gold);
 	// Right main text
-	DrawLevelInfoText(-GetTextWidth(IW_headTexts[1]) / 2 + InfoWindowRect.Left + 475, InfoWindowRect.Top + 44, IW_headTexts[1], C_3_Gold);
+	const char* iwHead1 = LocalizedGCInfoHeader( IW_headTexts[1] ); // (th4) RU in-game GC panel header
+	DrawLevelInfoText(-GetTextWidth(iwHead1) / 2 + InfoWindowRect.Left + 475, InfoWindowRect.Top + 44, iwHead1, C_3_Gold);
 
 	// Close button (image)
 	IW_DrawRegularCel(
@@ -288,7 +417,11 @@ void __fastcall InfoWindow_Draw()
 
 	const char* textptr = nullptr;
 	// Long text
-	textptr = GC_Descriptions_InfoWindow[gc_listIndexes[lastSelectedInListIndex + listStartFromIndex]];
+	{
+		int _gcId = gc_listIndexes[lastSelectedInListIndex + listStartFromIndex];
+		textptr = LocalizedGCInfoDesc( _gcId ); // (th4) RU in-game GC description
+		if( !textptr ) textptr = GC_Descriptions_InfoWindow[_gcId];
+	}
 	InfoWindow_DrawLongText(
 		longTextMidPos.Left,
 		longTextMidPos.Top,
@@ -301,7 +434,9 @@ void __fastcall InfoWindow_Draw()
 	size_t index;
 	for (size_t i = 0; i < countof(textlist) && i < gc_listIndexes.size(); ++i) {
 		index = listStartFromIndex + i;
-		textptr = GC_Names_InfoWindow[gc_listIndexes[index]];
+		int _gcNameId = gc_listIndexes[index];
+		textptr = LocalizedGCInfoName( _gcNameId ); // (th4) RU in-game GC name
+		if( !textptr ) textptr = GC_Names_InfoWindow[_gcNameId];
 		DrawLevelInfoText(
 			-GetTextWidth(textptr) / 2 + textlist[i].Left + textlist[i].Width / 2,
 			textlist[i].Top + 12,

@@ -48,8 +48,8 @@ void Clear(int itemIndex)
 		}
 	}
 	--count;
-	if( count > 0 && count != itemIndex ){// Если вещи есть и удаляемая вещь не последняя
-		items[itemIndex] = items[count]; // перенос крайнего в массиве предмета на индекс удалённого
+	if( count > 0 && count != itemIndex ){// (rt) If there are items and the removed item isn't the last one
+		items[itemIndex] = items[count]; // (rt) move the last item in the array to the removed item's index
 
 		for(auto& used: used){ // TODO: check negative index for
 			if( used == count + 1 ){

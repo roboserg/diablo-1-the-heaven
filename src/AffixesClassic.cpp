@@ -15,6 +15,7 @@ Affix AffixesClassic[] = {
 
 { 294,	"angel's",		AE_SPELLS_LEVEL,	0,	1,	1,	0,	0,	0,	0,	 15,	IA_STAFF,	IS_ALL,	0,	0,	1,	 25000,	 25000,	2,	0,	 0},
 { 295,	"arch-angel's",	AE_SPELLS_LEVEL,	0,	2,	2,	0,	0,	0,	0,	 25,	IA_STAFF,	IS_ALL,	0,	0,	1,	 50000,	 50000,	3,	0,	 0},
+{ 295,	"arch-angel's",	AE_SPELLS_LEVEL,	0,	2,	2,	0,	0,	0,	0,	 49,	IA_STAFF,	IS_ALL,	0,	0,	1,	 50000,	 50000,	3,	0,	 0},
 		
 
 		/* ------------------------------------
@@ -27,6 +28,8 @@ Affix AffixesClassic[] = {
 { 306,	"serpent's",	AE_MANA,	0,	 31,	 40,	0,	0,	0,	0,	 15,	IA_JEWEL | IA_STAFF,				IS_ALL,		0,	0,	1,	  4100,	   6000,	 7,	 0,	  0 },
 { 306,	"drake's",		AE_MANA,	0,	 41,	 50,	0,	0,	0,	0,	 21,	IA_JEWEL | IA_STAFF,				IS_ALL,		0,	0,	1,	  6100,	  10000,	 9,	 0,	  0 },
 { 306,	"dragon's",		AE_MANA,	0,	 51,	 60,	0,	0,	0,	0,	 27,	IA_JEWEL | IA_STAFF,				IS_ALL,		0,	0,	1,	 10100,	  15000,	11,	 0,	  0 },
+{ 306,	"dragon's",		AE_MANA,	0,	 51,	 60,	0,	0,	0,	0,	 37,	IA_JEWEL | IA_STAFF,				IS_ALL,		0,	0,	1,	 10100,	  15000,	11,	 0,	  0 },
+{ 306,	"dragon's",		AE_MANA,	0,	 51,	 60,	0,	0,	0,	0,	 47,	IA_JEWEL | IA_STAFF,				IS_ALL,		0,	0,	1,	 10100,	  15000,	11,	 0,	  0 },
 		// these below are Hellfire-only, I don't add Hellfire stuff
 		//{ 306,	"wyrm's",		AE_MANA,	0,	 61,	 80,	0,	0,	0,	0,	 35,	IA_ARMOR,						IS_ALL,		0,	0,	1,	 15100,	  19000,	12,	 0,	  0 },
 		//{ 306,	"hydra's",		AE_MANA,	0,	 81,	100,	0,	0,	0,	0,	 60,	IA_ARMOR,						IS_ALL,		0,	0,	1,	 19100,	  30000,	13,	 0,	  0 },
@@ -45,6 +48,7 @@ Affix AffixesClassic[] = {
 { 306,	"saintly",		AE_PERCENT_AC,	0,	136,	150,	0,	0,	0,	0,	 24,	IA_ARMOR | IA_SHIELD,					IS_ALL,		0,	0,	1,	   820,	   1200,	13,	 0,	  0 },
 { 306,	"awesome",		AE_PERCENT_AC,	0,	156,	170,	0,	0,	0,	0,	 28,	IA_ARMOR | IA_SHIELD,					IS_ALL,		0,	0,	1,	  1220,	   2000,	15,	 0,	  0 },
 { 306,	"holy",			AE_PERCENT_AC,	0,	171,	185,	0,	0,	0,	0,	 35,	IA_ARMOR | IA_SHIELD,					IS_ALL,		0,	0,	1,	  5200,	   6000,	17,	 0,	  0 },
+{ 306,	"holy",			AE_PERCENT_AC,	0,	171,	185,	0,	0,	0,	0,	 47,	IA_ARMOR | IA_SHIELD,					IS_ALL,		0,	0,	1,	  5200,	   6000,	17,	 0,	  0 },
 { 306,	"godly",		AE_PERCENT_AC,	0,	186,	200,	0,	0,	0,	0,	 60,	IA_ARMOR | IA_SHIELD,					IS_ALL,		0,	0,	1,	  6200,	   7000,	20,	 0,	  0 },
 
 
@@ -61,6 +65,7 @@ Affix AffixesClassic[] = {
 { 1,	"mithril",		AE_TO_HIT,	0,	0,	0,	0,	0,	 41,	 60,	 20,	IA_MELEE | IA_RANGE,					IS_ALL,		0,	0,	1,	  4100,	  6000,	13,	  0,	  0 },
 { 1,	"meteoric",		AE_TO_HIT,	0,	0,	0,	0,	0,	 61,	 80,	 23,	IA_MELEE | IA_RANGE,					IS_ALL,		0,	0,	1,	  6100,	 10000,	15,	  0,	  0 },
 { 1,	"weird",		AE_TO_HIT,	0,	0,	0,	0,	0,	 81,	100,	 35,	IA_MELEE | IA_RANGE,					IS_ALL,		0,	0,	1,	 10100,	 14000,	17,	  0,	  0 },
+{ 1,	"weird",		AE_TO_HIT,	0,	0,	0,	0,	0,	 81,	100,	 48,	IA_MELEE | IA_RANGE,					IS_ALL,		0,	0,	1,	 10100,	 14000,	17,	  0,	  0 },
 { 1,	"strange",		AE_TO_HIT,	0,	0,	0,	0,	0,	101,	150,	 60,	IA_MELEE | IA_RANGE,					IS_ALL,		0,	0,	1,	 14100,	 20000,	20,	  0,	  0 },
 
 		/* ------------------------------------
@@ -76,6 +81,7 @@ Affix AffixesClassic[] = {
 {  19,	"savage",		AE_PERCENT_DAMAGE,	0,	111,	145,	0,	0,	0,	0,	 23,	IA_RANGE | IA_MELEE,	IS_ALL,	0,	0,	1,	  2500,	  3000,	15,	0,	0 },
 {  19,	"ruthless",		AE_PERCENT_DAMAGE,	0,	126,	160,	0,	0,	0,	0,	 35,	IA_RANGE | IA_MELEE,	IS_ALL,	0,	0,	1,	 10100,	 15000,	17,	0,	0 },
 {  19,	"merciless",	AE_PERCENT_DAMAGE,	0,	161,	175,	0,	0,	0,	0,	 47,	IA_RANGE | IA_MELEE,	IS_ALL,	0,	0,	1,	 15000,	 20000,	20,	0,	0 },
+{  19,	"merciless",	AE_PERCENT_DAMAGE,	0,	161,	175,	0,	0,	0,	0,	 57,	IA_RANGE | IA_MELEE,	IS_ALL,	0,	0,	1,	 15000,	 20000,	20,	0,	0 },
 
 
 		/* ------------------------------------
@@ -105,11 +111,13 @@ Affix AffixesClassic[] = {
 		-------------------------------------*/
 
 	// fire	
-{ 62,	"red",		AE_RESIST,	ET_1_FIRE,	 10,	 20,	0,	0,	0,	0,	  4,	IA_ALL,	IS_ALL,	0,	0,	1,	   500,	  1500,	2,	 0,	 0 },
-{ 62,	"crunson",	AE_RESIST,	ET_1_FIRE,	 21,	 30,	0,	0,	0,	0,	 10,	IA_ALL,	IS_ALL,	0,	0,	1,	  2100,	  3000,	2,	 0,	 0 },
-{ 62,	"crimson",	AE_RESIST,	ET_1_FIRE,	 31,	 40,	0,	0,	0,	0,	 16,	IA_ALL,	IS_ALL,	0,	0,	1,	  3100,	  4000,	2,	 0,	 0 },
-{ 62,	"garnet",	AE_RESIST,	ET_1_FIRE,	 41,	 50,	0,	0,	0,	0,	 20,	IA_ALL,	IS_ALL,	0,	0,	1,	  8200,	 12000,	3,	 0,	 0 },
-{ 62,	"ruby",		AE_RESIST,	ET_1_FIRE,	 51,	 60,	0,	0,	0,	0,	 26,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"Red",		AE_RESIST,	ET_1_FIRE,	 10,	 20,	0,	0,	0,	0,	  4,	IA_ALL,	IS_ALL,	0,	0,	1,	   500,	  1500,	2,	 0,	 0 },
+{ 62,	"Crimson",	AE_RESIST,	ET_1_FIRE,	 21,	 30,	0,	0,	0,	0,	 10,	IA_ALL,	IS_ALL,	0,	0,	1,	  2100,	  3000,	2,	 0,	 0 },
+{ 62,	"Crimson",	AE_RESIST,	ET_1_FIRE,	 31,	 40,	0,	0,	0,	0,	 16,	IA_ALL,	IS_ALL,	0,	0,	1,	  3100,	  4000,	2,	 0,	 0 },
+{ 62,	"Garnet",	AE_RESIST,	ET_1_FIRE,	 41,	 50,	0,	0,	0,	0,	 20,	IA_ALL,	IS_ALL,	0,	0,	1,	  8200,	 12000,	3,	 0,	 0 },
+{ 62,	"Ruby",		AE_RESIST,	ET_1_FIRE,	 51,	 60,	0,	0,	0,	0,	 26,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"Ruby",		AE_RESIST,	ET_1_FIRE,	 51,	 60,	0,	0,	0,	0,	 36,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"Ruby",		AE_RESIST,	ET_1_FIRE,	 51,	 60,	0,	0,	0,	0,	 46,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
 
 	// lite
 { 62,	"blue",		AE_RESIST,	ET_2_LIGHTNING,	 10,	 20,	0,	0,	0,	0,	  4,	IA_ALL,	IS_ALL,	0,	0,	1,	   500,	  1500,	2,	 0,	 0 },
@@ -117,6 +125,8 @@ Affix AffixesClassic[] = {
 { 62,	"lapis",	AE_RESIST,	ET_2_LIGHTNING,	 31,	 40,	0,	0,	0,	0,	 16,	IA_ALL,	IS_ALL,	0,	0,	1,	  3100,	  4000,	2,	 0,	 0 },
 { 62,	"cobalt",	AE_RESIST,	ET_2_LIGHTNING,	 41,	 50,	0,	0,	0,	0,	 20,	IA_ALL,	IS_ALL,	0,	0,	1,	  8200,	 12000,	3,	 0,	 0 },
 { 62,	"sapphire",	AE_RESIST,	ET_2_LIGHTNING,	 51,	 60,	0,	0,	0,	0,	 26,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"sapphire",	AE_RESIST,	ET_2_LIGHTNING,	 51,	 60,	0,	0,	0,	0,	 36,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"sapphire",	AE_RESIST,	ET_2_LIGHTNING,	 51,	 60,	0,	0,	0,	0,	 46,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
 
 	// arcane	
 { 62,	"white",	AE_RESIST,	ET_3_ARCAN,	 10,	 20,	0,	0,	0,	0,	  4,	IA_ALL,	IS_ALL,	0,	0,	1,	   500,	  1500,	2,	 0,	 0 },
@@ -124,13 +134,17 @@ Affix AffixesClassic[] = {
 { 62,	"ivory",	AE_RESIST,	ET_3_ARCAN,	 31,	 40,	0,	0,	0,	0,	 16,	IA_ALL,	IS_ALL,	0,	0,	1,	  3100,	  4000,	2,	 0,	 0 },
 { 62,	"crystal",	AE_RESIST,	ET_3_ARCAN,	 41,	 50,	0,	0,	0,	0,	 20,	IA_ALL,	IS_ALL,	0,	0,	1,	  8200,	 12000,	3,	 0,	 0 },
 { 62,	"diamond",	AE_RESIST,	ET_3_ARCAN,	 51,	 60,	0,	0,	0,	0,	 26,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"diamond",	AE_RESIST,	ET_3_ARCAN,	 51,	 60,	0,	0,	0,	0,	 36,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
+{ 62,	"diamond",	AE_RESIST,	ET_3_ARCAN,	 51,	 60,	0,	0,	0,	0,	 46,	IA_ALL,	IS_ALL,	0,	0,	1,	 17100,	 20000,	5,	 0,	 0 },
 
 	// all	
 { 62,	"topaz",	AE_RESIST_All,	0,	 10,	 15,	0,	0,	0,	0,	  8,	IA_ALL,									IS_ALL,	0,	0,	1,	  2000,	  5000,	3,	 0,	 0 },
 { 62,	"amber",	AE_RESIST_All,	0,	 16,	 20,	0,	0,	0,	0,	 12,	IA_ALL,									IS_ALL,	0,	0,	1,	  7400,	 10000,	3,	 0,	 0 },
 { 62,	"jade",		AE_RESIST_All,	0,	 21,	 25,	0,	0,	0,	0,	 18,	IA_ALL,									IS_ALL,	0,	0,	1,	 11000,	 15000,	3,	 0,	 0 },
 { 62,	"obsidian",	AE_RESIST_All,	0,	 26,	 30,	0,	0,	0,	0,	 24,	IA_ALL,									IS_ALL,	0,	0,	1,	 24000,	 40000,	4,	 0,	 0 },
-{ 62,	"emerald",	AE_RESIST_All,	0,	 31,	 35,	0,	0,	0,	0,	 31,	IA_MELEE|IA_RANGE|IA_SHIELD|IA_STAFF,	IS_ALL,	0,	0,	1,	 61000,	 75000,	7,	 0,	 0 },
+{ 62,	"emerald",	AE_RESIST_All,	0,	 31,	 35,	0,	0,	0,	0,	 31,	IA_MELEE | IA_RANGE | IA_SHIELD | IA_STAFF,	IS_ALL,	0,	0,	1,	 61000,	 75000,	7,	 0,	 0 },
+{ 62,	"emerald",	AE_RESIST_All,	0,	 31,	 35,	0,	0,	0,	0,	 45,	IA_MELEE | IA_RANGE | IA_SHIELD | IA_STAFF,	IS_ALL,	0,	0,	1,	 61000,	 75000,	7,	 0,	 0 },
+{ 62,	"emerald",	AE_RESIST_All,	0,	 31,	 35,	0,	0,	0,	0,	 60,	IA_MELEE | IA_RANGE | IA_SHIELD | IA_STAFF,	IS_ALL,	0,	0,	1,	 61000,	 75000,	7,	 0,	 0 },
 
 	
 	/* ------------------------------------
@@ -192,6 +206,7 @@ Affix AffixesClassic[] = {
 { 279,	"power",		AE_STAT,	ST_STRENGTH,	11,	 15,	0,	0,	0,	0,	 11,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	  2200,	  3000,	 4,	 0,	  0 },
 { 279,	"giants",		AE_STAT,	ST_STRENGTH,	16,	 20,	0,	0,	0,	0,	 17,	IA_ARMOR | IA_MELEE | IA_RANGE | IA_JEWEL,												IS_ALL,		0,	0,	1,	  3200,	  5000,	 7,	 0,	  0 },
 { 279,	"titans",		AE_STAT,	ST_STRENGTH,	21,	 30,	0,	0,	0,	0,	 23,	IA_MELEE | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
+{ 279,	"titans",		AE_STAT,	ST_STRENGTH,	21,	 30,	0,	0,	0,	0,	 38,	IA_MELEE | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
 
 //DEX
 { 279,	"dexterity",	AE_STAT,	ST_DEXTERITY,	 1,	  5,	0,	0,	0,	0,	  1,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	   200,	  1000,	 2,	 0,	  0 },
@@ -199,6 +214,7 @@ Affix AffixesClassic[] = {
 { 279,	"accuracy",		AE_STAT,	ST_DEXTERITY,	11,	 15,	0,	0,	0,	0,	 11,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	  2200,	  3000,	 4,	 0,	  0 },
 { 279,	"precision",	AE_STAT,	ST_DEXTERITY,	16,	 20,	0,	0,	0,	0,	 17,	IA_ARMOR | IA_MELEE | IA_RANGE | IA_JEWEL,												IS_ALL,		0,	0,	1,	  3200,	  5000,	 7,	 0,	  0 },
 { 279,	"perfection",	AE_STAT,	ST_DEXTERITY,	21,	 30,	0,	0,	0,	0,	 23,	IA_RANGE | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
+{ 279,	"perfection",	AE_STAT,	ST_DEXTERITY,	21,	 30,	0,	0,	0,	0,	 38,	IA_RANGE | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
 
 //MAG	
 { 279,	"magic",		AE_STAT,	ST_MAGIC,		 1,	  5,	0,	0,	0,	0,	  1,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_STAFF | IA_RANGE | IA_JEWEL,						IS_ALL,		0,	0,	1,	   200,	  1000,	 2,	 0,	  0 },
@@ -206,6 +222,7 @@ Affix AffixesClassic[] = {
 { 279,	"brilliance",	AE_STAT,	ST_MAGIC,		11,	 15,	0,	0,	0,	0,	 11,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_STAFF | IA_RANGE | IA_JEWEL,						IS_ALL,		0,	0,	1,	  2200,	  3000,	 4,	 0,	  0 },
 { 279,	"sorcery",		AE_STAT,	ST_MAGIC,		16,	 20,	0,	0,	0,	0,	 17,	IA_ARMOR | IA_MELEE | IA_STAFF | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	  3200,	  5000,	 7,	 0,	  0 },
 { 279,	"wizardry",		AE_STAT,	ST_MAGIC,		21,	 30,	0,	0,	0,	0,	 23,	IA_STAFF | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
+{ 279,	"wizardry",		AE_STAT,	ST_MAGIC,		21,	 30,	0,	0,	0,	0,	 38,	IA_STAFF | IA_JEWEL,																	IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
 
 //VIT
 { 279,	"vitality",		AE_STAT,	ST_VITALITY,	 1,	  5,	0,	0,	0,	0,	  1,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	   200,	  1000,	 2,	 0,	  0 },
@@ -213,6 +230,7 @@ Affix AffixesClassic[] = {
 { 279,	"vim",			AE_STAT,	ST_VITALITY,	11,	 15,	0,	0,	0,	0,	 11,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,									IS_ALL,		0,	0,	1,	  2200,	  3000,	 4,	 0,	  0 },
 { 279,	"vigor",		AE_STAT,	ST_VITALITY,	16,	 20,	0,	0,	0,	0,	 17,	IA_ARMOR | IA_MELEE | IA_RANGE | IA_JEWEL,												IS_ALL,		0,	0,	1,	  3200,	  5000,	 7,	 0,	  0 },
 { 279,	"life",			AE_STAT,	ST_VITALITY,	21,	 30,	0,	0,	0,	0,	 23,	IA_JEWEL,																				IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
+{ 279,	"life",			AE_STAT,	ST_VITALITY,	21,	 30,	0,	0,	0,	0,	 38,	IA_JEWEL,																				IS_ALL,		0,	0,	1,	  5200,	 10000,	10,	 0,	  0 },
 
 //ALL STATS
 { 279,	"the sky",		AE_ALL_STAT,	0,	 1,	  3,	0,	0,	0,	0,	  5,	IA_ARMOR | IA_SHIELD | IA_MELEE | IA_RANGE | IA_JEWEL,											IS_ALL,		0,	0,	1,	   800,	  4000,	 5,	 0,	  0 },
@@ -220,6 +238,7 @@ Affix AffixesClassic[] = {
 { 279,	"the stars",	AE_ALL_STAT,	0,	 8,	 11,	0,	0,	0,	0,	 17,	IA_ARMOR | IA_MELEE | IA_RANGE | IA_JEWEL,														IS_ALL,		0,	0,	1,	  8800,	 12000,	15,	 0,	  0 },
 { 279,	"the heavens",	AE_ALL_STAT,	0,	12,	 15,	0,	0,	0,	0,	 25,	IA_MELEE | IA_RANGE | IA_JEWEL,																	IS_ALL,		0,	0,	1,	 12800,	 20000,	20,	 0,	  0 },
 { 279,	"the zodiac",	AE_ALL_STAT,	0,	16,	 20,	0,	0,	0,	0,	 30,	IA_JEWEL,																						IS_ALL,		0,	0,	1,	 20800,	 40000,	30,	 0,	  0 },
+{ 279,	"the zodiac",	AE_ALL_STAT,	0,	16,	 20,	0,	0,	0,	0,	 45,	IA_JEWEL,																						IS_ALL,		0,	0,	1,	 20800,	 40000,	30,	 0,	  0 },
 
 
 /* ------------------------------------
@@ -243,6 +262,7 @@ Affix AffixesClassic[] = {
 { 315,	"flame",			AE_ELEM_HIT,	EA_ARROW_FIRE,	 1,	 1,	 3,	 3,	0,	0,	 1,	IA_RANGE,	IS_ALL,	0,	0,	1,	  2000,	  2000,	2,	 0,	 0 },
 { 315,	"fire",				AE_ELEM_HIT,	EA_ARROW_FIRE,	 1,	 1,	 6,	 6,	0,	0,	11,	IA_RANGE,	IS_ALL,	0,	0,	1,	  4000,	  4000,	4,	 0,	 0 },
 { 315,	"burning",			AE_ELEM_HIT,	EA_ARROW_FIRE,	 1,	 1,	16,	16,	0,	0,	35,	IA_RANGE,	IS_ALL,	0,	0,	1,	  6000,	  6000,	6,	 0,	 0 },
+{ 315,	"burning",			AE_ELEM_HIT,	EA_ARROW_FIRE,	 1,	 1,	16,	16,	0,	0,	45,	IA_RANGE,	IS_ALL,	0,	0,	1,	  6000,	  6000,	6,	 0,	 0 },
 
 { 321,	"shock",			AE_ELEM_HIT,	EA_ARROW_LIGHTNING,	1,	1,	 6,	 6,	0,	0,	13,	IA_RANGE,	IS_BATTLE,	0,	0,	1,	  6000,	  6000,	2,	 0,	 0 },
 { 321,	"lightning",		AE_ELEM_HIT,	EA_ARROW_LIGHTNING,	1,	1,	10,	10,	0,	0,	21,	IA_RANGE,	IS_BATTLE,	0,	0,	1,	  8000,	  8000,	2,	 0,	 0 },
@@ -255,9 +275,11 @@ Affix AffixesClassic[] = {
 
 { 356,	"the bat",	AE_MANA_STEAL_PERCENT,	0,	3,	3,	0,	0,	0,	0,	  8,	IA_MELEE,	IS_ALL,	0,	0,	1,	 7'500,	 7'500,	 3,	 0,	 0 },
 { 356,	"vampires",	AE_MANA_STEAL_PERCENT,	0,	5,	5,	0,	0,	0,	0,	 19,	IA_MELEE,	IS_ALL,	0,	0,	1,	14'500,	14'500,	 3,	 0,	 0 },
+{ 356,	"vampires",	AE_MANA_STEAL_PERCENT,	0,	5,	5,	0,	0,	0,	0,	 37,	IA_MELEE,	IS_ALL,	0,	0,	1,	14'500,	14'500,	 3,	 0,	 0 },
 
 { 358,	"The leech",AE_LIFE_STEAL_PERCENT,	0,	3,	3,	0,	0,	0,	0,	  8,	IA_MELEE,	IS_ALL,	0,	0,	1,	 7'500,	 7'500,	 3,	 0,	 0 },
 { 356,	"blood",	AE_LIFE_STEAL_PERCENT,	0,	5,	5,	0,	0,	0,	0,	 19,	IA_MELEE,	IS_ALL,	0,	0,	1,	14'500,	14'500,	 3,	 0,	 0 },
+{ 356,	"blood",	AE_LIFE_STEAL_PERCENT,	0,	5,	5,	0,	0,	0,	0,	 37,	IA_MELEE,	IS_ALL,	0,	0,	1,	14'500,	14'500,	 3,	 0,	 0 },
 
 { 362,	"readiness",	AE_ATTACK_SPEED,	0,	1,	1,	0,	0,	0,	0,	 5,	IA_RANGE | IA_STAFF | IA_MELEE,	IS_BATTLE,	0,	0,	1,	 2'000,	 2'000,	 2,	0,	0 },
 { 363,	"swiftness",	AE_ATTACK_SPEED,	0,	2,	2,	0,	0,	0,	0,	16,	IA_RANGE | IA_STAFF | IA_MELEE,	IS_BATTLE,	0,	0,	1,	 4'000,	 4'000,	 4,	0,	0 },
@@ -268,10 +290,12 @@ Affix AffixesClassic[] = {
 { 365,	"balance",		AE_HIT_RECOVERY,	0,	1,	1,	0,	0,	0,	0,	 1,	IA_JEWEL | IA_ARMOR,	IS_ALL,	0,	0,	1,	  2000,	  2000,	2,	 0,	 0 },
 { 365,	"stability",	AE_HIT_RECOVERY,	0,	2,	2,	0,	0,	0,	0,	12,	IA_JEWEL | IA_ARMOR,	IS_ALL,	0,	0,	1,	  4000,	  4000,	4,	 0,	 0 },
 { 365,	"harmony",		AE_HIT_RECOVERY,	0,	3,	3,	0,	0,	0,	0,	24,	IA_JEWEL | IA_ARMOR,	IS_ALL,	0,	0,	1,	  8000,	  8000,	8,	 0,	 0 },
+{ 365,	"harmony",		AE_HIT_RECOVERY,	0,	3,	3,	0,	0,	0,	0,	37,	IA_JEWEL | IA_ARMOR,	IS_ALL,	0,	0,	1,	  8000,	  8000,	8,	 0,	 0 },
 
 // KB
 { 368,	"the bear",	AE_FLAG,	EA_KNOCK_BACK,	0,	0,	0,	0,	0,	0,	 5,	IA_RANGE | IA_STAFF | IA_MELEE,	IS_ALL,	0,	0,	1,	  750,	  750,	2,	 0,	 0 },
 { 369,	"the bear",	AE_FLAG,	EA_KNOCK_BACK,	0,	0,	0,	0,	0,	0,	19,	IA_RANGE | IA_STAFF | IA_MELEE,	IS_ALL,	0,	0,	1,	1'500,	1'500,	3,	 0,	 0 },
+{ 369,	"the bear",	AE_FLAG,	EA_KNOCK_BACK,	0,	0,	0,	0,	0,	0,	36,	IA_RANGE | IA_STAFF | IA_MELEE,	IS_ALL,	0,	0,	1,	1'500,	1'500,	3,	 0,	 0 },
 
 /* ------------------------------------
 				DURABILITY
@@ -280,6 +304,8 @@ Affix AffixesClassic[] = {
 { 180,	"STURDINESS",		AE_HIGH_DURABILITY,	0,	 26,	 75,	0,	0,	0,	0,	 1,	IA_RANGE | IA_MELEE | IA_SHIELD | IA_ARMOR,	IS_ALL,	0,	0,	1,	100,	100,	2,	 0,	 0 },
 { 180,	"craftsmanship",	AE_HIGH_DURABILITY,	0,	 51,	100,	0,	0,	0,	0,	 6,	IA_RANGE | IA_MELEE | IA_SHIELD | IA_ARMOR,	IS_ALL,	0,	0,	1,	200,	200,	2,	 0,	 0 },
 { 180,	"structure",		AE_HIGH_DURABILITY,	0,	101,	200,	0,	0,	0,	0,	12,	IA_RANGE | IA_MELEE | IA_SHIELD | IA_ARMOR,	IS_ALL,	0,	0,	1,	300,	300,	2,	 0,	 0 },
+{ 180,	"structure",		AE_HIGH_DURABILITY,	0,	101,	200,	0,	0,	0,	0,	25,	IA_RANGE | IA_MELEE | IA_SHIELD | IA_ARMOR,	IS_ALL,	0,	0,	1,	300,	300,	2,	 0,	 0 },
+{ 180,	"structure",		AE_HIGH_DURABILITY,	0,	101,	200,	0,	0,	0,	0,	39,	IA_RANGE | IA_MELEE | IA_SHIELD | IA_ARMOR,	IS_ALL,	0,	0,	1,	300,	300,	2,	 0,	 0 },
 
 
 			{ 0,	"",	AE_NO },

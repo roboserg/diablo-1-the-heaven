@@ -7,6 +7,10 @@ int PlayerLastDrawnHealth = -1;
 vector<pair<string, string> > messageLog;
 bool InstantMurderHero = false;
 char MurderHeroName[32] = ""; 
+// (th4) the exact save the armed murder targets: slot index + single/multiplayer list
+// (menu.cpp MurderHeroInGame arms it, CharSlots.cpp LoadCharSlots checks it)
+int MurderHeroSlot = -1;
+bool MurderHeroMulti = false;
 int ManaRegen = 0;
 int HealthRegen = 0;
 int UpdateAuraDamage = 0;
@@ -48,6 +52,24 @@ PlayerStat GetStartStat( PLAYER_FULL_CLASS fullClassId, decltype(Player::traits)
 		result.Dexterity = 5;
 		result.Vitality = 5;
 	}
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		result.Strength = 1800;
+		result.Magic = 10;
+		result.Dexterity = 500;
+		result.Vitality = 500;
+	}
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		result.Strength = 35;
+		result.Magic = 0;
+		result.Dexterity = 10;
+		result.Vitality = 25;
+	}
+	if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		//result.Strength = 35;
+		//result.Magic = 0;
+		result.Dexterity += 5;
+		result.Vitality -= 5;
+	}
 	if (GameMode == GM_CLASSIC) {
 		switch (player.ClassID) {
 		case PC_0_WARRIOR:		result.Strength = 30; result.Magic = 10; result.Dexterity = 20; result.Vitality = 25;	break;
@@ -67,6 +89,7 @@ PlayerStat GetPlayerMaxStat( int playerIndex )
 	if( has(player.traits, TraitId::Mamluk        )){ result.Strength  =  475; result.Magic  = 150; result.Dexterity  = 475; result.Vitality  = 400; }
 	if( has(player.traits, TraitId::Pistoleer     )){ result.Strength  =  600; result.Magic  =  50; result.Dexterity  = 400; result.Vitality  = 450; }
 	if( has(player.traits, TraitId::Black_Witchery)){ result.Strength  =  300; result.Magic  = 400; result.Dexterity  = 500; result.Vitality  = 300; }
+	if( has(player.traits, TraitId::Scissor		  )){ result.Strength  =  600; result.Magic  =  50; result.Dexterity  = 400; result.Vitality  = 450; }
 	if( has(player.traits, TraitId::BendTheRules  )){ result.Strength  =  900; result.Magic  = 900; result.Dexterity  = 900; result.Vitality  = 900; } // all max stats = 900
 	if( has(player.traits, TraitId::Gifted        )){ result += 25; } // +25 to maximum stats
 	if( has(player.traits, TraitId::OldFashioned  )){                                               result.Dexterity +=  40; } // +(CLVL*3) to AC, +(CLVL*2) to damage, +40 to maximum base Dexterity
@@ -78,7 +101,10 @@ PlayerStat GetPlayerMaxStat( int playerIndex )
 	if( has(player.traits, TraitId::Ranger        )){                          result.Magic +=  40;                          result.Vitality -=  40; }
 	if (has(player.traits, TraitId::Crupellarius  )){ result.Strength -= 100;												 result.Vitality += 100; }
 	if (has(player.traits, TraitId::Giant))			{																		 result.Vitality += 100; }
-	if( player.gameChanger& BIT(GC_9_NIGHT_KIN)    ){                          result.Magic += 225; result.Dexterity += 125; result.Strength -= 200; }
+	if( player.gameChanger & BIT(GC_9_NIGHT_KIN)    ){                         result.Magic += 225; result.Dexterity += 125; result.Strength -= 200; }
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) { result.Strength = 1800;  result.Magic = 10;   result.Dexterity =  500; result.Vitality =  500; }
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) { result.Strength = 850;  result.Magic = 25;   result.Dexterity =  125; result.Vitality =  700; }
+	if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)){ result.Strength -= 50;  result.Dexterity += 50; }
 	if( PerkValue(SYNERGY_OSTENTATION, playerIndex) > 0){ result += PerkValue(SYNERGY_OSTENTATION, playerIndex); }
 
 	if (GameMode == GM_CLASSIC) {
@@ -237,7 +263,7 @@ int MaxAcidDPS( int monsterIndex, int playerIndex )
 		case UM_4_ArchBishop_Lazarus:      divider = 44; break;
 		case UM_8_Warlord_of_Blood
 			or UM_157_Warlord_of_Blood:    divider = 52; break;
-		case UM_261_Heartburn:             divider = 41; break;
+		case UM_261_Heartfire:             divider = 41; break;
 		default:
 			switch (Dungeon->level) {
 			case              0 or 1: divider = 14; break;
@@ -262,6 +288,9 @@ int MaxAcidDPS( int monsterIndex, int playerIndex )
 			divider -= divider * 40 / 100;
 		}
 		divider -= (divider * (PerkValue(PERK_ACID_BURN, playerIndex)) / 100);
+		if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			divider -= divider / 2;
+		}
 		LimitToMin(divider, 3 * Difficulty / 2 + 5); // minimum time to kill any boss = 5 sec + 150% Difficulty
 	}else{
 		switch(Difficulty){
@@ -296,6 +325,9 @@ int MaxAcidDPS( int monsterIndex, int playerIndex )
 		}
 		divider -= PerkValue(PERK_ACID_BURN, playerIndex) / 10;
 		divider -= (divider * (PerkValue(PERK_ACID_BURN, playerIndex)) / 100);
+		if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			divider -= divider / 2;
+		}
 		LimitToMin(divider, 1 + Difficulty / 2);
 	}
 	return monster.BaseLife / divider;
@@ -505,17 +537,67 @@ void ShowMessageLog(int firstItem) {
 	LimitToMin(ItemCount, 0);
 }
 
+// (th4) Defined in Draw.cpp, latched by DrawMissile each frame: the current player's
+// reflect icon position in SURFACE coords (borders included). -1 when not drawn.
+extern int  g_ReflectIconSurfX, g_ReflectIconSurfY;
+extern int  g_CurPlayerSurfX;
+extern bool g_ReflectIconDrawn, g_CurPlayerDrawn;
+
+// (th4) FLOATING COMBAT TEXT gate. Every floating number (damage dealt, damage taken, HP/MP
+// regeneration, XP gained, "... breaking!") is queued by one of the four producers below
+// (DrawFloatingHealthAndMana, DrawFloatingExp, DrawFloatingDamage, DrawFloatingDamagedArmor) and
+// drawn from CombatTextQueue by DrawCombatTextAbovePlayer; all five ask this. Off when the player
+// turned it off (showCombatText, config / Combat text menu) and always off in Classic mode, which
+// plays like the original game. A new producer must check this too. Not covered on purpose: the
+// reflect charge count on the Reflect icon, drawn at the top of DrawCombatTextAbovePlayer -- it
+// is a counter on a spell icon, not floating text.
+static bool CombatTextOn()
+{
+	return showCombatText && GameMode != GM_CLASSIC;
+}
+
+// (th4) Reflect charge count, on the icon rather than near the player.
+// DrawMissile latched where the icon was drawn (g_ReflectIconSurf*, SURFACE coords).
+// DrawLevelInfoText adds Screen_LeftBorder/Screen_TopBorder itself -- see its
+// SurfaceOffset line in Panel.cpp -- so the borders are subtracted back off here.
+// That is the whole conversion: it is ONE surface, the two just disagree about who
+// adds the borders.
+// The old version used Xofs/Yofs, which are the AUTOMAP origin and drift with
+// resolution (fine at 1056x594, wrong at 1280x720). Do not reintroduce them here.
+// DYNAMIC ZOOM (DynamicZoom.cpp): the icon is a missile, drawn INTO the world, so it grows with the zoom. While
+// zoomed, the count is drawn into the world too -- by MainDrawFunc (Draw.cpp), before the world snapshot -- so it
+// grows with its icon and stays on it (Mordor's choice, 2026-10-07: a 1x number on a zoomed shield looked tiny).
+// Not zoomed: DrawCombatTextAbovePlayer draws it, as always.
+void DrawReflectCount()
+{
+	if (!Show_Reflect_Layers) return;
+	const Player& curPlayer = Players[CurrentPlayerIndex];
+	if (curPlayer.CountOfReflectCharges > 0 && g_ReflectIconDrawn && g_CurPlayerDrawn) {
+		char rbuf[16];
+		sprintf(rbuf, "%d", curPlayer.CountOfReflectCharges);
+		// X from the PLAYER sprite centre, Y from the ICON -- see the note in Draw.cpp.
+		int rx = g_CurPlayerSurfX   - Screen_LeftBorder - GetTextWidth(rbuf) / 2 - 1; // (th4) -1: sat right of the shield's centre
+		int ry = g_ReflectIconSurfY - Screen_TopBorder;
+		DrawLevelInfoText(rx, ry, rbuf, C_3_Gold, true);
+	}
+}
+
 //----- (th2) ------------------------------------------------------------
 void DrawCombatTextAbovePlayer()
 {
-	if (showCombatText == false || CombatTextQueue.size() == 0) {// Do not call this draw function if there is nothing in the queue to draw, should improve performance.
+	if( !DynZoom_Active() ) DrawReflectCount();	// (th4) zoomed: drawn into the world instead (DrawReflectCount)
+
+	if (!CombatTextOn()) {
+		if (!CombatTextQueue.empty()) CombatTextQueue.clear(); // drain any entries left over from when it was toggled on
+		return;
+	}
+	if (CombatTextQueue.empty()) {
 		return;
 	}
 
-	constexpr float DurationOfTextInSeconds = 2;// These values only need to be computed once.
+	constexpr float DurationOfTextInSeconds = 2;
 	constexpr int PercentOfTheScreenToTravel = 20;
 	constexpr int percentToMerge = 80;
-	constexpr double PI = 3.14159265;
 	static double DistanceToTravel = ScreenHeight * PercentOfTheScreenToTravel / 100;
 
 	vector<int> indexes; indexes.reserve(CombatTextQueue.size());
@@ -569,30 +651,34 @@ void DrawCombatTextAbovePlayer()
 		if (iterations < (int)((float)FPS * DurationOfTextInSeconds)) {
 			int x, y;
 			if (CombatTextQueue[i].showOnCenter == true) {
-				x = Xofs - Screen_LeftBorder - GetTextWidth((char*)text.c_str()) / 2; //(ScreenWidth - GetTextWidth((char*)text.c_str())) / 2;
+				x = Xofs - Screen_LeftBorder; //(ScreenWidth - GetTextWidth((char*)text.c_str())) / 2;
 				y = Yofs - Screen_TopBorder; //int((float)ScreenHeight / 2.3);
+				DynZoom_WorldToScreen( x, y );	// (th4) DYNAMIC ZOOM: where the hero is SHOWN (no-op without it)
+				x -= GetTextWidth((char*)text.c_str()) / 2;
 			} else {
-				x = CombatTextQueue[i].posX;
-				y = CombatTextQueue[i].posY;
 				int row = CombatTextQueue[i].posX - PlayerRowPos;
 				int col = CombatTextQueue[i].posY - PlayerColPos;
-				x = 32 * (row - col) + (200 * (Scroll.xOfs + PlayerShiftY) / 100 >> 1) + Xofs - Screen_LeftBorder - GetTextWidth((char*)text.c_str()) / 2;
+				// Prune entries far outside the visible tile range (e.g. after player teleported away).
+				// 32px and 16px are the isometric tile pixel dimensions used engine-wide.
+				// +5 is a small tile margin so text at the very edge of view isn't clipped too eagerly.
+				if (abs(row) > ScreenWidth / 32 + 5 || abs(col) > ScreenHeight / 16 + 5) {
+					CombatTextQueue.erase(CombatTextQueue.begin() + i);
+					continue;
+				}
+				x = 32 * (row - col) + (200 * (Scroll.xOfs + PlayerShiftY) / 100 >> 1) + Xofs - Screen_LeftBorder;
 				y = 16 * (row + col) + (200 * (Scroll.yOfs + PlayerShiftX) / 100 >> 1) + Yofs - Screen_TopBorder - 16;
+				DynZoom_WorldToScreen( x, y );	// (th4) DYNAMIC ZOOM: over the target where it is SHOWN (no-op without it)
+				x -= GetTextWidth((char*)text.c_str()) / 2;
 			}
-			//y = ax + b
-			//a = tangent(angle)
-			double radian_angle = CombatTextQueue[i].angle * PI / 180.0;
-			int dest_x = x + int(DistanceToTravel * cos(radian_angle));
-			int dest_y = y + int(DistanceToTravel * sin(radian_angle));
-			double a = tan(radian_angle);
-			double b = y - a * x;
 			double progress = iterations / (FPS * DurationOfTextInSeconds);
-			int diff_x = dest_x - x;
-			int diff_y = dest_y - y;
+			// dirX/dirY are precomputed at CombatText construction — no trig per frame
+			int diff_x = int(DistanceToTravel * CombatTextQueue[i].dirX);
+			int diff_y = int(DistanceToTravel * CombatTextQueue[i].dirY);
 
 			int drawx = x - int(progress * diff_x);
 			int drawy = y - int(progress * diff_y);
-			if (drawx > 0 && drawy < ScreenWidth && drawy > 0 && drawy < ScreenHeight) {
+			// Fix: drawx needs both lower AND upper bound; drawy < ScreenWidth was a typo (was checking y against width)
+			if (drawx > 0 && drawx < ScreenWidth && drawy > 0 && drawy < ScreenHeight) {
 				char bfr[256];
 
 				//int callerID;
@@ -608,48 +694,82 @@ void DrawCombatTextAbovePlayer()
 	}
 }
 
+void ResetFloatingHealthManaAccumulators()
+{
+	// Signals DrawFloatingHealthAndMana to reset its static accumulators
+	// on the next call, so stale values don't carry over on load/new game.
+	PlayerLastDrawnHealth = -1;
+	PlayerLastDrawnMana = -1;
+	// Clear any in-flight combat texts so stale damage/regen entries from
+	// the previous level don't bleed through after a dungeon transition.
+	CombatTextQueue.clear();
+}
+
 //----- (th2) ------------------------------------------------------------
 void DrawFloatingHealthAndMana() {
-	Player& player = Players[CurrentPlayerIndex];
-	int curHP = player.CurLife>>6;
-	int curMana = player.CurMana >> 6;
-	int diffHP =  curHP-PlayerLastDrawnHealth;
-	int diffMana = curMana-PlayerLastDrawnMana;
-	if (PlayerLastDrawnHealth == -1) {
-		PlayerLastDrawnHealth = curHP;
-		return;
-	}
+	if (!CombatTextOn()) return; // queue never gets drawn when off, so skip push entirely
 
-	if (PlayerLastDrawnMana == -1) {
+	static int accumulatedHPRegen = 0;
+	static int accumulatedManaRegen = 0;
+	static int regenEmitTimer = 0;
+
+	Player& player = Players[CurrentPlayerIndex];
+	int curHP = player.CurLife >> 6;
+	int curMana = player.CurMana >> 6;
+
+	// Reset signal from ResetFloatingHealthManaAccumulators() on load/new game
+	if (PlayerLastDrawnHealth == -1 || PlayerLastDrawnMana == -1) {
+		accumulatedHPRegen = 0;
+		accumulatedManaRegen = 0;
+		regenEmitTimer = 0;
+		PlayerLastDrawnHealth = curHP;
 		PlayerLastDrawnMana = curMana;
 		return;
 	}
+
+	int diffHP = curHP - PlayerLastDrawnHealth;
+	int diffMana = curMana - PlayerLastDrawnMana;
 	PlayerLastDrawnHealth = curHP;
-    PlayerLastDrawnMana = curMana;
+	PlayerLastDrawnMana = curMana;
+
+	regenEmitTimer++;
 
 	if (diffHP < 0) {
-		if (ShowReceivedDamage == true) {
-			if (abs(diffHP) > ReceivedDamageThreshold){
-			CombatTextQueue.push_back(CombatText("- %i HP", C_2_Red, 0, 0, true, CurrentPlayerIndex, "decreasedHealth", abs(diffHP)));
-			}
+		int absDiff = abs(diffHP);
+		if (absDiff > ReceivedDamageThreshold && ShowReceivedDamage) {
+			CombatTextQueue.push_back(CombatText("- %i HP", C_2_Red, 0, 0, true, CurrentPlayerIndex, "decreasedHealth", absDiff));
 		}
-	}
-	else if (diffHP > FloatingHPRegenThreshold) {
-		CombatTextQueue.push_back(CombatText("+ %i HP", C_6_Brownish, 0, 0, true, CurrentPlayerIndex, "increasedHealth", abs(diffHP)));
+	} else if (ShowHPRegen && diffHP > 0) {
+		accumulatedHPRegen += diffHP;
 	}
 
 	if (diffMana < 0) {
-		CombatTextQueue.push_back(CombatText("- %i MP", C_7_Grey, 0, 0, true, CurrentPlayerIndex, "decreasedMana", abs(diffMana)));
-	}
-	else if (diffMana > FloatingManaRegenThreshold) {
-		CombatTextQueue.push_back(CombatText("+ %i MP", C_1_Blue, 0, 0, true, CurrentPlayerIndex, "increasedMana", abs(diffMana)));
+		int absDiff = abs(diffMana);
+//		if (absDiff > FloatingManaRegenThreshold) {// Turn off for now, need a new threshold
+//			CombatTextQueue.push_back(CombatText("- %i MP", C_7_Grey, 0, 0, true, CurrentPlayerIndex, "decreasedMana", absDiff));
+//		}
+	} else if (ShowMPRegen && diffMana > 0) {
+		accumulatedManaRegen += diffMana;
 	}
 
+	// Emit accumulated regen text once per second (FPS render frames = 1 second).
+	if (regenEmitTimer >= FPS) {
+		regenEmitTimer = 0;
+		if (accumulatedHPRegen > FloatingHPRegenThreshold) {
+			CombatTextQueue.push_back(CombatText("+ %i HP", C_6_Banana, 0, 0, true, CurrentPlayerIndex, "increasedHealth", accumulatedHPRegen));
+		}
+		accumulatedHPRegen = 0;
+		if (accumulatedManaRegen > FloatingManaRegenThreshold) {
+			CombatTextQueue.push_back(CombatText("+ %i MP", C_1_Blue, 0, 0, true, CurrentPlayerIndex, "increasedMana", accumulatedManaRegen));
+		}
+		accumulatedManaRegen = 0;
+	}
 }
 
 //----- (th2) ------------------------------------------------------------
 void DrawFloatingExp(i64 xpGain, int row, int col)
 {
+	if (!CombatTextOn()) return; // queue never gets drawn when off, so skip push entirely
 
 	Player& player = Players[CurrentPlayerIndex]; 
 	if (showCombatExp) {
@@ -677,10 +797,11 @@ void DrawFloatingExp(i64 xpGain, int row, int col)
 //----- (th2) ------------------------------------------------------------
 void DrawFloatingDamage(int damage, int row, int col, int callerID, int color)
 {
+	if (!CombatTextOn()) return; // queue never gets drawn when off, so skip push entirely
 	if (showInflictedDamage == false) {
 		return;
 	}
-	if (abs(damage) > ReceivedDamageThreshold) {
+	if (abs(damage) > MonsterReceivedDamageThreshold) {
 		CombatTextQueue.push_back(CombatText("- %i HP", color, row, col, false, callerID, "damageDealtToMonster", abs(damage)));
 	}
 }
@@ -703,6 +824,7 @@ string getNameFromSlot(int slot, string newname)
 //----- (th2) ------------------------------------------------------------
 void DrawFloatingDamagedArmor(int slot, int dura, string newname)
 {
+	if (!CombatTextOn()) return; // queue never gets drawn when off, so skip push entirely
 	stringstream ss;
 	ss << getNameFromSlot(slot,newname);
 	if (dura == 0) {
@@ -730,10 +852,10 @@ void __fastcall SplitAnimationPointerToDirections( char* animPtr, char** dirAnim
 
 //int TrnIndex, UseTestTrn, TestTrnCount;
 //uchar TestTrn[256];
-// получение следующего тестового trn из списка
+// (rt) get the next test trn from the list
 uchar* GetPlayerTrn()
 {
-	// временная залипуха берущая тестовый .trn из конфига
+	// (rt) temporary hack that takes the test .trn from the config
 	extern char UserPlayerTrn[ 256/*4096*/ ];
 	char* playerTrn = 0;
 	if( *UserPlayerTrn ){
@@ -753,7 +875,7 @@ void __fastcall SetPlayerTrn( char** dirAnimPtr, uchar** colorTable, char* fileN
 	if( fileName && !*colorTable ){
 		*colorTable = (uchar*) AllocMem( 256 );
 		LoadFileWithMem( fileName, *colorTable );
-		// этот блок взят из ColorMonsterSprite, так как trn применяется только там в оригинале, и он всегда вызывается
+		// (rt) this block is taken from ColorMonsterSprite, since the trn is applied only there in the original, and it's always called
 		//for( uchar* pal = colorTable; pal < colorTable + 256; pal++ ){
 		//	if( *pal == 255u ){
 		//		*pal = 0;
@@ -762,7 +884,7 @@ void __fastcall SetPlayerTrn( char** dirAnimPtr, uchar** colorTable, char* fileN
 	}
 	for( int dir = 0; dir < 8; dir++ ){
 		if( dirAnimPtr[ dir ] ){
-			ColorSpriteAnimation( dirAnimPtr[ dir ], *colorTable, *(int*)dirAnimPtr[0] ); // количество кадров храниться первым int'ом каждого клипа
+			ColorSpriteAnimation( dirAnimPtr[ dir ], *colorTable, *(int*)dirAnimPtr[0] ); // (rt) the frame count is stored as the first int of each clip
 		}
 	}
 }
@@ -799,22 +921,73 @@ uchar* BersTrn[3];
 uchar* ThrxTrn[3];
 uchar* MurmTrn[3];
 uchar* DimaTrn[3];
+uchar* ScissorTrn[1];
 uchar* RangerTrn;
 uchar* WarWHUQMFixTrn;
 uchar* DruTrn[1];
+uchar* GldxTrn[1];
 uchar* AssDarkener_v3;
 int ArmorIndex, WeaponIndex, UseLookIndex;
 
 //volatile int curAnimationsPointers;
+
+// (th4) DARK CAMPAIGN HUB: the Hideout is a hub, not a battlefield -- the player should
+// stand and walk there the relaxed way he does in town, not with weapon drawn. The engine
+// picks the "angry" AS/AW sets whenever the level is generated or a quest floor, and town
+// (being neither) is what selects the calm ST/WL sets. The Hideout IS a quest floor, so it
+// needs an explicit exception. Used by both the animation-set choice and the walk sub-step
+// count, which must agree: town walk is a fixed 8 sub-steps and the WL cel is built for
+// that, while the class-specific counts belong to the AW cels.
+bool UsesTownAnimations()
+{
+	return Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT;
+}
+
+// (th4) True when this player is DRAWN from the angry (dungeon) cels even though the level
+// itself uses town animations, so the frame counts and walk sub-steps must follow the angry
+// sheets rather than the town ones. Only case: the Assassin's claws+shield look
+// (PAW_1_SHIELD), which LoadPlayerGFX redirects to the angry claw cels on every level except
+// town -- no town variant of that cel exists. Town is excluded because the override does not
+// fire there, so she uses the ordinary town cel and the ordinary town counts.
+bool ForcesAngryAnimations(const Player& player)
+{
+	return Dungeon == DUN_117_DARKLORD_HIDEOUT
+	    && player.fullClassId == PFC_ASSASSIN
+	    && (UseLookIndex ? WeaponIndex : (player.Appearance & 0xF)) == PAW_1_SHIELD;
+}
+
 //----- (00456DFC) --------------------------------------------------------
+// (th4) TWO TOWERS (LoadPlayerGFX): the TT files are for an Iron Maiden with the trait holding a SHIELD IN EACH HAND
+// (both usable, IsReqMet -- the same test CalcCharParams makes for the shield look); with one shield she is drawn from the
+// normal shield files (Mordor, 2026-10-10). One shield and two give the SAME look ('U'), and the game reloads a hero's
+// files only when the look changes (Item.cpp CalcCharParams), so TwoTowersLoaded remembers per hero which set
+// LoadPlayerGFX last used, and TwoTowersGfxStale makes CalcCharParams reload when the second shield goes on or off.
+// Multiplayer: both hands reach every client on every equip (CMD_48_CHANGEPLRITEMS), and each client recalculates and
+// picks the files itself, so nothing new is sent and every client draws the same set. Not saved (runtime only).
+static bool TwoTowersLoaded[ PlayersMax_4 ];
+static bool TwoTowersBothShields( uint playerIndex )
+{
+	const Player& player = Players[ playerIndex ];
+	const Item& l = player.OnBodySlots[ IS_LeftHand ];
+	const Item& r = player.OnBodySlots[ IS_RightHand ];
+	return player.fullClassId == PFC_IRON_MAIDEN && HasTrait( playerIndex, TraitId::TwoTowers )
+	    && l.ItemCode == IC_5_SHIELD && l.IsReqMet && r.ItemCode == IC_5_SHIELD && r.IsReqMet;
+}
+bool TwoTowersGfxStale( int playerIndex )
+{
+	return (uint)playerIndex < PlayersMax_4 && TwoTowersLoaded[ playerIndex ] != TwoTowersBothShields( playerIndex );
+}
+
 void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 {
 	if( playerIndex >= PlayersMax_4 ) TerminateWithError("LoadPlrGFX: illegal player %d", playerIndex);
 	Player& player = Players[playerIndex];
 	char classId = player.ClassID;
 	int appearance = player.Appearance;
+	const bool twoTowers = TwoTowersBothShields( playerIndex );	// (th4) TWO TOWERS (above LoadPlayerGFX): both shields?
+	TwoTowersLoaded[ playerIndex ] = twoTowers;
 	
-	// проверка на вылет в мульти при битом appearance
+	// (rt) check for a multiplayer crash with a broken appearance
 	if( uint( appearance >> 4 ) > 2 ){
 		if( IsDebuggerPresent() ) __debugbreak(); // Wrong armor appperance
 		appearance = (2 << 4) | appearance & 0xF ;
@@ -833,7 +1006,7 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 		 if( player.activeBuffFlag & BF_2_FURY_ACTIVE ) weapon = 'C';
 	}
 	sprintf( look, "%c%c%c", ClassAnim[classId], armor, weapon );
-	// двуручки и одноручки в единственном числе
+	// (rt) two-handers and one-handers, singular
 	if( is(UseLookIndex ? WeaponIndex : (appearance & 0xF), PAW_10_SWORD_ONE, PAW_11_MACE_ONE) && is(classId, PC_5_SAVAGE, PC_4_ROGUE) ){
 		strcat( look, "2H" );
 		strcat( look2, "2H" );
@@ -843,12 +1016,52 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 	char* animPtr = 0;
 	char* szSuffix = 0;
 	for( uint animMask = 1; animMask < PAF_COUNT; animMask <<= 1 ){ // 0x17F
-		if( ! (loadingMask & animMask) ) continue;
+		if (!(loadingMask & animMask)) {
+			continue;
+		}
+
+		// SMutant death animation override------------------------
+		if (animMask == PAF_8_DEATH && (player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
+			char fileName[256];
+			char armorCode[8];
+
+			// Determine armor type from appearance or armor value
+			char armor = ArmorAnim[UseLookIndex && Handler1 != DisableInputWindowProc ? ArmorIndex : player.Appearance >> 4];
+
+			if (armor == 'H' || armor == 'M') {	strcpy(armorCode, "H");	}
+			else {	strcpy(armorCode, "L"); }// default to light armour
+
+			sprintf(fileName, "PlrGFX\\mutie\\SM_%s_MG\\mutie_%s_MG_dt.cl2", armorCode, armorCode);
+			LoadFileWithMem(fileName, player.DeathAnimCel);
+			SplitAnimationPointerToDirections(player.DeathAnimCel, player.deathAnimationsPointers);
+			continue;  // Skip all other processing for this mask
+		}
+		//--------------------------------------------------------
+
+			// ES death animation override------------------------
+		if (animMask == PAF_8_DEATH && (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))) {
+			char fileName[256];
+			char armorCode[8];
+
+			// Determine armor type from appearance or armor value
+			char armor = ArmorAnim[UseLookIndex && Handler1 != DisableInputWindowProc ? ArmorIndex : player.Appearance >> 4];
+
+			if (armor == 'H') { strcpy(armorCode, "H"); }
+			else if (armor == 'M') { strcpy(armorCode, "M"); }
+			else { strcpy(armorCode, "L"); }// default to light armour
+
+			sprintf(fileName, "PlrGFX\\enclave\\ES_%s_H\\enclave_%s_H_dt.cl2", armorCode, armorCode);
+			LoadFileWithMem(fileName, player.DeathAnimCel);
+			SplitAnimationPointerToDirections(player.DeathAnimCel, player.deathAnimationsPointers);
+			continue;  // Skip all other processing for this mask
+		}
+		//--------------------------------------------------------
+
 		switch( animMask ){
-		case PAF_1_STAY:		szSuffix	= (Dungeon->genType || Dungeon->isQuest) ? "AS" : "ST"; // angry stay / town stay
+		case PAF_1_STAY:		szSuffix	= !UsesTownAnimations() ? "AS" : "ST"; // angry stay / town stay // (th4)
 								animPtr		= player.StayAnimCel;
 								dirAnimPtr	= player.nothingAnimationsPointers;			break;
-		case PAF_2_WALK:		szSuffix	= (Dungeon->genType || Dungeon->isQuest) ? "AW" : "WL"; // angry walk / town walk
+		case PAF_2_WALK:		szSuffix	= !UsesTownAnimations() ? "AW" : "WL"; // angry walk / town walk // (th4)
 								animPtr		= player.WalkAnimCel;
 								dirAnimPtr	= player.walkAnimationsPointers;			break;
 		case PAF_3_ATTACK:		szSuffix	= "AT"; // attack
@@ -866,7 +1079,7 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 		case PAF_7_MAGIC_CAST:	szSuffix	= "QM"; // quick magic
 								animPtr		= player.MagicSpellAnimCel;
 								dirAnimPtr	= player.magicSpellAnimationsPointers;		break;
-		case PAF_8_DEATH:		if( player.Appearance & 0xF ) continue;
+		case PAF_8_DEATH:		if( player.Appearance & 0xF) continue;
 								szSuffix	= "DT"; // death
 								animPtr		= player.DeathAnimCel;
 								dirAnimPtr	= player.deathAnimationsPointers;			break;
@@ -880,7 +1093,6 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 		default: TerminateWithError("PLR:2");
 		}
 		char fileName[256];
-		// TODO: rename anim files in data to use suffix above
 		if( player.fullClassId == PFC_DRUID && animMask & PAF_10_TURNING ){
 			if( player.activeBuffFlag & BF_2_FURY_ACTIVE ){
 				sprintf( fileName, "PlrGFX\\%s\\%s\\%s%c.CL2", ClassAnimName[classId], look2, "SS_UNTURN_", armor );
@@ -890,14 +1102,135 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 		}else{
 			sprintf( fileName, "PlrGFX\\%s\\%s\\%s%s.CL2", ClassAnimName[classId], look, look, szSuffix );
 		}
-		// was "PlrGFX\\Warrior\\W\\WAS.CL2" bug! in network (udp) game
+
+		// (th4) TWO TOWERS: an Iron Maiden with the Two Towers trait and a shield in EACH hand is drawn from her own copies
+		// of the SHIELD sets (weapon letter 'U': ALU / AMU / AHU) -- the same file name with "TT" before the extension, e.g.
+		// PlrGFX\Assassin\ALU\ALUASTT.CL2 (Mordor, 2026-10-09). Same idea as the claw Assassin below, a file name swap.
+		// With ONE shield she keeps the normal shield files (Mordor, 2026-10-10); the reload when the second shield goes
+		// on or off: TwoTowersBothShields / TwoTowersGfxStale (above LoadPlayerGFX). Every animation of the set: AS AW
+		// ST WL AT HT BL LM FM QM.
+		// The game takes the FRAME COUNTS from the class tables, not from the file (SetPlrAnims; Iron Maiden with the
+		// 'U' look hits on frame 9), so each TT file must have exactly as many frames as its single-shield twin.
+		// A TT file that is not there is simply not used (probed with ONE_TRY): the old single-shield file is drawn.
+		// The TT files are counted in SelectPlrAnimation, which sizes the animation buffers (a file larger than its
+		// buffer would overrun it): a new kind of file name here needs a scan there too.
+		// Multiplayer: nothing to send -- the hero's class, traits and hands reach every client already (the player
+		// info on joining, CMD_48_CHANGEPLRITEMS on every equip), and each client loads the files itself, here.
+		// Her TRN colouring (Rogue01crimzee*, below) is applied to these files like to any other.
+		// ART IN PROGRESS (Mordor, 2026-10-09): only ALUASTT.CL2 (light armour, standing in the dungeon) is made so far,
+		// so TT_ALL_READY = false limits the swap to that one file. Set it to true once the whole set is in.
+		const bool TT_ALL_READY = false;
+		if( weapon == 'U' && twoTowers && ( TT_ALL_READY || ( armor == 'L' && !strcmp( szSuffix, "AS" ) ) ) ){
+			char ttName[256];
+			sprintf( ttName, "PlrGFX\\%s\\%s\\%s%sTT.CL2", ClassAnimName[classId], look, look, szSuffix );
+			HANDLE tt;
+			if( File_Open( ttName, &tt, ONE_TRY ) ){
+				File_Close( tt );
+				strcpy( fileName, ttName );
+			}
+		}
+
+		// === CUSTOM ASSASSIN ANIMATION ===
+		if (player.fullClassId == PFC_ASSASSIN) {
+			// CLAWS attack
+			if (animMask == PAF_3_ATTACK) {
+				if		(armor == 'L' && weapon == 'U')	{sprintf(fileName, "PlrGFX\\assassin\\alu\\aluat_claws.CL2");}
+				else if (armor == 'M' && weapon == 'U') {sprintf(fileName, "PlrGFX\\assassin\\amu\\amuat_claws.CL2");}
+				else if (armor == 'H' && weapon == 'U') {sprintf(fileName, "PlrGFX\\assassin\\ahu\\ahuat_claws.CL2");}
+				// unarmed
+				else if (armor == 'L' && weapon == 'N')								{sprintf(fileName, "PlrGFX\\assassin\\aln\\alnat2.CL2");}
+				else if (animMask == PAF_3_ATTACK && armor == 'M' && weapon == 'N') {sprintf(fileName, "PlrGFX\\assassin\\amn\\amnat2.CL2");}
+				else if (animMask == PAF_3_ATTACK && armor == 'H' && weapon == 'N') {sprintf(fileName, "PlrGFX\\assassin\\ahn\\ahnat2.CL2");}
+			}
+			// CLAWS hit recovery
+			if (animMask == PAF_4_GOT_HIT) {
+				if		(armor == 'L' && weapon == 'U')	{ sprintf(fileName, "PlrGFX\\assassin\\alu\\aluht_claws.CL2"); }
+				else if (armor == 'M' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\amu\\amuht_claws.CL2"); }
+				else if (armor == 'H' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\ahu\\ahuht_claws.CL2"); }
+				// unarmed
+				//else if (armor == 'L' && weapon == 'N')								{ sprintf(fileName, "PlrGFX\\assassin\\aln\\alnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'M' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\amn\\amnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'H' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\ahn\\ahnat2.CL2"); }
+			}
+			// CLAWS block
+			if (animMask == PAF_9_BLOCK) {
+				if		(armor == 'L' && weapon == 'U')	{ sprintf(fileName, "PlrGFX\\assassin\\alu\\alubl_claws.CL2"); }
+				else if (armor == 'M' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\amu\\amubl_claws.CL2"); }
+				else if (armor == 'H' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\ahu\\ahubl_claws.CL2"); }
+				// unarmed
+				//else if (armor == 'L' && weapon == 'N')								{ sprintf(fileName, "PlrGFX\\assassin\\aln\\alnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'M' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\amn\\amnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'H' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\ahn\\ahnat2.CL2"); }
+			}
+			// CLAWS stay
+			if (animMask == PAF_2_WALK && Dungeon != DUN_0_TOWN){//Dungeon->genType || Dungeon->isQuest) {
+				if		(armor == 'L' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\alu\\aluaw_claws.CL2"); }
+				else if (armor == 'M' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\amu\\amuaw_claws.CL2"); }
+				else if (armor == 'H' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\ahu\\ahuaw_claws.CL2"); }
+				// unarmed
+				//else if (armor == 'L' && weapon == 'N')								{ sprintf(fileName, "PlrGFX\\assassin\\aln\\alnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'M' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\amn\\amnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'H' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\ahn\\ahnat2.CL2"); }
+			}
+			// CLAWS walk
+			if (animMask == PAF_1_STAY && Dungeon != DUN_0_TOWN){//Dungeon->genType || Dungeon->isQuest) {
+				if		(armor == 'L' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\alu\\aluas_claws.CL2"); }
+				else if (armor == 'M' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\amu\\amuas_claws.CL2"); }
+				else if (armor == 'H' && weapon == 'U') { sprintf(fileName, "PlrGFX\\assassin\\ahu\\ahuas_claws.CL2"); }
+				// unarmed
+				//else if (armor == 'L' && weapon == 'N')								{ sprintf(fileName, "PlrGFX\\assassin\\aln\\alnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'M' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\amn\\amnat2.CL2"); }
+				//else if (animMask == PAF_3_ATTACK && armor == 'H' && weapon == 'N') { sprintf(fileName, "PlrGFX\\assassin\\ahn\\ahnat2.CL2"); }
+			}
+		}
+		// ==================== END OF CUSTOM ASSASSIN ANIMATION ===================
+
+		// ================== CUSTOM SUPER MUTANT ANIMATION =====================
+		else if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+			// this also requires support (or else it's freezing game) in "SelectPlrAnimation" func
+			static const char* suffix[] = { "as","aw","at","ht","fm","lm","qm" };
+			static const uint  mask[] = { PAF_1_STAY, PAF_2_WALK, PAF_3_ATTACK, PAF_4_GOT_HIT, PAF_6_FIRE_CAST, PAF_5_LIGHT_CAST, PAF_7_MAGIC_CAST };
+			static const char* folder[] = { "SM_L_MG","SM_L_U","SM_H_MG","SM_H_U" };
+
+			if (weapon == 'G' || weapon == 'N') {
+				int idx = (armor == 'L' ? 0 : 2) + (weapon == 'N');
+				for (int i = 0; i < 7; i++) {
+					if (animMask == mask[i]) {
+						sprintf(fileName, "PlrGFX\\mutie\\%s\\mutie_%s_%s.cl2", folder[idx], folder[idx] + 3, suffix[i]);
+						break;
+					}
+				}
+			}
+		}
+		// ================== END OF CUSTOM SUPER MUTANT ANIMATION =====================
+
+		// ================== CUSTOM ENCLAVE SOLDIER ANIMATION =====================
+		else if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			static const char* animSuffix[] = { "as", "aw", "at", "ht", "fm", "lm", "qm" };
+			static const uint animMaskMap[] = { PAF_1_STAY, PAF_2_WALK, PAF_3_ATTACK, PAF_4_GOT_HIT, PAF_6_FIRE_CAST, PAF_5_LIGHT_CAST, PAF_7_MAGIC_CAST };
+			static const char* armorCode[] = { "L_H", "L_U", "M_H", "M_U", "H_H", "H_U" };
+			if (weapon == 'G' || weapon == 'N') {
+				int armorIdx = (armor == 'L' ? 0 : armor == 'M' ? 2 : 4) + (weapon == 'N');
+				for (int i = 0; i < 7; i++) {
+					if (animMask == animMaskMap[i]) {
+						sprintf(fileName, "PlrGFX\\enclave\\ES_%s\\enclave_%s_%s.cl2", armorCode[armorIdx], armorCode[armorIdx], animSuffix[i]);
+						break;
+					}
+				}
+			}
+		}
+		// ================== END OF CUSTOM ENCLAVE SOLDIER ANIMATION =====================
+
+
+
+
 		LoadFileWithMem( fileName, animPtr );
 		SplitAnimationPointerToDirections( animPtr, dirAnimPtr );
 		if( true /*! UseTestTrn*/ ){ // #player TRN
-			 // исправляем светлую рогу без оружия
+			 // (rt) fix the light rogue without a weapon
 			if( classId == PC_4_ROGUE /* classId == PC_4_ROGUE */ ){
-				//"светлая: ala alb alh aln alt alu ama amb amh amn amt amu";
-				//"темная: ald alm als amd amm ams";
+				//(rt) "light: ala alb alh aln alt alu ama amb amh amn amt amu";
+				//(rt) "dark: ald alm als amd amm ams";
 				if( *(int*)look == '\0NLA' && animMask != PAF_8_DEATH || ( (UseLookIndex ? WeaponIndex : (appearance & 0xF)) > 9 && is(armor, 'L', 'M') )
 				 || armor == 'L' && ( weapon == 'A' || weapon == 'B' || (weapon == 'H' && !(Dungeon->genType || Dungeon->isQuest)) || weapon == 'T' || weapon == 'U' )
 				 || armor == 'M' && ( weapon == 'A' || weapon == 'B' || weapon == 'H' || weapon == 'N' || weapon == 'T' || weapon == 'U' ) 	){
@@ -993,7 +1326,11 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 					SetPlayerTrn(dirAnimPtr, &AssTrn[2], "X\\plrtrn\\Rogue02assassin1lite1.TRN");
 				}
 			}
-			// окрашиваем монаха
+			// gladiatrix
+			else if (player.fullClassId == PFC_GLADIATRIX) {
+				SetPlayerTrn(dirAnimPtr, &GldxTrn[0], "CF\\SH\\CGM.TRN");
+			}
+			// (rt) colour the monk
 			else if( player.fullClassId == PFC_MONK ){
 				SetPlayerTrn( dirAnimPtr, &MonkTrn, "X\\PLRTRN\\Monk01x3.TRN" );
 			}
@@ -1188,7 +1525,7 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 					SetPlayerTrn(dirAnimPtr, &InquizTrn[2], "X\\plrtrn\\Warrior04blue2beigeandorng2beige2.TRN");
 				}
 			}
-			else if( player.fullClassId == PFC_GUARDIAN ){
+			else if( player.fullClassId == PFC_GUARDIAN && !(player.gameChanger & BIT(GC_28_SUPERMUTANT)) && !(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))){
 				if (armor == 'L') {
 					SetPlayerTrn(dirAnimPtr, &GuardTrn[0], "X\\plrtrn\\Warrior03guardian2lite1.TRN");
 				}
@@ -1296,12 +1633,17 @@ void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask )
 					SetPlayerTrn(dirAnimPtr, &DimaTrn[2], "X\\plrtrn\\Dimachaerus01Plate01.TRN");
 				}
 			}
+			else if (player.fullClassId == PFC_SECUTOR) {
+				if (HasTrait(playerIndex, TraitId::Scissor)) {
+					SetPlayerTrn(dirAnimPtr, &ScissorTrn[0], "X\\plrtrn\\Savage01fixt02.trn");
+				}
+			}
 			else if (player.fullClassId == PFC_DRUID) {
 				SetPlayerTrn(dirAnimPtr, &DruTrn[0], "CF\\SH\\_ORNG2CRIMZEE-BLUE.trn");
 			}
 
 		//}else if( UseTestTrn ){
-			// добавляем тестовый .trn к игроку из конфига
+			// (rt) add the test .trn from the config to the player
 			if( uchar* colorTable = GetPlayerTrn() ){
 				SetPlayerTrn( dirAnimPtr, &colorTable );
 			}
@@ -1319,7 +1661,7 @@ void __fastcall InitPlayerGFX( uint playerIndex )
 		TerminateWithError("InitPlayerGFX: illegal player %d", playerIndex);
 	player = &Players[playerIndex];
 	if( player->CurLife & ~63 ){
-		loadingMask = 0b101111111; // 0x17F без death
+		loadingMask = 0b101111111; // (rt) 0x17F without death
 	}else{
 		player->Appearance = 0;
 		loadingMask = PAF_8_DEATH; // TODO: check why this optimization needs (may be for multiplayer dead bodys ? )
@@ -1377,7 +1719,111 @@ uint __fastcall SelectPlrAnimation(char* animType)
 				sizeLoaded = fileSize;
 			}
 		}
+		// (th4) TWO TOWERS: the Iron Maiden's TT copies of the shield sets (LoadPlayerGFX swaps them in) must fit the
+		// buffers sized here too -- LoadFileWithMem reads a whole file into its buffer with no size check, so a file
+		// bigger than every one counted here overruns the heap (how the druid and Super Mutant files crashed the game
+		// before their scans below were added). Counted whether or not LoadPlayerGFX uses them yet (TT_ALL_READY).
+		if( clas == PC_4_ROGUE && weaponAnim.select == 'U' && !*hand ){
+			sprintf( fileName, "PlrGFX\\%s\\%s\\%s%sTT.CL2", ClassAnimName[clas], classAnim, classAnim, animType );
+			if( File_Open( fileName, &animFile, 1 ) ){
+				uint fileSize = File_GetSize( animFile, 0 );
+				File_Close( animFile );
+				if( sizeLoaded <= fileSize ){
+					sizeLoaded = fileSize;
+				}
+			}
+		}
 	}
+
+	// ===== Scan mutie folder for SUPER MUTANT animations =====
+	if (CurrentPlayerIndex != -1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		if (strcmp(animType, "AS") == 0 || strcmp(animType, "AW") == 0 || strcmp(animType, "AT") == 0 ||
+			strcmp(animType, "ST") == 0 || strcmp(animType, "WL") == 0 || strcmp(animType, "HT") == 0 ||
+			strcmp(animType, "FM") == 0 || strcmp(animType, "LM") == 0 || strcmp(animType, "QM") == 0 ||
+			strcmp(animType, "DT") == 0) {
+
+			char suffix[8];
+			if (strcmp(animType, "AS") == 0 || strcmp(animType, "ST") == 0) strcpy(suffix, "as");
+			else if (strcmp(animType, "AW") == 0 || strcmp(animType, "WL") == 0) strcpy(suffix, "aw");
+			else if (strcmp(animType, "AT") == 0) strcpy(suffix, "at");
+			else if (strcmp(animType, "HT") == 0) strcpy(suffix, "ht");
+			else if (strcmp(animType, "FM") == 0) strcpy(suffix, "fm");
+			else if (strcmp(animType, "LM") == 0) strcpy(suffix, "lm");
+			else if (strcmp(animType, "QM") == 0) strcpy(suffix, "qm");
+			else if (strcmp(animType, "DT") == 0) strcpy(suffix, "dt");
+
+			// Define all possible Mutant animation paths
+			struct AnimPath {
+				const char* path;
+				bool exists;
+				uint size;
+			};
+
+			AnimPath paths[] = {
+				{"PlrGFX\\mutie\\SM_L_MG\\mutie_L_MG_%s.CL2", false, 0},
+				{"PlrGFX\\mutie\\SM_L_U\\mutie_L_U_%s.CL2", false, 0},
+				{"PlrGFX\\mutie\\SM_H_MG\\mutie_H_MG_%s.CL2", false, 0},
+				{"PlrGFX\\mutie\\SM_H_U\\mutie_H_U_%s.CL2", false, 0}
+			};
+
+			uint maxSize = sizeLoaded;
+
+			for (int i = 0; i < 4; i++) {
+				sprintf(fileName, paths[i].path, suffix);
+				if (File_Open(fileName, &animFile, 1)) {
+					uint fileSize = File_GetSize(animFile, 0);
+					File_Close(animFile);
+					if (maxSize < fileSize) {
+						maxSize = fileSize;
+					}
+				}
+			}
+
+			sizeLoaded = maxSize;
+		}
+	}
+	// ===== END OF MUTIE SCAN =====
+
+		// ===== Scan folders for ENCLAVE SOLDIER animations =====
+	if (CurrentPlayerIndex != -1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		if (strcmp(animType, "AS") == 0 || strcmp(animType, "AW") == 0 || strcmp(animType, "AT") == 0 ||
+			strcmp(animType, "ST") == 0 || strcmp(animType, "WL") == 0 || strcmp(animType, "HT") == 0 ||
+			strcmp(animType, "FM") == 0 || strcmp(animType, "LM") == 0 || strcmp(animType, "QM") == 0 ||
+			strcmp(animType, "DT") == 0) {
+
+			char suffix[8];
+			if (strcmp(animType, "AS") == 0 || strcmp(animType, "ST") == 0) strcpy(suffix, "as");
+			else if (strcmp(animType, "AW") == 0 || strcmp(animType, "WL") == 0) strcpy(suffix, "aw");
+			else if (strcmp(animType, "AT") == 0) strcpy(suffix, "at");
+			else if (strcmp(animType, "HT") == 0) strcpy(suffix, "ht");
+			else if (strcmp(animType, "FM") == 0) strcpy(suffix, "fm");
+			else if (strcmp(animType, "LM") == 0) strcpy(suffix, "lm");
+			else if (strcmp(animType, "QM") == 0) strcpy(suffix, "qm");
+			else if (strcmp(animType, "DT") == 0) strcpy(suffix, "dt");
+
+			const char* paths[] = {
+				"PlrGFX\\enclave\\ES_L_H\\enclave_L_H_%s.CL2",
+				"PlrGFX\\enclave\\ES_L_U\\enclave_L_U_%s.CL2",
+				"PlrGFX\\enclave\\ES_M_H\\enclave_M_H_%s.CL2",
+				"PlrGFX\\enclave\\ES_M_U\\enclave_M_U_%s.CL2",
+				"PlrGFX\\enclave\\ES_H_H\\enclave_H_H_%s.CL2",
+				"PlrGFX\\enclave\\ES_H_U\\enclave_H_U_%s.CL2",
+			};
+
+			for (int i = 0; i < 6; i++) {
+				sprintf(fileName, paths[i], suffix);
+				if (File_Open(fileName, &animFile, 1)) {
+					uint fileSize = File_GetSize(animFile, 0);
+					File_Close(animFile);
+					if (sizeLoaded < fileSize) {
+						sizeLoaded = fileSize;
+					}
+				}
+			}
+		}
+	}
+	// ===== END OF ENCLAVE SCAN =====
+
 	// TODO: remove after renaming trasformation anim
 	static const char* turnAnim[2] = { "SS_UNTURN_", "SS_TURN_" };
 	if( strcmp( animType, "TI" ) == 0 ){
@@ -1468,9 +1914,29 @@ void __fastcall SetPlrAnims(uint playerIndex)
 	player.AnimPitchHit = 96;
 	player.AnimPitchCast = 96;
 	player.AnimPitchDeath = 128;
+	// SUPER MUTANT: Override death animation size
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		player.AnimPitchDeath = 170;  // Larger frames for Mutant death
+	}
+	else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		player.AnimPitchDeath = 140;  // Larger frames for ES death
+	}
+	//------------------------------------------
 	player.AnimPitchBlock = 96;
 	classId = Players[playerIndex].ClassID;
-	if (Dungeon->genType || Dungeon->isQuest) {
+	// (th4) Must use the SAME test as the animation-set choice in LoadPlayerGFX, or the
+	// frame counts describe a different cel than the one actually loaded. The Deep Sanctum
+	// is a quest floor, so the raw (genType || isQuest) test sent it down the dungeon
+	// branch while LoadPlayerGFX had already loaded the TOWN ST/WL cels. Town StayFrames
+	// is 20 for every class but AngryStayFrames is only 8-10, so the 20-frame town idle
+	// was cut off after 8-10 frames.
+	//
+	// EXCEPTION -- the Assassin's claws+shield look (PAW_1_SHIELD, drawn with claws): its
+	// cel is redirected in LoadPlayerGFX to the ANGRY claw sheets on every level except
+	// town, and no town variant of that cel exists. So in the Hideout she is drawn from the
+	// 8-frame dungeon sheet and must be driven by the dungeon frame counts or she stands
+	// still. Town itself is unaffected -- the claw override does not fire there.
+	if (!UsesTownAnimations() || ForcesAngryAnimations(player)) {
 		player.StayAnimationFrameCount = ClassPropTable[classId].AngryStayFrames;
 		player.WalkAnimationFrameCount = ClassPropTable[classId].AngryWalkFrames;
 		player.AttackAnimationFrameCount = ClassPropTable[classId].AttackFrames;
@@ -1485,6 +1951,18 @@ void __fastcall SetPlrAnims(uint playerIndex)
 		player.WalkAnimationFrameCount = ClassPropTable[classId].WalkFrames;
 		player.DeathAnimationFrameCount = ClassPropTable[classId].DeathFrames;
 		player.SpellAnimationFrameCount = ClassPropTable[classId].SpellFrames;
+	}
+	// (th4) Gladiatrix blocks faster than the rest of the Rogue line: 2 frames, not the 3
+	// her base row carries. ClassPropTable is indexed by BASE class (ClassID 0-5), so row 4
+	// is shared by Rogue, Assassin, Iron Maiden, Bombardier AND Gladiatrix -- editing the
+	// table would speed all five up. Overridden here instead.
+	// Placed after BOTH branches above on purpose: the town branch never assigns
+	// BlockAnimationFrameCount at all, so an override inside the dungeon branch would
+	// leave town running on whatever the previous level happened to set.
+	// This is the DEFAULT only -- EA_FAST_BLOCK still short-circuits the animation in
+	// PM_DoBlock by jumping straight to BlockAnimationFrameCount.
+	if( player.fullClassId == PFC_GLADIATRIX ){
+		player.BlockAnimationFrameCount = 2;
 	}
 	player.SpellAnimationActionFrameIndex = ClassPropTable[classId].SpellActionIndex; // player attack speeds
 	weaponWield = UseLookIndex ? WeaponIndex : player.Appearance & 0xF;
@@ -1511,7 +1989,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1540,13 +2019,15 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
 		player.AttackMainFrame = HasTrait(playerIndex, TraitId::Vigorous) ? 12 : 11;
 		return;
 	}
+	// -------------------------------------------------gauardian--------------------------
 	else if (player.fullClassId == PFC_GUARDIAN) {
 		if (weaponWield == PAW_5_AXE) {
 			player.AttackAnimationFrameCount = 20;
@@ -1571,6 +2052,11 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			if (HasTrait(playerIndex, TraitId::Vigorous)) {
 				atk_speed += 1;
 			}
+			// SUPER MUTANT MINIGUN OVERRIDE
+			if (player.gameChanger & BIT(GC_28_SUPERMUTANT) && weaponWield == PAW_12_PISTOL) {
+				atk_speed = 9;  // First firing frame
+				player.AttackAnimationFrameCount = 30;
+			}
 			player.AttackMainFrame = atk_speed;
 			return;
 		}
@@ -1578,13 +2064,15 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = HasTrait(playerIndex, TraitId::Vigorous) ? 10 : 9;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {			
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
 		player.AttackMainFrame = HasTrait(playerIndex, TraitId::Vigorous) ? 12 : 11;
 		return;
 	}
+	// ----------------------------------------------archer----------------------------
 	else if (player.fullClassId == PFC_ARCHER) {
 		if (weaponWield == PAW_5_AXE) {
 			player.AttackAnimationFrameCount = 22;
@@ -1708,7 +2196,7 @@ void __fastcall SetPlrAnims(uint playerIndex)
 		player.AnimPitchCast = 114;
 		player.AnimPitchDeath = 160;
 		player.AnimPitchBlock = 98;
-		if (weaponWield < 0) { // этого по идее не может быть в принципе ( weaponWield = player.Appearance & 0xF; )
+		if (weaponWield < 0) { // (rt) this should never happen ( weaponWield = player.Appearance & 0xF; )
 			return;
 		}
 		if (weaponWield <= PAW_1_SHIELD) {
@@ -1746,7 +2234,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1802,7 +2291,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 	//			player.?
 	//		}
 	//	}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1811,7 +2301,11 @@ void __fastcall SetPlrAnims(uint playerIndex)
 	}
 	else if (is(player.fullClassId, PFC_THRAEX, PFC_SECUTOR)) {
 		if (is(weaponWield, PAW_2_SWORD, PAW_6_MACE, PAW_10_SWORD_ONE, PAW_11_MACE_ONE)) {
-			player.AttackMainFrame = 12;
+			int speed_factor = 12;
+			if (HasTrait(playerIndex, TraitId::Scissor)) {
+				speed_factor = 9;
+			}
+			player.AttackMainFrame = speed_factor;
 			return;
 		}
 		if (is(weaponWield, PAW_3_SWORD_SHIELD, PAW_7_MACE_SHIELD, PAW_1_SHIELD)) {
@@ -1831,7 +2325,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = HasTrait(playerIndex, TraitId::Vigorous) ? 12 : 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1860,7 +2355,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = HasTrait(playerIndex, TraitId::Vigorous) ? 12 : 11;
 			return;
 		}*/
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1889,7 +2385,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1918,7 +2415,8 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			player.AttackMainFrame = 11;
 			return;
 		}
-		if (Dungeon->genType || Dungeon->isQuest) {
+		// (th4) same town/dungeon test as the frame counts above -- see UsesTownAnimations().
+		if (!UsesTownAnimations()) {
 			player.StayAnimationFrameCount = 8;
 		}
 		player.AnimPitchAttack = 96;
@@ -1996,6 +2494,27 @@ void __fastcall SetPlrAnims(uint playerIndex)
 			return;
 		}
 	}
+	else if (player.fullClassId == PFC_GLADIATRIX) {
+		if (weaponWield == PAW_5_AXE) {
+			player.AttackAnimationFrameCount = 22;
+			player.AttackMainFrame = 13;
+			return;
+		}
+		if (weaponWield == PAW_4_BOW) {
+			player.AttackAnimationFrameCount = 12;
+			player.AttackMainFrame = 8;
+			return;
+		}
+		if (weaponWield == PAW_8_STAFF) {
+			player.AttackAnimationFrameCount = 16;
+			player.AttackMainFrame = 11;
+			return;
+		}
+		if (is(weaponWield, PAW_6_MACE, PAW_7_MACE_SHIELD, PAW_3_SWORD_SHIELD, PAW_2_SWORD)) {
+			player.AttackMainFrame = 9;
+			return;
+		}
+	}
 }
 
 //----- (00457C58) --------------------------------------------------------
@@ -2015,7 +2534,7 @@ void __fastcall CreatePlayer( int playerIndex, char classId, char subclassId, ch
 	Player& player = Players[playerIndex];
 	memset(&Players[playerIndex], 0, sizeof(Player));
 	ClearAuras(player);
-	SetRndSeed(ms(GetTickCountTh())); // перехватываем вызов
+	SetRndSeed(ms(GetTickCountTh())); // (rt) intercept the call
 	if( playerIndex >= 4 ){
 		TerminateWithError("CreatePlayer: illegal player %d", playerIndex);
 	}
@@ -2040,13 +2559,13 @@ void __fastcall CreatePlayer( int playerIndex, char classId, char subclassId, ch
 	player.DungeonMessageFlags2 = 0;
 	player.allowedDifficulty = 0;
 	player.Difficulty = 0;
-	// походу тут в оригинале предполагалась какая то проверка CharLevel при levelUp
+	// (rt) apparently the original intended some CharLevel check on levelUp here
 	player.CharLevel = 1;
 	player.controlCharLevel = player.CharLevel;
 	const DamageMultipliers& damMult = playerClass.BaseDamageMultipliers;
 	int baseDamageNumerator = player.CharLevel * (damMult.StrengthMultiplier * player.CurStrength + damMult.DexterityMultiplier * player.CurDexterity);
 	player.BaseDamage = baseDamageNumerator / damMult.Denominator;
-	player.BlockBonus = playerClass.BlockBonus;
+	player.BlockBonus = 0;	// (th4) RETIRED: no block formula reads it any more (it was never saved, so a reloaded hero had lost it anyway)
 	player.CurLife = playerClass.LifeBase << 6;
 	player.MaxCurLife = player.CurLife;
 	player.BaseLife = player.CurLife;
@@ -2057,17 +2576,23 @@ void __fastcall CreatePlayer( int playerIndex, char classId, char subclassId, ch
 	player.NextLevelUp = LevelUp(1);
 	player.LightRadius = 9;
 	player.Infravision = 0;
-	if( player.fullClassId == PFC_IRON_MAIDEN || HasTrait(playerIndex, TraitId::Mamluk) ){// (Yarik): Quick and dirty hack to override IM skill
+	if( is(player.fullClassId, PFC_IRON_MAIDEN, PFC_GLADIATRIX) || HasTrait(playerIndex, TraitId::Mamluk) ){// (Yarik): Quick and dirty hack to override IM skill
 	    player.AvailableSkillMask = BIT(PS_26_ITEM_REPAIR);
     }
 	else if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
 		player.AvailableSkillMask = BIT(PS_9_INFRAVISION);
+	}
+	else if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		player.AvailableSkillMask = BIT(PS_9_INFRAVISION); // Terminator: infravision instead of repair
 	}
 	else if (HasTrait(playerIndex, TraitId::Hydramancer)) {
 		player.AvailableSkillMask = BIT(PS_13_HYDRA);
 	}
 	else if (HasTrait(playerIndex, TraitId::Paladin)) {
 		player.AvailableSkillMask = BIT(PS_11_MANA_SHIELD);
+	}
+	else if (HasTrait(playerIndex, TraitId::Warlord)) {
+		player.AvailableSkillMask = BIT(PS_52_LESSER_SUMMON) | BIT(PS_55_UNSUMMON);
 	}
 	/*else if (player.fullClassId == PFC_ARCHER && GameMode == GM_CLASSIC) {
 		player.AvailableSkillMask = BIT(PS_28_TRAP_DISARM);
@@ -2133,6 +2658,9 @@ void __fastcall CreatePlayer( int playerIndex, char classId, char subclassId, ch
 	player.lvlChanging = 0;
 	player.CountOfReflectCharges = 0;
 	player.griswoldLevel = 0;
+	for (int i = 0; i < POWERUP_COUNT; i++) {
+		player.powerupLevel[i] = 0;
+	}
 	SetCols(playerIndex);
 	InitDungMsgs(playerIndex);
 	CreateInitialItems(playerIndex);
@@ -2142,8 +2670,8 @@ void __fastcall CreatePlayer( int playerIndex, char classId, char subclassId, ch
 	SetRndSeed(0);
 }
 
-// Для каждого уровня своя максимальная сумма параметров
-// при ее достижении они показываются золотом
+// (rt) Each level has its own maximum sum of stats
+// (rt) when it is reached they are shown in gold
 //----- (0045829F) -------------------------------------------------------- // MSL - "Mordor's stat limitations" feature
 int __fastcall LevelPointsToMax(int playerIndex)
 {
@@ -2162,14 +2690,18 @@ int __fastcall LevelPointsToMax(int playerIndex)
 	int giant_limit = HasTrait(playerIndex, TraitId::Giant) ? 100 : 0;
 	int paladin_limit = HasTrait(playerIndex, TraitId::Paladin) ? (200 + PerkValue(SYNERGY_THAUMATURGY, playerIndex)) : 0;
 	int nightkin_limit = 0; 
-	if (MaxCountOfPlayersInGame == 1 && (Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN))) { 
-		nightkin_limit = 140; 
+	if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_9_NIGHT_KIN))) { 
+		nightkin_limit = 140;
+	}
+	int mutie_limit = 0;
+	if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
+		mutie_limit = 200;
 	}
 	int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0;
 	int leper = HasTrait(playerIndex, TraitId::Leper) ? 150 : 0;
 	int lithe = HasTrait(playerIndex, TraitId::LitheBuild) ? 100 : 0;
 	int extra_mode_boost = 0;
-	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE)) { 
+	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) { 
 		extra_mode_boost = clvl / 2 + 50;
 	}
 	maxStatSumCap = (10 * clvl) 
@@ -2181,6 +2713,7 @@ int __fastcall LevelPointsToMax(int playerIndex)
 		+ giant_limit
 		+ paladin_limit
 		+ nightkin_limit
+		+ mutie_limit
 		+ oldfashioned
 		+ leper
 		+ lithe;
@@ -2199,7 +2732,7 @@ int __fastcall LevelPointsToMax(int playerIndex)
 	}
 	maxStatSumCap += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex); 
 	if (GameMode == GM_CLASSIC) { maxStatSumCap = 460; }
-
+	if(player.gameChanger& BIT(GC_27_TERMINATOR)){ maxStatSumCap = 2'810; }
 	int pointsToMaxCap = maxStatSumCap - statSum;
 	if (pointsToMax > pointsToMaxCap) {
 		pointsToMax = pointsToMaxCap;
@@ -2219,12 +2752,13 @@ void __fastcall NextPlayerLevel(int playerIndex)
 	++player.CharLevel;
 	++player.controlCharLevel;
 	RecalcPlayer( playerIndex, 1 );
+	if( playerIndex == CurrentPlayerIndex ) LevelUpFx_Start();	// (th4) config LevelUpGlow, dx_utility.cpp
 	int adventurerTraitBenefit = HasTrait(playerIndex, TraitId::Adventurer) ? 1 : 0;
 	int domesticatedTraitPenalty = HasTrait(playerIndex, TraitId::Domesticated) ? 1 : 0;
 	int bluebloodTraitPenalty = HasTrait(playerIndex, TraitId::BlueBlood) ? 1 : 0;
 	int default_points = 5;
 	int paladin_bonus_fur_extra_modes = 0;
-	if ( is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL, GM_SPEEDRUN) && HasTrait(playerIndex, TraitId::Paladin) ) {
+	if ( is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL, GM_SPEEDRUN, GM_OUTBREAK) && HasTrait(playerIndex, TraitId::Paladin) ) {
 		paladin_bonus_fur_extra_modes = 1;
 	}
 	if (is(GameMode, GM_EASY, /*GM_CLASSIC,*/ GM_NORMAL, GM_HARD, GM_HARDCORE) 
@@ -2235,7 +2769,7 @@ void __fastcall NextPlayerLevel(int playerIndex)
 	else if (GameMode == GM_NIGHTMARE) {
 		default_points = RngFromRange(3, 7);
 	}
-	else if (GameMode == GM_IRONMAN ) {
+	else if (is(GameMode, GM_IRONMAN, GM_OUTBREAK)) {
 		int ironman_extra_points = 2 * player.CharLevel / 15;
 		if (player.gameChanger & BIT(GC_24_RUTHLESS)) {//  with Ruthless GC no extra stats in Ironman
 			ironman_extra_points = 0;
@@ -2261,32 +2795,31 @@ void __fastcall NextPlayerLevel(int playerIndex)
 		player.AvailableLvlPoints = LevelPointsToMax( playerIndex );
 	}
 	player.NextLevelUp = LevelUp( player.CharLevel );
-	int life = 0;
-	if( MaxCountOfPlayersInGame == 1 ){ // single
-		life = player.ClassID != PC_2_MAGE ? 129 : 65;
-	}else{ // multi
-		life = player.ClassID != PC_2_MAGE ? 128 : 64;
+	// (th4) The same in single player as in multiplayer. Single player used to add an extra 1/64 of a hit
+	// point (129 / 65) and 1/64 of a mana point per level -- a leftover of the original game (DSF 1.09 bug
+	// list). Base life and mana are recalculated from the class formula every tick anyway (LimitPlayerParams).
+	int life = player.ClassID != PC_2_MAGE ? 128 : 64;
+	if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+		player.MaxCurLife += life;
+		player.CurLife = player.MaxCurLife;
+		player.MaxBaseLife += life;
+		player.BaseLife = player.MaxBaseLife;
 	}
-	player.MaxCurLife += life;
-	player.CurLife = player.MaxCurLife;
-	player.MaxBaseLife += life;
-	player.BaseLife = player.MaxBaseLife;
 	int mana = 0;
 	if( player.ClassID == PC_0_WARRIOR ){
 		mana = 64;
 	}else{
 		mana = player.ClassID != PC_5_SAVAGE ? 0 : 128;
 	}
-	if( MaxCountOfPlayersInGame == 1 ){
-		++mana;
-	}
 	player.MaxCurMana += mana;
 	player.MaxBaseMana += mana;
 	#ifdef OLD_CODE
 	if( ! player.effectFlag[EA_LOSE_REGENERATION] )
 	#endif
-	player.CurMana = player.MaxCurMana;
-	player.BaseMana = player.MaxBaseMana;
+	if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+		player.CurMana = player.MaxCurMana;
+		player.BaseMana = player.MaxBaseMana;
+	}
 	if( playerIndex == CurrentPlayerIndex ){
 		PlayGlobalSound( S_1022_LEVELUP );
 	}
@@ -2347,6 +2880,11 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 			if (HasTrait(playerIndex, TraitId::Domesticated) && is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SPEEDRUN)) {
 				newXpValue += 2 * newXpValue / 10;
 			}
+			if (HasTrait(playerIndex, TraitId::Late_Bloomer)) {
+				if (player.CharLevel < 60)	{newXpValue -= newXpValue / 3;}
+				else						{newXpValue += newXpValue / 2;}
+			}
+			if (GameMode == GM_OUTBREAK) { newXpValue *= 2; }
 			LimitToMin(newXpValue, 1ll);
 			xpGain = newXpValue;
 			if( MaxCountOfPlayersInGame > 1 ){ // multiplayer
@@ -2365,7 +2903,19 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 				//1. + 75% / 100% / 125 % to XP
 				xpGain += by( fleshDoomLevel, xpGain / 3, xpGain / 2, 3 * xpGain / 4 );
 			}
-			if (Dungeon->isQuest && Dungeon == DUN_27_THE_INFESTED_CELLAR || Dungeon == DUN_49_SICK_VILLAGERS_BASEMENT) {
+			// (th4) DC mission 13: the lair of Lazarus pays double. Placed first in the chain
+			// so it wins outright -- DUN_121 is not caught by any range below, but sitting
+			// ahead of them means a later range edit cannot silently swallow it.
+			if (Dungeon->isQuest && GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC) {
+				xpGain *= 2;
+			}
+			// (th4) DC mission 14: Blood Keep pays +150%, but ONLY in the Dark Campaign --
+			// the Alternative Route uses this same dungeon id and must keep its plain rate,
+			// which is why this is not simply another entry in the ranges below.
+			else if (Dungeon->isQuest && GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_83_BLOOD_KEEP) {
+				xpGain += xpGain + xpGain / 2;
+			}
+			else if (Dungeon->isQuest && (Dungeon == DUN_27_THE_INFESTED_CELLAR || Dungeon == DUN_49_SICK_VILLAGERS_BASEMENT || Dungeon == DUN_115_VALOR_TOMB)) {
 				xpGain += xpGain / 5;
 			}
 			else if (Dungeon->isQuest && (Dungeon == DUN_47_DARK_NEST || Dungeon == DUN_48_BLOOD_HIVE || Dungeon == DUN_55_DEEP_HOLLOW)) {
@@ -2388,7 +2938,7 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 				xpGain += xpGain / 10;
 			}
 
-			if( LLONG_MAX - player.Xp < xpGain ){ // защита от переполнения
+			if( LLONG_MAX - player.Xp < xpGain ){ // (rt) overflow protection
 				player.Xp = LLONG_MAX; 
 			}else{
 				player.Xp += xpGain;
@@ -2403,7 +2953,7 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 				for( int levelUpCount = 0; levelUpCount < deltaLevel; levelUpCount++ ){
 					NextPlayerLevel(playerIndex);
 				}
-				// почему тут в оригинале используется CurrentPlayerIndex ? это ошибка, должен быть playerIndex
+				// (rt) why does the original use CurrentPlayerIndex here? it's a mistake, it should be playerIndex
 				//.text:004585D3 01C A1 E8 AD 6E 00                          mov     eax, CurrentPlayerIndex
 				//      000579D3:    8B 45 F4 90 90
                 NetSendCmdParam1( 0, CMD_51_PLRLEVEL, player.CharLevel );
@@ -2415,38 +2965,47 @@ void __fastcall AddPlayerExperience(int playerIndex, i64 monsterXp, int row, int
 }
 
 //----- (004585FE) --------------------------------------------------------
+// (th4) Private random numbers for rolls that only affect the LOCAL player. RNG() (Engine.cpp)
+// draws from the game's shared, network-synchronised seed: every client must call it the same
+// number of times, or monster behaviour and other random events drift apart between players.
+// A roll whose outcome is decided per client (like the shared-XP roll below, which depends on
+// this client's own level and friendly setting) must never touch that seed.
+static int LocalOnlyRandom( int range )
+{
+	static unsigned int state = 0;
+	if( !state ) state = (unsigned int)GetTickCount() ^ 0x9E3779B9u;	// seeded once, never 0
+	state ^= state << 13; state ^= state >> 17; state ^= state << 5;	// xorshift32
+	return range > 0 ? (int)( state % (unsigned int)range ) : 0;
+}
+
 void __fastcall AddXpForMonsterKill(int monsterLevel, i64 monsterXp, char attacker, int monsterIndex)
 {
+	// XP for a monster kill, computed on EVERY client for its own player (CurrentPlayerIndex).
+	// `attacker` is the monster's Attackers bit mask: one bit per player who hit it, plus the
+	// OWNER of a summon that killed it (Monster.cpp KillMonsterByMonster adds that bit), so a
+	// minion's kill shares exactly like its owner's own kill.
+	//
+	// SHARED XP (friendly / non-PvP setting): once per kill, the local player has a
+	// (50 + CLVL/3)% chance to receive the monster's FULL XP, fought or not; Ironman, Survival
+	// and Easy always give full XP. Otherwise XP is split evenly between the attackers, and
+	// only an attacker gets a share. The roll uses LocalOnlyRandom, never the shared RNG().
 	Monster& monster = Monsters[monsterIndex];
-	int attackerCount; // edi@1
-	int playerIndex; // ecx@1
-	int curPlayerIndex; // ecx@7
-	unsigned int charLevel; // ebx@12
-	unsigned int rnd_100; // eax@12
-
-	attackerCount = 0;
-	playerIndex = 0;
-	do{
-		if( PlayerFriendly() ){
-			charLevel = Players[CurrentPlayerIndex].CharLevel;
-			rnd_100 = RNG(100);
-			if( rnd_100 < (charLevel + 10) || is(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_EASY/*, GM_CLASSIC*/) ){
-				curPlayerIndex = CurrentPlayerIndex;
-				AddPlayerExperience( curPlayerIndex, monsterXp, monster.Row, monster.Col );
-				return;
-			}
+	if( PlayerFriendly() ){
+		int sharedChance = 50 + (int)Players[CurrentPlayerIndex].CharLevel / 3;
+		if( sharedChance > 100 ) sharedChance = 100;
+		if( is(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_EASY/*, GM_CLASSIC*/) || LocalOnlyRandom(100) < sharedChance ){
+			AddPlayerExperience( CurrentPlayerIndex, monsterXp, monster.Row, monster.Col );
+			return;
 		}
+	}
+	int attackerCount = 0;
+	for( int playerIndex = 0; playerIndex < 4; ++playerIndex ){
 		if( (1 << playerIndex) & attacker ){
 			++attackerCount;
 		}
-		++playerIndex;
-	}while( playerIndex < 4 );
-	if( attackerCount ){
-		curPlayerIndex = CurrentPlayerIndex;
-		if( (1 << CurrentPlayerIndex) & attacker ){
-			AddPlayerExperience( curPlayerIndex, monsterXp / attackerCount, monster.Row, monster.Col );
-			return;
-		}
+	}
+	if( attackerCount && ( (1 << CurrentPlayerIndex) & attacker ) ){
+		AddPlayerExperience( CurrentPlayerIndex, monsterXp / attackerCount, monster.Row, monster.Col );
 	}
 }
 
@@ -2480,6 +3039,14 @@ void __fastcall InitPlayer( uint playerIndex, int loadFromIngameMenu )
 		player.xVel = 0;
 		player.yVel = 0;
 		ClearPlrPVars( playerIndex );
+		// (th4) NEVER DEAD IN TOWN. A hero could reach town with no life left -- killed in the moment of
+		// stepping into a Town Portal, or by damage still on its way during "restart in town" (DSF 1.09
+		// bug list) -- and stood there as a corpse with no "restart" prompt, waiting for a resurrect.
+		// Town keeps everyone alive with at least 1 hit point, as TryToDie already does for damage taken
+		// there (its DUN_0_TOWN rule).
+		if( Dungeon == DUN_0_TOWN && (player.CurLife & ~63) <= 0 ){
+			SetPlayerHitPoints( playerIndex, 64 );
+		}
 		if( (player.CurLife & ~63) <= 0 ){
 			player.CurAction = PCA_8_DEATH;
 			NewPlayerAnimation(
@@ -2531,7 +3098,20 @@ void __fastcall InitPlayer( uint playerIndex, int loadFromIngameMenu )
 		player.NextCol = player.Col;
 		player.walkPath[0] = PCMD_M1_NOTHING;
 		player.destAction = PCMD_M1_NOTHING;
-		if( playerIndex == CurrentPlayerIndex ){
+		// (th4) THIEF: she emits NO light, ever -- but light radius normally drives VISION
+		// too, so the two must be split for her: light (emission) 0, vision fixed at the
+		// base 9. The same split lives in CalcItemBonuses (Item.cpp), which re-applies it
+		// every recalc; this is only the spawn-time seed.
+		// (th4) THIEF: she gets NO LightList entry AT ALL (LightIndex = -1, the same value
+		// every non-current MP player already runs with, so all light calls tolerate it).
+		// v1 tried a radius-0 light instead -- a radius-0 light still exists, still paints
+		// every step, and its erase pass has nothing to erase with: she left a LIT TRAIL
+		// behind her. No light object, no trail. Vision is separate and stays at base 9.
+		int spawnVisionRadius = player.LightRadius;
+		if( HasTrait( playerIndex, TraitId::Thief ) ){
+			spawnVisionRadius = 9;
+			player.LightIndex = -1;
+		}else if( playerIndex == CurrentPlayerIndex ){
 			player.LightIndex = AddLight( player.Row, player.Col, player.LightRadius );
 		}else{
 			player.LightIndex = -1;
@@ -2539,23 +3119,29 @@ void __fastcall InitPlayer( uint playerIndex, int loadFromIngameMenu )
 		player.lightRadiusIdentificator = AddVision(
 			player.Row,
 			player.Col,
-			player.LightRadius,
+			spawnVisionRadius,
 			playerIndex == CurrentPlayerIndex );
 	}
 	
 	
 	const PlayerClass& playerClass = PlayerClasses[player.ClassID];
-	if( player.fullClassId == PFC_IRON_MAIDEN || HasTrait(playerIndex, TraitId::Mamluk)){// Quick and dirty hack to override IM skill
+	if(is(player.fullClassId, PFC_IRON_MAIDEN, PFC_GLADIATRIX) || HasTrait(playerIndex, TraitId::Mamluk)){// Quick and dirty hack to override IM skill
 	    player.AvailableSkillMask = BIT(PS_26_ITEM_REPAIR);
 	}
 	else if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
 		player.AvailableSkillMask = BIT(PS_9_INFRAVISION);
+	}
+	else if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		player.AvailableSkillMask = BIT(PS_9_INFRAVISION); // Terminator: infravision instead of repair
 	}
 	else if (HasTrait(playerIndex, TraitId::Hydramancer)) {
 		player.AvailableSkillMask = BIT(PS_13_HYDRA);
 	}
 	else if (HasTrait(playerIndex, TraitId::Paladin)) {
 		player.AvailableSkillMask = BIT(PS_11_MANA_SHIELD);
+	}
+	else if (HasTrait(playerIndex, TraitId::Warlord)) {
+		player.AvailableSkillMask = BIT(PS_52_LESSER_SUMMON) | BIT(PS_55_UNSUMMON);
 	}
 	/*else if (player.fullClassId == PFC_ARCHER && GameMode == GM_CLASSIC) {
 		player.AvailableSkillMask = BIT(PS_28_TRAP_DISARM);
@@ -2613,7 +3199,7 @@ void __fastcall CheckPlayerUnderArch(int playerIndex, int flag2)
 		mask = 0;
 		for( int i = 8; i > 0; --i){
 			mask |= *tileMapLeft;
-			tileMapLeft++;// Увеличиваем указатель
+			tileMapLeft++;// (rt) Advance the pointer
 		}
 
 		if( mask | ArchGraphicsMap[ row ][ col ] | TileBlockWalking[FineMap[ row ][ col ]] ){
@@ -2635,7 +3221,7 @@ void __fastcall CheckPlayerUnderArch(int playerIndex, int flag2)
 		mask = 0;
 		for( int i = 8; i > 0; i--){
 			mask |= *tileMapLeft;
-			tileMapLeft++;// Увеличиваем указатель
+			tileMapLeft++;// (rt) Advance the pointer
 		}
 
 		if( !(mask | ArchGraphicsMap[ row ][ col ]) ){
@@ -2646,7 +3232,7 @@ void __fastcall CheckPlayerUnderArch(int playerIndex, int flag2)
 				mask = 0;
 				for( int i = 8; i > 0; i--){
 					mask |= *tileMapLeft;
-					tileMapLeft++;// Увеличиваем указатель
+					tileMapLeft++;// (rt) Advance the pointer
 				}
 
 				if( mask | ArchGraphicsMap[ row ][ col ]){
@@ -2661,9 +3247,9 @@ void __fastcall CheckPlayerUnderArch(int playerIndex, int flag2)
 int __fastcall IsCellBlocking(int row, int col, uchar canFly /*= 0*/ )
 {
 	#ifdef SECURE_CELL_BLOCKING
-	// вылетало при cellY = -1 (вызывает sub_444AFF, sub_455D2C)
+	// (rt) crashed with cellY = -1 (calls sub_444AFF, sub_455D2C)
 	if( ! In112(row, col) ){
-		return 1; // Если вышел монстр за границу карты выходим
+		return 1; // (rt) If the monster went outside the map, exit
 	}
 	#endif
 	return TileBlockWalking[FineMap[ row ][ col ]] & ++canFly; // fly flag to walk type
@@ -2715,7 +3301,7 @@ void __fastcall SomeWithTeleportAndTransparent( int row, int col )
 			for( int curRow = row-1; curRow <= row+1; ++curRow ){
 				uchar roomIndex = TransMap[ curRow ][ curCol ];
 				if( !TileBlockWalking[ FineMap[ curRow ][ curCol ] ] && roomIndex ){
-					TransList[roomIndex] = 1; // в th1 идет обращение по signed char индексу, это явный баг
+					TransList[roomIndex] = 1; // (rt) th1 indexes with a signed char here, an obvious bug
 				}
 			}
 		}
@@ -2755,7 +3341,7 @@ void __fastcall FixPlayerLocation(int playerIndex, int orient, bool stunWalkDown
 		}
 		PlayerMap[ row ][ col ] = playerIndex + 1;
 		FlagMap[ player.HorizontalNextRowOrSomeSpellData ][ player.HorizontalNextCol ] &= ~CF_32_PLAYER_HORIZONTAL;
-		//CheckPlayerMap(); // вроде старая проверка для разбора функций, можно удалить
+		//(rt) CheckPlayerMap(); // apparently an old check for analysing functions, can be removed
 	}
 	if( stunWalkDown ){
 		PlayerMap[player.Row][player.Col] = 0;
@@ -2774,7 +3360,7 @@ void __fastcall FixPlayerLocation(int playerIndex, int orient, bool stunWalkDown
 		Scroll.xOfs = 0;
 		Scroll.yOfs = 0;
 		Scroll.dir = 0;
-		PlayerRowPos = player.Row; // вторичное изменение координат игрока при ходьбе 
+		PlayerRowPos = player.Row; // (rt) secondary change of the player's coordinates while walking 
 		PlayerColPos = player.Col;
 	}
 }
@@ -2895,7 +3481,19 @@ void __fastcall PM_ChangeLightOff(int playerIndex)
 //----- (th2) -------------------------------------------------------------
 bool Running()
 {
-	return /*MaxCountOfPlayersInGame == 1 && */(IsFastWalkEnabled && ( !(Dungeon->genType || Dungeon->isQuest) || ( RunInDungeon && !IsSomeMonstersActivated() )) || BattleTrance );
+	// (th4): Classic never runs -- always walk. This is checked FIRST and unconditionally,
+	// because BattleTrance below is OR'd in and would otherwise force a run even with
+	// IsFastWalkEnabled == 0. The Jog row is also hidden from the options menu in Classic
+	// (SetupMenuHandler in menu.cpp).
+	if( GameMode == GM_CLASSIC ) return false;
+
+	return /*MaxCountOfPlayersInGame == 1 && */(IsFastWalkEnabled 
+		&& ( !(Dungeon->genType || Dungeon->isQuest) 
+		|| ( RunInDungeon && !IsSomeMonstersActivated() )) || BattleTrance ) 
+		&& (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)))
+		&& (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)))
+		&& (!HasTrait(CurrentPlayerIndex, TraitId::Thief)) // (th4) THIEF always walks -- quiet feet are the trade for the dark (same mechanism as Terminator/SuperMutant)
+		&& !Snowfall_Active(); // (th4) ICE AGE: no jogging through the deep snow of Tristram and Ravenholm (Mordor, 2026-10-10) -- Snowfall.cpp decides where it snows
 }
 
 //----- (0045908A) --------------------------------------------------------
@@ -3106,6 +3704,15 @@ void __fastcall StartAttack(int playerIndex, int orientationToTarget)
 	if( playerIndex >= 4 ){
 		TerminateWithError("StartAttack: illegal player %d", playerIndex);
 	}
+	// (th4) DARK CAMPAIGN HUB: no attacking in the Hideout. Blocked here, at the entry to the
+	// attack state, so every route dies at once -- clicks on kin, barrels, queued destActions,
+	// gamepad. Damage is dealt on a frame DURING this state, so never entering it means no
+	// damage is possible, not merely that the swing is invisible. StartStand rather than a
+	// bare return so the player does not sit in a stale action.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		StartStand(playerIndex, orientationToTarget);
+		return;
+	}
 	if( player.notHittableInTransition && !player.CurLife && playerIndex == CurrentPlayerIndex ){
 		TryToDie(playerIndex, -1);
 	}
@@ -3125,14 +3732,19 @@ void __fastcall StartRangeAttack(int playerIndex, int orientationToTarget, int t
 	if( playerIndex >= 4 ){
 		TerminateWithError("StartRangeAttack: illegal player %d", playerIndex);
 	}
+	// (th4) DARK CAMPAIGN HUB: no attacking in the Hideout -- see StartAttack.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		StartStand(playerIndex, orientationToTarget);
+		return;
+	}
 	if( player.notHittableInTransition && !player.CurLife && playerIndex == CurrentPlayerIndex ){
 		TryToDie(playerIndex, -1);
 	}
 	if( !(player.LoadPlayerAnimationMask & PAF_3_ATTACK) ){
 		LoadPlayerGFX(playerIndex, PAF_3_ATTACK);
 	}
-	// тут можно добавить проверку на арбалеты, и задавать Frame Delay = 1 для замедления атаки в два раза, или = 3 для замедления в 4 раза
-	// при 3, например, будет три кадра пропускаться, один выполняться, 25% скорости
+	// (rt) a crossbow check could be added here, setting Frame Delay = 1 to halve the attack speed, or = 3 to quarter it
+	// (rt) with 3, for example, three frames are skipped and one executed, 25% speed
 	NewPlayerAnimation(playerIndex, player.attackAnimationsPointers[orientationToTarget], player.AttackAnimationFrameCount, GetAnimationDelay(playerIndex), player.AnimPitchAttack);
 	player.CurAction = PCA_5_RANGE_ATTACK;
 	FixPlayerLocation(playerIndex, orientationToTarget);
@@ -3150,7 +3762,7 @@ void __fastcall StartPlayerBlock( uint playerIndex, int orientation )
 		int BLsound = 0;
 		// TODO: change to switch
 		if( is( player.fullClassId, PFC_WARRIOR, PFC_INQUISITOR, PFC_TEMPLAR, PFC_TRAPPER, PFC_NECROMANCER,
-		 PFC_SHINOBI, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_THRAEX, PFC_MURMILLO, PFC_SECUTOR) ){
+		 PFC_SHINOBI, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_GLADIATRIX, PFC_THRAEX, PFC_MURMILLO, PFC_SECUTOR) ){
 			switch (RNG(27)) {
 			case 26: BLsound = S_1219; break;
 			case 25: BLsound = S_1220; break;
@@ -3251,7 +3863,7 @@ void __fastcall StartPlayerBlock( uint playerIndex, int orientation )
 	}
 }
 
-//Dragon старт каста, проверить в отладчике где вызывается для шилда
+//(rt) Dragon: cast start, check in the debugger where it's called for the shield
 //----- (00459B35) --------------------------------------------------------
 void __fastcall StartSpell(int playerIndex, int orientationToTarget, int targetRow, int targetCol)
 {
@@ -3296,7 +3908,7 @@ void __fastcall StartSpell(int playerIndex, int orientationToTarget, int targetR
 		}
 	}
 	PlayLocalSound(Spells[player.spellIndex].SoundType, player.Row, player.Col);
-	player.CurAction = PCA_9_SPELL; //dragon устанавливается режим кастования
+	player.CurAction = PCA_9_SPELL; //(rt) dragon: the casting mode is set
 	FixPlayerLocation(playerIndex, orientationToTarget);
 	SetPlayerOld(playerIndex);
 	player.CursorRow = targetRow;
@@ -3416,6 +4028,9 @@ void __fastcall StartPlayerHit( int playerIndex, int damage, int needStun )
 		TryToDie(playerIndex, -1);
 		return;
 	}
+
+	// --------------- START PLAYER HIT SFX ----------------------------
+
 	int soundIndex = -1;
 	switch (player.fullClassId ){
 		case PFC_WARRIOR:
@@ -3437,6 +4052,7 @@ void __fastcall StartPlayerHit( int playerIndex, int damage, int needStun )
 		case PFC_IRON_MAIDEN:
 		case PFC_SHARPSHOOTER:
 		case PFC_SCOUT:
+		case PFC_GLADIATRIX:
 		case PFC_ROGUE:		soundIndex = S_689_ROG_69;	break;
 		case PFC_ELEMENTALIST:
 		case PFC_NECROMANCER:
@@ -3449,9 +4065,169 @@ void __fastcall StartPlayerHit( int playerIndex, int damage, int needStun )
 		case PFC_SHUGOKI:
 		case PFC_MONK:		soundIndex = S_906_MONK_69;	break;
 	}
+	// TODO: combine these 4 blocks below into one
+	//---------------Terminator hit sfx ---------------
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+		soundIndex = RandFrom(S_1856_TERM_HIT_1, S_1857_TERM_HIT_2);
+		bool enemyHitDetected = false;
+
+		for (int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++) {
+			int spellIndex = MissileIndexes[spellIndexIndex];
+			Missile& spell = Missiles[spellIndex];
+
+			// Only check missiles AT player's position
+			if (spell.Row != player.Row || spell.Col != player.Col) {
+				continue;
+			}
+
+			if (spell.CasterIndex != playerIndex) {
+				switch (spell.BaseMissileIndex) {
+				case MI_20_RUN_ATTACK:
+				case MI_145_TENTACLE:
+				case -1:
+				case MI_0_NONE_ARROW:
+					soundIndex = RandFrom(S_1856_TERM_HIT_1, S_1857_TERM_HIT_2);
+					enemyHitDetected = true;
+					break;
+				default:
+					soundIndex = S_606_SOR_SL;
+					break;
+				}
+			}
+			else {
+				if (is(spell.BaseMissileIndex, MI_5_FIRE_WALL_SEGMENT, MI_70_LIGHTNING_WALL_SEGMENT)) {
+					if (!enemyHitDetected) {
+						soundIndex = -1;
+					}
+				}
+			}
+		}
+	}
+	// ------------ end of Terminator hit sfx--------------------------
+
+	// --------------- Super Mutant hit sfx ---------------
+	else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		soundIndex = RandFrom(S_1885_MUTIE_HIT_1, S_1886_MUTIE_HIT_2, S_1887_MUTIE_HIT_3,
+			S_1888_MUTIE_HIT_4, S_1889_MUTIE_HIT_5, S_1890_MUTIE_HIT_6);
+		bool enemyHitDetected = false;
+
+		for (int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++) {
+			int spellIndex = MissileIndexes[spellIndexIndex];
+			Missile& spell = Missiles[spellIndex];
+
+			// Only check missiles AT player's position
+			if (spell.Row != player.Row || spell.Col != player.Col) {
+				continue;
+			}
+
+			if (spell.CasterIndex != playerIndex) {
+				switch (spell.BaseMissileIndex) {
+				case MI_20_RUN_ATTACK:
+				case MI_145_TENTACLE:
+				case -1:
+				case MI_0_NONE_ARROW:
+					soundIndex = RandFrom(S_1885_MUTIE_HIT_1, S_1886_MUTIE_HIT_2, S_1887_MUTIE_HIT_3,
+						S_1888_MUTIE_HIT_4, S_1889_MUTIE_HIT_5, S_1890_MUTIE_HIT_6);
+					enemyHitDetected = true;
+					break;
+				default:
+					soundIndex = S_606_SOR_SL;
+					break;
+				}
+			}
+			else {
+				if (is(spell.BaseMissileIndex, MI_5_FIRE_WALL_SEGMENT, MI_70_LIGHTNING_WALL_SEGMENT)) {
+					if (!enemyHitDetected) {
+						soundIndex = -1;
+					}
+				}
+			}
+		}
+	}
+	// ------------ end of Super Mutant hit sfx ----------------------
+
+	// --------------- Enclave Soldier hit sfx ---------------
+	else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		// Keep default class-based sound from the switch above
+		bool enemyHitDetected = false;
+
+		for (int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++) {
+			int spellIndex = MissileIndexes[spellIndexIndex];
+			Missile& spell = Missiles[spellIndex];
+
+			// Only check missiles AT player's position
+			if (spell.Row != player.Row || spell.Col != player.Col) {
+				continue;
+			}
+
+			if (spell.CasterIndex != playerIndex) {
+				switch (spell.BaseMissileIndex) {
+				case MI_20_RUN_ATTACK:
+				case MI_145_TENTACLE:
+				case -1:
+				case MI_0_NONE_ARROW:
+					enemyHitDetected = true;
+					break;
+				default:
+					soundIndex = S_606_SOR_SL;
+					break;
+				}
+			}
+			else {
+				if (is(spell.BaseMissileIndex, MI_5_FIRE_WALL_SEGMENT, MI_70_LIGHTNING_WALL_SEGMENT)) {
+					if (!enemyHitDetected) {
+						soundIndex = -1;
+					}
+				}
+			}
+		}
+	}
+	// ------------ end of Enclave Soldier hit sfx -------------------
+
+	// --------------- Default (non-Classic) hit sfx ---------------
+	else if (GameMode != GM_CLASSIC) {
+		bool enemyHitDetected = false;
+
+		for (int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++) {
+			int spellIndex = MissileIndexes[spellIndexIndex];
+			Missile& spell = Missiles[spellIndex];
+
+			// Only check missiles AT player's position
+			if (spell.Row != player.Row || spell.Col != player.Col) {
+				continue;
+			}
+
+			if (spell.CasterIndex != playerIndex) {
+				switch (spell.BaseMissileIndex) {
+				case MI_20_RUN_ATTACK:
+				case MI_145_TENTACLE:
+				case -1:
+				case MI_0_NONE_ARROW:
+					enemyHitDetected = true;
+					break;
+				default:
+					soundIndex = -1;
+					break;
+				}
+			}
+			else {
+				if (is(spell.BaseMissileIndex, MI_5_FIRE_WALL_SEGMENT, MI_70_LIGHTNING_WALL_SEGMENT)) {
+					if (!enemyHitDetected) {
+						soundIndex = -1;
+					}
+				}
+			}
+		}
+	}
+	// ------------ end of default hit sfx ---------------------------
+
 	if( soundIndex != -1 ){
 		PlayLocalSound(soundIndex, player.Row, player.Col);
 	}
+
+	// --------------- END PLAYER HIT SFX ----------------------------
+
+
 	int minST, maxST;
 	tie(minST, maxST) = GetPlayerStunThreshold(player);
 	int stunResist = minST + RNG(maxST - minST); // stun threshold randomize
@@ -3495,8 +4271,16 @@ std::tuple<int, int> GetPlayerStunThreshold(const Player& player) {
 	case PFC_SCOUT:
 	case PFC_SHARPSHOOTER:
 	case PFC_TRAPPER:
-		stunResist_min = (player.CharLevel / 3) + (player.BaseVitality / 8) - 1; 
-		stunResist_max = stunResist_min + 2 * player.CharLevel / 3 + 5;
+	{
+		if (HasTrait(CurrentPlayerIndex, TraitId::Thief)) {
+			stunResist_min = (player.CharLevel / 3) + (player.BaseVitality / 10) - 1;
+			stunResist_max = stunResist_min + 2 * player.CharLevel / 5 + 3;
+		}
+		else {
+			stunResist_min = (player.CharLevel / 3) + (player.BaseVitality / 8) - 1;
+			stunResist_max = stunResist_min + 2 * player.CharLevel / 3 + 5;
+		}
+	}
 		break;
 		//MAGES
 	case PFC_MAGE:
@@ -3542,8 +4326,9 @@ std::tuple<int, int> GetPlayerStunThreshold(const Player& player) {
 		stunResist_max = stunResist_min + 2 * player.CharLevel / 3 + 6;// left him full +clvl... keep that in mind if this ST part is de-nerfed!
 		break;
 	case PFC_THRAEX:
-	case PFC_MURMILLO:// mor: Crupellarius could use an uplift, but Trait checks are tricky here
+	case PFC_MURMILLO:// mor: Crupellarius could use an uplift, but Trait checks are tricky here (see below)
 	case PFC_SECUTOR:
+	case PFC_GLADIATRIX:
 		stunResist_min = (player.CharLevel / 3) + (player.BaseVitality / 8) - 1;	
 		stunResist_max = stunResist_min + 2 * player.CharLevel / 3 + 6;
 		break;
@@ -3558,7 +4343,15 @@ std::tuple<int, int> GetPlayerStunThreshold(const Player& player) {
 		stunResist_min += player.BaseVitality / 10;
 		stunResist_max += player.BaseVitality / 5;
 	}
-
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		stunResist_min += 2;
+		stunResist_max += 3;
+	}
+	//if (CurTrait(TraitId::Crupellarius)){
+	if (HasTrait(player, TraitId::Crupellarius)){
+		stunResist_min += 1;
+		stunResist_max += 2;
+	}
 	if (GameMode == GM_CLASSIC) {
 		stunResist_min = player.CharLevel;
 		stunResist_max = stunResist_min;
@@ -3624,7 +4417,7 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 		return;
 	}
 
-	// ClearPlayerSpells(playerIndex); // в th1 этого вызова нет, он внутри RemoveGolemAndMissilesMayBe
+	// (rt) ClearPlayerSpells(playerIndex); // th1 has no such call, it is inside RemoveGolemAndMissilesMayBe
 
 	if( CurrentPlayerIndex == playerIndex ){
 		RemoveGolemAndMissilesMayBe( playerIndex );
@@ -3653,6 +4446,7 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 		case PFC_IRON_MAIDEN:
 		case PFC_SHARPSHOOTER:
 		case PFC_SCOUT:
+		case PFC_GLADIATRIX:
 		case PFC_ROGUE:		soundIndex = S_692_ROG_DC;	break;
 		case PFC_ELEMENTALIST:
 		case PFC_NECROMANCER:
@@ -3665,6 +4459,9 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 		case PFC_SHUGOKI:
 		case PFC_MONK:		soundIndex = S_909_MONK_DC;	break;
 	}
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) { 
+		soundIndex = S_1856_TERM_HIT_1; 
+	}
 
 	if (player.fullClassId == PFC_TRAPPER)
 		for (int i = 0; i < 128; ++i)
@@ -3674,9 +4471,9 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 		PlayLocalSound(soundIndex, player.Row, player.Col);
 	}
 
-	//if( player.Appearance ){ // в th1 нет этой проверки
-		player.Appearance &= ~0xF;// обнуляем биты отвечающие за оружие
-		// player.LoadPlayerAnimationMask = 0; // в th1 нет этого обнуления
+	//(rt) if( player.Appearance ){ // th1 has no such check
+		player.Appearance &= ~0xF;// (rt) clear the bits responsible for the weapon
+		// (rt) player.LoadPlayerAnimationMask = 0; // th1 has no such reset
 		SetPlrAnims(playerIndex);
 	//}
 	if( !(player.LoadPlayerAnimationMask & PAF_8_DEATH ) ){
@@ -3708,7 +4505,7 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 	if( playerIndex != CurrentPlayerIndex ){
 		return;
 	}
-	DeathDelayTimer = 30;// Задержка смерти в фрэймах
+	DeathDelayTimer = 30;// (rt) Death delay in frames
 	if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){
 		PlayerDeadItem(playerIndex, &player.ItemOnCursor);
 		SetCursorGraphics(CM_1_NORMAL_HAND);
@@ -3718,8 +4515,8 @@ void __fastcall StartPlayerKill(int playerIndex, int earFlag)
 			PlayerDeadItem(playerIndex, &player.OnBodySlots[itemIndex]);
 		}
 	}
-	// в оригинале в этой функции еще был код для ушей 
-	// в TH 1.57 его местое использовалось для DunLev2by9 и DunLevOn32
+	// (rt) in the original this function also had code for the ears 
+	// (rt) in TH 1.57 its space was used for DunLev2by9 and DunLevOn32
 }
 
 //----- (0045A2CA) --------------------------------------------------------
@@ -3831,15 +4628,37 @@ void __fastcall RemovePlayerMissiles(int playerIndex)
 {
 	if( Dungeon != DUN_0_TOWN && playerIndex == CurrentPlayerIndex ){
 	    const int playerSummonsOffset = playerIndex * SummonMonstersPerPlayer_Count;
+        // (th4) Carried summons: singleplayer only, and never in Classic. Wherever they are
+        // not carried the corpse and the death sound stay exactly as they always were.
+        // Snapshot inside this same guard: summons are only destroyed when leaving a
+        // dungeon, so this is the only place they can be carried from. Capturing outside it
+        // would pick up stale slots -- town never runs InitMonsters(), so its summon slots
+        // still hold the previous level's contents.
+        const bool carrySummons = CarriedSummonsEnabled();
+        CaptureCarriedSummons();
+        // (th4) The mana shield is a missile, and the loop further down this function
+        // destroys it. Snapshot it here, in the same guard and for the same reason as the
+        // summons: this is the only place a level change tears it down.
+        CaptureCarriedManaShield( playerIndex );
+        // (th4) Reflect loses BOTH its missile (below) and its charge count, which
+        // InitMissiles() zeroes on the way into the next level. Grab the count here.
+        CaptureCarriedReflect( playerIndex );
+        SummonCleanupSilent = carrySummons;	// no death sound for the transition cleanup
         for( int summonIndex = 0; summonIndex < SummonMonstersPerPlayer_Count; ++summonIndex  ){
             Monster& summon = Monsters[ summonIndex + playerSummonsOffset ];
             if( summon.Row != 1 || summon.Col ){
                 KillMonsterByPlayer( summonIndex + playerSummonsOffset, playerIndex );
-                AddMonsterCorpse(summon.Row, summon.Col, summon.newBossId ? summon.udeadNum : summon.SpritePtr->deadSpriteNum, summon.Orientation);
+                if( !carrySummons ){
+                    AddMonsterCorpse(summon.Row, summon.Col, summon.newBossId ? summon.udeadNum : summon.SpritePtr->deadSpriteNum, summon.Orientation);
+                }
+                // (th4) No corpse in SP: this is the level-transition cleanup, not a real
+                // death. The corpse went into DeathMonstersMap, which SaveLevel() stores, so
+                // returning to the level showed where every summon had been dropped.
                 summon.flag |= MF_15_KILLED;
                 MonsterMap[ summon.Row ][ summon.Col ] = 0;
             }
         }
+        SummonCleanupSilent = false;
         RemoveKilledMonsters();
 	}
 
@@ -4055,7 +4874,7 @@ int __fastcall PM_DoNothing( int playerIndex )
 	return 0;
 }
 
-// walk вверх
+// (rt) walk up
 //----- (0045B0BB) --------------------------------------------------------
 int __fastcall PM_DoWalkUp(int playerIndex)
 {
@@ -4072,7 +4891,7 @@ int __fastcall PM_DoWalkUp(int playerIndex)
 			player.currentAnimationFrame = 0;
 		}
 	}
-	int numberOfSubSteps = Dungeon != DUN_0_TOWN ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8;
+	int numberOfSubSteps = (!UsesTownAnimations() || ForcesAngryAnimations(player)) ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8; // (th4)
 	if( player.currentActionFrame < numberOfSubSteps ){
 		PM_ChangeOffset(playerIndex);
 		return 0;
@@ -4102,7 +4921,7 @@ int __fastcall PM_DoWalkUp(int playerIndex)
 	}
 }
 
-// walk вниз
+// (rt) walk down
 //----- (0045B289) --------------------------------------------------------
 int __fastcall PM_DoWalkDown(int playerIndex)
 {
@@ -4120,15 +4939,15 @@ int __fastcall PM_DoWalkDown(int playerIndex)
 			player.currentAnimationFrame = 0;
 		}
 	}
-	int numberOfSubSteps = Dungeon != DUN_0_TOWN ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8;
+	int numberOfSubSteps = (!UsesTownAnimations() || ForcesAngryAnimations(player)) ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8; // (th4)
 	if( player.currentActionFrame < numberOfSubSteps ){
 		PM_ChangeOffset(playerIndex);
 		result = 0;
 	}else{
 		PlayerMap[ player.CursorRow ][ player.CursorCol ] = 0;
-		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// Подземелья
-			ChangeLightPos(player.LightIndex, player.Row, player.Col);// Двигаем радиус света
-			ChangeVision(player.lightRadiusIdentificator, player.Row, player.Col);// Что то непонятное 
+		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// (rt) Dungeons
+			ChangeLightPos(player.LightIndex, player.Row, player.Col);// (rt) Move the light radius
+			ChangeVision(player.lightRadiusIdentificator, player.Row, player.Col);// (rt) Something unclear 
 		}
 		if( playerIndex == CurrentPlayerIndex && Scroll.dir != 0 ){
 			PlayerRowPos = player.Row - Scroll.dx;
@@ -4148,7 +4967,7 @@ int __fastcall PM_DoWalkDown(int playerIndex)
 	return result;
 }
 
-// walk влево и вправо
+// (rt) walk left and right
 //----- (0045B43A) --------------------------------------------------------
 int __fastcall PM_DoWalkHorizontal(int playerIndex)
 {
@@ -4157,40 +4976,40 @@ int __fastcall PM_DoWalkHorizontal(int playerIndex)
 	if( playerIndex >= 4 ){
 		TerminateWithError("PM_DoWalk3: illegal player %d", playerIndex);
 	}
-	if( player.running ){// беготня в городе
-		if( !(player.currentAnimationFrame % 2) ){// Если player.field_8C чётное
+	if( player.running ){// (rt) running around in town
+		if( !(player.currentAnimationFrame % 2) ){// (rt) If player.field_8C is even
 			player.currentAnimationFrame++;
 			player.currentActionFrame++;
 		}
-		if( player.currentAnimationFrame >= player.WalkAnimationFrameCount){// Если player.field_8C достигает какого-то значения
+		if( player.currentAnimationFrame >= player.WalkAnimationFrameCount){// (rt) If player.field_8C reaches some value
 			player.currentAnimationFrame = 0;
 		}
 	}
-	int numberOfSubSteps = Dungeon != DUN_0_TOWN ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8;
-	if( player.currentActionFrame < numberOfSubSteps ){// Если всё ещё идём между тайлами, вызываем саб смены картинки
+	int numberOfSubSteps = (!UsesTownAnimations() || ForcesAngryAnimations(player)) ? PlayerClasses[player.ClassID].NumberOfSubSteps : 8; // (th4)
+	if( player.currentActionFrame < numberOfSubSteps ){// (rt) If still walking between tiles, call the sub that changes the picture
 		PM_ChangeOffset(playerIndex);
 		result = 0;
-	}else{// Иначе если достигли тайла
+	}else{// (rt) Otherwise, if the tile has been reached
 		PlayerMap[ player.Row ][ player.Col ] = 0;
-		FlagMap[ player.HorizontalNextRowOrSomeSpellData ][ player.HorizontalNextCol ] &= ~CF_32_PLAYER_HORIZONTAL;// сбрасываем флаг занятости клетки игроком
+		FlagMap[ player.HorizontalNextRowOrSomeSpellData ][ player.HorizontalNextCol ] &= ~CF_32_PLAYER_HORIZONTAL;// (rt) clear the flag that the cell is occupied by the player
 		player.Row = player.CursorRow;
 		player.Col = player.CursorCol;
 		PlayerMap[ player.Row ][ player.Col ] = playerIndex + 1;
-		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// Подземелья
-			ChangeLightPos(player.LightIndex, player.Row, player.Col);// Двигаем радиус света
-			ChangeVision(player.lightRadiusIdentificator, player.Row, player.Col);// Что то непонятное 
+		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// (rt) Dungeons
+			ChangeLightPos(player.LightIndex, player.Row, player.Col);// (rt) Move the light radius
+			ChangeVision(player.lightRadiusIdentificator, player.Row, player.Col);// (rt) Something unclear 
 		}
 		if( playerIndex == CurrentPlayerIndex && Scroll.dir ){
-			PlayerRowPos = player.Row - Scroll.dx; // изменение координат игрока при ходьбе 
+			PlayerRowPos = player.Row - Scroll.dx; // (rt) change of the player's coordinates while walking 
 			PlayerColPos = player.Col - Scroll.dy;
 		}
-		if( player.walkPath[0] == PCMD_M1_NOTHING ){// Если следующего шага нет
+		if( player.walkPath[0] == PCMD_M1_NOTHING ){// (rt) If there is no next step
 			StartStand(playerIndex, player.newDirection);
-		}else{// Если следующий шаг есть
+		}else{// (rt) If there is a next step
 			StartWalkStand(playerIndex);
 		}
 		ClearPlrPVars(playerIndex);
-		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// Подземелья
+		if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){// (rt) Dungeons
 			ChangeLightOffset(player.LightIndex, 0, 0);
 		}
 		result = 1;
@@ -4203,6 +5022,11 @@ int __fastcall PM_DoWalkHorizontal(int playerIndex)
 bool DamageItem(uint playerIndex, ITEM_SLOT inventorySlot, Item &item, bool showInflictedDamage)
 {
 	if( item.ItemCode == IC_M1_NONE && item.CurDurability > 0 ){
+		return false;
+	}
+	// (th4) An item whose requirements are not met (a "red" item) does nothing for the hero, so it does
+	// not wear out either (DSF 1.09 bug list: red items lost durability like usable ones).
+	if( !item.IsReqMet ){
 		return false;
 	}
 	#ifdef INDESTRUCTABLE_ENABLED
@@ -4264,7 +5088,7 @@ bool DamageItem(uint playerIndex, ITEM_SLOT inventorySlot, Item &item, bool show
     return false;
 }
 
-// INDESTRUBLE отключен в свойствах вешей и в коде в TH 1.216
+// (rt) INDESTRUBLE is disabled in the item properties and in the code in TH 1.216
 //----- (0045B626) --------------------------------------------------------
 bool __fastcall WeaponDur( uint playerIndex, int durDecrParam )
 {
@@ -4388,7 +5212,7 @@ int CalcPvM_MeleeHitChance( int playerIndex, int monsterIndex, bool isSweepAttac
 	if (HasTrait(playerIndex, TraitId::Paladin)) {	toHitChance += 5;	}
 	if (HasTrait(playerIndex, TraitId::Crupellarius)) { toHitChance -= 10; }
 	toHitChance += player.ItemsAddToHitPercents
-		+ player.elementToHit[ET_0_PHYSICAL] // вся melee атака сейчас Physical, возможно это расширится в дальнейшем
+		+ player.elementToHit[ET_0_PHYSICAL] // (rt) all melee attacks are Physical now, this may be extended later
 		+ player.spiciesToHit[monsterClass]; //  bonus tohit vs beasts/demons/undead
 	int maxToHit = 100;
 	if( baseMonsterIndex == BM_29_HIDDEN ){
@@ -4434,6 +5258,9 @@ int CalcPvM_MeleeHitChance( int playerIndex, int monsterIndex, bool isSweepAttac
 	else if (HasTrait(playerIndex, TraitId::Zealot)) {
 		maxToHit -= 15 * maxToHit / 100;
 	}
+	if (HasTrait(playerIndex, TraitId::Frenzied)) {
+		maxToHit -= 40 * maxToHit / 100;
+	}
 	LimitToMin ( maxToHit, 25 + PerkValue(PERK_DUELIST, playerIndex) );
 	int minToHit = 5;
 	LimitToRange ( toHitChance, minToHit, maxToHit );
@@ -4453,7 +5280,7 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 	}
 	Player& player = Players[playerIndex];
 	if( !monster.ActivationCounter && !(monster.flag & MF_6_FRIENDLY) ){
-		MonsterChainActivation( monsterIndex ); // цепная активация
+		MonsterChainActivation( monsterIndex ); // (rt) chain activation
 	}
 	int toHitRandFactor = RNG(100);
 	int hitChance = CalcPvM_MeleeHitChance( playerIndex, monsterIndex, isSweepAttack );
@@ -4464,11 +5291,11 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 		KillMonsterByPlayer(monsterIndex, playerIndex);
 		return 1;
 	}
-	if( toHitRandFactor >= hitChance ){ // проверка попадания 
+	if( toHitRandFactor >= hitChance ){ // (rt) hit check 
 		return 0;
 	}
 	int isMonsterHit = 0;
-	if( CheckMonsterPhaseOrBlock(monsterIndex, &isMonsterHit) ){ // проверка блока 
+	if( CheckMonsterPhaseOrBlock(monsterIndex, &isMonsterHit, playerIndex) ){ // (rt) block check 
 		return isMonsterHit;
 	}
 	int monsterClass = monster.BasePtr->MonsterClass;
@@ -4493,6 +5320,9 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 		if (HasTrait(playerIndex, TraitId::Destroyer)) {
 			damage += damage * 15 / 100;
 		}
+		if (HasTrait(playerIndex, TraitId::Frenzied)) {
+			damage += damage * 75 / 100;
+		}
 		if( isSweepAttack ){
 			damage = damage * ( RNG(50) + 1 ) / 100;
 			//damage = damage * RNG(player.CharLevel / 3 + 1) / 100; // sweep damage = Rnd[CLVL / 3 + 1]%,   randomly (1-50)%
@@ -4504,8 +5334,12 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 		//damage += damage * (player.spiciesDamagePercent[monsterClass]) / 100;
 		//damage += RNG(player.spiciesDamageMax[monsterClass]);
 		int weaponClass = -1;
-		int leftHandItemCode = player.OnBodySlots[IS_LeftHand].ItemCode;
-		int rightHandItemCode = player.OnBodySlots[IS_RightHand].ItemCode;
+		// (th4) A weapon whose requirements are not met counts as an empty hand here: it gives no weapon-type
+		// bonus (sword vs beasts, mace vs undead...) -- DSF 1.09 bug list, "red" items.
+		const Item& leftHandItem = player.OnBodySlots[IS_LeftHand];
+		const Item& rightHandItem = player.OnBodySlots[IS_RightHand];
+		int leftHandItemCode = leftHandItem.IsReqMet ? leftHandItem.ItemCode : IC_M1_NONE;
+		int rightHandItemCode = rightHandItem.IsReqMet ? rightHandItem.ItemCode : IC_M1_NONE;
 		if( leftHandItemCode == IC_1_SWORD && rightHandItemCode != IC_4_MACE
 		 || leftHandItemCode != IC_4_MACE && rightHandItemCode == IC_1_SWORD ){
 			weaponClass = IC_1_SWORD;
@@ -4605,9 +5439,16 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 		damage += damage * player.spiciesDamageTotal[monsterClass] / 100;
 		damage += damage * PerkValue( by(monsterClass, PERK_UNDEAD_HUNTER, PERK_DEMON_HUNTER, PERK_BEAST_HUNTER), playerIndex) / 100; //perks increasing melee dmg vs species
 	}
+	// ruin effect-----------------------------
 	if( player.effectFlag[EA_MORE_DAMAGE_CHANCE] && RNG(100) < 30 ){
 		damage = 15 * damage / 10; // 30% chance for +50% damage now
-	}
+	}//------------------------------
+	// dread effect------------------
+	if (player.effectFlag[EA_RANDOM_DAMAGE]) {
+		int damagePercent = RNG(71); // Rnd[0-70]
+		damagePercent += 80;
+		damage = damage * damagePercent / 100;// randomly [80-150]% damage now
+	}//-------------------------------
 	bool canCrit_melee = true;
 	if (player.fullClassId == PFC_SAVAGE) {
 		canCrit_melee = false;
@@ -4618,10 +5459,10 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 	if (canCrit_melee) { // ability to score crits in melee
 		ActCriticalHit(damage, playerIndex, monster.Row, monster.Col, true, 0, -1);// -1 melee damage (?)
 	} 
-	// if( baseMonsterIndex == BM_137_UBER_DIABLO ){ damage /= MaxCountOfPlayersInGame != 1 && Difficulty == DL_2_DOOM ? 8 : 4; // Mor: старый вариант условия не стираю.
+	// if( baseMonsterIndex == BM_137_UBER_DIABLO ){ damage /= MaxCountOfPlayersInGame != 1 && Difficulty == DL_2_DOOM ? 8 : 4; // Mor: not deleting the old variant of the condition.
 	if (GameMode == GM_CLASSIC) { goto CLASSIC_DAMAGE_MODIFY_SKIP; }
 	if( baseMonsterIndex == BM_137_UBER_DIABLO ) {
-		//damage /= MaxCountOfPlayersInGame != 1 ? by (Difficulty, 4, 6, 8) : 4; // в новом варианте добавлен резист /6 на пургатори, для более гладкого прогресса силы резиста убера (в сингле /4)				
+		//(rt) damage /= MaxCountOfPlayersInGame != 1 ? by (Difficulty, 4, 6, 8) : 4; // the new variant adds a /6 resistance on purgatory, for a smoother progression of Uber's resistance (in single player /4)				
 		if (GameMode == GM_HARD) {
 			damage -= 50 * damage / 100; // -50% damage in melee
 		}
@@ -4708,14 +5549,19 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 				if (Dungeon->level < 4 && Difficulty == DL_0_HORROR) { damage -= damage / 4 + damage / 8; }
 			}
 			else if (baseMonsterIndex == BM_125_GOLD_GOLEM) {
-				if (Dungeon->level == 21) {
-					damage -= damage / 4;
-				}
-				else if (Dungeon->level == 22) {
-					damage -= damage / 4 + damage / 8;
+				if (!isThorns) {
+					if (Dungeon->level == 21) {
+						damage -= damage / 4;
+					}
+					else if (Dungeon->level == 22) {
+						damage -= damage / 4 + damage / 8;
+					}
+					else {
+						damage /= 2;
+					}
 				}
 				else {
-					damage /= 2;
+					damage -= damage / 3;
 				}
 			}
 			else if (baseMonsterIndex == BM_64_DEATH_GUARDIAN) {
@@ -4732,11 +5578,16 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 				}
 			}
 			else if (is(baseMonsterIndex, BM_15_TOMB_SLAVE, BM_140_GHOUL, BM_144_DARK_SERVANT, BM_145_BLACK_MOURNER)) {
-				switch (Difficulty) {
-				case DL_0_HORROR: if (Dungeon->level == 3) { damage -= damage / 8; }
-								  else if (Dungeon->level == 4) { damage -= damage / 4; } break;
-				case DL_1_PURGATORY: damage -= damage / 4 + damage / 8; break;
-				default: damage /= 2; break;
+				if (!isThorns) {
+					switch (Difficulty) {
+					case DL_0_HORROR: if (Dungeon->level == 3) { damage -= damage / 8; }
+									else if (Dungeon->level == 4) { damage -= damage / 4; } break;
+					case DL_1_PURGATORY: damage -= damage / 4 + damage / 8; break;
+					default: damage /= 2; break;
+					}
+				}
+				else {
+					damage -= damage / 3;
 				}
 			}
 			else if (is(baseMonsterIndex, BM_72_FIREWING, BM_132_BONEWING)) {
@@ -4958,6 +5809,30 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 					damage -= damage / 4;
 				}
 			}
+			else if (is(baseMonsterIndex, BM_H_404_WAR_M_MS, BM_H_406_SCOUT, BM_H_408_WAR_M_SS, BM_H_413_SOR_H_T)) {
+				damage -= 1 + Difficulty;
+				damage -= damage / 5;
+			}
+			else if (is(baseMonsterIndex, BM_H_407_MONK_M_X, BM_H_410_MONK_H_SS, BM_H_411_ROG_H_B, BM_H_415_ROG_H_B_ELITE_ARCHER, BM_H_416_MON_H_MS, BM_H_418_SOR_H_T_SORC_ELITE, BM_H_419_ROG_H_B_SS_ELITE)) {
+				damage -= 2 + Difficulty * 2;
+				damage -= damage / 3;
+			}
+			else if (is(baseMonsterIndex, BM_H_409_MONK_H_T, BM_H_414_WAR_H_MS, BM_H_417_WAR_H_SS_WARRIOR_ELITE)) {
+				damage -= 3 + Difficulty * 3;
+				damage -= damage / 2;
+			}
+			else if (is(baseMonsterIndex, BM_H_412_WAR_H_X_EXEC, BM_H_421_WAR_H_X_EXEC_ELITE, BM_H_423_ROG_H_B_BLACK_ARCHER)) {
+				damage -= 15 + Difficulty * 4;
+				damage -= 3 * damage / 5;
+			}
+			else if (is(baseMonsterIndex, BM_H_422_WAR_H_ROYAL_GUARD)) {
+				damage -= 20 + Difficulty * 5;
+				damage -= 4 * damage / 5;
+			}
+			else if (is(baseMonsterIndex, BM_NPC_420_GRISWOLD)) {
+				damage -= 25 + Difficulty * 7;
+				damage -= 5 * damage / 6;
+			}
 		}
 
 		if (HasTrait(playerIndex, TraitId::Hunger)) { // trait 'Hunger', only available to Shugoki class
@@ -5040,11 +5915,6 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 	#endif
 	LimitToMin( damage, 1 );
 	damage <<= 6;
-	if( player.effectFlag[EA_RANDOM_DAMAGE] ){
-		int damagePercent = RNG(71); // Rnd[0-70]
-		damagePercent += 80 ;// Rnd[80-160]
-		damage = damage * damagePercent / 100;// randomly [75-165]% damage now
-	}
 	//if( isSweepAttack ){ // sweep attack damage is again divided by 2? why?
 	//	damage /= 2;
 	//}
@@ -5057,9 +5927,9 @@ int __fastcall PvM_Melee( int playerIndex, uint monsterIndex, bool isSweepAttack
 	}
 	if( playerIndex == CurrentPlayerIndex ){
 		damage = LimitPvMMeleeDamage( playerIndex, damage ); // limits max damage by clvl*256
-		monster.CurrentLife -= damage; // здесь отнимается жизнь у ударяемого монстра
+		monster.CurrentLife -= damage; // (rt) the hit monster loses life here
 	}
-	if( !isThorns ){
+	if( !isThorns && !(player.gameChanger & BIT(GC_27_TERMINATOR))){
 		if (!HasTrait(playerIndex, TraitId::Bloodless)) {
 			EffectAction& lS = player.effectActionValue[EA_LIFE_STEAL];
 			int lifeSteal = 64 * RngFromRange(lS.minVal, lS.maxVal);
@@ -5178,7 +6048,7 @@ int __fastcall PvP_Melee( uint attackerPlayerIndex, int targetPlayerIndex )
 	}else{
 		blockRandFactor = RNG(100);
 	}
-	int blockChance = defender.BlockBonus + defender.CurDexterity + 2 * (defender.CharLevel - attacker.CharLevel);
+	int blockChance = defender.CurDexterity + 2 * (defender.CharLevel - attacker.CharLevel);	// (th4) class block bonus retired
 	blockChance += defender.blockChance;
 	LimitToRange( blockChance, 0, 45 );
 	if( toHitRandFactor >= hitChance ){
@@ -5285,7 +6155,7 @@ bool __fastcall PM_DoAttack(uint playerIndex)
 	if (playerIndex == CurrentPlayerIndex && (!EasyClick || !RButtonEvent)) {
 		ShiftPressedEvent = false;
 		LButtonEvent = false;
-		// в th1 почему то нет проверки на замедленный фрейм (в PM_DoRangedAttack есть), возможно из-за этого такие жалобы на топоры в 1.216 были
+		// (rt) for some reason th1 has no check for the slowed frame (PM_DoRangedAttack has one), maybe that's why there were such complaints about axes in 1.216
 		if (player.currentAnimationFrame == player.AttackMainFrame + AutoClickDelay && !player.currentAnimationFrameTick) {
 			LButtonEvent = true;
 			Repeat_Mouse_LButtonDown();
@@ -5323,6 +6193,11 @@ bool __fastcall PM_DoAttack(uint playerIndex)
 		if(      player.currentAnimationFrame == 7 ) player.currentAnimationFrame += 1; // axe rogue skips frames 7...
 		else if( player.currentAnimationFrame == 9 ) player.currentAnimationFrame += 2; // ... and 9-10
 	}
+	// Gladiatrix-specific frame skips when she uses axe
+	if ( player.fullClassId == PFC_GLADIATRIX && leftHand.ItemCode == IC_2_AXE) {
+		if (player.currentAnimationFrame == 7) player.currentAnimationFrame += 1; // axe rogue skips frames 7...
+		else if (player.currentAnimationFrame == 9) player.currentAnimationFrame += 2; // ... and 9-10
+	}
 	// dimachaerus attacks 1 frame faster under fury (onslaught)
 	if( (player.activeBuffFlag & BF_2_FURY_ACTIVE) && player.fullClassId == PFC_DIMACHAERUS ){ 
 		if( player.currentAnimationFrame == 7 ) player.currentAnimationFrame += 1;
@@ -5344,7 +6219,7 @@ bool __fastcall PM_DoAttack(uint playerIndex)
 
 	if( player.currentAnimationFrame == player.AttackMainFrame - 2 && !player.currentAnimationFrameTick ){
 		int swingSound = 980; 
-		if( is(player.fullClassId, PFC_GUARDIAN, /*PFC_SHUGOKI,*/ PFC_SAVAGE, PFC_MONK, PFC_BERSERKER/*, PFC_EXECUTIONER*/) /*&& !(player.gameChanger & BIT(GC_9_NIGHT_KIN))*/ 
+		if( is(player.fullClassId, PFC_GUARDIAN, /*PFC_SHUGOKI,*/ PFC_SAVAGE, PFC_MONK, /*PFC_GLADIATRIX,*/ PFC_BERSERKER/*, PFC_EXECUTIONER*/) /*&& !(player.gameChanger & BIT(GC_9_NIGHT_KIN))*/ 
 		 || player.fullClassId == PFC_DRUID && !(player.activeBuffFlag & BF_2_FURY_ACTIVE)
 			/*|| HasTrait(playerIndex, TraitId::Axepertise)*/ ) {
 			TWOH_SFX:
@@ -5461,7 +6336,7 @@ bool __fastcall PM_DoAttack(uint playerIndex)
 			int monsterIndex = abs(MonsterMap[ row ][ col ]) - 1;
 			Monster& monster = Monsters[monsterIndex];
 			if( !MonsterTalking(monsterIndex) && monster.PrevRow == row && monster.PrevCol == col ){
-				if( PvM_Melee(playerIndex, monsterIndex, true) ){// левая дополнительная атака для двуручного оружия монаха?
+				if( PvM_Melee(playerIndex, monsterIndex, true) ){// (rt) left extra attack for the monk's two-handed weapon?
 					flagAttackDone = true;
 				}
 			}
@@ -5499,6 +6374,7 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 	if( player.currentAnimationFrame == player.AttackMainFrame && !player.currentAnimationFrameTick ){
 		numberOfArrows = 1;
 	}
+
 	bool multiArrowFlag = false;
 	int autoClickDelay = AutoClickDelay;
 	int multiArrowOffset = 0;
@@ -5512,18 +6388,42 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 			multiArrowOffset = 1;
 		}
 	}		
-	if( playerIndex == CurrentPlayerIndex && ( ! EasyClick || ! RButtonEvent ) ){
+
+	// Mutie & ES attack control
+	bool isMinigunBursting = false;
+	bool isEncAttacking = false;
+
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		isMinigunBursting = is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+			&& player.currentAnimationFrame < 24;
+	}
+	else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		isEncAttacking = is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+			&& player.currentAnimationFrame < 13;
+	}
+
+	if (playerIndex == CurrentPlayerIndex && (!EasyClick || !RButtonEvent)) {
 		LButtonEvent = false;
 		ShiftPressedEvent = false;
 		int autoClickFrame = AutoClickDelay + player.AttackMainFrame;
-		if( player.effectFlag[EA_MULTISHOT] ){
+		if (player.effectFlag[EA_MULTISHOT]) {
 			autoClickFrame += 2;
 		}
-		if( player.currentAnimationFrame == autoClickFrame && !player.currentAnimationFrameTick ){
+
+		// For ES: override autoClickFrame to fire at end of animation
+		if (isEncAttacking || (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))) {
+			autoClickFrame = 13;
+		}
+
+		if (player.currentAnimationFrame == autoClickFrame
+			&& !player.currentAnimationFrameTick
+			&& !isMinigunBursting
+			&& !isEncAttacking) {
 			LButtonEvent = true;
-			Repeat_Mouse_LButtonDown();
+			Repeat_Mouse_LButtonDown(); // also see IsoLand_CheckLButtonClick() for protection vs manual clicks!
 		}
 	}
+	//-----------------------------------------
 
 	// ranged faster attack modifiers
 	if( player.ClassID == PC_3_MONK && currentAnimationFrame == 9 ){
@@ -5556,6 +6456,137 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 		case 0: if( currentAnimationFrame == 2 ) player.currentAnimationFrame += 1; break;
 		}
 	}
+	
+	// --------------- MINIGUN BURST (SUPER MUTANT) --------------------------
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)
+		&& is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)) {
+		int baseItem = player.OnBodySlots[IS_LeftHand].baseItemIndex;
+		//int firingFrames[] = { 9, 11, 13, 15, 17, 19, 21, 23 };
+		int firingFrames[15]; // Max 15 frames for Decimator
+		int numShots = 8;
+
+		if (baseItem == BI_2745_X59_DECIMATOR) {
+			numShots = 15;
+			for (int i = 0; i < 15; i++) {
+				firingFrames[i] = 9 + i; // 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+			}
+		}
+		else {
+			int defaultFrames[] = { 9, 11, 13, 15, 17, 19, 21, 23 };
+			for (int i = 0; i < 8; i++) {
+				firingFrames[i] = defaultFrames[i];
+			}
+		}
+
+		// Play SFX on frame
+		if (currentAnimationFrame == 2) {
+			if (is(baseItem, BI_2735_M61_VULCAN, BI_2749_T33_MINIGUN))			{	PlayLocalSound(S_1901_M61_VULCAN, player.Row, player.Col); 	}
+			else if (is(baseItem, BI_2736_GAU8_AVENGER, BI_2746_F6_MINIGUN, BI_2755_T38_MINIGUN))	{	PlayLocalSound(S_1902_GAU8_AVENGER, player.Row, player.Col);	}
+			else if (is(baseItem, BI_2741_BLACKOUT_KG92, BI_2753_S66_MINIGUN))	{	PlayLocalSound(S_1904_BLACKOUT_KG92, player.Row, player.Col);	}
+			else if (is(baseItem, BI_2739_MK24_OBLITERATOR, BI_2747_KC1_MINIGUN)){	PlayLocalSound(S_1903_MK24_OBLITERATOR, player.Row, player.Col);	}
+		}
+		else if (currentAnimationFrame == 4) {
+			if (is(baseItem, BI_2743_ARM12_GAUSS_MINIGUN)){							PlayLocalSound(RandFrom(S_1897_GAUSS_MINIGUN_1, S_1898_GAUSS_MINIGUN_2), player.Row, player.Col);		}
+			else if (is(baseItem, BI_2751_ARM13LC_GAUSS_MINIGUN)) {					PlayLocalSound(S_1908_ARM13LC_GAUSS_MINIGUN, player.Row, player.Col); }
+		}
+		else if (currentAnimationFrame == 8) {// default
+			if (is(baseItem, BI_2734_XM214_MINIGUN, BI_2748_XM215, BI_2752_X12_MINIGUN)){	PlayLocalSound(S_1899_MINIGUN_HEAVY_1, player.Row, player.Col); 		}
+			else if (is(baseItem, BI_2733_MINIGUN_01, BI_2744_Z15_NEMESIS)) {		PlayLocalSound(S_1900_XM214_MINIGUN, player.Row, player.Col);		}
+			else if (is(baseItem, BI_2745_X59_DECIMATOR))					{		PlayLocalSound(S_1905_X59_DECIMATOR, player.Row, player.Col); }
+			else if (is(baseItem, BI_2756_MCM2_VINDICATOR_R19S))			{		PlayLocalSound(S_1909_MCM2_VINDICATOR_R19S, player.Row, player.Col); }
+			else if (is(baseItem, BI_2738_X11_REAPER, BI_2742_CX7_FIREFLY, BI_2754_V40U_MINIGUN)) {		PlayLocalSound(S_1906_X11_REAPER, player.Row, player.Col); }
+			else if (is(baseItem, 2758, 2759, 2760, 2761, 2762, 2763, 2764, 2765, 2766)) { PlayLocalSound(S_1907_GRIZ_STORM, player.Row, player.Col); } // anvil rewards
+			else {// Check if the current weapon is one of the default miniguns
+				bool isDefaultMinigun = (baseItem == BI_2737_HR556 || baseItem == BI_2740_REQUIEM_R3 || baseItem == BI_2750_M74GE_MINIGUN || baseItem == BI_2757_F7_MINIGUN);
+				if (isDefaultMinigun) {	PlayLocalSound(S_1884_MINIGUN_HEAVY_2, player.Row, player.Col);	}
+			}
+		}
+
+		// Loop through firing frames and perform attack on each
+		for (int i = 0; i < numShots; i++) {
+			if (currentAnimationFrame == firingFrames[i] && !player.currentAnimationFrameTick) {
+
+				
+				// Perform the actual attack - CastMissile
+				int missile = MI_143_BULLET;
+				int explosionElement = 0;
+				int curMissileElement = 0;
+
+				CastMissile(player.Row, player.Col,
+					player.CursorRow, player.CursorCol,
+					player.dir,
+					missile,
+					CT_0_PLAYER, playerIndex,
+					0, 0, 0,
+					{ 0,0,0,0,0,curMissileElement,0,explosionElement },
+					0, 0);
+
+				// Weapon durability loss (once per shot)
+				//int weapon_dur_loss_speed = 48 + PerkValue(PERK_WEAPON_THRIFT, playerIndex);
+				//if (HasTrait(playerIndex, TraitId::Destroyer)) {
+				//	weapon_dur_loss_speed /= 2;
+				//}
+				//WeaponDur(playerIndex, weapon_dur_loss_speed);
+
+				// Set player state to ranged attack to keep animation active
+				player.CurAction = PCA_5_RANGE_ATTACK;
+
+				break; // Only fire once per frame
+			}
+		}
+	}
+	//------------------------- end minigun burst ----------------------
+
+	// --------------- BURST mode on TERMINATOR guns--------------------------
+	if (is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+		&& is(BI_2715_UZI_9MM, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {
+		static int burstCounter = 0;		
+		if (currentAnimationFrame == 0) { burstCounter = 0; } // Reset when animation starts
+		if (currentAnimationFrame == 10 && !player.currentAnimationFrameTick) {// On frame 11, fire burst shots across multiple frames
+			if (burstCounter < 6 + RNG(3)) {//(6-8) extra missile (7-9 total)
+				numberOfArrows = 1;
+				burstCounter++;
+				player.currentAnimationFrame = 9;  // FREEZE on frame 9 (10?) (stay in attack)
+				// We'll come back next frame, still on frame 10, and fire again
+			}
+			else {
+				burstCounter = 0; // let animation continue...
+			}
+		}
+	}
+	if (is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+		&& is(BI_2717_DOUBLE_BARREL_SBS, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {
+		static int burstCounter = 0;
+		if (currentAnimationFrame == 0) { burstCounter = 0; } // Reset when animation starts
+		if (currentAnimationFrame == 10 && !player.currentAnimationFrameTick) {// On frame 11, fire burst shots across multiple frames
+			if (burstCounter < 1) {//1 extra missile
+				numberOfArrows = 1;
+				burstCounter++;
+				player.currentAnimationFrame = 9;  // FREEZE on frame 9 (10?) (stay in attack)
+				// We'll come back next frame, still on frame 10, and fire again
+			}
+			else {
+				burstCounter = 0; // let animation continue...
+			}
+		}
+	}
+	if (is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+		&& is(BI_2720_MM1_GRENADE_LAUNCHER, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {
+		static int burstCounter = 0;
+		if (currentAnimationFrame == 0) { burstCounter = 0; } // Reset when animation starts
+		if (currentAnimationFrame == 10 && !player.currentAnimationFrameTick) {// On frame 11, fire burst shots across multiple frames
+			if (burstCounter < 2) {// 2 extra missile
+				numberOfArrows = 1;
+				burstCounter++;
+				player.currentAnimationFrame = 9;  // FREEZE on frame 9 (10?) (stay in attack)
+				// We'll come back next frame, still on frame 10, and fire again
+			}
+			else {
+				burstCounter = 0; // let animation continue...
+			}
+		}
+	}
+	//------------------------- end bursts ----------------------
 
 	if ((player.activeBuffFlag & BF_2_FURY_ACTIVE) && player.fullClassId == PFC_DIMACHAERUS) { // dimachaerus attacks 1 frame daster under fury (onslaught)
 		if (/*player.currentAnimationFrame == 1 || player.currentAnimationFrame == 3 || */player.currentAnimationFrame == 7) {
@@ -5595,7 +6626,59 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 		int curMissileElement = 0;
 		if(      is(IC_21_KNIFE,  player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode) ) missile = MI_139_THROWING_KNIFE;
 		else if( is(IC_22_MALLET, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode) ) missile = MI_141_THROWING_MALLET;
-		else if (is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode) ) missile = MI_143_BULLET; 
+		else if (is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode) ) missile = MI_143_BULLET;
+		if(		 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode) 
+					&& is(BI_2711_PHASED_PLASMA_R95, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_146_LASER; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2713_TLSP_LASER_PISTOL, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_147_LASER_BLUE; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2714_RAIL_PISTOL_RPAP_20W, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) { missile = MI_148_LASER_ORNG; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2716_M79_GL, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_149_GRENADE; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2720_MM1_GRENADE_LAUNCHER, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) { missile = MI_149_GRENADE; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2719_SKYNET_PLASMA_V96, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) { missile = MI_150_LASER_CRIMZ; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2721_PHASED_PLASMA_PISTOL_40W, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {missile = MI_153_PLASMA_YELLOW;}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2722_MAGNETIC_ACCELERATOR_EM4, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {missile = MI_151_LASER_YELLOW;}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2723_THERMAL_OVERLOAD_PISTOL, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {missile = MI_152_LASER_WHITE;}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2726_IR_8_BEAM_TRACER, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_146_LASER; }
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2727_REFRACTION_KERNEL_WX9, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_147_LASER_BLUE;}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2728_BV_3_FUSION_CUTTER, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_148_LASER_ORNG;	}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2729_GD_VSB_90_S, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_146_LASER;	}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2730_GD_VSB_95_S, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_150_LASER_CRIMZ;	}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2731_ION_BLASTER_QDB_2, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {	missile = MI_154_EMP_WHITE;	}
+		if (	 is(IC_23_PISTOL, player.OnBodySlots[IS_RightHand].ItemCode, player.OnBodySlots[IS_LeftHand].ItemCode)
+					&& is(BI_2732_PROTOPLASMA_THROWER, player.OnBodySlots[IS_RightHand].baseItemIndex, player.OnBodySlots[IS_LeftHand].baseItemIndex)) {missile = MI_155_PLASMA_CRIMZ;	}
+							
+						// enclave guns
+		if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			int weaponId = 0;
+			if (player.OnBodySlots[IS_LeftHand].ItemCode == IC_23_PISTOL) {
+				weaponId = player.OnBodySlots[IS_LeftHand].baseItemIndex;
+			}
+			else if (player.OnBodySlots[IS_RightHand].ItemCode == IC_23_PISTOL) {
+				weaponId = player.OnBodySlots[IS_RightHand].baseItemIndex;
+			}
+			// range checks
+			if		(weaponId >= 2788 && weaponId <= 2812) { missile = MI_157_FIRE_SHOT; }
+			else if (weaponId >= 2813 && weaponId <= 2837) { missile = MI_158_LASER_SHOT; }
+			else if (weaponId >= 2838 && weaponId <= 2862) { missile = MI_156_CORROSIVE_SHOT; }
+			else if (weaponId >= 2863 && weaponId <= 2887) { missile = MI_159_GRAVITY_SHOT; }
+		}
+
+		// protect modern weapons from elemental FX---------------------
+		bool isGun = HasTrait(playerIndex, TraitId::Pistoleer);
+		//--------------------------------------------------------------
 
 		const static int elemEffect [] = { EA_ARROW_FIRE,    EA_ARROW_LIGHTNING,   EA_ARROW_ARCAN,      EA_ARROW_ACID,     EA_ARROW_HOLY,         EA_ARROW_COLD     };
 		const static int elemMissile[] = { MI_27_FIRE_ARROW, MI_56_LIGHTING_ARROW, MI_108_ARCANE_ARROW, MI_109_ACID_ARROW, MI_77_HOLY_BOLT_ARROW, MI_126_COLD_ARROW };
@@ -5606,18 +6689,19 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 		for( int i = player.nextArrowElement, count = 0; count < countof(elemEffect); ++count ){
 			int magicArrowElement = elemEffect[i] - EA_ARROW_FIRE + 1;
 			if( player.effectFlag[elemEffect[i]] ){
-				if( missile == MI_0_NONE_ARROW ){
-					missile = elemMissile[i];
-				}else{
-					curMissileElement = magicArrowElement;
+				if (missile == MI_0_NONE_ARROW) {
+					if (!isGun) missile = elemMissile[i];
 				}
-				if( ! magicArrowExplosionAllInOne ) explosionElement = 1 << (magicArrowElement - 1);
+				else {
+					if (!isGun) curMissileElement = magicArrowElement;
+				}
+				if( ! magicArrowExplosionAllInOne && !isGun) explosionElement = 1 << (magicArrowElement - 1);
 				player.nextArrowElement = i;
 				break;
 			}
 			if( ++i >= countof(elemEffect) ) i = 0;
 		}
-		if( magicArrowExplosionAllInOne ){
+		if( magicArrowExplosionAllInOne && !isGun){
 			for( int i = 0; i < countof(elemEffect); ++i ){
 				int magicArrowElement = elemEffect[i] - EA_ARROW_FIRE + 1;
 				if( player.effectFlag[elemEffect[i]] ){
@@ -5626,19 +6710,32 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 			}
 		}
 
-		CastMissile( player.Row, player.Col, rowOffset + player.CursorRow, colOffset + player.CursorCol, player.dir, missile, CT_0_PLAYER, playerIndex, 0, 0, 0, {0,0,0,0,0,curMissileElement,0,explosionElement}, 0, multiArrowFlag ? MSF_MULTISHOT : 0 );
+		CastMissile( player.Row, player.Col, rowOffset + player.CursorRow, colOffset + player.CursorCol, player.dir, missile, 
+			CT_0_PLAYER, playerIndex, 0, 0, 0, {0,0,0,0,0,curMissileElement,0,explosionElement}, 0, multiArrowFlag ? MSF_MULTISHOT : 0 );
 		if (currentArrowIndex == 0) {	
 			if (HasTrait(playerIndex, TraitId::Pistoleer)){
 				int paf_sound = 0;
 				switch (player.OnBodySlots[IS_LeftHand].baseItemIndex) {
-					case BI_2426_SHORT_PISTOL:													paf_sound = S_1676_LIGHT_PISTOL;		break;
-					case BI_2427_SCATTERSHOT_PISTOL:											paf_sound = S_1681_PISTOL_PAF;			break;
+					case BI_2709_45_LONGSLIDER_LS or BI_2426_SHORT_PISTOL:						paf_sound = S_1676_LIGHT_PISTOL;		break;
+					case BI_2708_38_SW_MODEL_15 or BI_2427_SCATTERSHOT_PISTOL: 
+					{ 
+						if (player.OnBodySlots[IS_LeftHand].UniqueItemIndex == 4915) {
+							paf_sound = S_1917_THE_JUDGE;
+						}
+						else if (player.OnBodySlots[IS_LeftHand].UniqueItemIndex == 4916) {
+							paf_sound = S_1918_DEACON;
+						}
+						else {
+							paf_sound = S_1681_PISTOL_PAF;
+						}
+					}			break;
+					case BI_2724_BERETTA_92FS:												  { paf_sound = S_1875_BERETTA_92FS_1 + RNG(2); }	break;
 					case BI_2428_LIGHT_PISTOL:													paf_sound = S_1687_LIGHT_PISTOL;		break;
 					case BI_2429_LONG_BARRELED_PISTOL:											paf_sound = S_1688_LONG_BARRELED;		break;
 					case BI_2430_BATTLE_PISTOL:													paf_sound = S_1683_RANGE_RIFLE;			break;
 					case BI_2431_HEAVY_DUTY_PISTOL:												paf_sound = S_1675_SHOTGUN_X4;			break;
 					case BI_2432_DOUBLE_BARRELED_PISTOL:										paf_sound = S_1682_RIFLE;				break;
-					case BI_2433_WAR_PISTOL:													paf_sound = S_1680_HEAVY;				break;
+					case BI_2710_12ga_M1887_SO or BI_2433_WAR_PISTOL:							paf_sound = S_1680_HEAVY;				break;
 					case BI_2434_TRIPLE_BARRELED_PISTOL:										paf_sound = S_1679_SHOTGUN_STANDARD;	break;
 					case BI_2435_QUAD_BARRELED_PISTOL:											paf_sound = S_1684_BIG_PISTOL;			break;
 					case BI_2436_BROAD_BARRELED_PISTOL:											paf_sound = S_1685_MID_PISTOL;			break;
@@ -5647,26 +6744,46 @@ bool __fastcall PM_DoRangedAttack( int playerIndex )
 					case BI_2438_PEPPERBOX_PISTOL:												paf_sound = S_1807_PEPPERBOX;			break;
 					case BI_2444_EIGHT_BARRELED_PISTOL:											paf_sound = S_1686_SHOTGUN;				break;
 					case BI_2445_MULTI_BARRELED_PISTOL:											paf_sound = S_1806_MULTI_BARREL;		break;
-					case BI_2440_GREAT_PISTOL
-						or BI_2443_GRIM_PISTOL  
-						or BI_2446_INFERNAL_PISTOL:												paf_sound = S_1677_SUPERWEAPON;			break;
-					case BI_2441_HELL_FORGED_PISTOL
-						or BI_2442_ABYSSAL_PISTOL:												paf_sound = S_1684_BIG_PISTOL;			break;
-					// the rest are Anvil rewards (Griswold's Exterminator), for 9 difficulties
-					case 2447 
-						or 2448 
-						or 2449 
-						or 2450 
-						or 2451 
-						or 2452 
-						or 2453 
-						or 2454 
-						or 2455:																paf_sound = S_1678_LONG_BARREL;			break;// griswold's gun
+					case BI_2440_GREAT_PISTOL or BI_2443_GRIM_PISTOL or BI_2446_INFERNAL_PISTOL:paf_sound = S_1677_SUPERWEAPON;			break;
+					case BI_2441_HELL_FORGED_PISTOL or BI_2442_ABYSSAL_PISTOL:					paf_sound = S_1684_BIG_PISTOL;			break;
+					case BI_2711_PHASED_PLASMA_R95:												paf_sound = S_1858_PHASED_PLASMA_R95;	break;
+					case BI_2719_SKYNET_PLASMA_V96 or BI_2730_GD_VSB_95_S 
+						or BI_2729_GD_VSB_90_S:													paf_sound = S_1870_SKYNET_PLASMA_V96;	break;
+					case BI_2721_PHASED_PLASMA_PISTOL_40W or BI_2728_BV_3_FUSION_CUTTER 
+					or 2838 or 2839 or 2840 or 2841 or 2842 or 2843 or 2844 or 2845 or 2846 
+					or 2847 or 2848 or 2849 or 2850 or 2851 or 2852 or 2853 or 2854 or 2855
+					or 2856 or 2857 or 2858 or 2859 or 2860 or 2861 or 2862:					paf_sound = S_1871_PHASED_PLASMA_PIST;	break;
+					case BI_2722_MAGNETIC_ACCELERATOR_EM4:										paf_sound = S_1872_MAGNETIC_XELERATOR;	break;
+					case BI_2731_ION_BLASTER_QDB_2 or 2863 or 2864 or 2865 or 2866 or 2867
+					or 2868 or 2869 or 2870 or 2871 or 2872 or 2873 or 2874 or 2875 or 2876
+					or 2877 or 2878 or 2879 or 2880 or 2881 or 2882 or 2883 or 2884 or 2885
+					or 2886 or 2887:															paf_sound = S_1881_ION_BLASTER;			break;
+					case BI_2732_PROTOPLASMA_THROWER:										  { paf_sound = S_1882_PROTOPLASMA_1 + RNG(2); }		break;
+					case BI_2723_THERMAL_OVERLOAD_PISTOL or 2788 or 2789 or 2790 or 2791
+						or 2792 or 2793 or 2794 or 2795 or 2796 or 2797 or 2798 or 2799
+						or 2800 or 2801 or 2802 or 2803 or 2804 or 2805 or 2806 or 2807
+						or 2808 or 2809 or 2810 or 2811 or 2812:									  
+					{ paf_sound = S_1873_THERMAL_PISTOL_1 + RNG(2); }		break;
+					case BI_2726_IR_8_BEAM_TRACER:											  { paf_sound = S_1877_BEAM_TRACER_1 + RNG(2); }		break;
+					case BI_2713_TLSP_LASER_PISTOL:											  { paf_sound = S_1861_LASER_PISTOL_1 + RNG(2); }		break;
+					case BI_2727_REFRACTION_KERNEL_WX9 or 2813 or 2814 or 2815 or 2816
+						or 2817 or 2818 or 2819 or 2820 or 2821 or 2822 or 2823 or 2824
+						or 2825 or 2826 or 2827 or 2828 or 2829 or 2830 or 2831 or 2832
+						or 2833 or 2834 or 2835 or 2836 or 2837:							  { paf_sound = S_1879_REFRACTION_KERNEL1 + RNG(2); }	break;// soft laser sounds
+					case BI_2714_RAIL_PISTOL_RPAP_20W:											paf_sound = S_1863_RAIL_PISTOL;			break;
+					case BI_2718_PARTICLE_PISTOL:												paf_sound = S_1869_PARTICLE_PISTOL;		break;
+					case BI_2712_PPK12_GAUSS_PISTOL:											paf_sound = S_1860_GAUSS_PISTOL;		break;
+					case BI_2717_DOUBLE_BARREL_SBS:												paf_sound = S_1868_DOUBLE_BARREL_SBS;	break;
+					case BI_2715_UZI_9MM:													  { paf_sound = S_1864_UZI_9_MILIMIDA_1 + RNG(2); }		break;
+					case BI_2716_M79_GL or BI_2720_MM1_GRENADE_LAUNCHER:					  { paf_sound = S_1866_M79_1 + RNG(2); }	break;
+					case 2447 or 2448 or 2449 or 2450 or 2451 or 2452 or 2453 or 2454 or 2455:	paf_sound = S_1678_LONG_BARREL;			break;// griswold's anvil guns
 					default:																	paf_sound = S_1675_SHOTGUN_X4;			break;// just for safety
 					}
-					PlayLocalSound(paf_sound, player.Row, player.Col);
+					if (!(player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
+						PlayLocalSound(paf_sound, player.Row, player.Col);
+					}
 				}
-			else if (missile < MI_139_THROWING_KNIFE) {
+			else if (missile < MI_139_THROWING_KNIFE) {// (x)bow sfx
 				PlayLocalSound(multiArrowFlag ? S_12_STING1 : (1710 + RNG(5)), player.Row, player.Col);
 			}
 		}
@@ -5715,7 +6832,7 @@ bool __fastcall PM_DoThrow( int playerIndex )
 	}
 	Player& player = Players[playerIndex];
 	bool needCast = false;
-	//if( !player.currentAnimationFrameTick ){ // в th 1.216 сделано с таким общим условием, чтобы 3 раза не проверять
+	//(rt) if( !player.currentAnimationFrameTick ){ // in th 1.216 done with this common condition so as not to check 3 times
 	if( player.currentAnimationFrame == player.AttackMainFrame && !player.currentAnimationFrameTick ){
 		needCast = true;
 	}
@@ -5765,10 +6882,19 @@ void __fastcall ShieldDur( int playerIndex )
 	Item& leftHand = player.OnBodySlots[ IS_LeftHand ];
 	Item& rightHand = player.OnBodySlots[ IS_RightHand ];
 
-	if (leftHand.ItemCode == IC_5_SHIELD) {
+	// (th4): with TraitId::TwoTowers (Iron Maiden) BOTH hands can hold shields, and this
+	// function used to damage BOTH unconditionally -- one block cost double durability on
+	// dual-shield builds. One block damages ONE shield; when two are worn, pick at random.
+	bool leftIsShield  = leftHand.ItemCode  == IC_5_SHIELD;
+	bool rightIsShield = rightHand.ItemCode == IC_5_SHIELD;
+	if (leftIsShield && rightIsShield) {
+		if (RNG(2)) DamageItem((uint)playerIndex, IS_LeftHand,  leftHand,  true);
+		else        DamageItem((uint)playerIndex, IS_RightHand, rightHand, true);
+	}
+	else if (leftIsShield) {
 		DamageItem((uint)playerIndex, IS_LeftHand, leftHand, true);
 	}
-	if (rightHand.ItemCode == IC_5_SHIELD) {
+	else if (rightIsShield) {
 		DamageItem((uint)playerIndex, IS_RightHand, rightHand, true);
 	}
 }
@@ -5921,7 +7047,7 @@ int __fastcall PM_DoGotHit( int playerIndex )
 }
 
 ITEM_SLOT DurableArmor[] = { IS_Head, IS_Torso, IS_Torso, IS_Waist, IS_Hands, IS_Feet };
-// INDESTRUBLE отключен в свойствах вешей и в коде в TH 1.216
+// (rt) INDESTRUBLE is disabled in the item properties and in the code in TH 1.216
 //----- (0045CADF) --------------------------------------------------------
 void __fastcall ArmorDur( uint playerIndex, int durDecrParam )
 {
@@ -5933,7 +7059,7 @@ void __fastcall ArmorDur( uint playerIndex, int durDecrParam )
 	}
 	Player& player = Players[playerIndex];
 	
-	Item& body = player.OnBodySlots[IS_Torso]; // тут сделать выбор по списку, и красным пока рисовать броник для новых слотов
+	Item& body = player.OnBodySlots[IS_Torso]; // (rt) make a selection from a list here, and for now draw the armour in red for the new slots
 	Item& head = player.OnBodySlots[IS_Head];
 	
 	ITEM_SLOT damagedArmorIndex = IS_Head;
@@ -5981,7 +7107,7 @@ bool __fastcall PM_DoDeath( int playerIndex )
 		}
 		player.currentAnimationDelay = 10000;
 		player.currentAnimationFrame = player.currentAnimationFramesCount;
-		FlagMap[ player.Row ][ player.Col ] |= CF_4_DEAD_PLAYER;// Труп игрока?
+		FlagMap[ player.Row ][ player.Col ] |= CF_4_DEAD_PLAYER;// (rt) The player's corpse?
 		PlayersSpellcastQueue[playerIndex] = {}; //clear spell queue on player's death
 		PlayerWall[playerIndex] = {};
 	}
@@ -6009,9 +7135,17 @@ void __fastcall CheckNewPath( int playerIndex )
 
 	if( player.fullClassId == PFC_DRUID && player.activeBuffFlag & BF_3_FURY_LETARGY ) return;
 
-	if (player.destAction == PCMD_20_MELEE_ATTACK_TO_MONSTER) {// Если следующее действие - мили нападение на монcтра, создаём путь до него 
+
+	// (th4) DARK CAMPAIGN HUB: clicking a kin must WALK UP to him first, then talk. The ranged
+	// action has no distance check -- it resolves wherever the player is standing -- so a bow
+	// or spell equipped would trigger a vendor panel (or a Dark Lord briefing) from across the
+	// room. Rewriting it to the melee action reuses the walk path and the < 2 tile gate below.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT && player.destAction == PCMD_22_RANGE_ATTACK_TO_MONSTER ){
+		player.destAction = PCMD_20_MELEE_ATTACK_TO_MONSTER;
+	}
+	if (player.destAction == PCMD_20_MELEE_ATTACK_TO_MONSTER) {// (rt) If the next action is a melee attack on a monster, build a path to it 
 		MakePlayerPath(playerIndex, monsterTarget.NextRow, monsterTarget.NextCol, 0);
-	}else if (player.destAction == PCMD_21_MELEE_ATTACK_TO_PLAYER) {// Если следующее действие атаковать вблизи выбранного игрока. Даже точнее идти туда куда выбранный игрок направляется
+	}else if (player.destAction == PCMD_21_MELEE_ATTACK_TO_PLAYER) {// (rt) If the next action is to attack the selected player at close range. More precisely, to go where the selected player is heading
 		MakePlayerPath(playerIndex, playerTarget.NextRow, playerTarget.NextCol, 0);
 	}
 	//Xbox Controller Map
@@ -6031,7 +7165,14 @@ void __fastcall CheckNewPath( int playerIndex )
 				}
 				if( distanceToTargetX < 2 && distanceToTargetY < 2 ){
 					ClearPlayerPath(playerIndex);
-					if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
+					// (th4) DARK CAMPAIGN HUB: kin are talked to, never struck. Guarded on
+					// PCMD_20 as well as the hub, because this block also serves PCMD_21,
+					// where destParam1 is a PLAYER index -- feeding that to a monster
+					// lookup would read the wrong array.
+					if( Dungeon == DUN_117_DARKLORD_HIDEOUT && player.destAction == PCMD_20_MELEE_ATTACK_TO_MONSTER ){
+						DarkCampaignTalk(player.destParam1);
+					}
+					else if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
 						TalkWithMonster(player.destParam1);
 					}else{
 						StartAttack(playerIndex, orientation);
@@ -6071,22 +7212,24 @@ void __fastcall CheckNewPath( int playerIndex )
 		if( player.destAction != PCMD_M1_NOTHING ){
 			if( player.CurAction == PCA_0_STAND ){
 				switch( player.destAction ){
-				case PCMD_9_MELEE_ATTACK_TO_NONE:/* Атака только ближняя при зажатом шифте*/
+				case PCMD_9_MELEE_ATTACK_TO_NONE:/* (rt) Only melee attack while shift is held*/
 					StartAttack(playerIndex, OrientationToTarget(player.Row, player.Col, player.destParam1, player.destParam2));
 					break;
-				case PCMD_20_MELEE_ATTACK_TO_MONSTER:// Ближняя атака монстра
+				case PCMD_20_MELEE_ATTACK_TO_MONSTER:// (rt) Melee attack on a monster
 					distanceToTargetX = abs(player.Row - monsterTarget.NextRow);
 					distanceToTargetY = abs(player.Col - monsterTarget.NextCol);
 					if( distanceToTargetX < 2 && distanceToTargetY < 2 ){ // near
 						orientation = OrientationToTarget(player.NextRow, player.NextCol, monsterTarget.NextRow, monsterTarget.NextCol);
-						if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
-							TalkWithMonster(player.destParam1);// Квестовая болтовня с монстрами
+						// (th4) DARK CAMPAIGN HUB: kin are talked to, never struck.
+						if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ DarkCampaignTalk(player.destParam1); }
+						else if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
+							TalkWithMonster(player.destParam1);// (rt) Quest chatter with monsters
 						}else{
 							StartAttack(playerIndex, orientation);
 						}
 					}
 					break;
-				case PCMD_21_MELEE_ATTACK_TO_PLAYER:// Ближняя атака игрока
+				case PCMD_21_MELEE_ATTACK_TO_PLAYER:// (rt) Melee attack on a player
 					distanceToTargetX = abs(player.Row - playerTarget.NextRow);
 					distanceToTargetY = abs(player.Col - playerTarget.NextCol);
 					if( distanceToTargetX > 1 || distanceToTargetY > 1 ){
@@ -6094,60 +7237,62 @@ void __fastcall CheckNewPath( int playerIndex )
 					}
 					StartAttack(playerIndex, OrientationToTarget(player.NextRow, player.NextCol, playerTarget.NextRow, playerTarget.NextCol));
 					break;
-				case PCMD_10_RANGE_ATTACK_TO_NONE:/* Дальняя Атака с шифтом (луком)*/
+				case PCMD_10_RANGE_ATTACK_TO_NONE:/* (rt) Ranged attack with shift (bow)*/
 					StartRangeAttack(playerIndex, OrientationToTarget(player.Row, player.Col, player.destParam1, player.destParam2), player.destParam1, player.destParam2);				break;
-				case PCMD_22_RANGE_ATTACK_TO_MONSTER:/* Дальняя атака без шифта (луком) монстра */
+				case PCMD_22_RANGE_ATTACK_TO_MONSTER:/* (rt) Ranged attack on a monster without shift (bow) */
 					orientation = OrientationToTarget(player.NextRow, player.NextCol, monsterTarget.NextRow, monsterTarget.NextCol);
-					if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
-						TalkWithMonster(player.destParam1);// Какая-то квестовая болтовня
+					// (th4) DARK CAMPAIGN HUB: kin are talked to, never struck.
+					if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ DarkCampaignTalk(player.destParam1); }
+					else if( not(monsterTarget.speechIndex, SP_0, SP_36) ){
+						TalkWithMonster(player.destParam1);// (rt) Some quest chatter
 					}else{
 						StartRangeAttack(playerIndex, orientation, monsterTarget.NextRow, monsterTarget.NextCol);
 					}
 					break;
-				case PCMD_23_RANGE_ATTACK_TO_PLAYER:/* Дальняя атака (луком) игрока. С шифтом или без нет возможности проверить*/
+				case PCMD_23_RANGE_ATTACK_TO_PLAYER:/* (rt) Ranged attack (bow) on a player. With or without shift, no way to check*/
 					StartRangeAttack(playerIndex, OrientationToTarget(player.NextRow, player.NextCol, playerTarget.NextRow, playerTarget.NextCol), playerTarget.NextRow, playerTarget.NextCol);			break;
-				case PCMD_12_CAST_SPELL_TO_NONE:// Каст магии. Кроме стен
+				case PCMD_12_CAST_SPELL_TO_NONE:// (rt) Spellcasting. Except walls
 					StartSpell(playerIndex, OrientationToTarget(player.Row, player.Col, player.destParam1, player.destParam2), player.destParam1, player.destParam2);
 					player.HorizontalNextRowOrSomeSpellData = player.destParam3; // spell level calculated at rmb click
 					PlayersSpellcastQueue[playerIndex].push(player.spellIndex);
 					break;
-				case PCMD_24_CAST_SPELL_TO_MONSTER:// Каст магии в монстра
+				case PCMD_24_CAST_SPELL_TO_MONSTER:// (rt) Spellcasting at a monster
 					if( Dungeon->genType || Dungeon->isQuest ){
 						StartSpell( playerIndex, OrientationToTarget( player.Row, player.Col, monsterTarget.NextRow, monsterTarget.NextCol ), monsterTarget.NextRow, monsterTarget.NextCol );
 					}else{	
-						// в городе горожане помещаются в MonsterMap, и оттуда же берется index для Towners в DispatchCursorAboveIsoland если DungeonType город
+						// (rt) in town the townspeople are put into MonsterMap, and the index for Towners in DispatchCursorAboveIsoland is taken from there if DungeonType is town
 						StartSpell( playerIndex, OrientationToTarget( player.Row, player.Col, towner.Row, towner.Col ), towner.Row, towner.Col );
 					}
 					player.HorizontalNextRowOrSomeSpellData = player.destParam2; // spell level calculated at rmb click
 					PlayersSpellcastQueue[playerIndex].push(player.spellIndex);
 					break;
-				case PCMD_25_CAST_SPELL_TO_PLAYER:// Каст магии в другого игрока
+				case PCMD_25_CAST_SPELL_TO_PLAYER:// (rt) Spellcasting at another player
 					StartSpell(playerIndex, OrientationToTarget(player.Row, player.Col, playerTarget.NextRow, playerTarget.NextCol), playerTarget.NextRow, playerTarget.NextCol);
 					player.HorizontalNextRowOrSomeSpellData = player.destParam2; // spell level calculated at rmb click
 					PlayersSpellcastQueue[playerIndex].push(player.spellIndex);
 					break;
-				case PCMD_26_CAST_NOT_ORIENTED_SPELL:// Каст стен. В монстра или нет без разницы
+				case PCMD_26_CAST_NOT_ORIENTED_SPELL:// (rt) Casting walls. At a monster or not, doesn't matter
 					StartSpell(playerIndex, player.destParam3, player.destParam1, player.destParam2);
 					player.newDirection = player.destParam3;
 					player.HorizontalNextRowOrSomeSpellData = player.destParam4; // spell level calculated at rmb click
 					PlayersSpellcastQueue[playerIndex].push(player.spellIndex);
 					break;
-				case PCMD_13_OBJECT_ACTIVATE:// Взаимодействие с предметами на карте. Сундуки, саркофаги, бочки, двери и т.п.
+				case PCMD_13_OBJECT_ACTIVATE:// (rt) Interaction with objects on the map. Chests, sarcophagi, barrels, doors, etc.
 					distanceToTargetX = abs(player.Row - objectOnMapTarget.Row);
 					distanceToTargetY = abs(player.Col - objectOnMapTarget.Col);
-					if( distanceToTargetY > 1 ){// Возможно поправка на двухклеточные объекты. Например если саркофаг то активировать его за ближний тайл даже если кликнули на дальний. Пока не работает, ибо обозначение на карте саркофагов кривое.
+					if( distanceToTargetY > 1 ){// (rt) Possibly a correction for two-cell objects. E.g. for a sarcophagus, activate it from the near tile even if the far one was clicked. Doesn't work yet, because sarcophagi are marked wrongly on the map.
 						if( ObjectsMap[ Objects[ player.destParam1 ].Row ][ objectOnMapTarget.Col - 1 ] == -1 - player.destParam1 ){
 							distanceToTargetY = abs(player.Col - objectOnMapTarget.Col + 1);
 						}
 					}
 					if( distanceToTargetX > 1 || distanceToTargetY > 1 ){
-					}else if( objectOnMapTarget.destructable == 1 ){// Атака беззащитной бочки
+					}else if( objectOnMapTarget.destructable == 1 ){// (rt) Attacking a defenceless barrel
 						StartAttack(playerIndex, OrientationToTarget(player.Row, player.Col, objectOnMapTarget.Row, objectOnMapTarget.Col));
 					}else{
-						OperateObject(playerIndex, player.destParam1, 0);// Дверь, алтарь, сундук и т.п. В общем всё кроме бочек
+						OperateObject(playerIndex, player.destParam1, 0);// (rt) Door, shrine, chest, etc. Everything except barrels, basically
 					}
 					break;
-				case PCMD_14_OBJECT_SAFE_ACTIVATE:// Тоже интерактивные предметы только вот не нашёл пока ни одного. Возможно это рычаги, трупы на крестах в гробнице леорника, пьедестал с посохом лазаря...
+				case PCMD_14_OBJECT_SAFE_ACTIVATE:// (rt) Also interactive objects, only I haven't found a single one yet. Maybe levers, the corpses on crosses in Leoric's tomb, the pedestal with Lazarus' staff...
 					distanceToTargetX = abs(player.Row - objectOnMapTarget.Row);
 					distanceToTargetY = abs(player.Col - objectOnMapTarget.Col);
 					distanceToTargetY = distanceToTargetY;
@@ -6165,7 +7310,7 @@ void __fastcall CheckNewPath( int playerIndex )
 					}
 					break;
 				case PCMD_18_ACTIVATE_OBJECT_WITH_TELEKINES:
-					if( objectOnMapTarget.destructable != 1 ){// Не бочка
+					if( objectOnMapTarget.destructable != 1 ){// (rt) Not a barrel
 						OperateObject(playerIndex, player.destParam1, 1);
 					}
 					break;
@@ -6176,8 +7321,10 @@ void __fastcall CheckNewPath( int playerIndex )
 						if( distanceToTargetX <= 1 && distanceToTargetY <= 1 && Cur.GraphicsID == CM_1_NORMAL_HAND && !Items[player.destParam1].gottenFromLand ){
 							bool portalUnderLegs = false;
 							for( int i = 0; i < MissileAmount; i++ ){
-								Missile& tp = Missiles[i];
-								if (tp.BaseMissileIndex == MI_10_TOWN_PORTAL && tp.Row == player.Row && tp.Col == player.Col) {
+								// (th4) live missiles are reached through MissileIndexes; Missiles[i] read stale slots, so the
+								// portal under the hero's feet could be missed and the pickup dupe protection failed
+								Missile& tp = Missiles[ MissileIndexes[i] ];
+								if (tp.BaseMissileIndex == MI_10_TOWN_PORTAL && !tp.IsDeleted && tp.Row == player.Row && tp.Col == player.Col) {
 									portalUnderLegs = true;
 									break;
 								}
@@ -6200,7 +7347,7 @@ void __fastcall CheckNewPath( int playerIndex )
 						}
 					}
 					break;
-				case PCMD_17_TOWNER_DIALOG:// Болтовня с неписями
+				case PCMD_17_TOWNER_DIALOG:// (rt) Chatter with NPCs
 					if( playerIndex == CurrentPlayerIndex ){
 						TalkToTowner(playerIndex, player.destParam1);
 					}
@@ -6209,7 +7356,7 @@ void __fastcall CheckNewPath( int playerIndex )
 				FixPlayerLocation(playerIndex, player.dir);
 				player.destAction = PCMD_M1_NOTHING;
 			}else{
-				if( player.CurAction == PCA_4_ATTACK && player.currentAnimationFrame - AdjFrameQ_14_15() > player.AttackMainFrame ){// Действия в упор
+				if( player.CurAction == PCA_4_ATTACK && player.currentAnimationFrame - AdjFrameQ_14_15() > player.AttackMainFrame ){// (rt) Point-blank actions
 					switch( player.destAction ){
 					case PCMD_9_MELEE_ATTACK_TO_NONE:
 						StartAttack( playerIndex, OrientationToTarget( player.NextRow, player.NextCol, player.destParam1, player.destParam2 ) );
@@ -6248,7 +7395,7 @@ void __fastcall CheckNewPath( int playerIndex )
 						break;
 					}
 				}
-				if( player.CurAction == PCA_5_RANGE_ATTACK && player.currentAnimationFrame - AdjFrameQ_14_15() > player.AttackMainFrame ){// Стрельба 
+				if( player.CurAction == PCA_5_RANGE_ATTACK && player.currentAnimationFrame - AdjFrameQ_14_15() > player.AttackMainFrame ){// (rt) Shooting 
 					bool rangedAttack = true;
 					switch( player.destAction ){
 					case PCMD_10_RANGE_ATTACK_TO_NONE:    targetRow = player.destParam1;     targetCol = player.destParam2;     break;
@@ -6261,7 +7408,7 @@ void __fastcall CheckNewPath( int playerIndex )
 						StartRangeAttack(playerIndex, orientation, targetRow, targetCol);
 						player.destAction = PCMD_M1_NOTHING;
 					}
-				}else if( player.CurAction == PCA_9_SPELL && player.currentAnimationFrame - AdjFrameQ_14_15() > player.SpellAnimationActionFrameIndex // Каст магии
+				}else if( player.CurAction == PCA_9_SPELL && player.currentAnimationFrame - AdjFrameQ_14_15() > player.SpellAnimationActionFrameIndex // (rt) Spellcasting
 				 #if SPELL_QUEUE_AND_COOLDOWN_FIX
 				 && !CooldownCheck(playerIndex, player.spellIndex) /* This further reduces the chance of double cast cooldown desync in MP */
 				 #endif
@@ -6412,9 +7559,9 @@ void ValidateCurPlayer( bool forceItemsRecalc )
 	if( (player.CurLife & ~63) > 0 ){
 		--ItemUpdateTimer;
 		if( ! ItemUpdateTimer || forceItemsRecalc ){
-			UpdateAllItems(); // тут "защита" вещей от хакеров
+			UpdateAllItems(); // (rt) item "protection" against hackers here
 		}
-		RecalcPlayer( CurrentPlayerIndex, true /*2*/, forceItemsRecalc ); // 2 было для корректной смены анимаци при проверочном перерасчете, пробуем без
+		RecalcPlayer( CurrentPlayerIndex, true /*2*/, forceItemsRecalc ); // (rt) 2 was for a correct animation change during the verification recalculation, trying without
 		// Kill summons on spell levels change
 		if( Dungeon != DUN_0_TOWN ){
 	        const int summonSpells[SUM_COUNT] = { PS_21_GOLEM, PS_52_LESSER_SUMMON, PS_53_COMMON_SUMMON, PS_54_GREATER_SUMMON };
@@ -6497,9 +7644,10 @@ void ProcessPlayers()
 	ValidateCurPlayer();
 	for( int playerIndex = 0; playerIndex < 4; playerIndex++ ){
 		Player& player = Players[playerIndex];
-		// обрабатываем только текущего игрока и присоединенных игроков на том же уровне что и текущий
+		// (rt) only process the current player and the connected players on the same level as the current one
 		if( player.IsExists && Dungeon == player.dungeon && (playerIndex == CurrentPlayerIndex || !player.lvlChanging) ){
 			LimitPlayerParams(playerIndex);
+			BlessedHammer_Update(playerIndex); // by (th4): maintain Templar's orbiting Blessed Hammer
 			if( !PlrDeathModeOK(playerIndex) && (player.CurLife & -64) <= 0 ){
 				TryToDie(playerIndex, -1);
 			}
@@ -6517,8 +7665,8 @@ void ProcessPlayers()
 			int moreAction = 0;
 			do{
 				// Play walk sound
-				if( player.CurAction >= PCA_1_WALK_UP && player.CurAction <= PCA_3_WALK_HORISONTAL // если идем
-				 && (player.currentActionFrame == 1 || player.currentActionFrame == 5) // каждый четвертый фрейм ходьбы
+				if( player.CurAction >= PCA_1_WALK_UP && player.CurAction <= PCA_3_WALK_HORISONTAL // if walking
+				 && (player.currentActionFrame == 1 || player.currentActionFrame == 5) // every 4th walk frame
 				 /* && !player.running*/ ){
 					int walkSound = S_0_WALK1;
 					
@@ -6537,9 +7685,31 @@ void ProcessPlayers()
 						case DT_5_CRYPT: walkSound = S_0_WALK1; break;
 						}
 					}
+					if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) { 
+						if (is(Dungeon, DUN_38_GLACIAL_CAVERNS, DUN_39_FROZEN_LOCH)
+							|| player.gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest && is(Dungeon->graphType, DT_3_CAVE, DT_4_HELL, DT_6_ABYSS)) {
+							walkSound = RandFrom(S_1777 + RNG(4));// heavy snow steps
+						}
+						else {
+							if (is(Dungeon->graphType, DT_1_CHURCH, DT_5_CRYPT, DT_2_CATACOMB)) {
+								walkSound = RandFrom(S_1598 + RNG(4)); // heavy stone steps
+							}
+							else {
+								walkSound = RandFrom(S_1566 + RNG(4)); // heavy dirt steps
+							}
+						}
+					}
 				LABEL_63:
-					if (PlayerRunningSounds == 2) {
-						PlayLocalSound(walkSound, player.Row, player.Col);// играть звук шага
+					// (th4) THIEF: while HIDDEN her footsteps are muted entirely. Hidden means
+					// light level <= 2 (15 - LightMap >= 13 in map terms) -- the SAME threshold
+					// as the monster sight gate (THIEF_HIDDEN_LIGHT_MAX in Monster.cpp), so what
+					// they cannot see they also do not hear. Keep the two in sync when tuning.
+					if( MaxCountOfPlayersInGame == 1 && HasTrait(playerIndex, TraitId::Thief)
+					 && In112(player.Row, player.Col) && LightMap[player.Row][player.Col] >= 13 ){
+						// silent step; deliberately no sound call at all
+					}
+					else if (PlayerRunningSounds == 2) {
+						PlayLocalSound(walkSound, player.Row, player.Col);// (rt) play the footstep sound
 					}
 					else if (PlayerRunningSounds == 1) {
 						if (!player.running) {
@@ -6561,7 +7731,7 @@ void ProcessPlayers()
 				case PCA_10_NEW_LEVEL:		moreAction = PM_DoNothing		(playerIndex);	break;
 				default: break;
 				}
-				// убрал пока "классический" ! DungeonLevel в проверке, так как добавил repeat rbutton в easy click
+				// (rt) removed the "classic" ! DungeonLevel from the check for now, since I added repeat rbutton to easy click
 				if( ( ! EasyClick /*|| ! DungeonLevel*/ ) && playerIndex == CurrentPlayerIndex && moreAction ){
 					Repeat_Mouse_LButtonDown();
 					Repeat_Mouse_RButtonDown();
@@ -6621,12 +7791,16 @@ void __fastcall LimitPlayerParams(int playerIndex)
 		if( MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_9_NIGHT_KIN)) ){
 			nightkin_limit = 140;
 		}
-		int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0; 
+		int mutie_limit = 0;
+		if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
+			mutie_limit = 200;
+		}
+		int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0;
 		int leper = HasTrait(playerIndex, TraitId::Leper) ? 150 : 0; 
 		int lithe = HasTrait(playerIndex, TraitId::LitheBuild) ? 100 : 0;
 		int statSum = CalcCharBaseStatSum(player);
 		int extra_mode_boost = 0;
-		if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE)) {
+		if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) {
 			extra_mode_boost = player.CharLevel / 2 + 50;
 		}
 		int statSumLimit = (10 * player.CharLevel)
@@ -6638,6 +7812,7 @@ void __fastcall LimitPlayerParams(int playerIndex)
 			+ giant_limit
 			+ paladin_limit
 			+ nightkin_limit
+			+ mutie_limit
 			+ oldfashioned
 			+ leper
 			+ lithe;
@@ -6656,6 +7831,7 @@ void __fastcall LimitPlayerParams(int playerIndex)
 		}
 		statSumLimit += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex);
 		if (GameMode == GM_CLASSIC) { statSumLimit = 460; }
+		if (player.gameChanger & BIT(GC_27_TERMINATOR)) { statSumLimit = 2'810; }
 		// below is the stat decrease loop!
 		if( statSum <= statSumLimit ) break;
 		
@@ -6720,7 +7896,7 @@ void __fastcall LimitPlayerParams(int playerIndex)
 		player.MaxBaseMana = (player.BaseMagic + player.CharLevel - 1) << 6; // bMAG + clv - 1
 	}
 	else if (player.fullClassId == PFC_WARRIOR || player.fullClassId == PFC_INQUISITOR || player.fullClassId == PFC_TEMPLAR 
-		|| player.fullClassId == PFC_DIMACHAERUS || player.fullClassId == PFC_SECUTOR) {
+		|| player.fullClassId == PFC_DIMACHAERUS || player.fullClassId == PFC_SECUTOR || player.fullClassId == PFC_GLADIATRIX) {
 		if (HasTrait(playerIndex, TraitId::Paladin)) {
 			player.MaxBaseLife = (player.BaseVitality / 2 + player.CharLevel + 19) << 6; // bVit +clvl + 9
 			player.MaxBaseMana = ((player.BaseMagic * 2) + (2 * player.CharLevel) + 38) << 6; // 2*bMAG + 2*clv + 38
@@ -6800,7 +7976,7 @@ void __fastcall LimitPlayerParams(int playerIndex)
 	}
 	else if (player.fullClassId == PFC_ROGUE) {
 		if (HasTrait(playerIndex, TraitId::BigFrame)) {
-			player.MaxBaseLife = (3 * player.BaseVitality + 3 * player.CharLevel + 22) << 6;	// 3*bVIT + 3*clv + 22
+			player.MaxBaseLife = (3 * player.BaseVitality + (5 * player.CharLevel / 2) + 22) << 6;	// 3*bVIT + 2,5*clv + 22
 		}
 		else {
 			player.MaxBaseLife = (2 * player.BaseVitality + 2 * player.CharLevel + 18) << 6;	// 2*bVIT + 2*clv + 18
@@ -6821,9 +7997,23 @@ void __fastcall LimitPlayerParams(int playerIndex)
 		player.MaxBaseMana = (player.BaseMagic + player.CharLevel) << 6; // bMAG + clvl
 	}
 	else if (player.fullClassId == PFC_SAVAGE || player.fullClassId == PFC_BERSERKER || player.fullClassId == PFC_GUARDIAN) {
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {		
+		player.MaxBaseLife = (2'000) << 6;
+		player.MaxBaseMana = 50 << 6;
+	}
+	else if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		player.MaxBaseLife = (6 * player.BaseVitality + 5 * player.CharLevel + 20) << 6;	// 6*bVIT + 5*clv + 20
+		player.MaxBaseMana = (player.BaseMagic / 2 + player.CharLevel / 2 + 5) << 6;		//  bMAG/2 + clvl/2 + 5
+	}
+	else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		player.MaxBaseLife = (5 * player.BaseVitality / 2 + 2 * player.CharLevel + 8) << 6;	// 2,5 *bVIT + 2*clv + 8
+		player.MaxBaseMana = (player.BaseMagic + player.CharLevel + 4) << 6;		//  bMAG + clvl + 4
+	}
+	else {
 		player.MaxBaseLife = (7 * player.BaseVitality / 2 + 2 * player.CharLevel + 16) << 6;	// 3,5*bVIT + 2*clv + 16
 		player.MaxBaseMana = (3 * player.BaseMagic / 2 + 2 * player.CharLevel + 8) << 6; // 1,5 * bMAG + 2*clvl + 8
 	}
+}
 	else if (player.fullClassId == PFC_EXECUTIONER) {
 		if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
 			player.MaxBaseLife = (5 * player.BaseVitality + 5 * player.CharLevel) << 6;	// 5*bVIT + 5*clv - 8
@@ -6859,6 +8049,9 @@ void __fastcall ClearPlayerPath(int playerIndex)
 }
 
 //----- (0045DE66) --------------------------------------------------------
+// (th4) IsPlayerSideMonster rather than IsPlayerSummon: the player walks through his own
+// minions, and the Dark Campaign mission 10 escort must not block him either. Outside DC the
+// two predicates are identical, so ordinary monsters still stop the player everywhere.
 int __fastcall CellFreeForPlayer(int playerIndex, int row, int col)
 {
 	if( ! In112(row,col) ) return false;
@@ -6872,7 +8065,21 @@ int __fastcall CellFreeForPlayer(int playerIndex, int row, int col)
 	return FineMap[row][col] && ! IsCellBlocking(row, col)
 	  && ( ! playerNum || otherPlayerIndex == playerIndex || !Players[otherPlayerIndex].CurLife )
 	  && ( monsterNum == 0 || (Dungeon != DUN_0_TOWN && monsterNum != 0
-	  && ( (Monsters[abs(monsterNum) - 1].CurrentLife & 0xFFFFFFC0) <= 0 || (IsPlayerSummon(abs(monsterNum) - 1)) ) ) ) 
+	  && ( (Monsters[abs(monsterNum) - 1].CurrentLife & 0xFFFFFFC0) <= 0
+	    || ( IsPlayerSideMonster(abs(monsterNum) - 1)
+	         // (th4) DC mission 13: Lazarus and the two succubi are solid in his lair. They
+	         // are player-side, so the clause above would let the player walk straight through
+	         // them like his own minions -- here they are meant to be people standing in a room.
+	         // (th4) DC mission 25: and the Butcher, on every level he follows the player to --
+	         // he is a person, not a minion. Being solid also keeps the walk-to-him click from
+	         // routing onto his tile: FindPath simply will not path through him.
+	         // (th4) DC mission 26: and the Dark Lord, waiting in the ruins of Ravenholm.
+	         && !( GameMode == GM_DARK_CAMPAIGN
+	            && ( ( ( Dungeon == DUN_121_UNHOLY_ALTAR_DC || Dungeon == DUN_43_HEPHASTO )
+	                   && (Monsters[abs(monsterNum) - 1].flag & MF_6_FRIENDLY) )
+	              || Monsters[abs(monsterNum) - 1].newBossId - 1 == UM_9_The_Butcher
+	              || ( Dungeon == DUN_44_RAVENHOLM
+	                   && Monsters[abs(monsterNum) - 1].newBossId - 1 == UM_773_The_Dark_Lord ) ) ) ) ) ) )
 	  && ( ! objectNum || ! Objects[objectIndex].isBlockWalking || isDoor );
 }
 
@@ -7212,6 +8419,11 @@ void PlayDungMsgs()
 		TerminateWithError("PlayDungMsgs: illegal player %d", CurrentPlayerIndex);
 	}
 
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		SoundMessage = S_606_SOR_SL;
+		return;
+	}
+
 	Player& player = Players[CurrentPlayerIndex];
 	if( Dungeon == DUN_1_CHURCH_1 && ! player.dungeonVisited[DUN_1_CHURCH_1] && !(player.DungeonMessageFlags1 & 1) ){
 		PlayerSoundMessageDelay = 40;
@@ -7245,6 +8457,7 @@ void PlayDungMsgs()
 		case PFC_IRON_MAIDEN:
 		case PFC_ASSASSIN:	
 		case PFC_BOMBARDIER:
+		case PFC_GLADIATRIX:
 		case PFC_ROGUE:	SoundMessage = S_591_ASS_DLVL1;	break;
 		}
 		player.DungeonMessageFlags1 |= 1;
@@ -7272,7 +8485,8 @@ void PlayDungMsgs()
 		case PFC_BOMBARDIER:
 		case PFC_ROGUE:
 		case PFC_SCOUT:	
-		case PFC_TRAPPER:	
+		case PFC_TRAPPER:
+		case PFC_GLADIATRIX:
 		case PFC_ARCHER:	SoundMessage = S_717_ROG_90;	break;
 		case PFC_MAGE:
 		case PFC_DEMONOLOGIST:
@@ -7310,7 +8524,8 @@ void PlayDungMsgs()
 		case PFC_BOMBARDIER:
 		case PFC_ROGUE:
 		case PFC_SCOUT:	
-		case PFC_TRAPPER:	
+		case PFC_TRAPPER:
+		case PFC_GLADIATRIX:
 		case PFC_ARCHER:	SoundMessage = S_719_ROG_98;	break;
 		case PFC_MAGE:
 		case PFC_DEMONOLOGIST:
@@ -7351,7 +8566,8 @@ void PlayDungMsgs()
 		case PFC_BOMBARDIER:
 		case PFC_ROGUE:
 		case PFC_SCOUT:	
-		case PFC_TRAPPER:	
+		case PFC_TRAPPER:
+		case PFC_GLADIATRIX:
 		case PFC_ARCHER:	SoundMessage = S_720_ROG_99;	break;
 		case PFC_MAGE:
 		case PFC_DEMONOLOGIST:
@@ -7422,7 +8638,8 @@ void PlayDungMsgs()
 		case PFC_BOMBARDIER:
 		case PFC_ROGUE:
 		case PFC_SCOUT:	
-		case PFC_TRAPPER:	
+		case PFC_TRAPPER:
+		case PFC_GLADIATRIX:
 		case PFC_ARCHER:	SoundMessage = S_713_ROG_92;	break;
 		case PFC_MAGE:
 		case PFC_DEMONOLOGIST:
@@ -7463,9 +8680,10 @@ void __fastcall ErrorPlrMsg( char* message)
 	v3 = message;
 	PlayerStatusMessageIndex = (PlayerStatusMessageIndex + 1) & 7;
 	v2->playerIndex = PlayersMax_4;
-	v2->messageTime = GetTickCountTh(); // сетевая игра, перехватываем вызов
+	v2->messageTime = GetTickCountTh(); // (rt) network game, intercept the call
 	strncpy(v2->str, v3, sizeof(v2->str));
 	v2->str[sizeof(v2->str) - 1] = 0;
+	ChatHistory_AddSystemMessage(v2->str);
 }
 
 //----- (0045F03F) --------------------------------------------------------
@@ -7474,11 +8692,12 @@ void AddNewPlayerStatusFormattedMessage(const char* format, ...)
 	PlayerStatusMessage* msg= &PlayerStatusMessages[PlayerStatusMessageIndex];
 	PlayerStatusMessageIndex = (PlayerStatusMessageIndex + 1) & 7;
 	msg->playerIndex = PlayersMax_4;
-	msg->messageTime = GetTickCountTh(); // сетевая игра, перехватываем вызов
+	msg->messageTime = GetTickCountTh(); // (rt) network game, intercept the call
 	va_list args;
 	va_start(args, format);
 	vsprintf(msg->str, format, args);
 	va_end(args);
+	ChatHistory_AddSystemMessage(msg->str);
 }
 
 //----- (0045F087) --------------------------------------------------------
@@ -7488,18 +8707,19 @@ void __fastcall AddNewPlayerDescriptionSatusMessage( int playerIndex, const char
 	statusMessage = &PlayerStatusMessages[PlayerStatusMessageIndex];
 	PlayerStatusMessageIndex = (PlayerStatusMessageIndex + 1) & 7;
 	statusMessage->playerIndex = playerIndex;
-	statusMessage->messageTime = GetTickCountTh(); // сетевая игра, перехватываем вызов
+	statusMessage->messageTime = GetTickCountTh(); // (rt) network game, intercept the call
 	strlen(Players[playerIndex].playerName);
 	strlen(message);
 	messageLog.push_back(make_pair(Players[playerIndex].playerName, message));
 	sprintf(statusMessage->str, "%s (lvl %d): %s", Players[playerIndex].playerName, Dungeons[Players[playerIndex].dungeon].level, message);
+	ChatHistory_AddPlayerMessage(playerIndex, statusMessage->str);
 }
 
 //----- (0045F105) --------------------------------------------------------
 void CheckPlayerStatusMessagesTimeout()
 {
 	PlayerStatusMessage* v2 = PlayerStatusMessages;
-	i64 tick = GetTickCountTh(); // сетевая игра, перехыватываем вызов
+	i64 tick = GetTickCountTh(); // (rt) network game, intercept the call
 	for( auto& msg: PlayerStatusMessages ){
 		if( tick - msg.messageTime > 10000_ms ){
 			msg.str[0] = 0;
@@ -7514,7 +8734,7 @@ void ClearPlayerStatusMessages()
 	PlayerStatusMessageIndex = 0;
 }
 
-// отрисовка сообщений чата на экране
+// (rt) drawing chat messages on the screen
 //----- (0045F14B) --------------------------------------------------------
 void DrawPlayerStatusMessages()
 {
@@ -7524,69 +8744,76 @@ void DrawPlayerStatusMessages()
 	unsigned int rightTextCoordinate = 620;
     for( int i = 0; i < MaxMessages_8; i++ ){
 		auto& msg = PlayerStatusMessages[i];
-        if( msg.str ){
-            DrawPlayerDescriptionText(x, y, rightTextCoordinate, msg.str, colorTable[msg.playerIndex]);
-			y += 35;
-        }
+        if( !msg.str[0] ) continue; // §11 fix: msg.str is char[144] — never null; check first char like original Hellfire, and skip y-advance for empty slots
+        DrawPlayerDescriptionText(x, y, rightTextCoordinate, msg.str, colorTable[msg.playerIndex]);
+		y += 35;
     }
 }
 
 //----- (0045F1D8) --------------------------------------------------------
 void __fastcall DrawPlayerDescriptionText(int x, int y, unsigned int width, char* sstr, char color)
 {
-	unsigned int v5; // edi@1
-	int v6;          // edx@2
-	unsigned int v7; // eax@3
-	unsigned int v8; // edx@3
-	int v9;          // esi@3
-	char v10;        // cl@4
-	char v11;        // bl@11
-	char v12;        // cl@5
-	int v13;         // eax@11
-	int v14;         // [sp+14h] [bp-4h]@1
-	int v15;         // [sp+Ch] [bp-Ch]@1
-	int v16;         // [sp+10h] [bp-8h]@2
+	unsigned int pszStr;  // edi@1 - current draw head (pointer into sstr, stored as uint)
+	int yRowPtr;          // edx@2 - pointer into YOffsetHashTable for current row
+	unsigned int scanWidth; // eax@3 - accumulated pixel width during scan
+	unsigned int scanner; // edx@3 - lookahead pointer during scan
+	int drawOffset;       // esi@3 - pixel-buffer draw offset for current row
+	char scanRawChar;     // cl@4  - raw char byte being scanned
+	int drawFontIdx;      // bl@11 - font glyph index for the char being drawn
+	int fontIdx;          // cl@5  - font glyph index during scan (0 = word-break / no glyph)
+	int drawRawChar;      // eax@11 - raw char byte being drawn
+	int rowCount;         // [sp+14h] [bp-4h]@1 - number of rows rendered so far (0..2)
+	int baseX;            // [sp+Ch]  [bp-Ch]@1 - left edge x coordinate
+	int rowYBase;         // [sp+10h] [bp-8h]@2 - base yRowPtr for the current row
 	// a1 += Screen_LeftBorder;
 	// a3 += Screen_LeftBorder;
 
 	uint str = (uint)sstr;
-	v14 = 0;
-	v5 = str;
-	v15 = x;
+	rowCount = 0;
+	pszStr = str;
+	baseX = x;
 	if( *(uchar*)str ){
-		v6 = (int)&YOffsetHashTable[y];
-		v16 = v6;
+		yRowPtr = (int)&YOffsetHashTable[y];
+		rowYBase = yRowPtr;
 		do{
-			str = v5;
-			v9 = *(uint*)v6 + v15;
-			v7 = 0;
-			v8 = v5;
+			str = pszStr;
+			drawOffset = *(uint*)yRowPtr + baseX;
+			scanWidth = 0;
+			scanner = pszStr;
 			while( 1 ){
-				v10 = *(uchar*)v8;
-				if( !*(uchar*)v8 )
+				scanRawChar = *(uchar*)scanner;
+				if( !*(uchar*)scanner )
 					break;
-				++v8;
-				v12 = FontIndexSmall[Codepage[v10]];
-				v7 += FontWidthSmall[v12] + 1;
-				if( v12 ){
-					if( v7 >= width )
+				{ int w; // (th4) CHI: consume a GB2312 pair as ONE character
+				  scanner += ChiNextSmall( (const uchar*)scanner, &fontIdx, &w );
+				  scanWidth += w + 1; }
+				if( fontIdx ){
+					if( scanWidth >= width )
 						goto LABEL_10;
 				}else{
-					str = v8;
+					str = scanner;
 				}
 			}
-			str = v8;
+			str = scanner;
 			LABEL_10:
-			while( v5 < str ){
-				v13 = *(uchar*)v5++;
-				v11 = FontIndexSmall[Codepage[v13]];
-				if( v11 )
-					DrawLetter(v9, (unsigned __int8)v11, color, OnScreenTextOutline);
-				v9 += FontWidthSmall[v11] + 1;
+			// §5 fix: if overflow fired with no word-break on this row (str == pszStr),
+			// hard-break at the overflow character so pszStr advances and all chars
+			// that physically fit are drawn (scanner was incremented past the overflow
+			// char, so scanner-1 = overflow char; draw loop renders [pszStr .. scanner-2]).
+			if( str == pszStr && *(uchar*)pszStr ){
+				str = scanner - 1;
 			}
-			v6 = v16 + 40;
-			++v14;
-			v16 += 40;
-		}while( v14 != 3 && *(uchar*)v5 );
+			while( pszStr < str ){
+				drawRawChar = *(uchar*)pszStr;
+				{ int w; // (th4) CHI: step by character; old __int8 cast truncated CJK letterIDs
+				  pszStr += ChiNextSmall( (const uchar*)pszStr, &drawFontIdx, &w );
+				  if( drawFontIdx )
+					  DrawLetter(drawOffset, drawFontIdx, color, OnScreenTextOutline);
+				  drawOffset += w + 1; }
+			}
+			yRowPtr = rowYBase + 40;
+			++rowCount;
+			rowYBase += 40;
+		}while( rowCount != 3 && *(uchar*)pszStr );
 	}
 }

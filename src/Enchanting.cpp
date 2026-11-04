@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 bool IsEnchantPanelVisible;
 DisplayObject EnchantPanel;
@@ -15,6 +16,7 @@ char* LongButtonCEL = nullptr;
 //----- (th2) -------------------------------------------------------------
 void __fastcall Enchant_Open()
 {
+    IsChatHistoryVisible = false;
     EnchantItem.ItemCode = IC_M1_NONE;
     IsEnchantPanelVisible = true;
     IsINVPanelVisible = true;
@@ -80,10 +82,17 @@ int EnchantButtonPicNumber(bool isAffixButton, int affixButtonIndex)
 //----- (th3) -------------------------------------------------------------
 void SetupEnchantPanel()
 {
-	SetupPanelRect( EnchantPanel, LeftPanel, GUI_PanelWidth, GUI_PanelHeight);
-    SetupDisplayObject(EnchantSlot, EnchantPanel.Left + 133, EnchantPanel.Top + 63, CELL_SIZE * 2, CELL_SIZE * 4);
+	SetupPanelRect(EnchantPanel, LeftPanel, GUI_PanelWidth, GUI_PanelHeight);
+	//if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+	if ((Players && (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < PlayersMax_4)) 
+		&& ((Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) || (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))) {
+		SetupDisplayObject(EnchantSlot, EnchantPanel.Left + 105, EnchantPanel.Top + 6, CELL_SIZE * 4, CELL_SIZE * 7);
+	}
+	else {
+		SetupDisplayObject(EnchantSlot, EnchantPanel.Left + 133, EnchantPanel.Top + 63, CELL_SIZE * 2, CELL_SIZE * 4);
+	}
 	SetupDisplayObject(EnchantLeaveButton, EnchantPanel.Left + 278, EnchantPanel.Top + 450 - 32, 33, 32);
-	for( int i = 0; i < 9; i++ ){
+	for (int i = 0; i < 9; i++) {
 		SetupDisplayObject(EnchantAffixButtons[i], EnchantPanel.Left + 15, EnchantPanel.Top - 1 + 238 - 20 + 21 * i, 292, 20);
 	}
 }
@@ -96,7 +105,7 @@ void __fastcall Enchant_DrawEnchantButtons()
 		if( EnchantItem.ItemCode != IC_M1_NONE
 		 &&( EnchantButtonPicNumber(1, i) != ENCH_INACTIVE
 		  || EnchantButtonPicNumber(1, i) == ENCH_INACTIVE && (SlotToEnchant(EnchantItem) != -1 || !(EnchantItem.dropType & D_ENCHANT) && EnchantItem.MagicLevel == ML_0_USUAL) && IsCharacterLevelReqMetForEnchant(i)) ){
-			sprintf(EnchantString, "Tier %i enchant, %i gold", i + 1, BuyPrice(EnchantPrices[i]));
+			sprintf(EnchantString, L("Tier %i enchant, %i gold"), i + 1, BuyPrice(EnchantPrices[i]));
 			DrawText(EnchantPanel.Left + 161 - GetTextWidth(EnchantString) / 2, EnchantPanel.Top + 238 + 21 * i - 5, 80 + EnchantPanel.Left, EnchantString, 0); // TDOD: change to EnchantAffixButtons
 		}
 	}
@@ -145,6 +154,7 @@ void Enchant_DrawItem(const DisplayObject& rect, const Item& item)
     int graphicValue = item.GraphicValue + CM_12_ITEMS_PICS_START;
     int itemWidth = ItemWidthTable[graphicValue];
     int itemHeight = ItemHeightTable[graphicValue];
+    const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
     char* itemsCELArray = GetItemSprites(graphicValue);
     int x = rect.Left + Screen_LeftBorder + (rect.Width - itemWidth) / 2;
     int y = rect.Down + Screen_TopBorder - (rect.Heigth - itemHeight) / 2;
@@ -158,7 +168,8 @@ void Enchant_DrawItem(const DisplayObject& rect, const Item& item)
             colorOfBorder = 229;
         }
     }
-    CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+    ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+    ItemOverlay_Queue(overlayGfx, x, y, itemWidth, itemHeight, item.mirrorImage != 0, colorOfBorder, (int)!item.IsReqMet | item.mirrorImage << 1);	// (th4)
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -208,7 +219,7 @@ void ApplyEnchants(int itemIndex, int baseItemIndex, i64 seed, int quality, int 
 	item.quality = quality;
 	item.Identified = true;
 	char name[256];
-	sprintf(name, "Enchanted %s", BaseItems[item.baseItemIndex].NamePtr );
+	sprintf(name, L("Enchanted %s"), LocalizedBaseItemName((const char*)BaseItems[item.baseItemIndex].NamePtr) );
 	strcpy_s(item.FullMagicalItemName, name);
 }
 
@@ -262,7 +273,7 @@ void __fastcall Enchant_MouseMove()
     }else if( CursorIntoDisplayObject(EnchantLeaveButton)) {
         Tooltip_SetOffsetTop();
         Tooltip_Clear();
-        Tooltip_AddLine("Exit");
+        Tooltip_AddLine(L("Exit"));
     }
 }
 
@@ -270,6 +281,7 @@ void __fastcall Enchant_MouseMove()
 void Enchant_RetrieveAllItems()
 {
     Item& cur = Players[CurrentPlayerIndex].ItemOnCursor;
+    bool retrievedAny = false;
     if( EnchantItem.ItemCode != IC_M1_NONE ){
 		Item prevCur;
         prevCur = cur;
@@ -279,7 +291,12 @@ void Enchant_RetrieveAllItems()
         }
         EnchantItem.ItemCode = IC_M1_NONE;
         cur = prevCur;
-    }  
+        retrievedAny = true;
+    }
+    if( retrievedAny && cur.ItemCode != IC_M1_NONE ){
+        SetCursorGraphics(cur.GraphicValue + CM_12_ITEMS_PICS_START);
+        FixItemCursor(-1);
+    }
 }
 
 //----- (th2) -------------------------------------------------------------

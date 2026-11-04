@@ -35,6 +35,7 @@ int AnvilOfFuryUniqsTable[PLAYER_FULL_CLASS::PFC_COUNT][9] = {
 	{	17,		18,		19,		2473,	2474,	2475,	2476,	2477,	2478	}, // PFC_ASSASSIN
 	{	4665,	4666,	4667,	4668,	4669,	4670,	4671,	4672,	4673	}, // PFC_IRON_MAIDEN
 	{	17,		18,		19,		2473,	2474,	2475,	2476,	2477,	2478	}, // PFC_BOMBARDIER
+	{	324,	325,	326,	2467,	2468,	2469,	2470,	2471,	2472	}, // PFC_GLADIATRIX
 
 	{	20,		21,		22,		2455,	2456,	2457,	2458,	2459,	2460	}, // PFC_SAVAGE
 	{	324,	325,	326,	2467,	2468,	2469,	2470,	2471,	2472	}, // PFC_BERSERKER
@@ -52,7 +53,7 @@ int CowSounds[ 3 ][ 6 ] = {// 00491938
 	S_778_WAR_49, S_669_ROG_49, S_566_SOR_49, S_886_MONK_49, S_669_ROG_49, 0, 
 	S_779_WAR_50, S_670_ROG_50, S_567_SOR_50, S_887_MONK_50, S_670_ROG_50, 0 
 };
-// специальный порядок анимации для горожан. Чтобы создать иллюзию длинной неповторящейся анимации
+// (rt) special animation order for townspeople, to create the illusion of a long non-repeating animation
 char TownerAnimationFramesOrder[ 6 ][ 148 ] = {	// 004CAE70
 	5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4,		-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	1, 2, 3, 3, 2, 1, 20, 19, 19, 20, 1, 2, 3, 3, 2, 1, 20, 19, 19, 20, 1, 2, 3, 3, 2, 1, 20, 19, 19, 20, 1, 2, 3, 3, 2, 1, 20, 19, 19, 20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, -1,		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -70,15 +71,15 @@ int CowsDeltaCol[8]	= { -1,-1, -1, 0, -1, -1, -1, 0 };	// 004CB238
 // it is 14 people and 24 quests. index in cross of people and qwest mean index of speech which this man tall in "talk to" dialog 
 // 004CB258	hellfire quests
 int TownersSpeechAboutQuestArray[TI_15_COUNT][Quest_Count] = {
-	{ SP_116_GRISWOLD_ABOUT_MAGIC_ROCK,	SP_126_GRISWOLD_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_77_GRISWOLD_ABOUT_LOGLAN,	SP_M1,						SP_59,	SP_16,	SP_69,	SP_98,	SP_89,	SP_106,	SP_6,	SP_43,	SP_51,	SP_31,	SP_268,		SP_369,	SP_M1,	SP_378, SP_388,	SP_395,	SP_298,	SP_303,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_421,	SP_M1,	SP_427,	SP_M1,	SP_M1,	SP_M1, SP_438,	SP_M1,	SP_M1,	SP_16 },//	Griswold
-	{ SP_113_PEPIN_ABOUT_MAGIC_ROCK,	SP_M1,							SP_M1,	SP_M1,	SP_75_PEPIN_ABOUT_LOGLAN,		SP_M1, 						SP_57,	SP_14,	SP_67,	SP_96,	SP_86,	SP_104,	SP_4,	SP_40,	SP_49,	SP_29, 	SP_269,		SP_370,	SP_M1,	SP_282,	SP_386,	SP_397,	SP_299,	SP_302,	SP_M1,											SP_M1,	SP_M1,	SP_416,	SP_M1,	SP_M1,	SP_424,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_441,	SP_M1,	SP_14 },//	Pepin
-	{ SP_M1,							SP_M1,							SP_M1,	SP_M1,	SP_M1,							SP_M1,						SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,		SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1 },//	Cow
-	{ SP_112_OGDEN_ABOUT_MAGIC_ROCK,	SP_122_OGDEN_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_74_OGDEN_ABOUT_LOGLAN,		SP_M1,						SP_56,	SP_M1, 	SP_66,	SP_95,	SP_85,	SP_103,	SP_2,	SP_38,	SP_48,	SP_26,	SP_271,		SP_372, SP_M1,	SP_379,	SP_382,	SP_400,	SP_311,	SP_308,	SP_403_OGDEN_THE_RAMPAGING_DEMON_NOT_FINISHED,	SP_409,	SP_412,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_444,	SP_M1 },//	Ogden
-	{ SP_111_CAIN_ABOUT_MAGIC_ROCK,		SP_121_CAIN_ABOUT_HUGE_AXE,		SP_M1,	SP_M1, 	SP_73_CAIN_ABOUT_LOGLAN,		SP_25_KAIN_ABOUT_DIABLO,	SP_55,	SP_11,	SP_65,	SP_94,	SP_84,	SP_102,	SP_0,	SP_37, 	SP_47,	SP_24,	SP_272,		SP_368,	SP_M1,	SP_375,	SP_387,	SP_399,	SP_312,	SP_304,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_11 },//	Cain
-	{ SP_118_FARNHAM_ABOUT_MAGIC_ROCK,	SP_127_FARNHAM_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_78_FARNHAM_ABOUT_LOGLAN,		SP_M1,						SP_60,	SP_17,	SP_70,	SP_99, 	SP_91,	SP_107,	SP_7,	SP_44,	SP_52,	SP_32,	SP_362,		SP_373,	SP_M1,	SP_380, SP_M1,	SP_396,	SP_313,	SP_305,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_17 },//	Farnham
-	{ SP_119_ADRIA_ABOUT_MAGIC_ROCK,	SP_129_ADRIA_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_79_ADRIA_ABOUT_LOGLAN,		SP_M1,						SP_61,	SP_18,	SP_71,	SP_100,	SP_92,	SP_108,	SP_8,	SP_45,	SP_53,	SP_33,	SP_267,		SP_367,	SP_M1,	SP_377,	SP_385,	SP_401,	SP_315,	SP_306,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_18 },//	Adria
-	{ SP_114_GILIAN_ABOUT_MAGIC_ROCK,	SP_125_GILIAN_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_76_GILIAN_ABOUT_LOGLAN,		SP_M1,						SP_58, 	SP_15,	SP_68,	SP_97,	SP_87,	SP_105,	SP_5,	SP_42,	SP_50,	SP_30,	SP_363,		SP_365,	SP_M1,	SP_274,	SP_383,	SP_394,	SP_297,	SP_309,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_15 },//	Gillian
-	{ SP_120_WIRT_ABOUT_MAGIC_ROCK,		SP_133_WIRT_ABOUT_HUGE_AXE,		SP_M1,	SP_M1,	SP_80_WIRT_ABOUT_LOGLAN,		SP_M1,						SP_62,	SP_19,	SP_72,	SP_101,	SP_93,	SP_109,	SP_9,	SP_46,	SP_54,	SP_34,	SP_275,		SP_371,	SP_M1,	SP_376,	SP_384,	SP_398,	SP_314,	SP_307,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_430,	SP_433,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_19 },//	Wirt
+	{ SP_116_GRISWOLD_ABOUT_MAGIC_ROCK,	SP_126_GRISWOLD_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_77_GRISWOLD_ABOUT_LOGLAN,	SP_M1,						SP_59,	SP_16,	SP_69,	SP_98,	SP_89,	SP_106,	SP_6,	SP_43,	SP_51,	SP_31,	SP_268,		SP_369,	SP_M1,	SP_378, SP_388,	SP_395,	SP_298,	SP_303,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_421,	SP_M1,	SP_427,	SP_M1,	SP_M1,	SP_M1, SP_438,	SP_M1,	SP_M1,	SP_16,	SP_98,	SP_M1					},//	Griswold
+	{ SP_113_PEPIN_ABOUT_MAGIC_ROCK,	SP_M1,							SP_M1,	SP_M1,	SP_75_PEPIN_ABOUT_LOGLAN,		SP_M1, 						SP_57,	SP_14,	SP_67,	SP_96,	SP_86,	SP_104,	SP_4,	SP_40,	SP_49,	SP_29, 	SP_269,		SP_370,	SP_M1,	SP_282,	SP_386,	SP_397,	SP_299,	SP_302,	SP_M1,											SP_M1,	SP_M1,	SP_416,	SP_M1,	SP_M1,	SP_424,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_441,	SP_M1,	SP_14,	SP_96,	SP_M1					},//	Pepin
+	{ SP_M1,							SP_M1,							SP_M1,	SP_M1,	SP_M1,							SP_M1,						SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,		SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1					},//	Cow
+	{ SP_112_OGDEN_ABOUT_MAGIC_ROCK,	SP_122_OGDEN_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_74_OGDEN_ABOUT_LOGLAN,		SP_M1,						SP_56,	SP_M1, 	SP_66,	SP_95,	SP_85,	SP_103,	SP_2,	SP_38,	SP_48,	SP_26,	SP_271,		SP_372, SP_M1,	SP_379,	SP_382,	SP_400,	SP_311,	SP_308,	SP_403_OGDEN_THE_RAMPAGING_DEMON_NOT_FINISHED,	SP_409,	SP_412,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_444,	SP_M1,	SP_95,	SP_M1					},//	Ogden
+	{ SP_111_CAIN_ABOUT_MAGIC_ROCK,		SP_121_CAIN_ABOUT_HUGE_AXE,		SP_M1,	SP_M1, 	SP_73_CAIN_ABOUT_LOGLAN,		SP_25_KAIN_ABOUT_DIABLO,	SP_55,	SP_11,	SP_65,	SP_94,	SP_84,	SP_102,	SP_0,	SP_37, 	SP_47,	SP_24,	SP_272,		SP_368,	SP_M1,	SP_375,	SP_387,	SP_399,	SP_312,	SP_304,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_11,	SP_94,	SP_M1					},//	Cain
+	{ SP_118_FARNHAM_ABOUT_MAGIC_ROCK,	SP_127_FARNHAM_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_78_FARNHAM_ABOUT_LOGLAN,		SP_M1,						SP_60,	SP_17,	SP_70,	SP_99, 	SP_91,	SP_107,	SP_7,	SP_44,	SP_52,	SP_32,	SP_362,		SP_373,	SP_M1,	SP_380, SP_M1,	SP_396,	SP_313,	SP_305,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_17,	SP_99,	SP_M1					},//	Farnham
+	{ SP_119_ADRIA_ABOUT_MAGIC_ROCK,	SP_129_ADRIA_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_79_ADRIA_ABOUT_LOGLAN,		SP_M1,						SP_61,	SP_18,	SP_71,	SP_100,	SP_92,	SP_108,	SP_8,	SP_45,	SP_53,	SP_33,	SP_267,		SP_367,	SP_M1,	SP_377,	SP_385,	SP_401,	SP_315,	SP_306,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_18,	SP_100,	SP_ADRIA_SOM_QUEST_SP_2 },//	Adria
+	{ SP_114_GILIAN_ABOUT_MAGIC_ROCK,	SP_125_GILIAN_ABOUT_HUGE_AXE,	SP_M1,	SP_M1,	SP_76_GILIAN_ABOUT_LOGLAN,		SP_M1,						SP_58, 	SP_15,	SP_68,	SP_97,	SP_87,	SP_105,	SP_5,	SP_42,	SP_50,	SP_30,	SP_363,		SP_365,	SP_M1,	SP_274,	SP_383,	SP_394,	SP_297,	SP_309,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_15,	SP_97,	SP_M1					},//	Gillian
+	{ SP_120_WIRT_ABOUT_MAGIC_ROCK,		SP_133_WIRT_ABOUT_HUGE_AXE,		SP_M1,	SP_M1,	SP_80_WIRT_ABOUT_LOGLAN,		SP_M1,						SP_62,	SP_19,	SP_72,	SP_101,	SP_93,	SP_109,	SP_9,	SP_46,	SP_54,	SP_34,	SP_275,		SP_371,	SP_M1,	SP_376,	SP_384,	SP_398,	SP_314,	SP_307,	SP_M1,											SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_430,	SP_433,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_19,	SP_101,	SP_M1					},//	Wirt
 	{ SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1 },//	hellfire citizens
 	{ SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1 },//
 	{ SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1,	SP_M1 },//
@@ -140,19 +141,31 @@ void __fastcall DrawTileFill( uchar* dst, uchar color /*= 0*/ )
 void __fastcall DrawMostTopTile(uchar* dst, int row, int col, int screenCellRow, int tileInCellIndex, int ofsX, int ofsY) // T_DrawEFlag3
 {
 	TileColumn* tile = &TileMap[IsometricMapOffset(row, col)];
+	if( PixelLight ) CalculatePerPixelLight(row, col);
 	for( int i = 0; i < 7; ++i ){ // TODO: find out why 7, not 8 (it is original)
-		if( screenCellRow >= i ){
-			if( CurTileID = tile->Layer[i].Left ; CurTileID ) DrawDunCelTrans(dst);
-			if( CurTileID = tile->Layer[i].Right; CurTileID ) DrawDunCelTrans(dst + 32);
-		}
+//		if (screenCellRow >= i) {
+			// Draw ALL layers unconditionally; PutTile clips above the screen.
+			CurTileID = tile->Layer[i].Left;
+			PerPixelXOffset = 0;
+			if (CurTileID) DrawDunCelTrans(dst);
+			CurTileID = tile->Layer[i].Right;
+			PerPixelXOffset = 32;
+			if (CurTileID) DrawDunCelTrans(dst + 32);
+//		}
 		dst -= WorkingWidth * 32;
 	}
+	TownWater_TileRedrawn( row, col, ofsX, ofsY );	// (th4) ROCK SNOW: this redraw (over a hero standing under the cell) bypasses TownWater_CellBegin / CellEnd -- paint a rock's snow again
 	DrawDynamicObjectsTown((uchar*)dst, row, col, screenCellRow, tileInCellIndex, ofsX, ofsY, 0);
 }
 
 //----- (004743AB) --------------------------------------------------------
 void __fastcall DrawDynamicObjectsTown(uchar* surfaceDest, int row, int col, int screenCellRow, int tileInCellIndex, int playerOffsetX, int playerOffsetY, int firstDraw) // T_DrawHTLXsub
 {
+	// (th4) town night: towners, cows and player sprites in town were drawn RAW (R_DIRECT /
+	// no-darken CL2), so they stayed day-bright while the terrain palette blended into night
+	// around them. Each draw below is wrapped with the dusk-phase darkness; by day
+	// nightDark == 0 and every path is byte-identical to before.
+	int nightDark = DayNight_TownSpriteDark();
 	if( int itemIndex = ItemMap[row][col] - 1; itemIndex >= 0 ){
 		Item& item = Items[itemIndex];
 		int outlineColor = IsAltPressed || AltHighlight || itemIndex == Cur.ItemID ? 181 : -1;
@@ -161,14 +174,32 @@ void __fastcall DrawDynamicObjectsTown(uchar* surfaceDest, int row, int col, int
 	if( FlagMap[row][col] & CF_16_MONSTER_HORIZONTAL ){
 		if( int townerIndex = -1 - MonsterMap[row][col]; townerIndex >= 0 ){
 			Towner& towner = Towners[townerIndex];
-			CEL_Draw(playerOffsetX - Towners[townerIndex].offsetX, playerOffsetY, towner.stayAnim, towner.CurFrame, towner.animWidth, 0, tileInCellIndex, R_DIRECT, townerIndex == CurMon ? 166 : -1);
+			{
+				int nightPrev = DarkLevel;
+				if( nightDark > DarkLevel ) DarkLevel = nightDark;
+				SnowDepth_Begin( playerOffsetX - Towners[townerIndex].offsetX, playerOffsetY, towner.animWidth, is( towner.TownerIdentificator, TI_8_WIRT, TI_3_OGDEN ) || TownWater_FeetBare( row, col, 0, 0 ), 0, false );	// (th4) SNOW DEPTH (Snowfall.cpp); Wirt and Ogden never sink (WHO NOT)
+				CEL_Draw(playerOffsetX - Towners[townerIndex].offsetX, playerOffsetY, towner.stayAnim, towner.CurFrame, towner.animWidth, 0, tileInCellIndex, nightDark ? R_DARK : R_DIRECT, townerIndex == CurMon ? 166 : -1);
+				SnowDepth_End();
+				DarkLevel = nightPrev;
+			}
+			Breath_NoteTowner( townerIndex, playerOffsetX - towner.offsetX, playerOffsetY );	// (th4) COLD BREATH (Breath.cpp)
 		}
 	}
 	if( int townerIndex = MonsterMap[row][col] - 1; townerIndex >= 0 ){
 		Towner& towner = Towners[townerIndex];
-		CEL_Draw(playerOffsetX - towner.offsetX, playerOffsetY, towner.stayAnim, towner.CurFrame, towner.animWidth, 0, tileInCellIndex, R_DIRECT, townerIndex == CurMon ? 166 : -1);
+		{
+			int nightPrev = DarkLevel;
+			if( nightDark > DarkLevel ) DarkLevel = nightDark;
+			SnowDepth_Begin( playerOffsetX - towner.offsetX, playerOffsetY, towner.animWidth, is( towner.TownerIdentificator, TI_8_WIRT, TI_3_OGDEN ) || TownWater_FeetBare( row, col, 0, 0 ), 0, false );	// (th4) SNOW DEPTH (Snowfall.cpp); Wirt and Ogden never sink (WHO NOT)
+			CEL_Draw(playerOffsetX - towner.offsetX, playerOffsetY, towner.stayAnim, towner.CurFrame, towner.animWidth, 0, tileInCellIndex, nightDark ? R_DARK : R_DIRECT, townerIndex == CurMon ? 166 : -1);
+			SnowDepth_End();
+			DarkLevel = nightPrev;
+		}
+		Breath_NoteTowner( townerIndex, playerOffsetX - towner.offsetX, playerOffsetY );	// (th4) COLD BREATH (Breath.cpp)
+		// (th4) NPC MARK: only noted here and drawn after the whole world (NpcMark.cpp) -- drawn here, with this cell,
+		// the roofs and walls of the cells drawn later (in front) covered it
 		if( NpcSign && IsTownerHasActiveSpeech( CurrentPlayerIndex, townerIndex ) ){
-            Surface_DrawCEL(playerOffsetX + 32/2, playerOffsetY - 88, Data_ExclamCEL, 1, 32);
+            NpcMark_Note( playerOffsetX + 32, playerOffsetY - 103 );
         }
 	}
 	if( FlagMap[row][col] & CF_32_PLAYER_HORIZONTAL ){
@@ -176,26 +207,44 @@ void __fastcall DrawDynamicObjectsTown(uchar* surfaceDest, int row, int col, int
 			Player& player = Players[playerIndex];
 			int x = playerOffsetX + player.xOfs - player.animWidth2;
 			int y = playerOffsetY + player.yOfs;
+			SnowDepth_Begin( x, y, player.animWidth, TownWater_FeetBare( row, col, player.xOfs, player.yOfs ), SnowDepthSlope( player.dir ), true );	// (th4) SNOW DEPTH (Snowfall.cpp): the outline too; feet relative to THIS cell's floor
 			if( playerIndex == Cur.playerIndex ){
 				CL2_DrawOutline(165, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex);
 			}
-			CL2_Draw(x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex);
+			{
+				int nightPrev = DarkLevel;
+				if( nightDark > DarkLevel ) DarkLevel = nightDark;
+				CL2_Draw(x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex, nightDark > 0);
+				DarkLevel = nightPrev;
+			}
+			SnowDepth_End();
+			TownWater_NotePlayer( playerIndex, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth );	// (th4) river reflection, TownWater.cpp
+			Breath_NotePlayer( playerIndex, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth );	// (th4) COLD BREATH (Breath.cpp)
 			if( firstDraw && player.UnderArcType ){
 				DrawMostTopTile(surfaceDest - 64, row - 1, col + 1, screenCellRow, tileInCellIndex, playerOffsetX - 64, playerOffsetY);
 			}
 		}
 	}
 	if( FlagMap[row][col] & CF_4_DEAD_PLAYER ){
-		DrawDiedPlayer(row, col, playerOffsetX, playerOffsetY, 0, tileInCellIndex, 0);
+		Draw_Dying_Player(row, col, playerOffsetX, playerOffsetY, 0, tileInCellIndex, 0);
 	}
 	if( int playerIndex = PlayerMap[row][col] - 1; playerIndex >= 0 ){
 		Player& player = Players[playerIndex];
 		int x = playerOffsetX + player.xOfs - player.animWidth2;
 		int y = playerOffsetY + player.yOfs;
+		SnowDepth_Begin( x, y, player.animWidth, TownWater_FeetBare( row, col, player.xOfs, player.yOfs ), SnowDepthSlope( player.dir ), true );	// (th4) SNOW DEPTH (Snowfall.cpp): the outline too; feet relative to THIS cell's floor
 		if( playerIndex == Cur.playerIndex ){
 			CL2_DrawOutline(165, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex);
 		}
-		CL2_Draw(x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex);
+		{
+			int nightPrev = DarkLevel;
+			if( nightDark > DarkLevel ) DarkLevel = nightDark;
+			CL2_Draw(x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth, 0, tileInCellIndex, nightDark > 0);
+			DarkLevel = nightPrev;
+		}
+		SnowDepth_End();
+		TownWater_NotePlayer( playerIndex, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth );	// (th4) river reflection, TownWater.cpp
+		Breath_NotePlayer( playerIndex, x, y, player.currentAnimationPointer, player.currentAnimationFrame, player.animWidth );	// (th4) COLD BREATH (Breath.cpp)
 		if( firstDraw && player.UnderArcType ){
 			DrawMostTopTile(surfaceDest - 64, row - 1, col + 1, screenCellRow, tileInCellIndex, playerOffsetX - 64, playerOffsetY);
 		}
@@ -212,36 +261,50 @@ void __fastcall DrawDynamicObjectsTown(uchar* surfaceDest, int row, int col, int
 void __fastcall DrawSceneTownTop(int row, int col, int offsetX, int offsetY, int horCellDrawCount, int screenCellRow, int halfFlag) // T_DrawHTLX
 {
 	if( horCellDrawCount <= 0 ) return;
-	// row, col - левая клетка рисуемоего по диагонали ряда (враво-вверх по массиву карт)
+	// (rt) row, col - the left cell of the diagonal row being drawn (right-up across the map arrays)
 	TileColumn* tile = &TileMap[IsometricMapOffset(row, col)];
-	int tileInCellIndex = std::min(2 * screenCellRow + 2, 8); // 8 == 7 + 1, максимальная высота объекта над тайлом заданная в тайлах ?
-	// рисуем средние полные целлы:
+	int tileInCellIndex = std::min(2 * screenCellRow + 2, 8); // (rt) 8 == 7 + 1, maximum height of an object above a tile, in tiles?
+	// (rt) draw the middle full cells:
+	bool oddFirstCell = (halfFlag != 0);
 	do{
 		if( In112(col, row) && (CurTileID = FineMap[row][col], CurTileID) ){
+			DarkLevel = 0; // town is always fully lit
+			TownWater_NoteCell( CurTileID, offsetX, offsetY, tile->Layer[0].Left, tile->Layer[0].Right );	// (th4) river cells for the water mask (TownWater.cpp); same dst as DrawTileFill below
+			if( PixelLight ) CalculatePerPixelLight(row, col);
 			int yOfs = YOffsetHashTable[offsetY];
 			uchar* leftTileDst = &WorkingSurface[offsetX + yOfs];
 			if( !IsShowTileNum || CurTileID != CurFineMap ){
+				TownWater_CellBegin( FineMap[row][col], offsetX, offsetY, row, col );	// (th4) tree crowns: glowing leaves, TREE SWAY, SUN RAYS (TownWater.cpp)
 				for( int i = 0; i < 8; ++i ){
-					if( screenCellRow >= i ){
-						// рисуем левые треугольники и стены
-						CurTileID = tile->Layer[i].Left;
-						if( CurTileID ) DrawDunCelTrans(leftTileDst);
-						// рисуем правые треугольники и стены
+//					if (screenCellRow >= i) {
+						// Odd-row first cell: skip left sub-tile (it bleeds into
+						// visible left edge during interpolation).  Original Diablo
+						// T_DrawHTileLineX halfflag=1 does the same.
+						if (!oddFirstCell) {
+							CurTileID = tile->Layer[i].Left;
+							PerPixelXOffset = 0;
+							if (CurTileID) DrawDunCelTrans(leftTileDst);
+						}
+						// (rt) draw the right triangles and walls
 						CurTileID = tile->Layer[i].Right;
-						if( CurTileID ) DrawDunCelTrans(leftTileDst + 32);
-					}
+						PerPixelXOffset = 32;
+						if (CurTileID) DrawDunCelTrans(leftTileDst + 32);
+						if( i == 0 ) TownWater_FloorDrawn( row, col, offsetX, offsetY );	// (th4) PUDDLES: this cell's floor is drawn (TownWater.cpp)
+//					}
 					leftTileDst -= 32 * WorkingWidth;
 				}
+				TownWater_CellEnd();
 			}else{
 				DrawTileFill(&WorkingSurface[ offsetX ] + YOffsetHashTable[ offsetY ]);
 			}
-			// рисуем остальные объекты над тайлом
-			// в т.ч. рисуется объект над ячейкой слева от героя которые ограничивают его движение
+			// (rt) draw the remaining objects above the tile
+			// (rt) including the object above the cell to the hero's left that limits his movement
 			DrawDynamicObjectsTown(&WorkingSurface[offsetX + yOfs], row, col, screenCellRow, tileInCellIndex, offsetX, offsetY, 1);
 		}else{
-			// эта функция очевидно зарисовывает места где отсутствует карта
+			// (rt) this function evidently fills in the places where the map is missing
 			DrawTileFill(&WorkingSurface[offsetX] + YOffsetHashTable[offsetY]);
 		}
+		oddFirstCell = false;
 		++tile;
 		++row;
 		--col;
@@ -257,7 +320,7 @@ void InitIsometricTileMap()
 			int curFineTile = FineMap[ row ][ col ];
 			ushort* tile = TileMap[ IsometricMapOffset(row, col) ].tile;
 			if( curFineTile ){
-				ushort* mine = (ushort*)&CurrentLevelMINFile[32 * (curFineTile - 1)]; // CurrentLevelMINFile и остальные три - массивы структур?
+				ushort* mine = (ushort*)&CurrentLevelMINFile[32 * (curFineTile - 1)]; // (rt) CurrentLevelMINFile and the other three - arrays of structs?
 				for( int i = 0; i < 16; i++ ){
 					tile[i] = mine[14 - (i & 14) + (i & 1)]; // big end decode
 				}
@@ -481,18 +544,18 @@ void __fastcall LoadSPTownMap(TileSquare* townTiles)
 {
 	Player& player = Players[CurrentPlayerIndex];
 	auto& clvlReq = ClvlReqsForEnterInDungeon[ Difficulty ];
-	if( !(player.CharLevel >= clvlReq[ DD_1_CATACOMB ] || player.OpenedTownDoorMask & BIT(DD_1_CATACOMB))){ // закрыть катакомбы
+	if( !(player.CharLevel >= clvlReq[ DD_1_CATACOMB ] || player.OpenedTownDoorMask & BIT(DD_1_CATACOMB))){ // (rt) close the catacombs
 		SetTileSquare(townTiles, 48, 20, 320);
 	}
 
-	if( !(player.CharLevel >= clvlReq[ DD_2_CAVE ] || player.OpenedTownDoorMask & BIT(DD_2_CAVE))){ // закрыть пещеры
+	if( !(player.CharLevel >= clvlReq[ DD_2_CAVE ] || player.OpenedTownDoorMask & BIT(DD_2_CAVE))){ // (rt) close the caves
 		SetTileSquare(townTiles, 16, 68, 332);
 		SetTileSquare(townTiles, 16, 70, 331);
 	}
 
-	if( !(player.CharLevel >= clvlReq[ DD_3_HELL ] || player.OpenedTownDoorMask & BIT(DD_3_HELL)) ){ // закрыть ад
+	if( !(player.CharLevel >= clvlReq[ DD_3_HELL ] || player.OpenedTownDoorMask & BIT(DD_3_HELL)) ){ // (rt) close hell
 		for( int row = 36; row < 46; row++ ){
-			SetTileSquare(townTiles, row, 78, RNG(4) + 1);// случайные тайлы травы
+			SetTileSquare(townTiles, row, 78, RNG(4) + 1);// (rt) random grass tiles
 		}
 	}
 
@@ -518,7 +581,8 @@ void LoadTownMap()
 		}
 	}
 
-	auto townTiles = (TileSquare*)LoadFile("Levels\\TownData\\Town.TIL");
+	int townTilBytes = 0;	// (th4) TownWater_OnTownLoaded needs the tile count
+	auto townTiles = (TileSquare*)LoadFile("Levels\\TownData\\Town.TIL", &townTilBytes);
 	
 	char* townSector = (char*)LoadFile("Levels\\TownData\\Sector1s.DUN");
 	LoadTownSector(townTiles, townSector, 46, 46, 25, 25);
@@ -600,6 +664,8 @@ void LoadTownMap()
 	// Do not need to set stair entrance to Ravenholm since there is already a red portal that disappears after quest is done.
 	// Without setting the stair coordinates, it will spawn at the (0,0) position on the map (unintialized variable in Windows).
 
+	// (th4) town river: which map pieces are water (TownWater.cpp, kRiverTiles)
+	TownWater_OnTownLoaded( townTiles, townTilBytes / (int)sizeof(TileSquare) );
 	FreeMem(townTiles);
 }
 
@@ -720,7 +786,8 @@ void __fastcall SetTownerQuestInfo(int townerIndex)
 void LoadGriswold()
 {
 	Towner& towner = Towners[TownersCount];
-	InitTownerStruct(TownersCount, 96, 1, TI_0_GRISWOLD, 62, 63, 0, 10);
+	int griswold_coordinate = MaxCountOfPlayersInGame == 1 ? 63 : 64;
+	InitTownerStruct(TownersCount, 96, 1, TI_0_GRISWOLD, 62, griswold_coordinate, 0, 10);
 	SetTownerQuestInfo(TownersCount);
 	towner.spritePtr = (char*)LoadFile("Towners\\Smith\\SmithN.CEL");
 
@@ -730,7 +797,7 @@ void LoadGriswold()
 
 	towner.animationFrameCount = 16;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[1], 16, 3);
-	strcpy(towner.Name, "Griswold the Blacksmith");
+	strcpy(towner.Name, L("Griswold the Blacksmith"));
 	TownersCount++;
 }
 
@@ -738,7 +805,7 @@ void LoadGriswold()
 void LoadOgden()
 {
 	Towner& towner = Towners[TownersCount];
-	SomeBoolFlag_41 = 0; // Только присваивается значение, нигде не используется
+	SomeBoolFlag_41 = 0; // (rt) Only assigned, never used
 	InitTownerStruct(TownersCount, 96, 1, TI_3_OGDEN, 55, 62, 3, 10);
 	SetTownerQuestInfo(TownersCount);
 	towner.spritePtr = (char*)LoadFile("Towners\\TwnF\\TwnFN.CEL");
@@ -749,7 +816,7 @@ void LoadOgden()
 
 	towner.animationFrameCount = 16;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[1], 16, 3);
-	strcpy(towner.Name, "Ogden the Tavern owner");
+	strcpy(towner.Name, L("Ogden the Tavern owner"));
 	TownersCount++;
 }
 
@@ -767,7 +834,7 @@ void LoadWoundedTownsman()
 
 	towner.animationFrameCount = 8;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[4], 8, 6);
-	strcpy(towner.Name, "Wounded Townsman");
+	strcpy(towner.Name, L("Wounded Townsman"));
 	TownersCount++;
 }
 
@@ -785,7 +852,7 @@ void LoadAdria()
 
 	towner.animationFrameCount = 19;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 19, 6);
-	strcpy(towner.Name, "Adria the Witch");
+	strcpy(towner.Name, L("Adria the Witch"));
 	TownersCount++;
 }
 
@@ -803,7 +870,7 @@ void LoadGilian()
 
 	towner.animationFrameCount = 18;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 18, 6);
-	strcpy(towner.Name, "Gillian the Stasher");
+	strcpy(towner.Name, L("Gillian the Stasher"));
 	TownersCount++;
 }
 
@@ -822,7 +889,7 @@ void LoadWirt()
 
 	towner.animationFrameCount = 20;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 20, 6);
-	strcpy(towner.Name, "Wirt the Peg-legged boy");
+	strcpy(towner.Name, L("Wirt the Peg-legged boy"));
 	TownersCount++;
 }
 
@@ -840,7 +907,7 @@ void LoadPepin()
 
 	towner.animationFrameCount = 20;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[7], 20, 6);
-	strcpy(towner.Name, "Pepin the Healer");
+	strcpy(towner.Name, L("Pepin the Healer"));
 	TownersCount++;
 }
 
@@ -858,7 +925,7 @@ void LoadCain()
 
 	towner.animationFrameCount = 25;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 25, 3);
-	strcpy(towner.Name, "Cain the Elder");
+	strcpy(towner.Name, L("Cain the Elder"));
 	TownersCount++;
 }
 
@@ -876,7 +943,7 @@ void LoadFarnham()
 
 	towner.animationFrameCount = 18;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 18, 3);
-	strcpy(towner.Name, "Farnham the Drunk");
+	strcpy(towner.Name, L("Farnham the Drunk"));
 	TownersCount++;
 }
 
@@ -897,7 +964,7 @@ void LoadCows()
 		cow.CurFrame = RNG(11) + 1;
 		cow.field_54 = 1;
 
-		strcpy(cow.Name, "Cow");
+		strcpy(cow.Name, L("Cow"));
 
 		int someRow = cowRow + CowsDeltaRow[CowsOrients[cowIndex]];
 		int someCol = cowCol + CowsDeltaCol[CowsOrients[cowIndex]];
@@ -931,7 +998,7 @@ void LoadLester()
 
 	towner.animationFrameCount = 15;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 15, 3);
-	strcpy(towner.Name, "Lester the farmer");
+	strcpy(towner.Name, L("Lester the farmer"));
 	TownersCount++;
 }
 
@@ -957,7 +1024,7 @@ void LoadNut()
 
 	towner.animationFrameCount = 15;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[1], 15, 3);
-	strcpy(towner.Name, "Complete Nut");
+	strcpy(towner.Name, L("Complete Nut"));
 	TownersCount++;
 }
 
@@ -982,7 +1049,7 @@ void LoadCelia()
 
 	towner.animationFrameCount = 20;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 20, 6);
-	strcpy(towner.Name, "Celia the little girl");
+	strcpy(towner.Name, L("Celia the little girl"));
 	TownersCount++;
 }
 
@@ -990,7 +1057,7 @@ void LoadCelia()
 void LoadPriest()
 {
 	Towner& towner = Towners[TownersCount];
-	// tremain для fleshdoom есть всегда, если он "отключен", то ставиться в верхнем углу города (2, 2)
+	// (rt) tremain always exists for fleshdoom; if it is "disabled", it is placed in the top corner of town (2, 2)
 	InitTownerStruct(TownersCount, 96, 1, TI_13_TREMAIN, 55, 68, -1, 10);
 	SetTownerQuestInfo(TownersCount);
 	towner.spritePtr = (char*)LoadFile("Towners\\Priest\\priest8.cel");
@@ -1001,7 +1068,7 @@ void LoadPriest()
 
 	towner.animationFrameCount = 33;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 33, 13);
-	strcpy(towner.Name, "Tremain the Priest");
+	strcpy(towner.Name, L("Tremain the Priest"));
 	TownersCount++;
 }
 
@@ -1017,7 +1084,7 @@ void LoadColiseumGirl()
 
 	towner.animationFrameCount = 20;
 	InitTownerAnimation(TownersCount, towner.animationFrameArray[0], 20, 6);
-	strcpy(towner.Name, "Sepia the Munerarius");
+	strcpy(towner.Name, L("Sepia the Munerarius"));
 	TownersCount++;
 }
 
@@ -1108,7 +1175,7 @@ void SlainTownsmanAction()
 	}else if( (butcherQuest.status != QS_2_IN_PROGRESS || butcherQuest.talkToFlag) && butcherQuest.status != QS_1_ACCEPT ){
 		towner.DelayFrameCount = 1000;
 		towner.CurFrame = 1;
-		strcpy(towner.Name, "Slain Townsman");
+		strcpy(towner.Name, L("Slain Townsman"));
 		towner.CurDelayFrame = 0;
 	}
 }
@@ -1118,7 +1185,7 @@ void ProcessTowners()
 {
 	for( int townerIndex = 0; townerIndex < 16; ++townerIndex ){
 		Towner& towner = Towners[townerIndex];
-		//if( towner.TownerIdentificator <= 12 ){ // в оригинале нет этой проверки
+		//(rt) if( towner.TownerIdentificator <= 12 ){ // the original has no such check
 			switch( towner.TownerIdentificator ){
 			case TI_0_GRISWOLD   : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_0_GRISWOLD)); break;
 			case TI_3_OGDEN      : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_3_OGDEN));    break;
@@ -1129,7 +1196,7 @@ void ProcessTowners()
 			case TI_8_WIRT       : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_8_WIRT));     break;
 			case TI_6_ADRIA      : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_6_ADRIA));    break;
 			case TI_7_GILLIAN    : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_7_GILLIAN));  break;
-			case TI_9_COWS       : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_9_COWS));     break; // косяк. Находит только первую корову. А говорить может игрок с любой из них
+			case TI_9_COWS       : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_9_COWS));     break; // (rt) flaw: finds only the first cow, but the player can talk to any of them
 			case TI_10_LESTER    : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_10_LESTER));  break;
 			case TI_11_CELIA     : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_11_CELIA));   break;
 			case TI_12_NUT       : StopTownerSpeechWhenPlayerGoAway(GetTowner(TI_12_NUT));     break;
@@ -1137,11 +1204,11 @@ void ProcessTowners()
 		//}
 		if( ++towner.CurDelayFrame >= towner.DelayFrameCount ){ // TODO: change to > and fix the Towners animDelay data
 			towner.CurDelayFrame = 0;
-			if( towner.FramesOrderTypeIndex < 0 ){// последовательная анимация
+			if( towner.FramesOrderTypeIndex < 0 ){// (rt) sequential animation
 				if( ++towner.CurFrame > towner.StayingFrameCount ){
 					towner.CurFrame = 1;
 				}
-			}else{// специальная анимация
+			}else{// (rt) special animation
 				towner.FramesOrderCurrentIndex++;
 				if( TownerAnimationFramesOrder[ towner.FramesOrderTypeIndex ][ towner.FramesOrderCurrentIndex ] == -1 ){
 					towner.FramesOrderCurrentIndex = 0;
@@ -1150,6 +1217,7 @@ void ProcessTowners()
 			}
 		}
 	}
+	TownArcaneStars_Update(); // (th4) decorative stars while Maiden of Anguish is active (Missile.cpp)
 }
 
 //----- (0047685D) --------------------------------------------------------
@@ -1165,6 +1233,65 @@ Item* __fastcall FindItemInInventory(int playerIndex, int baseItemIndex, int& it
 	}
 	return 0;
 }
+//----- (th4) -------------------------------------------------------------
+// (th4) The Anvil of Fury payout, lifted verbatim out of Griswold's hand-in below so
+// that DC mission 15 can give the identical reward from Hephasto. Every check the
+// original made is preserved: Classic split by ClassID, the Axepertise/Mamluk class
+// substitutions, Barbarian putting the item straight on the cursor, the Ranger and
+// Pistoleer special weapons with their Supermutant / Enclave Soldier variants, and
+// AnvilOfFuryUniqsTable indexed by full class and Difficulty for everyone else.
+void SpawnAnvilOfFuryReward( int playerIndex, int row, int col )
+{
+	Player& player = Players[playerIndex];
+	PLAYER_FULL_CLASS fullClassId = player.fullClassId;
+	if (GameMode == GM_CLASSIC) {
+		if (player.ClassID == PC_0_WARRIOR) {
+			SpawnUnique(4683 + Difficulty, row + 1, col + 1);
+		}
+		else if (player.ClassID == PC_1_ARCHER) {
+			SpawnUnique(4851 + Difficulty, row + 1, col + 1);
+		}
+		else {
+			SpawnUnique(4848 + Difficulty, row + 1, col + 1);
+		}
+		return;	// (th4) was: goto SKIPPO -- Classic path is done here
+	}
+	if (player.fullClassId == PFC_ROGUE && HasTrait(playerIndex, TraitId::Axepertise)) {
+		fullClassId = PFC_SHUGOKI;
+	}
+	/*else if (player.fullClassId == PFC_IRON_MAIDEN && HasTrait(playerIndex, TraitId::TwoTowers)) {
+		fullClassId = PFC_BOMBARDIER;
+	}*/
+	else if (player.fullClassId == PFC_ELEMENTALIST && HasTrait(playerIndex, TraitId::Mamluk)) {
+		fullClassId = PFC_WARRIOR;
+	}
+	else if (HasTrait(playerIndex, TraitId::Barbarian)) {
+		SetPlayerHandItem(player.ItemOnCursor, UniqueItems[AnvilOfFuryUniqsTable[fullClassId][Difficulty]].baseId);
+		Item_MakeNonCollisionSeed(CurrentPlayerIndex, player.ItemOnCursor);
+		if( DropCursorItemBeforeTrig() ) FixItemCursor(-1);
+	}
+
+	if (!(HasTrait(playerIndex, TraitId::Barbarian))) {
+		if (HasTrait(playerIndex, TraitId::Ranger)) {
+			SpawnUnique(2549 + Difficulty, row, col + 1); // first Griswold's Bow (unique for Ranger) is index #2549 in unique table
+		}
+		else if (HasTrait(playerIndex, TraitId::Pistoleer)) {
+			if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+				SpawnUnique(4880 + Difficulty, row, col + 1);
+			}
+			else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				SpawnUnique(by(Difficulty, 2735, 2735, 2736, 2736, 2737, 2737, 2738, 2738, 2738), row, col + 1);
+			}
+			else {
+				SpawnUnique(2735 + Difficulty, row, col + 1);
+			}
+		}
+		else {
+			SpawnUnique(AnvilOfFuryUniqsTable[fullClassId][Difficulty], row, col + 1);
+		}
+	}
+}
+
 
 //----- (004768C1) --------------------------------------------------------
 void __fastcall NPCGreeting(int speechIndex)
@@ -1241,7 +1368,7 @@ bool GriswoldGreeting (int playerIndex, int townerIndex, bool needAction = true)
 				// mordor: i have commented out the checks for magic rock quests, (SP) tests showed they were preventing the quest from properly initializing,
 				// griswold didnt start his speech, only reacted to player giving him the anvil. if this (for some reason) needs to be re-activated, code is intact (not deleted)
 				//if( magicRockQuest.status3 == 2 || 
-				//	magicRockQuest.status == QS_2_IN_PROGRESS && magicRockQuest.status3 == 1 ){// TODO: непонятно при чем тут проверка на квест магического камня
+				//	(rt) magicRockQuest.status == QS_2_IN_PROGRESS && magicRockQuest.status3 == 1 ){// TODO: unclear why the magic rock quest is checked here
 					    if( !needAction ) { return true; }
 						anvilOfFuryQuest.status3 = 1;
 						anvilOfFuryQuest.talkToFlag = true;
@@ -1265,38 +1392,7 @@ bool GriswoldGreeting (int playerIndex, int townerIndex, bool needAction = true)
 				anvilOfFuryQuest.status3 = 2;
 				NetSendCmdQuest(true, Q_10_ANVIL_OF_FURY); // This currently does nothing in MP, as quest is already completed at this point.
 				ClearInventorySlot(playerIndex, questItemInventoryIndex);
-				PLAYER_FULL_CLASS fullClassId = player.fullClassId;
-				if (GameMode == GM_CLASSIC) {
-					SpawnUnique(4683 + Difficulty, towner.Row, towner.Col + 1);
-					goto SKIPPO;
-				}
-				if (player.fullClassId == PFC_ROGUE && HasTrait(playerIndex, TraitId::Axepertise)) {
-					fullClassId = PFC_SHUGOKI;
-				}
-				/*else if (player.fullClassId == PFC_IRON_MAIDEN && HasTrait(playerIndex, TraitId::TwoTowers)) {
-					fullClassId = PFC_BOMBARDIER;
-				}*/
-				else if (player.fullClassId == PFC_ELEMENTALIST && HasTrait(playerIndex, TraitId::Mamluk)) {
-					fullClassId = PFC_WARRIOR;
-				}
-				else if (HasTrait(playerIndex, TraitId::Barbarian)) {
-					SetPlayerHandItem(player.ItemOnCursor, UniqueItems[AnvilOfFuryUniqsTable[fullClassId][Difficulty]].baseId);
-					Item_MakeNonCollisionSeed(CurrentPlayerIndex, player.ItemOnCursor);
-					if( DropCursorItemBeforeTrig() ) FixItemCursor(-1);
-				}
-
-				if (!(HasTrait(playerIndex, TraitId::Barbarian))) {
-					if (HasTrait(playerIndex, TraitId::Ranger)) {
-						SpawnUnique(2549 + Difficulty, towner.Row, towner.Col + 1); // first Griswold's Bow (unique for Ranger) is index #2549 in unique table
-					}
-					else if (HasTrait(playerIndex, TraitId::Pistoleer)) {
-						SpawnUnique(2735 + Difficulty, towner.Row, towner.Col + 1); 
-					}
-					else {
-						SpawnUnique(AnvilOfFuryUniqsTable[fullClassId][Difficulty], towner.Row, towner.Col + 1);
-					}
-				}
-				SKIPPO:
+				SpawnAnvilOfFuryReward(playerIndex, towner.Row, towner.Col);	// (th4) was inline; SKIPPO label went with it
 				//Item_CreateQuestUnique(anvilOfFuryUniqsTable[ player.ClassID ][ Difficulty ], towner.Row, towner.Col + 1);
 				towner.isThisTownerSpeakingNow = 150;
 				towner.indexOfPlayerWhichSpeaksTownsman = playerIndex;
@@ -1537,7 +1633,7 @@ bool PepinGreeting (int playerIndex, int townerIndex, bool needAction = true)
 				clW_Quest.speechIndex = SP_440;
 				StartSpeech(SP_440);// same
 				towner.IsTownerActionSelected = true;
-				clW_Quest.status2 = 1; // пустая бутылка выдана
+				clW_Quest.status2 = 1; // (rt) empty flask given
 				SetRndSeed(towner.seed);
 				SpawnSomething(BI_2511_MT_CONTAINERS, towner.Row, towner.Col, 1);
 			}else if (clW_Quest.status == QS_3_COMPLETE && clW_Quest.status2 == 1 && FindItemInInventory(playerIndex, BI_2512_FULL_CONTAINERS, filledContainer)) {// quest complete and reward not given out yet
@@ -1551,13 +1647,13 @@ bool PepinGreeting (int playerIndex, int townerIndex, bool needAction = true)
 					ClearInventorySlot(playerIndex, filledContainer);
 					SpawnSomething(RngFrom(BI_87_ELIXIR_OF_STRENGTH, BI_88_ELIXIR_OF_MAGIC, BI_89_ELIXIR_OF_DEXTERITY, BI_90_ELIXIR_OF_VITALITY), towner.Row, towner.Col);
 				}				
-			}else if( clW_Quest.status > QS_1_ACCEPT && clW_Quest.status2 == 0 ){ // пустая бутылка не выдана
+			}else if( clW_Quest.status > QS_1_ACCEPT && clW_Quest.status2 == 0 ){ // (rt) empty flask not given
 				if (!needAction) { return true; }
 				towner.isThisTownerSpeakingNow = 150;
 				towner.indexOfPlayerWhichSpeaksTownsman = playerIndex;
 				StartSpeech(SP_440);
 				towner.IsTownerActionSelected = true;
-				clW_Quest.status2 = 1; // выдаем пустую бутылку если еще нет
+				clW_Quest.status2 = 1; // (rt) give an empty flask if not given yet
 				SetRndSeed(towner.seed);
 				SpawnSomething(BI_2511_MT_CONTAINERS, towner.Row, towner.Col, 1);
 			}
@@ -1977,7 +2073,7 @@ bool CainGreeting(int playerIndex, int townerIndex, bool needAction = true)
 				towner.IsTownerActionSelected = true;
 				diabloQuest.talkToFlag = true;
 		}
-	}else if( MaxCountOfPlayersInGame != 1 ){// лишнее дублирование, но так виднее что мульти онли
+	}else if( MaxCountOfPlayersInGame != 1 ){// (rt) redundant duplication, but it makes the multiplayer-only case clearer
 		if( lazarusQuest.status == QS_2_IN_PROGRESS && !lazarusQuest.talkToFlag ){
 		    if( !needAction ) { return true; }
 			towner.isThisTownerSpeakingNow = 150;
@@ -2103,6 +2199,42 @@ bool AdriaGreeting (int playerIndex, int townerIndex, bool needAction = true)
 		}
 
 	}
+
+	// ----------------------"Secrets of Magic" Quest -------------------------------------------------
+	Quest& som_Quest = Quests[Q_40_SECRETS_OF_MAGIC];
+	int scroll_uno, scroll_dos;
+	if ((player.dungeonVisited[DUN_9_CAVE_1] || player.dungeonVisited[DUN_10_CAVE_2])
+		&& !towner.IsTownerActionSelected) {
+		if (som_Quest.status == QS_1_ACCEPT) {
+			if (!needAction) { return true; }
+			towner.isThisTownerSpeakingNow = 150;
+			som_Quest.status = QS_2_IN_PROGRESS;
+			som_Quest.talkToFlag = true;
+			som_Quest.status2 = 1;
+			towner.indexOfPlayerWhichSpeaksTownsman = playerIndex;
+			som_Quest.speechIndex = SP_ADRIA_SOM_QUEST_SP_1;
+			StartSpeech(SP_ADRIA_SOM_QUEST_SP_1);
+			towner.IsTownerActionSelected = true;
+		}
+		else if (som_Quest.status == QS_3_COMPLETE
+			&& FindItemInInventory(playerIndex, BI_2706_SCROLL_OF_MAGIC, scroll_uno)
+			&& FindItemInInventory(playerIndex, BI_2707_SCROLL_OF_MAGIC, scroll_dos)
+			&& som_Quest.status2 != 2) {
+			if (!needAction) { return true; }
+			towner.isThisTownerSpeakingNow = 150;
+			som_Quest.status2 = 2;
+			FindItemInInventory(playerIndex, BI_2706_SCROLL_OF_MAGIC, scroll_uno);
+			ClearInventorySlot(playerIndex, scroll_uno);
+			FindItemInInventory(playerIndex, BI_2707_SCROLL_OF_MAGIC, scroll_dos);
+			ClearInventorySlot(playerIndex, scroll_dos);
+			towner.indexOfPlayerWhichSpeaksTownsman = playerIndex;
+			StartSpeech(SP_ADRIA_SOM_QUEST_SP_3);
+			int goldAmount = 4'000 + 3'000 * Difficulty;
+			SpawnSomething(BI_0_GOLD, towner.Row, towner.Col, 0, 0, 0, 0, goldAmount);
+			towner.IsTownerActionSelected = true;
+		}
+	}
+	//------------------------------------------------------------------------------------------------
 	
 	if( !needAction ) { return false; }
 	
@@ -2185,7 +2317,7 @@ bool GillianGreeting (int playerIndex, int townerIndex, bool needAction = true)
 			andyQuest.talkToFlag = 1;
 			andyQuest.status2 = 1;
 			
-			// в th1 также, похоже на ошибку, отключаем на лету
+			// (rt) th1 does the same; looks like a mistake, disabled on the fly
 			//andyQuest.status2 = 40;
 			//andyQuest.status3 = 1;
 			
@@ -2271,7 +2403,7 @@ bool WirtGreeting (int playerIndex, int townerIndex, bool needAction = true)
 	    if( !needAction ) { return true; }
 		towner.isThisTownerSpeakingNow = 150;
 		lostTreasureQuest.status = QS_2_IN_PROGRESS;
-		lostTreasureQuest.status2 = 1;// только поговорили
+		lostTreasureQuest.status2 = 1;// (rt) just talked
 		lostTreasureQuest.talkToFlag = 1;
 		towner.indexOfPlayerWhichSpeaksTownsman = playerIndex;
 		lostTreasureQuest.speechIndex = SP_374;
@@ -2357,7 +2489,7 @@ bool WirtGreeting (int playerIndex, int townerIndex, bool needAction = true)
 void CowGreeting (int playerIndex, int townerIndex)
 {
 	if( !Speech_IsPanelVisible ){
-		CowClick(playerIndex);// Коровы
+		CowClick(playerIndex);// (rt) Cows
 	}
 }
 
@@ -2400,7 +2532,7 @@ void LesterGreeting (int playerIndex, int townerIndex)
 					return;
 				}
 
-				// иначе дефолтная речь
+				// (rt) otherwise the default speech
 			}else if( farmerOrchardQuest.status == QS_1_ACCEPT ){
 				if( FindItemInInventory(playerIndex, BI_39_RUNE_BOMB_OPENS_ABYSS, questItemInventoryIndex) ){
 					farmerOrchardQuest.status = QS_2_IN_PROGRESS;
@@ -2432,10 +2564,10 @@ void LesterGreeting (int playerIndex, int townerIndex)
 					return;
 				}
 
-				// иначе дефолтная речь
+				// (rt) otherwise the default speech
 			}
 
-			// дефолтная речь
+			// (rt) default speech
 			farmerOrchardQuest.status = QS_2_IN_PROGRESS;
 			farmerOrchardQuest.status2 = 1;
 			farmerOrchardQuest.talkToFlag = true;
@@ -2474,7 +2606,7 @@ void LesterGreeting (int playerIndex, int townerIndex)
 	}
 }
 
-// знаком //!---- помечены адреса инлайн кусков функций в оригинале
+// (rt) //!---- marks the addresses of inlined function pieces in the original
 //!---- (004778C3) --------------------------------------------------------
 bool CeliaGreeting (int playerIndex, int townerIndex, bool needAction = true)
 {

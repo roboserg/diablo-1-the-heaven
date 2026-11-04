@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <WindowsTargetPlatformVersion>7.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup>
     <ProjectGuid>{E982BC91-6810-4A42-94FB-19E3E744A3A7}</ProjectGuid>
@@ -20,9 +20,11 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v141_xp</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <Import Project="personal.props" />
@@ -71,6 +73,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <ConformanceMode>false</ConformanceMode>
       <FloatingPointModel>Fast</FloatingPointModel>
       <ForcedIncludeFiles>
       </ForcedIncludeFiles>
@@ -85,8 +88,12 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>dbghelp.lib;lib\storm.lib;lib\dxguid.lib;lib\ddraw.lib;d3d9.lib;Version.lib;odbc32.lib;odbccp32.lib;lib\smackw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Release'">dbghelp.lib;lib\storm.lib;lib\dxguid.lib;lib\ddraw.lib;d3d9.lib;Version.lib;odbc32.lib;odbccp32.lib;lib\smackw32.lib;lib\oggvorbis\libvorbisfile_static.lib;lib\oggvorbis\libvorbis_static.lib;lib\oggvorbis\libogg_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)'=='Debug'">dbghelp.lib;lib\storm.lib;lib\dxguid.lib;lib\ddraw.lib;d3d9.lib;Version.lib;odbc32.lib;odbccp32.lib;lib\smackw32.lib;lib\oggvorbis\libvorbisfile_static_debug.lib;lib\oggvorbis\libvorbis_static_debug.lib;lib\oggvorbis\libogg_static_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <!-- (th4) silence LNK4099: the prebuilt vc110 ogg/vorbis libs ship without their PDBs. Harmless. -->
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <TargetMachine>MachineX86</TargetMachine>
@@ -99,6 +106,7 @@
       <DelayLoadDLLs>ddraw.dll;xinput9_1_0.dll</DelayLoadDLLs>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateMapFile>
+      <UACExecutionLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AsInvoker</UACExecutionLevel>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -121,17 +129,46 @@
   <ItemGroup>
     <ClCompile Include="src\AffixesClassic.cpp" />
     <ClCompile Include="src\AffixesColiseum.cpp" />
+    <ClCompile Include="src\AffixesSigil.cpp" />
     <ClCompile Include="src\CXBOXController.cpp" />
     <ClCompile Include="src\difficulty.cpp" />
+    <ClCompile Include="src\ChatHistory.cpp" />
     <ClCompile Include="src\InfoWindow.cpp" />
     <ClCompile Include="src\AffixEffects.cpp" />
     <ClCompile Include="src\Affixes.cpp" />
+    <ClCompile Include="src\AnimOrbs.cpp" />
+    <ClCompile Include="src\MenuPortrait.cpp" />
+    <ClCompile Include="src\ItemOverlay.cpp" />
     <ClCompile Include="src\AffixesEnchant.cpp" />
     <ClCompile Include="src\AffixesRare.cpp" />
     <ClCompile Include="src\Auras.cpp" />
     <ClCompile Include="src\automap.cpp" />
     <ClCompile Include="src\BaseItems.cpp" />
     <ClCompile Include="src\BaseMonster.cpp" />
+    <ClCompile Include="src\Localization.cpp" />
+    <ClCompile Include="src\LocalizationID.cpp" />
+    <ClCompile Include="src\LocalizationPT.cpp" />
+    <ClCompile Include="src\LocalizationES.cpp" />
+    <ClCompile Include="src\LocalizationIT.cpp" />
+    <ClCompile Include="src\LocalizationFR.cpp" />
+    <ClCompile Include="src\LocalizationPL.cpp" />
+    <ClCompile Include="src\LocalizationCHI.cpp" />
+    <ClCompile Include="src\LocalizationDE.cpp" />
+    <ClCompile Include="src\LocalizationTR.cpp" />
+    <ClCompile Include="src\LocalizationDA.cpp" />
+    <ClCompile Include="src\LocalizationBG.cpp" />
+    <ClCompile Include="src\LocalizationNL.cpp" />
+    <ClCompile Include="src\LocalizationUK.cpp" />
+    <ClCompile Include="src\LocalizationKO.cpp" />
+    <ClCompile Include="src\LocalizationJA.cpp" />
+    <ClCompile Include="src\LocalizationAR.cpp" />
+    <ClCompile Include="src\LocalizationHIN.cpp" />
+    <ClCompile Include="src\LocalizationSW.cpp" />
+    <ClCompile Include="src\LocalizationCS.cpp" />
+    <ClCompile Include="src\LocalizationHR.cpp" />
+    <ClCompile Include="src\DynamicZoom.cpp" />
+    <ClCompile Include="src\HindiText.cpp" />
+    <ClCompile Include="src\ArabicText.cpp" />
     <ClCompile Include="src\BaseObjectsOnMap.cpp" />
     <ClCompile Include="src\BaseQuests.cpp" />
     <ClCompile Include="src\CastSprites.cpp" />
@@ -173,7 +210,9 @@
     <ClCompile Include="src\multi.cpp" />
     <ClCompile Include="src\Net.cpp" />
     <ClCompile Include="src\PerksData.cpp" />
+    <ClCompile Include="src\Powerups.cpp" />
     <ClCompile Include="src\Quenching.cpp" />
+    <ClCompile Include="src\Sigils.cpp" />
     <ClCompile Include="src\SymptomData.cpp" />
     <ClCompile Include="src\sync.cpp" />
     <ClCompile Include="src\Object.cpp" />
@@ -216,6 +255,15 @@
     <ClCompile Include="src\thread.cpp" />
     <ClCompile Include="src\Tooltip.cpp" />
     <ClCompile Include="src\TownMap.cpp" />
+    <ClCompile Include="src\TownWater.cpp" />
+    <ClCompile Include="src\Snowfall.cpp" />
+    <ClCompile Include="src\Weather.cpp" />
+    <ClCompile Include="src\DustMotes.cpp" />
+    <ClCompile Include="src\Embers.cpp" />
+    <ClCompile Include="src\Breath.cpp" />
+    <ClCompile Include="src\Flames.cpp" />
+    <ClCompile Include="src\NpcMark.cpp" />
+    <ClCompile Include="src\Fireflies.cpp" />
     <ClCompile Include="src\track.cpp" />
     <ClCompile Include="src\Traits.cpp" />
     <ClCompile Include="src\Transmute.cpp" />
@@ -226,7 +274,8 @@
     <ClCompile Include="src\UniqueSets.cpp" />
     <ClCompile Include="src\VisualStash.cpp" />
     <ClCompile Include="src\VisualTrade.cpp" />
-    <!--<ClCompile Include="src\vorbis.cpp" />-->
+    <ClCompile Include="src\vorbis.cpp" />
+    <ClCompile Include="src\OggStream.cpp" />
     <ClCompile Include="src\Warp.cpp" />
     <ClCompile Include="src\Windows.cpp" />
     <ClCompile Include="src\Hell.cpp" />
@@ -242,8 +291,8 @@
     <None Include="res\diabloib.cur" />
     <None Include="res\diablo_a.cur" />
     <None Include="res\diablo_l.cur" />
-    <None Include="src\vorbis.cpp" />
     <None Include="src\ScreenShotMaker.cpp" />
+    <None Include="src\SMAA.hlsli" />
     <None Include="doc\DevNotes.txt" />
     <None Include="$(GameFolder)config.ini" />
   </ItemGroup>
@@ -255,7 +304,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BitsBytes.h" />
+    <ClInclude Include="src\AnimOrbs.h" />
+    <ClInclude Include="src\MenuPortrait.h" />
+    <ClInclude Include="src\ItemOverlay.h" />
+    <ClInclude Include="src\stb_image.h" />
     <ClInclude Include="src\codec.h" />
+    <ClInclude Include="src\ogg.h" />
+    <ClInclude Include="src\os_types.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\CXBOXController.h" />
     <ClInclude Include="src\difficulty.h" />
@@ -273,6 +328,8 @@
     <ClInclude Include="src\tmsg.h" />
     <ClInclude Include="src\track.h" />
     <ClInclude Include="src\vars.h" />
+    <ClInclude Include="src\SmaaAreaTex.h" />
+    <ClInclude Include="src\SmaaSearchTex.h" />
     <ClInclude Include="src\vorbisenc.h" />
     <ClInclude Include="src\vorbisfile.h" />
     <ClInclude Include="tools\version.h" />
@@ -328,10 +385,6 @@
     <FileToCopy Include="lib\SmackW32.DLL" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="bin\ReadMe.txt" />
-    <Text Include="bin\TH4_Changelog.txt" />
-    <Text Include="doc\Coliseum.txt" />
-    <Text Include="doc\Todo_List.txt" />
     <Text Include="res\credits.txt" />
     <Text Include="res\support.txt" />
   </ItemGroup>
@@ -360,11 +413,275 @@
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
-    <FxCompile Include="src\PerspectiveShader.hlsl">
+    <FxCompile Include="src\FsrEasu.hlsl">
       <ShaderType>Pixel</ShaderType>
-      <EntryPointName>main_perspective</EntryPointName>
-      <ShaderModel>2.0</ShaderModel>
-      <HeaderFileOutput>$(ProjectDir)\src\PerspectiveShader.h</HeaderFileOutput>
+      <EntryPointName>main_easu</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\FsrEasu.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\AaFxaa.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_aafxaa</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\AaFxaa.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SmaaEdge.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_smaa_edge</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SmaaEdge.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SmaaWeights.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_smaa_weights</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SmaaWeights.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SmaaBlend.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_smaa_blend</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SmaaBlend.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Mist.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_mist</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Mist.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Frost.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_frost</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Frost.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Retro.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_retro</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Retro.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\RetroCell.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_retrocell</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\RetroCell.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\RetroUp.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_retroup</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\RetroUp.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\CloudShadow.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_clouds</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\CloudShadow.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Wet.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_wet</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Wet.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\NpcMark.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_npcmark</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\NpcMark.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Breath.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_breath</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Breath.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FlameGlow.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_flameglow</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\FlameGlow.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SunRays.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_sunrays</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SunRays.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Trails.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_trails</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Trails.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\TrailsShow.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_trailsshow</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\TrailsShow.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\LevelUp.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_levelup</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\LevelUp.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\TreeSway.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_treesway</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\TreeSway.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SnowGround.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_snowground</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SnowGround.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\IceRiver.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_iceriver</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\IceRiver.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\GrassCompose.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_grasscompose</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\GrassCompose.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Grass.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_grass</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Grass.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\River.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_river</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\River.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\ZoomComposite.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_zoom</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\ZoomComposite.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Vhs.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_vhs</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Vhs.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\Rain.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_rain</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\Rain.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SnowFlakes.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_snowflakes</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SnowFlakes.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SnowDrift.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_snowdrift</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SnowDrift.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\SnowFlakesVS.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <EntryPointName>main_snowflakesvs</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\SnowFlakesVS.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\BioGlow.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_bioglow</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\BioGlow.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\PostFx.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_postfx</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\PostFx.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FsrRcas.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <EntryPointName>main_rcas</EntryPointName>
+      <ShaderModel>3.0</ShaderModel>
+      <HeaderFileOutput>$(ProjectDir)\src\FsrRcas.h</HeaderFileOutput>
       <ObjectFileOutput>
       </ObjectFileOutput>
     </FxCompile>
@@ -400,6 +717,159 @@
       </ObjectFileOutput>
       <EntryPointName>main_palette</EntryPointName>
       <HeaderFileOutput>$(ProjectDir)\src\PaletteShader.h</HeaderFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\PaletteShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_palette_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\PaletteShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\VignettingShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_vignetting_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\VignettingShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fog_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogVenShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fogven_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogVenShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\BloomShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_bloom_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\BloomShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FXAAShaderRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_fxaa_rgb</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FXAAShaderRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\PaletteShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_palette_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\PaletteShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\VignettingShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_vignetting_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\VignettingShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fog_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogVenShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fogven_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogVenShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\BloomShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_bloom_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\BloomShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FXAAShaderRimRGB.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_fxaa_rgb_rim</EntryPointName>
+      <HeaderFileOutput>$(ProjectDir)\src\FXAAShaderRimRGB.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <!-- (th4) legacy pre-A8L8 L8 shaders recovered from git commit 98f21596d (tag v0.415).
+         Entry points are the original legacy names; VariableName disambiguates the generated
+         header arrays so they can coexist with the A8L8/RGB/Rim families in dx.cpp. -->
+    <FxCompile Include="src\PaletteShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_palette</EntryPointName>
+      <VariableName>g_ps20_main_palette_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\PaletteShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\VignettingShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_vignetting</EntryPointName>
+      <VariableName>g_ps20_main_vignetting_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\VignettingShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fog</EntryPointName>
+      <VariableName>g_ps20_main_fog_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FogVenShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>2.0</ShaderModel>
+      <EntryPointName>main_fogven</EntryPointName>
+      <VariableName>g_ps20_main_fogven_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\FogVenShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\BloomShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_bloom</EntryPointName>
+      <VariableName>g_ps30_main_bloom_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\BloomShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="src\FXAAShaderLegacy.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>3.0</ShaderModel>
+      <EntryPointName>main_fxaa</EntryPointName>
+      <VariableName>g_ps30_main_fxaa_legacy</VariableName>
+      <HeaderFileOutput>$(ProjectDir)\src\FXAAShaderLegacy.h</HeaderFileOutput>
+      <ObjectFileOutput>
+      </ObjectFileOutput>
     </FxCompile>
   </ItemGroup>
   <Target Name="CopyResources" Inputs="@(FileToCopy)" Outputs="@(FileToCopy -> '$(OutDir)%(Filename)%(Extension)')">

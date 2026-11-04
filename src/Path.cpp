@@ -119,7 +119,7 @@ PathStep* GetNextStep()
 	return nextPtr;
 }
 
-// похоже проверка на то, можно ли двигаться по диагонали.
+// (rt) looks like a check whether diagonal movement is allowed.
 //----- (00455C85) --------------------------------------------------------
 bool __fastcall CheckBlockStep( PathStep* step, int row, int col )
 {
@@ -339,7 +339,7 @@ void __fastcall LookNextStep( PathStep* step )
 			if( !curStep ){
 				break;
 			}
-			int result2 = prevPtr->value2 + Step_IsOnLine(prevPtr, curStep->row, curStep->col);// TODO: что за нафиг? с обоих сторон выражения какое то value
+			int result2 = prevPtr->value2 + Step_IsOnLine(prevPtr, curStep->row, curStep->col);// (rt) TODO: unclear: there is a value on both sides of the expression
 			if( result2 >= curStep->value2 ){
 				continue;
 			}

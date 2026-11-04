@@ -64,7 +64,7 @@ typedef struct _WSIZE
 BOOL STORMAPI SNetCreateGame( char *pszGameName, char *pszGamePassword, char *pszGameStatString, DWORD dwGameType, char *GameTemplateData, int GameTemplateSize, int playerCount, char *creatorName, char *a9, int *playerID);
 BOOL STORMAPI SNetDestroy();
 // SNetEnumProviders @ 103
-BOOL STORMAPI SNetEnumProviders(int (__stdcall *callback)(DWORD, DWORD, DWORD/*, DWORD*/) /*, int mincaps*/); // нет тут второго параметра и четвертого в указателе на функцию ни в одной версии storm.dll
+BOOL STORMAPI SNetEnumProviders(int (__stdcall *callback)(DWORD, DWORD, DWORD/*, DWORD*/) /*, int mincaps*/); // (rt) no version of storm.dll has the second and fourth parameters in the function pointer here
 
 BOOL STORMAPI SNetEnumGames(int (__stdcall *callback)(DWORD, DWORD, DWORD), int *hintnextcall);
 

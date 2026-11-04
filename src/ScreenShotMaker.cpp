@@ -6,7 +6,7 @@
 
 #pragma comment(lib, "Gdiplus.lib")
 
-// а тут зачем namespace'ы ?
+// (rt) why the namespaces here?
 namespace TheHell
 {
   namespace Graphics
@@ -118,7 +118,7 @@ namespace TheHell
       bmp->Save(ScreenshotFileName(format).c_str(), &encoderID);
     }
     
-	// Новая фукнция для сохрания скриншотов в PNG 
+	// (rt) New function for saving screenshots as PNG 
 	void MakeScreenShot(
       PALETTEENTRY* palette, 
       int width, 

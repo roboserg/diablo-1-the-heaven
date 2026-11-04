@@ -55,7 +55,7 @@ BaseMissile BaseMissiles[MI_count] = {
 /* 49	*/ { MI_49_INCINERATE,	CastIncinerate,	ActIncinerate,	0,	MT_1_MAGIC,	ET_1_FIRE,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 
 /* 50	*/ { MI_50_RUN_ATTACK_2,	CastSomeAnotherMonsterRun,	ActSomeAnotherMonsterRun,	1,	MT_2_MAGIC_EXPLODE,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 
 /* 51	*/ { MI_51_KRULL,	CastSpell51_KRULL,	ActSpell51_KRULL,	1,	MT_0_ARROW,	ET_1_FIRE,	MIS_25_KRULL,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 
-/* 52	*/ { MI_52_CHARGED_BOLT,	CastChargedBolt,	ActChargedBolt,	1,	MT_1_MAGIC,	ET_2_LIGHTNING,	MIS_26_MINILTNG,	0,	S_102_CBOLT,	S_83_CAST3 }, 								//	Charged	bolt молния
+/* 52	*/ { MI_52_CHARGED_BOLT,	CastChargedBolt,	ActChargedBolt,	1,	MT_1_MAGIC,	ET_2_LIGHTNING,	MIS_26_MINILTNG,	0,	S_102_CBOLT,	S_83_CAST3 }, 								//	(rt) Charged	bolt lightning
 /* 53	*/ { MI_53_HOLY_BOLT,	CastHolyBolt,	ActHolyBolt,	1,	MT_1_MAGIC,	ET_5_HOLY,	MIS_27_HOLY,	0,	S_121_HOLYBOLT,	S_105_ELECIMP1 }, 											//	Holy bolt ?
 /* 54	*/ { MI_54_RISING,	CastSpellRising,	ActNullSpell,	0,	MT_1_MAGIC,	ET_3_ARCAN,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_133_RESUR }, 												//	Ressurect ?
 /* 55	*/ { MI_55_TELEKINES,	CastTelekinesis,	ActNullSpell,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_107_DSERP,	S_M1_NO_SOUND }, 											//	Telekinesis ?
@@ -83,7 +83,7 @@ BaseMissile BaseMissiles[MI_count] = {
 /* 77	*/ { MI_77_HOLY_BOLT_ARROW,	CastMagicArrow,	ActMagicArrow,	1,	MT_0_ARROW,	ET_5_HOLY,	MIS_59_HARROW,	0,	S_1107_HOLY_ARROW_SOUND,	S_105_ELECIMP1 },
 /* 78	*/ { MI_78_WARP,	CastWarp,	ActTeleport,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_121_HOLYBOLT,	S_M1_NO_SOUND }, 														//	Warp
 /* 79	*/ { MI_79_REFLECT,	CastReflect,	ActReflect,	1,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_47_REFLECT,	0,	S_128_MSHIELD,	S_M1_NO_SOUND }, 													//	Reflect ?
-/* 80	*/ { MI_80_BERSERK,	CastBerserk,	ActNullSpell,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 												//	Berserk // Отключено в 1.150
+/* 80	*/ { MI_80_BERSERK,	CastBerserk,	ActNullSpell,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 												//	(rt) Berserk // Disabled in 1.150
 /* 81	*/ { MI_81_FLAME_RING,	Cast_Fire_or_Lightning_Ring,	ActFireRing,	0,	MT_1_MAGIC,	ET_1_FIRE,	MIS_4_FIREWAL,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 										//	Ring of fire ?
 /* 82	*/ { MI_82_STEAL_BOTTLES_FORM_BELT,	CastSpell82_StealBottlesFromBelt,	ActNullSpell,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, 
 /* 83	*/ { MI_83_MANA_TRAP,	CastManaTrap,	ActNullSpell,	0,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_M1_NONE,	0,	S_87_CAST7,	S_M1_NO_SOUND }, 												//	Mana trap ?
@@ -149,4 +149,20 @@ BaseMissile BaseMissiles[MI_count] = {
 /* 143	*/ { MI_143_BULLET,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_84_BULLET,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, //copy of MI_0_NONE_ARROW
 /* 144	*/ { MI_144_HYDRAMANCER_CHARGED_BOLT,	CastHydramancerChargedBolt,	ActHydramancerChargedBolt,	1,	MT_1_MAGIC,	ET_2_LIGHTNING,	MIS_26_MINILTNG,	0,	S_102_CBOLT,	S_83_CAST3 }, // Charged Bolt used by Hydramancer's Hydra
 /* 145	*/ { MI_145_TENTACLE,	CastTentacle,	ActTentacle,	1,	MT_1_MAGIC,	ET_0_PHYSICAL,	MIS_85_TENTACLE,	0,	S_M1_NO_SOUND,	S_1849_TENTACLIST_HIT }, 											//	Firebolt ?
+/* 146	*/ { MI_146_LASER,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_87_LASER,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 147	*/ { MI_147_LASER_BLUE,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_88_LASER_BLUE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 148	*/ { MI_148_LASER_ORNG,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_89_LASER_ORNG,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 149	*/ { MI_149_GRENADE,	CastFireblast,	ActFireblast,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_84_BULLET,	0,	S_M1_NO_SOUND,	S_108_FBALL },
+/* 150	*/ { MI_150_LASER_CRIMZ,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_90_LASER_CRIMZ,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 151	*/ { MI_151_LASER_YELLOW,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_91_LASER_YELLOW,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 152	*/ { MI_152_LASER_WHITE,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_92_LASER_WHITE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 153 	*/ { MI_153_PLASMA_YELLOW,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_93_PLASMA_YELLOW,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 154 	*/ { MI_154_EMP_WHITE,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_94_EMP_WHITE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 155 	*/ { MI_155_PLASMA_CRIMZ,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_95_PLASMA_CRIMZ,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 156 	*/ { MI_156_CORROSIVE_SHOT,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_4_ACID,	MIS_93_PLASMA_YELLOW,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 157 	*/ { MI_157_FIRE_SHOT,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_1_FIRE,	MIS_96_PLASMA_ORANGE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 158 	*/ { MI_158_LASER_SHOT,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_2_LIGHTNING,	MIS_88_LASER_BLUE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 159 	*/ { MI_159_GRAVITY_SHOT,	CastArrow,	ActArrow,	1,	MT_0_ARROW,	ET_3_ARCAN,	MIS_94_EMP_WHITE,	0,	S_M1_NO_SOUND,	S_1859_LAZERHIT1 },
+/* 160 	*/ { MI_160_BLESSED_HAMMER,	CastBlessedHammer,	ActBlessedHammer,	1,	MT_0_ARROW,	ET_0_PHYSICAL,	MIS_80_THROWING_MALLET,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, // by (th4): Templar orbiting hammer, reuses throwing-mallet sprite; no own hit sound (monsters have their own)
+/* 161 	*/ { MI_161_TOWN_ARCANE_STAR,	CastTownArcaneStar,	ActTownArcaneStar,	1,	MT_1_MAGIC,	ET_3_ARCAN,	MIS_22_FLARE,	0,	S_M1_NO_SOUND,	S_M1_NO_SOUND }, // (th4) decorative, see Missile.cpp TOWN ARCANE STARS
 };

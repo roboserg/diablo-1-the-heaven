@@ -54,7 +54,7 @@ char ClvlNotReqForEnterInDungeonMessagesIndexesTable [9][6] = {// 00A09920
 	0, 105, 106, 107, 108, 109
 };
 
-// новая функция. Оптимизация для функций отображения надписи при наведении
+// (rt) new function. Optimization for the hover-label display functions
 bool SetCursorToWarp(int gameMessage)
 {
 	for( auto& warp: Warps ){
@@ -85,7 +85,10 @@ void AddWarpsToTown()
 		{80, 62, WM_1031_GOTO_DUNGEON, DUN_17_ABYSS_1  }, // DD_4_ABYSS
 		{36, 24, WM_1031_GOTO_DUNGEON, DUN_21_CRYPT_1  }, // DD_5_CRYPT
 	};
-	int ddCount = GameMode == GM_CLASSIC ? DD_COUNT - 2 : DD_COUNT;
+	int ddCount = DD_COUNT;
+	if (GameMode == GM_CLASSIC) { ddCount -= 2; }
+	else if (GameMode == GM_OUTBREAK) { ddCount -= 5; }
+
 	for( int door = 0; door < ddCount; ++door ){
 		TownDoorOpen[door] = false;
 	}
@@ -169,16 +172,21 @@ void AddWarpsToCatacombTypeLabyrinth()
 				AddWarp(row, col, WM_1032_RETURN_TO_TOWN, DUN_0_TOWN); 
 			} 
 			break;
-		case 271: 
+		case 271: //stairs down tile
 			if( Quest& g = Quests[Q_31_GOOD_DEAL]; IsQuestOnLevel(Q_31_GOOD_DEAL) && row == g.row && col == g.col) { 
 				AddWarp(row, col, WM_1029_GOTO_QUEST_DUNGEON, DUN_53_VAULTKEEP);
 			}
 			else if( Quest& v = Quests[Q_9_VALOR]; IsQuestOnLevel(Q_9_VALOR) && row == v.row && col == v.col) {
 				AddWarp(row, col, WM_1029_GOTO_QUEST_DUNGEON, DUN_58_GATEWAY_OF_BLOOD);
 			}
+			else if (Quest& vm = Quests[Q_39_VALOR_MP]; IsQuestOnLevel(Q_39_VALOR_MP) && row == vm.row && col == vm.col) {
+				AddWarp(row, col, WM_1029_GOTO_QUEST_DUNGEON, DUN_115_VALOR_TOMB);
+				goto OUTX;
+			}
 			else{
 				AddWarp(row, col, WM_1026_NEXT_DUNGEON); 
 			}
+			OUTX:
 			break;
 		}
 	}
@@ -355,14 +363,14 @@ bool ShowDungeonEntryDescriptionsInTown()
 			int col = Cur.Col;
 			if( abs(row - 36) < 4 && abs(col - 24) < 4 ){
 				if( GameMode != GM_CLASSIC ){
-					strcpy(InfoPanelHeader, "Down to Crypt");
+					strcpy(InfoPanelHeader, L("Down to Crypt"));
 					Cur.Row = 36;
 					Cur.Col = 24;
 				}
 				return true;
 			}else{
-				strcpy(InfoPanelHeader, "to Disused Reliquary");
-				InfoPanel_AddLine("(Danger: high)", true);
+				strcpy(InfoPanelHeader, L("to Disused Reliquary"));
+				InfoPanel_AddLine(L("(Danger: high)"), true); // (th4) localizable
 				Cur.Row = 20;
 				Cur.Col = 33;
 				return true;
@@ -372,7 +380,7 @@ bool ShowDungeonEntryDescriptionsInTown()
 	if( GameMode != GM_CLASSIC ){
 		for( int enterisMapIndex = DEI_36_ABYSS_ENTER_FROM_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Down to Abyss");
+				strcpy(InfoPanelHeader, L("Down to Abyss"));
 				Cur.Row = 80;
 				Cur.Col = 62;
 				return true;
@@ -381,7 +389,7 @@ bool ShowDungeonEntryDescriptionsInTown()
 	}
 	for( int enterisMapIndex = DEI_0_CHURCH_ENTER_FROM_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			strcpy(InfoPanelHeader, "Down to Church");
+			strcpy(InfoPanelHeader, L("Down to Church"));
 			Cur.Row = 25;
 			Cur.Col = 29;
 			return true;
@@ -390,7 +398,7 @@ bool ShowDungeonEntryDescriptionsInTown()
 	if( TownDoorOpen[DD_1_CATACOMB] ){
 		for( int enterisMapIndex = DEI_12_CATACOMBS_ENTER_FROM_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Down to catacombs");
+				strcpy(InfoPanelHeader, L("Down to catacombs"));
 				Cur.Row = 49;
 				Cur.Col = 21;
 				return true;
@@ -400,7 +408,7 @@ bool ShowDungeonEntryDescriptionsInTown()
 	if( TownDoorOpen[DD_2_CAVE] ){
 		for( int dungeonMapIndex = 1199; dungeonMapIndex < 1221; dungeonMapIndex++ ){
 			if( cursorFineMapTile == dungeonMapIndex ){
-				strcpy(InfoPanelHeader, "Down to caves");
+				strcpy(InfoPanelHeader, L("Down to caves"));
 				Cur.Row = 17;
 				Cur.Col = 69;
 				return true;
@@ -410,7 +418,7 @@ bool ShowDungeonEntryDescriptionsInTown()
 	if( TownDoorOpen[DD_3_HELL] ){
 		for( int dungeonMapIndex = 1240; dungeonMapIndex < 1256; dungeonMapIndex++ ){
 			if( cursorFineMapTile == dungeonMapIndex ){
-				strcpy(InfoPanelHeader, "Down to hell");
+				strcpy(InfoPanelHeader, L("Down to hell"));
 				Cur.Row = 41;
 				Cur.Col = 80;
 				return true;
@@ -420,8 +428,8 @@ bool ShowDungeonEntryDescriptionsInTown()
 	
 	for (int dungeonMapIndex = 1134; dungeonMapIndex < 1152; dungeonMapIndex++) {
 		if (cursorFineMapTile == dungeonMapIndex) {
-			strcpy(InfoPanelHeader, "to the Infested Cellar");
-			InfoPanel_AddLine("(Danger: low)", true);
+			strcpy(InfoPanelHeader, L("to the Infested Cellar"));
+			InfoPanel_AddLine(L("(Danger: low)"), true); // (th4) localizable
 			Cur.Row = 73;
 			Cur.Col = 80;
 			return true;
@@ -430,8 +438,8 @@ bool ShowDungeonEntryDescriptionsInTown()
 
 	for( int dungeonMapIndex = 249; dungeonMapIndex < 253; dungeonMapIndex++ ){
 		if( cursorFineMapTile == dungeonMapIndex ){
-			strcpy(InfoPanelHeader, "to the Halls of Anguish");
-			InfoPanel_AddLine("(Danger: high)", true);
+			strcpy(InfoPanelHeader, L("to the Halls of Anguish"));
+			InfoPanel_AddLine(L("(Danger: high)"), true); // (th4) localizable
 			Cur.Row = 80;
 			Cur.Col = 14;
 			return true;
@@ -464,9 +472,9 @@ bool ShowDungeonEntryDescriptionsInChurchAndCrypt()
 		for( int enterisMapIndex = DEI_42_CHURCH_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
 				if( Dungeon == DUN_1_CHURCH_1 ){
-					strcpy(InfoPanelHeader, "Up to town");
+					strcpy(InfoPanelHeader, L("Up to town"));
 				}else{
-					sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+					sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 				}
 				if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 					return true;
@@ -476,7 +484,7 @@ bool ShowDungeonEntryDescriptionsInChurchAndCrypt()
 
 		for( int enterisMapIndex = DEI_54_CHURCH_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+				sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 				if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 					return true;
 				}
@@ -487,7 +495,7 @@ bool ShowDungeonEntryDescriptionsInChurchAndCrypt()
 
 	for( int enterisMapIndex = DEI_176_CRYPT_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+			sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 			if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 				return true;
 			}
@@ -496,8 +504,8 @@ bool ShowDungeonEntryDescriptionsInChurchAndCrypt()
 
 	for( int enterisMapIndex = DEI_188_CRYPT_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			if( IsValidWarpNearCursor(WM_1026_NEXT_DUNGEON) ){// для хоразон квеста обертка
-				sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+			if( IsValidWarpNearCursor(WM_1026_NEXT_DUNGEON) ){// (rt) wrapper for the Horazon quest
+				sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 				if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 					return true;
 				}
@@ -508,7 +516,7 @@ bool ShowDungeonEntryDescriptionsInChurchAndCrypt()
 	if( Dungeon == DUN_21_CRYPT_1 && (GameMode != GM_NIGHTMARE && GameMode != GM_SPEEDRUN)){
 		for( int enterisMapIndex = DEI_166_CRYPT_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Up to town");
+				strcpy(InfoPanelHeader, L("Up to town"));
 				if( SetCursorToWarp(WM_1032_RETURN_TO_TOWN) ){
 					return true;
 				}
@@ -525,7 +533,7 @@ bool ShowDungeonEntryDescriptionsCatacombs()
 
 	for( int enterisMapIndex = DEI_64_CATACOMB_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+			sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 			if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 				return true;
 			}
@@ -534,7 +542,7 @@ bool ShowDungeonEntryDescriptionsCatacombs()
 
 	for( int enterisMapIndex = DEI_68_CATACOMB_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+			sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 			if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 				return true;
 			}
@@ -543,7 +551,7 @@ bool ShowDungeonEntryDescriptionsCatacombs()
 	if( Dungeon == DUN_5_CATACOMB_1 && (GameMode != GM_NIGHTMARE && GameMode != GM_SPEEDRUN)){
 		for( int enterisMapIndex = DEI_74_CATACOMB_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Up to town");
+				strcpy(InfoPanelHeader, L("Up to town"));
 				if( SetCursorToWarp(WM_1032_RETURN_TO_TOWN) ){
 					return true;
 				}
@@ -562,7 +570,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 
 		for( int enterisMapIndex = DEI_78_CAVE_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+				sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 				if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 					return true;
 				}
@@ -574,7 +582,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 			if (cursorFineMapTileP(0, 0) == entrisMap ||
 				cursorFineMapTileP(1, 0) == entrisMap ||
 				cursorFineMapTileP(2, 0) == entrisMap) {
-				sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+				sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 				if (SetCursorToWarp(WM_1026_NEXT_DUNGEON)) {
 					return true;
 				}
@@ -583,7 +591,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 		if( Dungeon == DUN_9_CAVE_1 ){
 			for( int enterisMapIndex = DEI_104_CAVE_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 				if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-					strcpy(InfoPanelHeader, "Up to town");
+					strcpy(InfoPanelHeader, L("Up to town"));
 					if( SetCursorToWarp(WM_1032_RETURN_TO_TOWN) ){
 						return true;
 					}
@@ -595,7 +603,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 
 	for( int enterisMapIndex = DEI_214_ABYSS_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+			sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 			if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 				return true;
 			}
@@ -607,7 +615,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 		if( cursorFineMapTileP(0, 0) == entrisMap ||
 			cursorFineMapTileP(1, 0) == entrisMap || 
 			cursorFineMapTileP(2, 0) == entrisMap ){
-				sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+				sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 				if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 					return true;
 				}
@@ -617,7 +625,7 @@ int ShowDungeonEntryDescriptions_Caves_And_Abyss()
 	if( Dungeon == DUN_17_ABYSS_1 ){
 		for( int enterisMapIndex = DEI_198_ABYSS_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Up to town");
+				strcpy(InfoPanelHeader, L("Up to town"));
 				if( SetCursorToWarp(WM_1032_RETURN_TO_TOWN) ){
 					return true;
 				}
@@ -634,7 +642,7 @@ bool ShowDungeonEntryDescriptions_Hell()
 
 	for( int enterisMapIndex = DEI_118_HELL_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Up to level %i", Dungeon - 1);
+			sprintf(InfoPanelHeader, L("Up to level %i"), Dungeon - 1);
 			if( SetCursorToWarp(WM_1027_PREV_DUNGEON) ){
 				return true;
 			}
@@ -643,7 +651,7 @@ bool ShowDungeonEntryDescriptions_Hell()
 
 	for( int enterisMapIndex = DEI_122_HELL_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Down to level %i", Dungeon + 1);
+			sprintf(InfoPanelHeader, L("Down to level %i"), Dungeon + 1);
 			if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 				return true;
 			}
@@ -653,7 +661,7 @@ bool ShowDungeonEntryDescriptions_Hell()
 	if( Dungeon == DUN_13_HELL_1 && (GameMode != GM_NIGHTMARE && GameMode != GM_SPEEDRUN)){
 		for( int enterisMapIndex = DEI_128_HELL_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Up to town");
+				strcpy(InfoPanelHeader, L("Up to town"));
 				if( SetCursorToWarp(WM_1032_RETURN_TO_TOWN) ){
 					return true;
 				}
@@ -664,7 +672,7 @@ bool ShowDungeonEntryDescriptions_Hell()
 	if( Dungeon == DUN_15_HELL_3 ){
 		for( int enterisMapIndex = DEI_132_HELL_PANDEMONIUM_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 			if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-				strcpy(InfoPanelHeader, "Down to Pandemonium");
+				strcpy(InfoPanelHeader, L("Down to Pandemonium"));
 				if( SetCursorToWarp(WM_1026_NEXT_DUNGEON) ){
 					return true;
 				}
@@ -694,7 +702,7 @@ bool ShowDungeonEntryDescriptions_LeoricTomb()
 	int cursorFineMapTile = FineMap[ Cur.Row ][ Cur.Col ];
 	for( int enterisMapIndex = DEI_42_CHURCH_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_12_THE_CURSE_OF_KING_LEORIC].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_12_THE_CURSE_OF_KING_LEORIC].dungeonStart);
 			if( SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON) ){
 				return true;
 			}
@@ -708,7 +716,7 @@ bool ShowDungeonEntryDescriptions_BlackChapel()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_42_CHURCH_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_34_GRAVE_MATTERS].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_34_GRAVE_MATTERS].dungeonStart);
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -722,7 +730,7 @@ bool ShowDungeonEntryDescriptions_Springs()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_78_CAVE_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_36_CLEAR_WATER].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_36_CLEAR_WATER].dungeonStart);
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -736,10 +744,10 @@ bool ShowDungeonEntryDescriptions_Maze()
 	for (auto& warp : Warps) {
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if (warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON) {
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}
 			/*else {
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}*/
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -754,10 +762,10 @@ bool ShowDungeonEntryDescriptions_Lower_Scriptorium()
 	for (auto& warp : Warps) {
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if (warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON) {
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}
 			/*else {
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}*/
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -769,7 +777,7 @@ bool ShowDungeonEntryDescriptions_Lower_Scriptorium()
 	/*int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_54_CHURCH_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_38_OGDENS_SIGN_MP].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_38_OGDENS_SIGN_MP].dungeonStart);
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -782,7 +790,7 @@ bool ShowDungeonEntryDescriptions_Sacristy()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_42_CHURCH_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_35_IRON_OATH].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_35_IRON_OATH].dungeonStart);
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -797,10 +805,10 @@ bool ShowDungeonEntryDescriptions_HallOfHeroes()
 	for (auto& warp : Warps) {
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if (warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON) {
-				sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_14_THE_CHAMBER_OF_BONE].dungeonStart);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_14_THE_CHAMBER_OF_BONE].dungeonStart);
 			}
 			else {
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -815,7 +823,7 @@ bool ShowDungeonEntryDescriptions_ChamberOfBone()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_68_CATACOMB_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Hall of Heroes");
+			sprintf(InfoPanelHeader, L("Back to Hall of Heroes"));
 			if (SetCursorToWarp(WM_1029_GOTO_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -829,7 +837,7 @@ bool ShowDungeonEntryDescriptions_VaultKeep()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col]; 
 	for (int enterisMapIndex = DEI_64_CATACOMB_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) { 
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) { 
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_31_GOOD_DEAL].dungeonStart);  
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_31_GOOD_DEAL].dungeonStart);  
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) { 
 				return true;
 			}
@@ -840,10 +848,26 @@ bool ShowDungeonEntryDescriptions_VaultKeep()
 
 bool ShowDungeonEntryDescriptions_Valor()
 {
+	// Handle multiplayer Valor quest by warp
+	if (Dungeon == DUN_115_VALOR_TOMB) {
+		for (auto& warp : Warps) {
+			if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
+				if (warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON) {
+					sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
+				}
+				Cur.Row = warp.Row;
+				Cur.Col = warp.Col;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Handle single-player Valor quest by tile
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_64_CATACOMB_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_9_VALOR].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_9_VALOR].dungeonStart);
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -859,12 +883,12 @@ bool ShowDungeonEntryDescriptions_InfestedCellar()
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
 				if( warp.destDungeon == DUN_0_TOWN ){
-					sprintf(InfoPanelHeader, "Back to town");
+					sprintf(InfoPanelHeader, L("Back to town"));
 				}else{
-					sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+					sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 				}
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -879,7 +903,7 @@ bool ShowDungeonEntryDescriptions_Basement()
 	int cursorFineMapTile = FineMap[Cur.Row][Cur.Col];
 	for (int enterisMapIndex = DEI_78_CAVE_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++) {
 		if (cursorFineMapTile == EntrisMapXxN[enterisMapIndex]) {
-			sprintf(InfoPanelHeader, "Up to town");
+			sprintf(InfoPanelHeader, L("Up to town"));
 			if (SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON)) {
 				return true;
 			}
@@ -894,7 +918,7 @@ bool ShowDungeonEntryDescriptions_PoisonedWaterSupply()
 	int cursorFineMapTile = FineMap[ Cur.Row ][ Cur.Col ];
 	for( int enterisMapIndex = DEI_94_CAVE_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "Back to Level %i", Quests[Q_13_POISONED_WATER_SUPPLY].dungeonStart);
+			sprintf(InfoPanelHeader, L("Back to Level %i"), Quests[Q_13_POISONED_WATER_SUPPLY].dungeonStart);
 			if( SetCursorToWarp(WM_1028_RETURN_FROM_QUEST_DUNGEON) ){
 				return true;
 			}
@@ -908,10 +932,10 @@ bool ShowDungeonEntryDescriptions_Alternatives()
 	for (auto& warp : Warps) {
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if (warp.destDungeon == Dungeon - 1 ) {
-				sprintf(InfoPanelHeader, "Back To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("Back To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			else {
-				sprintf(InfoPanelHeader, "down To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("down To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -926,7 +950,7 @@ bool ShowDungeonEntryDescriptions_Alternative_Route()
 	for (auto& warp : Warps) {
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if (warp.destDungeon == DUN_60_HAUNTED_LABYRINTH) {
-				sprintf(InfoPanelHeader, "to Haunted Labyrinth");
+				sprintf(InfoPanelHeader, L("to Haunted Labyrinth"));
 				InfoPanel_AddLine("(Enter alternative route)", true);
 			}
 			Cur.Row = warp.Row;
@@ -942,9 +966,27 @@ bool ShowDungeonEntryDescriptions_FetidCavern()
 	for( auto& warp: Warps ){
 		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
+			}
+			Cur.Row = warp.Row;
+			Cur.Col = warp.Col;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ShowDungeonEntryDescriptions_Mining_Caves()
+{
+	for (auto& warp : Warps) {
+		if (IsCursorNearCoordinate(warp.Row, warp.Col)) {
+			if (warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON) {
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
+			}
+			else {
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -959,9 +1001,9 @@ bool ShowDungeonEntryDescriptions_Mossy_Grotto()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -978,10 +1020,10 @@ bool ShowDungeonEntryDescriptions_AndarielHalls()
 	for( int enterisMapIndex = DEI_128_HELL_TOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
 			if (is(GameMode, GM_IRONMAN, GM_SURVIVAL)) {
-				sprintf(InfoPanelHeader, "Back to Abandoned Fane");
+				sprintf(InfoPanelHeader, L("Back to Abandoned Fane"));
 			}
 			else {
-				sprintf(InfoPanelHeader, "Up to town");
+				sprintf(InfoPanelHeader, L("Up to town"));
 			}
 			Cur.Row = 89;
 			Cur.Col = 88;
@@ -990,7 +1032,7 @@ bool ShowDungeonEntryDescriptions_AndarielHalls()
 	}
 	for( int enterisMapIndex = DEI_122_HELL_DOWN; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "to Andariel's Throne");
+			sprintf(InfoPanelHeader, L("to Andariel's Throne"));
 			Cur.Row = 88;
 			Cur.Col = 27;
 			return true;
@@ -1005,7 +1047,7 @@ bool ShowDungeonEntryDescriptions_AndarielThrone()
 	int cursorFineMapTile = FineMap[ Cur.Row ][ Cur.Col ];
 	for( int enterisMapIndex = DEI_118_HELL_UP; EntrisMapXxN[enterisMapIndex] != -1; enterisMapIndex++ ){
 		if( cursorFineMapTile == EntrisMapXxN[enterisMapIndex] ){
-			sprintf(InfoPanelHeader, "to the Halls of Anguish");
+			sprintf(InfoPanelHeader, L("to the Halls of Anguish"));
 			Cur.Row = 49;
 			Cur.Col = 26;
 			return true;
@@ -1032,9 +1074,9 @@ bool ShowDungeonEntryDescriptions_Horazon()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1050,9 +1092,9 @@ bool ShowDungeonEntryDescriptions_Izual()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1067,9 +1109,9 @@ bool ShowDungeonEntryDescriptions_DarkNest()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1084,9 +1126,9 @@ bool ShowDungeonEntryDescriptions_Deep_Hollow()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1101,9 +1143,9 @@ bool ShowDungeonEntryDescriptions_BloodHive()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1118,9 +1160,9 @@ bool ShowDungeonEntryDescriptions_Web_Tunnels()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1135,9 +1177,9 @@ bool ShowDungeonEntryDescriptions_Gateway_of_Blood()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1152,9 +1194,9 @@ bool ShowDungeonEntryDescriptions_Hall_of_Fire()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1169,9 +1211,9 @@ bool ShowDungeonEntryDescriptions_Arachnid_Lair()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1186,9 +1228,9 @@ bool ShowDungeonEntryDescriptions_TempleOfSunset()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1203,9 +1245,9 @@ bool ShowDungeonEntryDescriptions_AbandonedFane()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1221,9 +1263,9 @@ bool ShowDungeonEntryDescriptions_Treasure()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Up to town");
+				sprintf(InfoPanelHeader, L("Up to town"));
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1239,9 +1281,9 @@ bool ShowDungeonEntryDescriptions_Island()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1257,9 +1299,9 @@ bool ShowDungeonEntryDescriptions_Fleshdoom()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to Level %i", warp.destDungeon);
+				sprintf(InfoPanelHeader, L("Back to Level %i"), warp.destDungeon);
 			}else{
-				sprintf(InfoPanelHeader, "To %s", Dungeons[warp.destDungeon].warpName);
+				sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1275,12 +1317,12 @@ bool ShowDungeonEntryDescriptions_TheRampagingDemon()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate (warp.Row, warp.Col) ){
 			if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-				sprintf(InfoPanelHeader, "Back to town");
+				sprintf(InfoPanelHeader, L("Back to town"));
 			}else if( warp.destDungeon == DUN_44_RAVENHOLM ){
-				sprintf(InfoPanelHeader, "Back to Ravenholm");
+				sprintf(InfoPanelHeader, L("Back to Ravenholm"));
 			}else if( warp.destDungeon == DUN_45_THE_DEN ){
-				sprintf(InfoPanelHeader, "To the Den");
-				InfoPanel_AddLine("(Danger: very high)", true);
+				sprintf(InfoPanelHeader, L("To the Den"));
+				InfoPanel_AddLine(L("(Danger: very high)"), true); // (th4) localizable
 			}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1296,7 +1338,7 @@ bool ShowDungeonEntryDescriptions_Coliseum()
 	for( auto& warp: Warps ){
 		if( IsCursorNearCoordinate(warp.Row, warp.Col) ){
 			//if (warp.GameMessage == GM_1028_GOING_FROM_QUEST_DUNGEON) {
-			//	sprintf(InfoPanelHeader, "Back to town");
+			//	sprintf(InfoPanelHeader, L("Back to town"));
 			//}
 			Cur.Row = warp.Row;
 			Cur.Col = warp.Col;
@@ -1319,6 +1361,41 @@ bool __fastcall IsCursorNearWarp(Warp& warp)
 }
 
 //----- (th3) -------------------------------------------------------------
+// (th4) DARK CAMPAIGN portal label -- covers BOTH the outbound mission portal in the Deep
+// Sanctum and the way home in a cleared mission level. Neither can key off a FineMap entry
+// tile the way the stock quest handlers do, because both sit on ordinary floor, so this
+// matches the warp list itself exactly as SetCursorToWarp does. Called once from the
+// dispatcher for every DC level, so a new mission needs no handler of its own.
+bool ShowDungeonEntryDescriptions_DarkCampaignPortal()
+{
+	for( auto& warp: Warps ){
+		if( warp.GameMessage != WM_1029_GOTO_QUEST_DUNGEON ) continue;
+		// Exact tile only. SetCursorToWarp's usual "within 4" tolerance exists for stair
+		// entries that span several tiles; the mission portal is a single square.
+		if( Cur.Row != warp.Row || Cur.Col != warp.Col ) continue;
+		sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[warp.destDungeon].warpName));
+		return true;
+	}
+	return false;
+}
+
+// (th4) True when the cursor is merely NEAR a Dark Campaign portal rather than on it. The
+// handler above deliberately matches the exact tile, but every stock per-dungeon handler
+// matches a 7-cell neighbourhood via IsCursorNearCoordinate -- so one tile off the portal
+// they claim the same warp and print their own wording ("down To the Deep Sanctum"). The
+// dispatcher uses this to stop before reaching them: the portal owns its neighbourhood, and
+// there is nothing else to report there. Done here rather than in ~20 handlers so a mission
+// on any dungeon gets it for free.
+bool IsCursorNearDarkCampaignPortal()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return false;
+	for( auto& warp: Warps ){
+		if( warp.GameMessage != WM_1029_GOTO_QUEST_DUNGEON ) continue;
+		if( IsCursorNearCoordinate(warp.Row, warp.Col) ) return true;
+	}
+	return false;
+}
+
 bool ShowRemainWarpDescriptions()
 {
 	Warp* nearWarp = 0;
@@ -1343,7 +1420,7 @@ bool ShowRemainWarpDescriptions()
 		case WM_1027_PREV_DUNGEON             : info = "up to %s";   break;
 		case WM_1028_RETURN_FROM_QUEST_DUNGEON: info = "back to %s"; break;
 		}
-		sprintf(InfoPanelHeader, info, Dungeons[nearWarp->destDungeon].warpName);
+		sprintf(InfoPanelHeader, info, LocalizedWarpName(Dungeons[nearWarp->destDungeon].warpName));
 		return true;
 	}
 	return false;
@@ -1355,6 +1432,19 @@ void ShowDungeonEntryDescriptions()
 	IswarpUnderCursor = 0;
 	InfoPanel_ClearBody();
 	if( CursorY > 351 && ScreenHeight == GUI_Height ) return;
+
+	// (th4) Dark Campaign portals first: they exist on levels whose stock handler knows
+	// nothing about them, and on the Hideout, which has no stock handler at all. Falls
+	// through to the normal per-dungeon logic when the cursor is not on one.
+	if( GameMode == GM_DARK_CAMPAIGN ){
+		if( ShowDungeonEntryDescriptions_DarkCampaignPortal() ){
+			IswarpUnderCursor = 1;
+			return;
+		}
+		// Near the portal but not on it: say nothing rather than let a stock handler
+		// relabel it from its own fuzzy match. See IsCursorNearDarkCampaignPortal.
+		if( IsCursorNearDarkCampaignPortal() ) return;
+	}
     
     if( !Dungeon->isQuest ){
         switch( Dungeon->genType ){
@@ -1405,6 +1495,8 @@ void ShowDungeonEntryDescriptions()
 		case DUN_54_ABANDONED_FANE         : IswarpUnderCursor = ShowDungeonEntryDescriptions_AbandonedFane();       break;
 		case DUN_51_FETID_CAVERN           : IswarpUnderCursor = ShowDungeonEntryDescriptions_FetidCavern();         break;
 		case DUN_52_MOSSY_GROTTO           : IswarpUnderCursor = ShowDungeonEntryDescriptions_Mossy_Grotto();        break; 
+		case DUN_115_VALOR_TOMB            : IswarpUnderCursor = ShowDungeonEntryDescriptions_Valor();               break;
+		case DUN_116_MINING_CAVES		   : IswarpUnderCursor = ShowDungeonEntryDescriptions_Mining_Caves();		 break;
 		case DUN_110_BLACK_CHAPEL		   : IswarpUnderCursor = ShowDungeonEntryDescriptions_BlackChapel();		 break;
 		case DUN_111_CHURCH_SACRISTY	   : IswarpUnderCursor = ShowDungeonEntryDescriptions_Sacristy();			 break;
 		case DUN_112_STILL_SPRINGS		   : IswarpUnderCursor = ShowDungeonEntryDescriptions_Springs();			 break;
@@ -1495,6 +1587,14 @@ int IsSomeMonstersActivated()
 {
 	for( int monsterIndexIndex = SummonMonsters_Count; monsterIndexIndex < MonstersCount; monsterIndexIndex++ ){
 		Monster& monster = Monsters[MonsterIndexes[monsterIndexIndex]];
+		// (th4) The Dark Campaign escort fights on our side, so it must not register as "a
+		// battle is happening" -- otherwise the succubi keep themselves permanently in combat
+		// and never follow the player. Player summons get this for free by living below
+		// SummonMonsters_Count; these two are ordinary uniques, so they need saying so.
+		if( GameMode == GM_DARK_CAMPAIGN && (monster.flag & MF_6_FRIENDLY)
+		 && monster.newBossId && DarkCampaignIsEscortBoss( monster.newBossId - 1 ) ){
+			continue;
+		}
 		if( !monster.speechIndex && monster.ActivationCounter ){
 			return 1;
 		}
@@ -1505,7 +1605,8 @@ int IsSomeMonstersActivated()
 //----- (00777888) --------------------------------------------------------
 bool IsSaveAndLeavingEnabled()
 {
-	return is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) || SaveAlwaysEnabled || !IsSomeMonstersActivated();
+	// (th4) GM_DARK_CAMPAIGN saves like Easy: always allowed, never blocked by an active battle.
+	return is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || SaveAlwaysEnabled || !IsSomeMonstersActivated();
 }
 
 //----- (0047935E) --------------------------------------------------------
@@ -1647,7 +1748,11 @@ void CheckTriggers() // CheckPlayersOnDunEntries
 				if (warp.destDungeon == DUN_42_WIELDER && Quests[Q_21_THE_CURSED_BLADE].status2 <= 2 && Dungeon == DUN_41_FLESHDOOM
 					|| warp.destDungeon == DUN_43_HEPHASTO && Quests[Q_21_THE_CURSED_BLADE].status2 <= 4) {
 					// mor: these modes dont need you to talk to Tremain to go down because you cant go to town there anyway
-					if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL, GM_SPEEDRUN)) {
+					// (th4) GM_DARK_CAMPAIGN joins them for the same reason and one more: the
+					// Cursed Blade quest does not exist in the Dark Campaign, so status2 is
+					// permanently 0 and the gate could never be satisfied -- it simply refused
+					// entry to the Hellforge for ever.
+					if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL, GM_SPEEDRUN, GM_DARK_CAMPAIGN)) {
 						goto SKIP_TREMAIN;
 					}
 					else {

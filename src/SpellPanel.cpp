@@ -91,10 +91,12 @@ PLAYER_SPELL LearnedSpells(int page, int line)
 		case PC_4_ROGUE  : spell = PS_5_IDENTIFY; break;
 		case PC_5_SAVAGE : spell = PS_16_REFLECT; break;
 		}
-		if( player.fullClassId == PFC_IRON_MAIDEN || HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) spell = PS_26_ITEM_REPAIR;
+		if( player.fullClassId == PFC_IRON_MAIDEN || player.fullClassId == PFC_GLADIATRIX ||HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) spell = PS_26_ITEM_REPAIR;
 		else if( player.gameChanger & BIT(GC_9_NIGHT_KIN) ) spell = PS_9_INFRAVISION;
+		else if (player.gameChanger & BIT(GC_27_TERMINATOR)) spell = PS_9_INFRAVISION;
 		else if ( HasTrait(CurrentPlayerIndex, TraitId::Hydramancer)) spell = PS_13_HYDRA;
 		else if (HasTrait(CurrentPlayerIndex, TraitId::Paladin)) spell = PS_11_MANA_SHIELD;
+		else if (HasTrait(CurrentPlayerIndex, TraitId::Warlord)) spell = PS_52_LESSER_SUMMON;		
 		//else if (player.fullClassId == PFC_WARLOCK) spell = PS_13_HYDRA;
 		break;
 	case pos(4, 0): if( player.fullClassId == PFC_WARLOCK ) spell = PS_59_RANCID_BOLT; break;
@@ -156,11 +158,11 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 			maxArmor = minArmor + (clvl / 10) + 2;
 		}
 
-		sprintf(InfoPanelBuffer, "creates a golem");
+		sprintf(InfoPanelBuffer, L("creates a golem"));
 		drawLine(InfoPanelBuffer);
-		sprintf(InfoPanelBuffer, "to serve you");
+		sprintf(InfoPanelBuffer, L("to serve you"));
 		drawLine(InfoPanelBuffer);
-		sprintf(InfoPanelBuffer, "(does physical damage)");
+		sprintf(InfoPanelBuffer, L("(does physical damage)"));
 		drawLine(InfoPanelBuffer);
 		sprintf(InfoPanelBuffer, " ");
 		drawLine(InfoPanelBuffer);
@@ -174,15 +176,15 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 		case PS_53_COMMON_SUMMON: summontype = SUM_COMMON;	break;
 		case PS_54_GREATER_SUMMON: summontype = SUM_GREATER; break;
 		}
-		sprintf(InfoPanelBuffer, "Max amount: %i", CalculateSummonsMaxAmount(summontype, slvl, CurrentPlayerIndex));
+		sprintf(InfoPanelBuffer, L("Max amount: %i"), CalculateSummonsMaxAmount(summontype, slvl, CurrentPlayerIndex));
 		drawLine(InfoPanelBuffer);
 		sprintf(InfoPanelBuffer, " ");
 		drawLine(InfoPanelBuffer);
 	}
 	else if (is(fclass, PFC_ARCHER, PFC_SHARPSHOOTER, PFC_SCOUT)){
-		sprintf(InfoPanelBuffer, "Extra resistance to");
+		sprintf(InfoPanelBuffer, L("Extra resistance to"));
 		drawLine(InfoPanelBuffer);
-		sprintf(InfoPanelBuffer, "elemental damage: %i%%", PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 0));
+		sprintf(InfoPanelBuffer, L("elemental damage: %i%%"), PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 0));
 		drawLine(InfoPanelBuffer);
 		sprintf(InfoPanelBuffer, " ");
 		drawLine(InfoPanelBuffer);
@@ -209,7 +211,7 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 					minArmor = owner.CurMagic * clvl / 2000 + clvl / 2 + slvl;
 					maxArmor = minArmor + (clvl / 10) + 5;
 
-					sprintf(InfoPanelBuffer, "summons a flying imp");
+					sprintf(InfoPanelBuffer, L("summons a flying imp"));
 					drawLine(InfoPanelBuffer);
 					break;
 				}
@@ -231,7 +233,7 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 						minArmor = owner.CurMagic * clvl / 2000 + clvl / 2 + slvl;
 						maxArmor = minArmor + (clvl / 10) + 5;
 
-						sprintf(InfoPanelBuffer, "summons goat archer");
+						sprintf(InfoPanelBuffer, L("summons goat archer"));
 						drawLine(InfoPanelBuffer);
 						break;
 				}
@@ -253,7 +255,7 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 						minArmor = owner.CurMagic * clvl / 300 + clvl / 2 + 2 * slvl + 1;
 						maxArmor = minArmor + (clvl / 10) + 5;
 
-						sprintf(InfoPanelBuffer, "summons satyr lord");
+						sprintf(InfoPanelBuffer, L("summons satyr lord"));
 						drawLine(InfoPanelBuffer);
 						break;
 				}
@@ -278,7 +280,7 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 						minArmor = owner.CurMagic * clvl / 2000 + clvl / 2 + slvl;
 						maxArmor = minArmor + (clvl / 10) + 5;
 
-						sprintf(InfoPanelBuffer, "summons skeletal archer");
+						sprintf(InfoPanelBuffer, L("summons skeletal archer"));
 						drawLine(InfoPanelBuffer);
 						break;
 				}
@@ -300,7 +302,7 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 						minArmor = owner.CurMagic * clvl / 500 + clvl / 2 + slvl;
 						maxArmor = minArmor + (clvl / 10) + 5;
 
-						sprintf(InfoPanelBuffer, "summons skeleton warrior");
+						sprintf(InfoPanelBuffer, L("summons skeleton warrior"));
 						drawLine(InfoPanelBuffer);
 						break;
 				}
@@ -322,83 +324,102 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 						minArmor = owner.CurMagic * clvl / 500 + clvl / 2 + slvl;
 						maxArmor = minArmor + (clvl / 10) + 5;
 
-						sprintf(InfoPanelBuffer, "summons skeleton lord");
+						sprintf(InfoPanelBuffer, L("summons skeleton lord"));
 						drawLine(InfoPanelBuffer);
 						break;
 				}
 			} break;
 		case PFC_BEASTMASTER:
 			switch (minionTypeSpell) {
+			case PS_52_LESSER_SUMMON: {
+				minLife = (((owner.CurMagic * clvl) / 17) << 6) + ((5 * clvl) << 6) + (owner.MaxCurMana / 3);
+				maxLife = minLife + ((clvl + 15) << 6);
+				minAccuracyFirst = owner.CurMagic * clvl / 666 + clvl / 2 + slvl / 2 + 12;
+				maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
+				minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;
+				maxAccuracySecond = minAccuracySecond;
+				minMinDamageFirst = owner.CurMagic * clvl / 500 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 3)) + slvl / 2 + 5;
+				maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 2;
+				minMaxDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 3)) + slvl / 2 + 8;
+				maxMaxDamageFirst = minMaxDamageFirst + (clvl / 3) + 3;
+				minMinDamgeSecond = owner.CurMagic * clvl / 337 + clvl / 2 + slvl;
+				maxMinDamageSecond = minMinDamgeSecond + (clvl / 5) + 2;
+				minMaxDamageSecond = owner.CurMagic * clvl / 250 + clvl / 2 + slvl + 2;
+				maxMaxDamageSecond = minMaxDamageSecond + (clvl / 3) + 2;
+				minArmor = owner.CurMagic * clvl / 800 + clvl / 2 + slvl;
+				maxArmor = minArmor + (clvl / 10) + 5;
+
+				sprintf(InfoPanelBuffer, L("summons a stinger"));
+				drawLine(InfoPanelBuffer);
+				break;
+			}
+			case PS_53_COMMON_SUMMON: {
+				minLife = (((owner.CurMagic * clvl) / 6) << 6) + (owner.MaxCurMana / 2);
+				maxLife = minLife + (((2 * clvl) + 15) << 6);
+				minAccuracyFirst = owner.CurMagic * clvl / 500 + clvl / 2 + slvl / 2 + 12;
+				maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
+				minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;
+				maxAccuracySecond = minAccuracySecond;
+				minMinDamageFirst = owner.CurMagic * clvl / 500 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 2)) + slvl / 2 + 5;
+				maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 4;
+				minMaxDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 2)) + slvl / 2 + 14;
+				maxMaxDamageFirst = minMaxDamageFirst + (clvl / 8) + 4;
+				minMinDamgeSecond = owner.CurMagic * clvl / 500 + clvl + slvl / 2 + 5;
+				maxMinDamageSecond = minMinDamgeSecond + (clvl / 5) + 5;
+				minMaxDamageSecond = owner.CurMagic * clvl / 400 + clvl + slvl / 2 + 14;
+				maxMaxDamageSecond = minMaxDamageSecond + (clvl / 8) + 5;
+				minArmor = owner.CurMagic * clvl / 500 + clvl / 2 + slvl;
+				maxArmor = minArmor + (clvl / 10) + 5;
+
+				sprintf(InfoPanelBuffer, L("summons hulking boar"));
+				drawLine(InfoPanelBuffer);
+				break;
+			}
+			case PS_54_GREATER_SUMMON: {
+				minLife = ((owner.CurMagic * clvl / 2) << 6) + (owner.MaxCurMana * 2);
+				maxLife = minLife + (((10 * clvl) + 15) << 6);
+				minAccuracyFirst = owner.CurMagic * clvl / 266 + clvl / 2 + slvl / 2 + 15;
+				maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
+				minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;;
+				maxAccuracySecond = minAccuracySecond;
+				minMinDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 4) : (clvl / 2)) + slvl / 2 + 7;
+				maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 4;
+				minMaxDamageFirst = owner.CurMagic * clvl / 333 + (GameMode == GM_HARD ? (clvl / 4) : (clvl / 2)) + slvl / 2 + 18;
+				maxMaxDamageFirst = minMaxDamageFirst + (clvl / 8) + 4;
+				minMinDamgeSecond = owner.CurMagic * clvl / 400 + clvl + slvl / 2 + 14;
+				maxMinDamageSecond = minMinDamgeSecond + (clvl / 10) + 5;
+				minMaxDamageSecond = owner.CurMagic * clvl / 300 + clvl + slvl / 2 + 23;
+				maxMaxDamageSecond = minMaxDamageSecond + (clvl / 8) + 5;
+				minArmor = owner.CurMagic * clvl / 400 + clvl / 2 + slvl + 1;
+				maxArmor = minArmor + (clvl / 10) + 5;
+
+				sprintf(InfoPanelBuffer, L("summons greater beast"));
+				drawLine(InfoPanelBuffer);
+				break;
+			}
+			} break;
+		case PFC_INQUISITOR:
+			switch (minionTypeSpell) {
 				case PS_52_LESSER_SUMMON: {
-						minLife = (((owner.CurMagic * clvl) / 17) << 6) + ((5 * clvl) << 6) + (owner.MaxCurMana / 3);
-						maxLife = minLife + ((clvl + 15) << 6);
-						minAccuracyFirst = owner.CurMagic * clvl / 666 + clvl / 2 + slvl / 2 + 12;
-						maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
-						minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;
-						maxAccuracySecond = minAccuracySecond;
-						minMinDamageFirst = owner.CurMagic * clvl / 500 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 3)) + slvl / 2 + 5;
-						maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 2;
-						minMaxDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 3)) + slvl / 2 + 8;
-						maxMaxDamageFirst = minMaxDamageFirst + (clvl / 3) + 3;
-						minMinDamgeSecond = owner.CurMagic * clvl / 337 + clvl / 2 + slvl;
-						maxMinDamageSecond = minMinDamgeSecond + (clvl / 5) + 2;
-						minMaxDamageSecond = owner.CurMagic * clvl / 250 + clvl / 2 + slvl + 2;
-						maxMaxDamageSecond = minMaxDamageSecond + (clvl / 3) + 2;
-						minArmor = owner.CurMagic * clvl / 800 + clvl / 2 + slvl;
-						maxArmor = minArmor + (clvl / 10) + 5;
+					minLife = ((90) << 6) + (((clvl * clvl / 5) + (clvl * 5)) << 6);
+					maxLife = minLife + ((10 + clvl * 5) << 6);
+					minAccuracyFirst = 15 + (2 * clvl) + (clvl * clvl / 42);
+					maxAccuracyFirst = minAccuracyFirst + 5;
+					minMinDamageFirst = clvl + 3 + (clvl * clvl / 80);
+					maxMinDamageFirst = minMinDamageFirst + 5;
+					minMaxDamageFirst = maxMinDamageFirst + 3 + clvl + (clvl * clvl / 80);
+					maxMaxDamageFirst = minMaxDamageFirst + 10;
+					minArmor = (2 * clvl) + 2 + (clvl * clvl / 50);
+					maxArmor = minArmor + 5;
 
-						sprintf(InfoPanelBuffer, "summons a stinger");
-						drawLine(InfoPanelBuffer);
-						break;
-				}
-				case PS_53_COMMON_SUMMON: {
-						minLife = (((owner.CurMagic * clvl) / 6) << 6) + (owner.MaxCurMana / 2);
-						maxLife = minLife + (((2 * clvl) + 15) << 6);
-						minAccuracyFirst = owner.CurMagic * clvl / 500 + clvl / 2 + slvl / 2 + 12;
-						maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
-						minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;
-						maxAccuracySecond = minAccuracySecond;
-						minMinDamageFirst = owner.CurMagic * clvl / 500 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 2)) + slvl / 2 + 5;
-						maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 4;
-						minMaxDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 5) : (clvl / 2)) + slvl / 2 + 14;
-						maxMaxDamageFirst = minMaxDamageFirst + (clvl / 8) + 4;
-						minMinDamgeSecond = owner.CurMagic * clvl / 500 + clvl + slvl / 2 + 5;
-						maxMinDamageSecond = minMinDamgeSecond + (clvl / 5) + 5;
-						minMaxDamageSecond = owner.CurMagic * clvl / 400 + clvl + slvl / 2 + 14;
-						maxMaxDamageSecond = minMaxDamageSecond + (clvl / 8) + 5;
-						minArmor = owner.CurMagic * clvl / 500 + clvl / 2 + slvl;
-						maxArmor = minArmor + (clvl / 10) + 5;
-
-						sprintf(InfoPanelBuffer, "summons hulking boar");
-						drawLine(InfoPanelBuffer);
-						break;
-				}
-				case PS_54_GREATER_SUMMON: {
-						minLife = ((owner.CurMagic * clvl / 2) << 6) + (owner.MaxCurMana * 2);
-						maxLife = minLife + (((10 * clvl) + 15) << 6);
-						minAccuracyFirst = owner.CurMagic * clvl / 266 + clvl / 2 + slvl / 2 + 15;
-						maxAccuracyFirst = minAccuracyFirst + (clvl / 10) + 6;
-						minAccuracySecond = (3 * slvl / 2) + 3 * clvl / 2;;
-						maxAccuracySecond = minAccuracySecond;
-						minMinDamageFirst = owner.CurMagic * clvl / 400 + (GameMode == GM_HARD ? (clvl / 4) : (clvl / 2)) + slvl / 2 + 7;
-						maxMinDamageFirst = minMinDamageFirst + (clvl / 5) + 4;
-						minMaxDamageFirst = owner.CurMagic * clvl / 333 + (GameMode == GM_HARD ? (clvl / 4) : (clvl / 2)) + slvl / 2 + 18;
-						maxMaxDamageFirst = minMaxDamageFirst + (clvl / 8) + 4;
-						minMinDamgeSecond = owner.CurMagic * clvl / 400 + clvl + slvl / 2 + 14;
-						maxMinDamageSecond = minMinDamgeSecond + (clvl / 10) + 5;
-						minMaxDamageSecond = owner.CurMagic * clvl / 300 + clvl + slvl / 2 + 23;
-						maxMaxDamageSecond = minMaxDamageSecond + (clvl / 8) + 5;
-						minArmor = owner.CurMagic * clvl / 400 + clvl / 2 + slvl + 1;
-						maxArmor = minArmor + (clvl / 10) + 5;
-
-						sprintf(InfoPanelBuffer, "summons greater beast");
-						drawLine(InfoPanelBuffer);
-						break;
+					sprintf(InfoPanelBuffer, L("summon Mercenary"));
+					drawLine(InfoPanelBuffer);
+					break;
 				}
 			}
 	}
 	if (minionTypeSpell != PS_21_GOLEM) {
-		sprintf(InfoPanelBuffer, "to fight enemies for you");
+		sprintf(InfoPanelBuffer, L("to fight enemies for you"));
 		drawLine(InfoPanelBuffer);
 		sprintf(InfoPanelBuffer, " ");
 		drawLine(InfoPanelBuffer);
@@ -407,28 +428,28 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 	int best_defense_trait_penalty = HasTrait(CurrentPlayerIndex, TraitId::BestDefense) ? +(25 + (owner.CharLevel / 15)) : 0;
 	minLife += minLife * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
 	minLife += ((minLife * owner.summonHpPercent) / 100 + (owner.summonHp << 6)); // hp increase from affixes
-	minLife += PerkValue(PERK_TOUGH_MINIONS, CurrentPlayerIndex) << 6; // +hp from perks
+	minLife += ((PerkValue(PERK_TOUGH_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_TOUGH_MERCENARIES, CurrentPlayerIndex)) << 6); // +hp from perks
 	minLife = minLife * (100 - best_defense_trait_penalty) / 100; //added here because it changes TOTAL hit points. including affix and perk buffs
 	maxLife += maxLife * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
 	maxLife += ((maxLife * owner.summonHpPercent) / 100 + (owner.summonHp << 6)); // hp increase from affixes
-	maxLife += PerkValue(PERK_TOUGH_MINIONS, CurrentPlayerIndex) << 6; // +hp from perks
+	maxLife += ((PerkValue(PERK_TOUGH_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_TOUGH_MERCENARIES, CurrentPlayerIndex)) << 6); // +hp from perks
 	maxLife = maxLife * (100 - best_defense_trait_penalty) / 100; //added here because it changes TOTAL hit points. including affix and perk buffs
 
 	minAccuracyFirst += owner.summonToHit;
 	minAccuracyFirst += minAccuracyFirst * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
-	minAccuracyFirst += PerkValue(PERK_ACCURATE_MINIONS, CurrentPlayerIndex); // +accuracy from perks
+	minAccuracyFirst += PerkValue(PERK_ACCURATE_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_MERC_ACCURACY, CurrentPlayerIndex); // +accuracy from perks
 	maxAccuracyFirst += owner.summonToHit;
 	maxAccuracyFirst += maxAccuracyFirst * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
-	maxAccuracyFirst += PerkValue(PERK_ACCURATE_MINIONS, CurrentPlayerIndex); // +accuracy from perks
+	maxAccuracyFirst += PerkValue(PERK_ACCURATE_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_MERC_ACCURACY, CurrentPlayerIndex); // +accuracy from perks
 
 	int best_defense_benefit = HasTrait(CurrentPlayerIndex, TraitId::BestDefense) ? (25 + owner.CharLevel / 15) : 0;
 	minMinDamageFirst += minMinDamageFirst * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
 	minMinDamageFirst += minMinDamageFirst * (owner.summonDamagePercent + best_defense_benefit) / 100 + owner.summonDamageMin;
-	minMinDamageFirst += PerkValue(PERK_STRONG_MINIONS, CurrentPlayerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, CurrentPlayerIndex); // +damage from perks
+	minMinDamageFirst += PerkValue(PERK_STRONG_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_STRONG_MERCENARIES, CurrentPlayerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, CurrentPlayerIndex); // +damage from perks
 	
 	maxMaxDamageFirst += maxMaxDamageFirst * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
 	maxMaxDamageFirst += maxMaxDamageFirst * (owner.summonDamagePercent + best_defense_benefit) / 100 + owner.summonDamageMax;
-	maxMaxDamageFirst += PerkValue(PERK_STRONG_MINIONS, CurrentPlayerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, CurrentPlayerIndex); // +damage from perks
+	maxMaxDamageFirst += PerkValue(PERK_STRONG_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_STRONG_MERCENARIES, CurrentPlayerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, CurrentPlayerIndex); // +damage from perks
 	
 	if (minionTypeSpell == PS_54_GREATER_SUMMON) {
 		switch (owner.fullClassId) {
@@ -440,23 +461,79 @@ void WriteSummonSpellBookInfo(PLAYER_SPELL minionTypeSpell, int LINE_HEIGHT, int
 
 	minArmor += minArmor * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100; 
 	minArmor += (minArmor * owner.summonAcPercent) / 100 + owner.summonAc;
-	minArmor += PerkValue(PERK_ARMORED_MINIONS, CurrentPlayerIndex); // +armor from perks
+	minArmor += PerkValue(PERK_ARMORED_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_MERC_ARMOR, CurrentPlayerIndex); // +armor from perks
 	maxArmor += maxArmor * PerkValue(PERK_GOLEM_MASTERY, CurrentPlayerIndex, 1) / 100;
 	maxArmor += (maxArmor * owner.summonAcPercent) / 100 + owner.summonAc;
-	maxArmor += PerkValue(PERK_ARMORED_MINIONS, CurrentPlayerIndex); // +armor from perks
+	maxArmor += PerkValue(PERK_ARMORED_MINIONS, CurrentPlayerIndex) + PerkValue(PERK_MERC_ARMOR, CurrentPlayerIndex); // +armor from perks
 
 
 	if (minAccuracyFirst == maxAccuracyFirst)
-		sprintf(InfoPanelBuffer, "To Hit: %i", minAccuracyFirst);
+		sprintf(InfoPanelBuffer, L("To Hit: %i"), minAccuracyFirst);
 	else 
-		sprintf(InfoPanelBuffer, "To Hit: %i - %i", minAccuracyFirst, maxAccuracyFirst);
+		sprintf(InfoPanelBuffer, L("To Hit: %i - %i"), minAccuracyFirst, maxAccuracyFirst);
 	drawLine(InfoPanelBuffer);
-	sprintf(InfoPanelBuffer, "Damage: %i - %i", minMinDamageFirst, maxMaxDamageFirst);
+	sprintf(InfoPanelBuffer, L("Damage: %i - %i"), minMinDamageFirst, maxMaxDamageFirst);
 	drawLine(InfoPanelBuffer);
-	sprintf(InfoPanelBuffer, "Armor Class: %i - %i", minArmor, maxArmor);
+	sprintf(InfoPanelBuffer, L("Armor Class: %i - %i"), minArmor, maxArmor);
 	drawLine(InfoPanelBuffer);
-	sprintf(InfoPanelBuffer, "Hit Points: %i - %i", minLife>>6, maxLife>>6);
+	sprintf(InfoPanelBuffer, L("Hit Points: %i - %i"), minLife>>6, maxLife>>6);
 	drawLine(InfoPanelBuffer);
+
+	// (th4) WARLORD MERCENARIES: two more stats the other summons do not have.
+	//
+	// DFE -- flat damage taken off every hit, applied ONLY to BM_392_WARLORD_MERC in
+	// single player (Monster.cpp ~7497, Missile.cpp ~766). It is not an inherited copy of
+	// the owner's DamageFromEnemy: mercs have no DFE field of their own, the reduction is
+	// computed at hit time as
+	//     Dungeon->level / 2  +  Difficulty * 12  +  PerkValue(PERK_MERC_DFE, owner)
+	// and PERK_DAMAGE_SOAK then removes a further percentage of what is left.
+	// Dungeon->level is the level the player is standing on, so this figure MOVES as he
+	// descends -- it is the value here and now, not a property of the merc.
+	//
+	// STUN THRESHOLD -- the MvM one, which is the only one that can ever apply to a merc.
+	// There are TWO separate stun systems and they share no code:
+	//   player -> monster  DamageMonsterByPlayer, RollMonsterStunThreshold (2x..6x AC),
+	//                      plus a second trigger at 6-43% of base HP.
+	//   monster -> monster DamageMonsterByMonster, an inline formula:
+	//                      damage >= AC/2 + MonsterLevel + RNG(DLVL/4 + 6*Difficulty + 2)
+	//                               + PerkValue(PERK_INDOMITABLE_SPIRIT, owner)
+	// Mercs fight monsters and the player never attacks his own merc, so the FIRST one
+	// describes a situation that does not occur -- showing it produced numbers an order of
+	// magnitude too high. The perk is already merc-scoped in that formula (the variable
+	// there is literally named merc_ST and is gated on single player), and its own text
+	// reads "+%i to stun threshold of summoned mercenaries".
+	// MonsterLevel is the BaseMonster row value for BM_392 -- a flat 4, not the owner's
+	// clvl -- so in practice AC dominates this.
+	if (minionTypeSpell == PS_52_LESSER_SUMMON && HasTrait(CurrentPlayerIndex, TraitId::Warlord)
+	 && MaxCountOfPlayersInGame == 1) {
+		const int mercDfe = Dungeon->level / 2 + Difficulty * 12
+		                  + PerkValue(PERK_MERC_DFE, CurrentPlayerIndex);
+		sprintf(InfoPanelBuffer, L("Damage from enemies: -%i"), mercDfe);
+		drawLine(InfoPanelBuffer);
+
+		const int soak = PerkValue(PERK_DAMAGE_SOAK, CurrentPlayerIndex);
+		if (soak > 0) {
+			sprintf(InfoPanelBuffer, L("Damage soak: %i%%"), soak);
+			drawLine(InfoPanelBuffer);
+		}
+
+		// RNG(n) yields 0..n-1, so the low end takes 0 and the high end n-1.
+		// minArmor/maxArmor are the FINAL AC here -- the four bonuses the engine adds at
+		// Monster.cpp ~16044-16046 (GOLEM_MASTERY %, summonAcPercent, summonAc,
+		// ARMORED_MINIONS + MERC_ARMOR) are mirrored above at ~462-467, and this block runs
+		// after them. Do not move it above the "Armor Class" line or the stun figure will
+		// silently be computed from the unbuffed AC.
+		const int mercMonsterLevel = 4;   // BaseMonster.cpp row for BM_392_WARLORD_MERC
+		const int rngSpan = Dungeon->level / 4 + 6 * Difficulty + 2;
+		const int stunBase = mercMonsterLevel
+		                   + PerkValue(PERK_INDOMITABLE_SPIRIT, CurrentPlayerIndex);
+		int stunMin = minArmor / 2 + stunBase;
+		int stunMax = maxArmor / 2 + stunBase + (rngSpan > 0 ? rngSpan - 1 : 0);
+		LimitToMin(stunMin, 1);
+		LimitToMin(stunMax, stunMin);
+		sprintf(InfoPanelBuffer, L("Stun Threshold: %i - %i"), stunMin, stunMax);
+		drawLine(InfoPanelBuffer);
+	}
 
 }
 
@@ -470,11 +547,11 @@ void DrawSpellBook()
  
 	const int spellBookTextOffset = 66 + Screen_LeftBorder;
 	
-	// Собственно рисуем картинку
+	// (rt) Draw the picture itself
 	Surface_DrawCEL(SpellBookRect.Left + Screen_LeftBorder, SpellBookRect.Down + Screen_TopBorder, Data_SpellBkCEL, 1, SpellBookRect.Width);
-	// Прорисовка 5 кнопок перехода между страницами
+	// (rt) Drawing the 5 page navigation buttons
 	if( CurrentSpellBookPage < GUI_SpellBook_PagesAmount ){
-		Surface_DrawCEL(SpellBookPageButtonsRect.Left + Screen_LeftBorder + GUI_SpellBook_PageButtonWidth * CurrentSpellBookPage, SpellBookPageButtonsRect.Down + Screen_TopBorder, Data_SpellBkBCEL, CurrentSpellBookPage + 1, GUI_SpellBook_PageButtonWidth);// Отрисовка нажатого состояния кнопки номера текущей страницы заклинания
+		Surface_DrawCEL(SpellBookPageButtonsRect.Left + Screen_LeftBorder + GUI_SpellBook_PageButtonWidth * CurrentSpellBookPage, SpellBookPageButtonsRect.Down + Screen_TopBorder, Data_SpellBkBCEL, CurrentSpellBookPage + 1, GUI_SpellBook_PageButtonWidth);// (rt) Drawing the pressed state of the current spell page number button
 	}
     
     int lineIndex = 0;
@@ -494,11 +571,11 @@ void DrawSpellBook()
 		if( spellIndex == -1 || !(spellMask & (1i64 << (spellIndex - 1)) ) ){
 			continue;
 		}
-		// Изображение заклинания
+		// (rt) Spell image
 		int spellType = GetColorNumberWithSpellBook(spellIndex, 1);
 		DrawSpellColor(spellType);
 		DrawSpellIcon(11 + Screen_LeftBorder + offsetX, surfaceY, Data_SpellI2CEL, getSpellIcon( spellIndex ), 37, spellType);
-		// Вот то что нам нужно. Отрисовка выделения
+		// (rt) This is what we need: drawing the selection
 		if( spellIndex == player.CurrentSpellIndex && spellType == player.SpellType ){
 			DrawSpellColor(0);
 			DrawSpellIcon(11 + Screen_LeftBorder + offsetX, surfaceY, Data_SpellI2CEL, 52, 37, 0);
@@ -506,46 +583,50 @@ void DrawSpellBook()
 	}
 	
 	if( player.CurrentSpellIndex == PS_M1_NONE ){
-	    drawLine( "No selected spells" );
+	    drawLine(L("No selected spells") );
 	}
 	else {
 		const auto spellIndex = player.CurrentSpellIndex;
 		const auto spellType = player.SpellType;
 
 		// 1. Spell name
-		drawLine(getSpellName(spellIndex), C_3_Gold);
+		const char* spellName = getSpellNameNominative(spellIndex);
+		if (spellIndex == PS_52_LESSER_SUMMON && HasTrait(CurrentPlayerIndex, TraitId::Warlord)) {
+			spellName = LocalizedSpell("Mercenaries");
+		}
+		drawLine(spellName, C_3_Gold);
 
 		// 2. Spell origin
 		if (spellType == SO_0_SKILL) {
-			drawLine("Skill");
+			drawLine(L("Skill"));
 		}
 		else if (spellType == SO_1_SPELL) {
 			int spellLevel = PlayerSpellLevel(CurrentPlayerIndex, spellIndex);
 			if( spellLevel == 0 ){
-				drawLine("Spell Level 0 - Unusable", C_2_Red);
+				drawLine(L("Spell Level 0 - Unusable"), C_2_Red);
 			}else{
-				sprintf(InfoPanelBuffer, "Spell Level %i", spellLevel);
+				sprintf(InfoPanelBuffer, L("Spell Level %i"), spellLevel);
 				drawLine(InfoPanelBuffer);
 			}
 		}
 		else if (spellType == SO_2_RELIC) {
 			const int numberOfRelicWithCurrentSpell = GetNumberOfRelicWithCurrentSpell(spellIndex);
 			if (numberOfRelicWithCurrentSpell == 1) {
-				drawLine("1 Relict");
+				drawLine(L("1 Relict"));
 			}
 			else {
-				sprintf(InfoPanelBuffer, "%i Relicts", numberOfRelicWithCurrentSpell);
+				sprintf(InfoPanelBuffer, L("%i Relicts"), numberOfRelicWithCurrentSpell);
 				drawLine(InfoPanelBuffer);
 			}
 		}
 		else if (spellType == SO_3_EQUIPED_ITEM) {
 			int sumCharges = SumBodySlotSpellCharges( CurrentPlayerIndex, spellIndex );
 			if( sumCharges > 0 ){
-				sprintf(InfoPanelBuffer, "%s charges: %i", getSpellName(spellIndex), sumCharges);
+				sprintf(InfoPanelBuffer, L("%s charges: %i"), getSpellName(spellIndex), sumCharges);
 				drawLine(InfoPanelBuffer);
 			}
 			else {
-				drawLine("Equipped item");
+				drawLine(L("Equipped item"));
 			}
 		}
 
@@ -553,14 +634,14 @@ void DrawSpellBook()
 		sprintf(InfoPanelBuffer, " ");
 		drawLine(InfoPanelBuffer);
 		if (spellIndex == PS_22_FURY && player.fullClassId == PFC_KENSEI && MaxCountOfPlayersInGame == 1) {
-			sprintf(InfoPanelBuffer, "Slows time and"); drawLine(InfoPanelBuffer);
+			sprintf(InfoPanelBuffer, L("Slows time and")); drawLine(InfoPanelBuffer);
 		}
 		if (spellIndex == PS_22_FURY) { // page 1
-			sprintf(InfoPanelBuffer, "improves battle prowess"); drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "for a short time"); drawLine(InfoPanelBuffer);
+			sprintf(InfoPanelBuffer, L("improves battle prowess")); drawLine(InfoPanelBuffer);
+			sprintf(InfoPanelBuffer, L("for a short time")); drawLine(InfoPanelBuffer);
 			//sprintf(InfoPanelBuffer, " "); drawLine(InfoPanelBuffer);
-			//sprintf(InfoPanelBuffer, "spell power grows"); drawLine(InfoPanelBuffer);
-			//sprintf(InfoPanelBuffer, "with character level"); drawLine(InfoPanelBuffer);
+			//sprintf(InfoPanelBuffer, L("spell power grows")); drawLine(InfoPanelBuffer);
+			//sprintf(InfoPanelBuffer, L("with character level")); drawLine(InfoPanelBuffer);
 			//sprintf(InfoPanelBuffer, " "); drawLine(InfoPanelBuffer); 
 			sprintf(InfoPanelBuffer, " "); drawLine(InfoPanelBuffer);
 			int CLVL = player.CharLevel;
@@ -568,455 +649,470 @@ void DrawSpellBook()
 					// WARRIORS
 			case PFC_WARRIOR:
 				if(HasTrait(CurrentPlayerIndex, TraitId::Ranger)){
-					sprintf(InfoPanelBuffer, "triple shot"); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("triple shot")); drawLine(InfoPanelBuffer);
 				}
 				else if (HasTrait(CurrentPlayerIndex, TraitId::Fechtmeister)) {
 					// show nothing
 				}
 				else {
-					sprintf(InfoPanelBuffer, "block chance: +%i", (CLVL / 10) + 5); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("block chance: +%i"), (CLVL / 10) + 5); drawLine(InfoPanelBuffer);
 				}
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", (CLVL / 3) + 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", (CLVL / 4) + 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", 7 * CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 3) + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), (CLVL / 4) + 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 7 * CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_INQUISITOR:
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", (CLVL / 2) - 3); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", (CLVL / 3) - 1); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", (2 * CLVL) - 1); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 2) - 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), (CLVL / 3) - 1); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), (3 * CLVL / 2)); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("elemental damage coef.: +0.2")); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_GUARDIAN:
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", CLVL / 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", (4 * CLVL / 5) + 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 10); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist arrow damage: +%i", CLVL / 5); drawLine(InfoPanelBuffer);
+			{
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), (4 * CLVL / 5) + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 10); drawLine(InfoPanelBuffer);
+				if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+					sprintf(InfoPanelBuffer, L("damage: +%i"), 1 + CLVL / 2); drawLine(InfoPanelBuffer);
+				}
+				else {
+					sprintf(InfoPanelBuffer, L("resist arrow damage: +%i"), CLVL / 5); drawLine(InfoPanelBuffer);
+				}
+			}
 				break;
 			case PFC_TEMPLAR:
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", (CLVL / 5) + 10); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", (CLVL / 9) + 15); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", (2 * CLVL) + 1); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 5) + 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), (CLVL / 9) + 15); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), (2 * CLVL) + 1); drawLine(InfoPanelBuffer);
 				break;
 					//ARCHERS
 			case PFC_ARCHER:
-				sprintf(InfoPanelBuffer, "damage: +%i", CLVL + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), CLVL + 5); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_SCOUT:
-				sprintf(InfoPanelBuffer, "damage: +%i", (3 * CLVL / 2) + 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), (3 * CLVL / 2) + 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("elemental damage coef.: +0.2")); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_SHARPSHOOTER:
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", (CLVL / 3) + 7); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", (2 * CLVL) - 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 3) + 7); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), (2 * CLVL) - 2); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_TRAPPER:
-				sprintf(InfoPanelBuffer, "armor class: +%i", 2 * CLVL / 3); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", 2 * CLVL / 9); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 2 * CLVL / 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), 2 * CLVL / 9); drawLine(InfoPanelBuffer);
 				break;
 					// SUMMONERS
 			case PFC_DEMONOLOGIST:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "summon armor: +%i", CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("summon armor: +%i"), CLVL / 5); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_NECROMANCER:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "summon hp %%: +%i", (CLVL / 10) + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("summon hp %%: +%i"), (CLVL / 10) + 5); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_BEASTMASTER:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "summon damage: +%i", CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("summon damage: +%i"), CLVL / 5); drawLine(InfoPanelBuffer);
 				break;
 					// CASTERS
 			case PFC_MAGE:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", (CLVL / 15) + 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), (CLVL / 15) + 2); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_ELEMENTALIST:
 				if (HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) {
-					sprintf(InfoPanelBuffer, "chance to hit: +%i", (CLVL / 5) + 10); drawLine(InfoPanelBuffer);
-					sprintf(InfoPanelBuffer, "armor class: +%i", (CLVL / 9) + 15); drawLine(InfoPanelBuffer);
-					sprintf(InfoPanelBuffer, "damage: +%i", (2 * CLVL) + 1); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 5) + 10); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("armor class: +%i"), (CLVL / 9) + 15); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("damage: +%i"), (2 * CLVL) + 1); drawLine(InfoPanelBuffer);
 				}				
 				else {
-					sprintf(InfoPanelBuffer, "spell levels: +%i", (CLVL / 10) + 2); drawLine(InfoPanelBuffer);
+					sprintf(InfoPanelBuffer, L("spell levels: +%i"), (CLVL / 10) + 2); drawLine(InfoPanelBuffer);
 				}
 				break;
 			case PFC_WARLOCK:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "mana regeneration: +%i", (CLVL / 2) + 1); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("mana regeneration: +%i"), (CLVL / 2) + 1); drawLine(InfoPanelBuffer);
 				break;
 					// MONKS
 			case PFC_MONK:
-				sprintf(InfoPanelBuffer, "DAMAGE: +%i", 2 * CLVL); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), 2 * CLVL); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_KENSEI:
 			{ if (MaxCountOfPlayersInGame != 1)
-				sprintf(InfoPanelBuffer, "DAMAGE: +%i", 3 * CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), 3 * CLVL / 2); drawLine(InfoPanelBuffer);
 			}
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_SHUGOKI:
-				sprintf(InfoPanelBuffer, "DAMAGE: +%i", 2 * CLVL); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), 2 * CLVL); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_SHINOBI:
-				sprintf(InfoPanelBuffer, "DAMAGE: +%i", 5 * CLVL / 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), 5 * CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 					// ROGUES
 			case PFC_ROGUE:
-				sprintf(InfoPanelBuffer, "DAMAGE: +%i", 3 * CLVL / 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", 3 * CLVL / 8); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), 3 * CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 3 * CLVL / 8); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_ASSASSIN:
-				sprintf(InfoPanelBuffer, "crit chance: +%i", (CLVL / 10) + 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "crit damage: +%i", CLVL * 7); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", (CLVL / 5) + 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("crit chance: +%i"), (CLVL / 10) + 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("crit damage: +%i"), CLVL * 7); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), (CLVL / 5) + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_IRON_MAIDEN:
-				sprintf(InfoPanelBuffer, "crit chance: +%i", (CLVL / 25) + 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist melee damage: +%i", CLVL / 5 + 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 11 + 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("crit chance: +%i"), (CLVL / 25) + 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist melee damage: +%i"), CLVL / 5 + 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 11 + 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_BOMBARDIER:
-				sprintf(InfoPanelBuffer, "armor class: +%i", CLVL / 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "resist all: +%i", CLVL / 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("resist all: +%i"), CLVL / 3); drawLine(InfoPanelBuffer);
+				break;
+			case PFC_GLADIATRIX:
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), (CLVL / 5) + 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("DAMAGE: +%i"), CLVL * 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 5 + CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 9 + 2); drawLine(InfoPanelBuffer);
 				break;
 					// SAVAGES
 			case PFC_SAVAGE:
-				sprintf(InfoPanelBuffer, "damage: +%i", 5 * CLVL / 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", CLVL / 3); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", CLVL / 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 5 * CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), CLVL / 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), CLVL / 3); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_BERSERKER:
-				sprintf(InfoPanelBuffer, "accuracy: +%i", 10 + 3 * CLVL / 5 + PerkValue(PERK_BASHING_HITS, CurrentPlayerIndex)); drawLine(InfoPanelBuffer); 
-				sprintf(InfoPanelBuffer, "damage: +%i", CLVL * player.BaseStrength / 357 + CLVL / 2 + PerkValue(PERK_BLOODTHIRST, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", 1 + CLVL / 3 + PerkValue(PERK_LIKE_A_ROCK, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "dfe: -%i", 1 + CLVL / 5 + PerkValue(PERK_FEEL_NO_PAIN, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "stun threshold: +%i", 1 + CLVL / 5 + PerkValue(PERK_UNBREAKABLE, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
-				//sprintf(InfoPanelBuffer, "resist melee damage: +%i", 10 + (CLVL / 5)); drawLine(InfoPanelBuffer);
-				//sprintf(InfoPanelBuffer, "+(%s)", "perk improvements"); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("accuracy: +%i"), 10 + 3 * CLVL / 5 + PerkValue(PERK_BASHING_HITS, CurrentPlayerIndex)); drawLine(InfoPanelBuffer); 
+				sprintf(InfoPanelBuffer, L("damage: +%i"), CLVL * player.BaseStrength / 357 + CLVL / 2 + PerkValue(PERK_BLOODTHIRST, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 1 + CLVL / 3 + PerkValue(PERK_LIKE_A_ROCK, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("dfe: -%i"), 1 + CLVL / 5 + PerkValue(PERK_FEEL_NO_PAIN, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("stun threshold: +%i"), 1 + CLVL / 5 + PerkValue(PERK_UNBREAKABLE, CurrentPlayerIndex)); drawLine(InfoPanelBuffer);
+				//sprintf(InfoPanelBuffer, L("resist melee damage: +%i"), 10 + (CLVL / 5)); drawLine(InfoPanelBuffer);
+				//sprintf(InfoPanelBuffer, L("+(%s)"), "perk improvements"); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_EXECUTIONER:
-				sprintf(InfoPanelBuffer, "damage: +%i", 10 + (5 * CLVL / 2)); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", (3 * CLVL / 7) + 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", CLVL / 3); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "life regeneration: +%i", CLVL + 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 10 + (5 * CLVL / 2)); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), (3 * CLVL / 7) + 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), CLVL / 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("life regeneration: +%i"), CLVL + 10); drawLine(InfoPanelBuffer);
 				break;
 					// GLADIATORS
 			case PFC_THRAEX:
-				sprintf(InfoPanelBuffer, "damage: +%i", 2 * CLVL); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", 2 * CLVL / 9); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", 5 * CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 2 * CLVL); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), 2 * CLVL / 9); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), 5 * CLVL / 4); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_DIMACHAERUS:
-				sprintf(InfoPanelBuffer, "attack speed: -%i %s", 1, "frame"); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", CLVL / 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("attack speed: -%i %s"), 1, "frame"); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), CLVL / 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), CLVL / 2); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_MURMILLO:
-				sprintf(InfoPanelBuffer, "damage: +%i", 7 * CLVL / 4); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", 2 * CLVL / 5); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", 3 * CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 7 * CLVL / 4); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), 2 * CLVL / 5); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 3 * CLVL / 4); drawLine(InfoPanelBuffer);
 				break;			
 			case PFC_SECUTOR:
-				sprintf(InfoPanelBuffer, "spell levels: +%i", 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage: +%i", CLVL * 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", (3 * CLVL / 10) - 2); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", CLVL / 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("spell levels: +%i"), 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), CLVL * 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), (3 * CLVL / 10) - 2); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), CLVL / 10); drawLine(InfoPanelBuffer);
 				break;
 			case PFC_DRUID:
-				sprintf(InfoPanelBuffer, "damage: +%i", 5 + CLVL * 3); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "damage from enemies: -%i", 3 * CLVL / 21 + 1); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "chance to hit: +%i", CLVL / 2 + 10); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "armor class: +%i", 5 + CLVL / 10); drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "stun threshold: +%i", 3 + CLVL / 15); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage: +%i"), 5 + CLVL * 3); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("damage from enemies: -%i"), 3 * CLVL / 21 + 1); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("chance to hit: +%i"), CLVL / 2 + 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("armor class: +%i"), 5 + CLVL / 10); drawLine(InfoPanelBuffer);
+				sprintf(InfoPanelBuffer, L("stun threshold: +%i"), 3 + CLVL / 15); drawLine(InfoPanelBuffer);
 				break;
 			}
 			// Fury duration:
 			int additionalFuryDuration = player.effectFlag[EA_FURY_DURATION] ? (player.CharLevel / 6 + 10) : 0;
 			int durf = 30 + (CLVL / 5) + /*10 * missile.SpellLevel*/ + additionalFuryDuration + PerkValue(PERK_RAMPAGE, CurrentPlayerIndex);
 			sprintf(InfoPanelBuffer, " "); drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "duration: %i seconds", durf); drawLine(InfoPanelBuffer);
+			sprintf(InfoPanelBuffer, L("duration: %i seconds"), durf); drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_7_TOWN_PORTAL) {
-			sprintf(InfoPanelBuffer, "creates a magic portal");
+			sprintf(InfoPanelBuffer, L("creates a magic portal"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that teleports caster");
+			sprintf(InfoPanelBuffer, L("that teleports caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to town and back");
+			sprintf(InfoPanelBuffer, L("to town and back"));
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_33_TELEKINES) {
-			sprintf(InfoPanelBuffer, "caster uses kinetic powers");
+			sprintf(InfoPanelBuffer, L("caster uses kinetic powers"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to manipulate objects");
+			sprintf(InfoPanelBuffer, L("to manipulate objects"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from a distance");
+			sprintf(InfoPanelBuffer, L("from a distance"));
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_16_REFLECT) {
-			sprintf(InfoPanelBuffer, "gives invulnerability");
+			sprintf(InfoPanelBuffer, L("gives invulnerability"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to monster melee attacks");
+			sprintf(InfoPanelBuffer, L("to monster melee attacks"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_23_TELEPORT) {
-			sprintf(InfoPanelBuffer, "instantly moves caster");
+			sprintf(InfoPanelBuffer, L("instantly moves caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to selected location");
+			sprintf(InfoPanelBuffer, L("to selected location"));
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_11_MANA_SHIELD) {
-			sprintf(InfoPanelBuffer, "damage is substracted");
+			sprintf(InfoPanelBuffer, L("damage is substracted"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from mana instead of life");
+			sprintf(InfoPanelBuffer, L("from mana instead of life"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_2_HEALING) {
-			drawLine ("partially restores life");
+			drawLine (L("partially restores life"));
 			drawLine("");			
 		}
 		else if (spellIndex == PS_34_HEAL_OTHER) {
-			sprintf(InfoPanelBuffer, "caster restores life");
+			sprintf(InfoPanelBuffer, L("caster restores life"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "for selected player");
+			sprintf(InfoPanelBuffer, L("for selected player"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_1_FIREBOLT) { // page 2
-			sprintf(InfoPanelBuffer, "casts a fiery missile");
+			sprintf(InfoPanelBuffer, L("casts a fiery missile"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_20_INCINERATE) {
-			sprintf(InfoPanelBuffer, "breathe a stream of flame");
+			sprintf(InfoPanelBuffer, L("breathe a stream of flame"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that scorches enemies");
+			sprintf(InfoPanelBuffer, L("that scorches enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_12_FIREBLAST) {
-			sprintf(InfoPanelBuffer, "casts a powerful fire ball");
+			sprintf(InfoPanelBuffer, L("casts a powerful fire ball"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that explodes on hit");
+			sprintf(InfoPanelBuffer, L("that explodes on hit"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "and damages nearby enemies");
+			sprintf(InfoPanelBuffer, L("and damages nearby enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_6_FIRE_WALL) {
-			sprintf(InfoPanelBuffer, "creates a wall of flames");
+			sprintf(InfoPanelBuffer, L("creates a wall of flames"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that prevents enemies");
+			sprintf(InfoPanelBuffer, L("that prevents enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "without fire immunity");
+			sprintf(InfoPanelBuffer, L("without fire immunity"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from crossing it");
+			sprintf(InfoPanelBuffer, L("from crossing it"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_19_FLAME_RING) {
-			sprintf(InfoPanelBuffer, "creates a burning circle");
+			sprintf(InfoPanelBuffer, L("creates a burning circle"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that prevents enemies");
+			sprintf(InfoPanelBuffer, L("that prevents enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "without fire immunity");
+			sprintf(InfoPanelBuffer, L("without fire immunity"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from crossing it");
+			sprintf(InfoPanelBuffer, L("from crossing it"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_41_FIERY_NOVA) {
-			sprintf(InfoPanelBuffer, "creates expanding circle");
+			sprintf(InfoPanelBuffer, L("creates expanding circle"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of fireballs around caster");
+			sprintf(InfoPanelBuffer, L("of fireballs around caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy enemies");
+			sprintf(InfoPanelBuffer, L("to destroy enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_13_HYDRA) {
-			sprintf(InfoPanelBuffer, "summons a multi-headed");
+			sprintf(InfoPanelBuffer, L("summons a multi-headed"));
 			drawLine(InfoPanelBuffer);
 			if (player.fullClassId == PFC_ELEMENTALIST) {
-				sprintf(InfoPanelBuffer, "beast to spit ice bolts");
+				sprintf(InfoPanelBuffer, L("beast to spit ice bolts"));
 				drawLine(InfoPanelBuffer);
 			}
 			else if (HasTrait(CurrentPlayerIndex, TraitId::Hydramancer)) {
-				sprintf(InfoPanelBuffer, "beast that throws fire,");
+				sprintf(InfoPanelBuffer, L("beast that throws fire,"));
 				drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "electric, arcane");
+				sprintf(InfoPanelBuffer, L("electric, magical"));
 				drawLine(InfoPanelBuffer);
-				sprintf(InfoPanelBuffer, "or acid bolts");
+				sprintf(InfoPanelBuffer, L("or acid bolts"));
 				drawLine(InfoPanelBuffer);
 			}
 			else {
-			sprintf(InfoPanelBuffer, "beast that throws fire");
+			sprintf(InfoPanelBuffer, L("beast that throws fire"));
 			drawLine(InfoPanelBuffer);
 			}
-			sprintf(InfoPanelBuffer, "at non-immune enemies");
+			sprintf(InfoPanelBuffer, L("at non-immune enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "Max amount: %i", MaxCountOfHydrasForPlayer(CurrentPlayerIndex));
+			sprintf(InfoPanelBuffer, L("Max amount: %i"), MaxCountOfHydrasForPlayer(CurrentPlayerIndex));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_40_LIGHTING_WALL) { // page 3
-			sprintf(InfoPanelBuffer, "creates electric wall");
+			sprintf(InfoPanelBuffer, L("creates electric wall"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that prevents enemies");
+			sprintf(InfoPanelBuffer, L("that prevents enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "without lightning immunity");
+			sprintf(InfoPanelBuffer, L("without lightning immunity"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from crossing it");
+			sprintf(InfoPanelBuffer, L("from crossing it"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_17_LIGHTING_RING) {
-			sprintf(InfoPanelBuffer, "creates electric circle");
+			sprintf(InfoPanelBuffer, L("creates electric circle"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that prevents enemies");
+			sprintf(InfoPanelBuffer, L("that prevents enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "without lightning immunity");
+			sprintf(InfoPanelBuffer, L("without lightning immunity"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "from crossing it");
+			sprintf(InfoPanelBuffer, L("from crossing it"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_30_CHARGED_BOLT) {
-			sprintf(InfoPanelBuffer, "creates multiple bolts");
+			sprintf(InfoPanelBuffer, L("creates multiple bolts"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of electrical energy");
+			sprintf(InfoPanelBuffer, L("of electrical energy"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_3_LIGHTNING) {
-			sprintf(InfoPanelBuffer, "sends a lightning torrent");
+			sprintf(InfoPanelBuffer, L("sends a lightning torrent"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that strikes targets");
+			sprintf(InfoPanelBuffer, L("that strikes targets"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_14_BALL_LIGHTNING) {
-			sprintf(InfoPanelBuffer, "launches massive charged");
+			sprintf(InfoPanelBuffer, L("launches massive charged"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "ball of electricity");
+			sprintf(InfoPanelBuffer, L("ball of electricity"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_18_LIGHTNING_NOVA) {
-			sprintf(InfoPanelBuffer, "casts expanding ring");
+			sprintf(InfoPanelBuffer, L("casts expanding ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of electric charges");
+			sprintf(InfoPanelBuffer, L("of electric charges"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy enemies");
+			sprintf(InfoPanelBuffer, L("to destroy enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_35_ARCANE_STAR) {
-			sprintf(InfoPanelBuffer, "creates a magic star");
+			sprintf(InfoPanelBuffer, L("creates a magic star"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that inflicts arcane damage");
+			sprintf(InfoPanelBuffer, L("that inflicts magic damage"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_4_FLASH) {
-			sprintf(InfoPanelBuffer, "creates a magical ring");
+			sprintf(InfoPanelBuffer, L("creates a magical ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of energy around caster");
+			sprintf(InfoPanelBuffer, L("of energy around caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to damage nearby targets");
+			sprintf(InfoPanelBuffer, L("to damage nearby targets"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_43_ARCANE_NOVA) {
-			sprintf(InfoPanelBuffer, "creates an expanding ring");
+			sprintf(InfoPanelBuffer, L("creates an expanding ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of stars around caster");
+			sprintf(InfoPanelBuffer, L("of stars around caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy enemies");
+			sprintf(InfoPanelBuffer, L("to destroy enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_31_HOLY_BOLT) { // page 4
-			sprintf(InfoPanelBuffer, "a bolt of holy energy");
+			sprintf(InfoPanelBuffer, L("a bolt of holy energy"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that damages undead");
+			sprintf(InfoPanelBuffer, L("that damages undead"));
 			drawLine(InfoPanelBuffer);
 			if (GameMode != GM_CLASSIC) {
-				sprintf(InfoPanelBuffer, "and knocks them back");
+				sprintf(InfoPanelBuffer, L("and knocks them back"));
 				drawLine(InfoPanelBuffer);
 			}
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_39_HOLY_NOVA) {
-			sprintf(InfoPanelBuffer, "creates a massive ring");
+			sprintf(InfoPanelBuffer, L("creates a massive ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of expanding holy bolts");
+			sprintf(InfoPanelBuffer, L("of expanding holy bolts"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy undead");
+			sprintf(InfoPanelBuffer, L("to destroy undead"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_8_STONE_CURSE) {
-			sprintf(InfoPanelBuffer, "turns non-immune enemies");
+			sprintf(InfoPanelBuffer, L("turns non-immune enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to stone form");
+			sprintf(InfoPanelBuffer, L("to stone form"));
 			drawLine(InfoPanelBuffer);
 			if (GameMode != GM_CLASSIC) {
-				sprintf(InfoPanelBuffer, "making them invulnerable");
+				sprintf(InfoPanelBuffer, L("making them invulnerable"));
 				drawLine(InfoPanelBuffer);			
 			}
-			sprintf(InfoPanelBuffer, "for some time");
+			sprintf(InfoPanelBuffer, L("for some time"));
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_36_BONE_SPIRIT) {
-			sprintf(InfoPanelBuffer, "releases a restless soul");
+			sprintf(InfoPanelBuffer, L("releases a restless soul"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that devours the living");
+			sprintf(InfoPanelBuffer, L("that devours the living"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "for a percentage of life");
+			sprintf(InfoPanelBuffer, L("for a percentage of life"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_15_FORCE_WAVE) {
-			sprintf(InfoPanelBuffer, "sends a moving wall");
+			sprintf(InfoPanelBuffer, L("sends a moving wall"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of force energy");
+			sprintf(InfoPanelBuffer, L("of force energy"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to knock back enemies");
+			sprintf(InfoPanelBuffer, L("to knock back enemies"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "(does physical damage)");
+			sprintf(InfoPanelBuffer, L("(does physical damage)"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
@@ -1025,67 +1121,67 @@ void DrawSpellBook()
 			WriteSummonSpellBookInfo(PS_21_GOLEM, LINE_HEIGHT, lineIndex);
 		}
 		else if (spellIndex == PS_29_ELEMENTAL) {
-			sprintf(InfoPanelBuffer, "releases a chaos being");
+			sprintf(InfoPanelBuffer, L("releases a chaos being"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "that seeks and destroys");
+			sprintf(InfoPanelBuffer, L("that seeks and destroys"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "live creatures");
+			sprintf(InfoPanelBuffer, L("live creatures"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "(does physical damage)");
+			sprintf(InfoPanelBuffer, L("(does physical damage)"));
 			drawLine(InfoPanelBuffer);
 			if (GameMode != GM_CLASSIC) {
-				sprintf(InfoPanelBuffer, "(knocks target back)");
+				sprintf(InfoPanelBuffer, L("(knocks target back)"));
 				drawLine(InfoPanelBuffer);
 			}
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_56_ICE_BOLT) { // page 5
-			sprintf(InfoPanelBuffer, "casts a shard of ice");
+			sprintf(InfoPanelBuffer, L("casts a shard of ice"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_57_FREEZING_BALL) {
-			sprintf(InfoPanelBuffer, "launches a powerful");
+			sprintf(InfoPanelBuffer, L("launches a powerful"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "damaging ball of ice");
+			sprintf(InfoPanelBuffer, L("damaging ball of ice"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_58_FROST_NOVA) {
-			sprintf(InfoPanelBuffer, "creates an expanding ring");
+			sprintf(InfoPanelBuffer, L("creates an expanding ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of ice around caster");
+			sprintf(InfoPanelBuffer, L("of ice around caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy enemies");
+			sprintf(InfoPanelBuffer, L("to destroy enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_59_RANCID_BOLT) {
-			sprintf(InfoPanelBuffer, "casts an acid bolt");
+			sprintf(InfoPanelBuffer, L("casts an acid bolt"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to slowly burn enemies");
+			sprintf(InfoPanelBuffer, L("to slowly burn enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_60_TOXIC_BALL) {
-			sprintf(InfoPanelBuffer, "launches a powerful");
+			sprintf(InfoPanelBuffer, L("launches a powerful"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "damaging ball of acid");
+			sprintf(InfoPanelBuffer, L("damaging ball of acid"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
 		}
 		else if (spellIndex == PS_61_ACID_NOVA) {
-			sprintf(InfoPanelBuffer, "creates an expanding ring");
+			sprintf(InfoPanelBuffer, L("creates an expanding ring"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "of acid around caster");
+			sprintf(InfoPanelBuffer, L("of acid around caster"));
 			drawLine(InfoPanelBuffer);
-			sprintf(InfoPanelBuffer, "to destroy enemies");
+			sprintf(InfoPanelBuffer, L("to destroy enemies"));
 			drawLine(InfoPanelBuffer);
 			sprintf(InfoPanelBuffer, " ");
 			drawLine(InfoPanelBuffer);
@@ -1100,56 +1196,56 @@ void DrawSpellBook()
 			WriteSummonSpellBookInfo(PS_54_GREATER_SUMMON, LINE_HEIGHT, lineIndex);
 		}
 		else if (spellIndex == PS_10_PHASING) {
-			drawLine("quickly teleports caster");
-			drawLine("to nearby random location");
+			drawLine(L("quickly teleports caster"));
+			drawLine(L("to nearby random location"));
 		}
 		else if(spellIndex == PS_42_WARP) {
-			drawLine("teleports caster");
-			drawLine("to nearest stairs");
+			drawLine(L("teleports caster"));
+			drawLine(L("to nearest stairs"));
 		}
 		else if (spellIndex == PS_24_APOCALYPSE) {
-			drawLine("engulfs visible enemies");
-			drawLine("in infernal flames");
-			drawLine("obliterating everything");
-			drawLine("(does physical damage)");
+			drawLine(L("engulfs visible enemies"));
+			drawLine(L("in infernal flames"));
+			drawLine(L("obliterating everything"));
+			drawLine(L("(does physical damage)"));
 		}
 		else if (spellIndex == PS_25_ETHEREAL) {
-			drawLine("makes caster invulnerable");
-			drawLine("to all magical damage");
-			drawLine("for 20 seconds");
+			drawLine(L("makes caster invulnerable"));
+			drawLine(L("to all magical damage"));
+			drawLine(L("for 20 seconds"));
 		}
 		else if (spellIndex == PS_26_ITEM_REPAIR) {
-			drawLine("fully repairs item");
-			drawLine("but reduces maximum");
-			drawLine("durability by 1 point");
+			drawLine(L("fully repairs item"));
+			drawLine(L("but reduces maximum"));
+			drawLine(L("durability by 1 point"));
 		}
 		else if (spellIndex == PS_27_STAFF_RECHARGE) {
-			drawLine("restores spell charges");
-			drawLine("at the cost of item's");			
-			drawLine("current durability");
+			drawLine(L("restores spell charges"));
+			drawLine(L("at the cost of item's"));			
+			drawLine(L("current durability"));
 		}
 		else if (spellIndex == PS_28_TRAP_DISARM) {
-			drawLine("disarms trapped objects");			
+			drawLine(L("disarms trapped objects"));			
 		}
 		else if (spellIndex == PS_37_MANA_RECHARGE) { 
-			drawLine("restores partial mana");	
+			drawLine(L("restores partial mana"));	
 			drawLine("");
 		}
 		else if (spellIndex == PS_38_MAGI) {
-			drawLine("fully restores mana");			
+			drawLine(L("fully restores mana"));			
 		}
 		//else if (spellIndex == PS_42_WARP) { // somehow this didn't work !!
-		//	drawLine("quickly teleport");
-		//	drawLine("to nearest stairs");
+		//	drawLine(L("quickly teleport"));
+		//	drawLine(L("to nearest stairs"));
 		//}
 		else if (spellIndex == PS_5_IDENTIFY) {
-			drawLine("identify selected item");			
+			drawLine(L("identify selected item"));			
 		}
 		else if (spellIndex == PS_9_INFRAVISION) {
-			drawLine("monsters outside of");
-			drawLine("caster's line of sight");
-			drawLine("and light radius");
-			drawLine("are highlighted red");
+			drawLine(L("monsters outside of"));
+			drawLine(L("caster's line of sight"));
+			drawLine(L("and light radius"));
+			drawLine(L("are highlighted red"));
 		}
 
         // 4. damage, healing or kind of
@@ -1175,18 +1271,18 @@ void DrawSpellBook()
                 denominator =   8;
             }
 			denominator += Difficulty;
-            sprintf( InfoPanelBuffer, "Damage: %i/%i of target's hp", numerator, denominator );
+            sprintf( InfoPanelBuffer, L("Damage: %i/%i of target's hp"), numerator, denominator );
             drawLine( InfoPanelBuffer );
         }else if( spellIndex == PS_2_HEALING || spellIndex == PS_34_HEAL_OTHER ){   //
             const POINT p = InfoPanelManaHeal( spellIndex );
-            sprintf( InfoPanelBuffer, "Healing: %i-%i", p.x, p.y ); // TODO: write new function. And use it here and in healing code
+            sprintf( InfoPanelBuffer, L("Healing: %i-%i"), p.x, p.y ); // TODO: write new function. And use it here and in healing code
             drawLine( InfoPanelBuffer );
-		}else if (spellIndex == PS_37_MANA_RECHARGE) {   //  Реликт маны
+		}else if (spellIndex == PS_37_MANA_RECHARGE) {   //  (rt) Relic of mana
 			const POINT p = InfoPanelManaHeal(spellIndex);
-			sprintf(InfoPanelBuffer, "mana restore: %i-%i",p.x, p.y );
+			sprintf(InfoPanelBuffer, L("mana restore: %i-%i"),p.x, p.y );
 			drawLine(InfoPanelBuffer);
         }else if( spellIndex == PS_11_MANA_SHIELD ){
-            sprintf( InfoPanelBuffer, "Damage Received: %i%%", minDamage );
+            sprintf( InfoPanelBuffer, L("Damage Received: %i%%"), minDamage );
             drawLine( InfoPanelBuffer );
         }else if (spellIndex == PS_16_REFLECT) {
 			int reflect_layers = player.BaseVitality / 50 + 1; // that's basic level of Reflect layers
@@ -1195,25 +1291,25 @@ void DrawSpellBook()
 			}
 			reflect_layers += PerkValue(SYNERGY_IRON_BULWARK, CurrentPlayerIndex);
 			if( reflect_layers == 1 ){
-                drawLine( "Absorbs 1 hit" );
+                drawLine(L("Absorbs 1 hit") );
             }else{
-                sprintf( InfoPanelBuffer, "Absorbs %i hits", reflect_layers);
+                sprintf( InfoPanelBuffer, L("Absorbs %i hits"), reflect_layers);
                 drawLine( InfoPanelBuffer );
             }
 		}else if (spellIndex == PS_6_FIRE_WALL || spellIndex == PS_19_FLAME_RING) {
-			sprintf(InfoPanelBuffer, "Damage per second: %i", minDamage);
+			sprintf(InfoPanelBuffer, L("Damage per second: %i"), minDamage);
 			drawLine(InfoPanelBuffer, 4);
 		}else if (spellIndex == PS_17_LIGHTING_RING || spellIndex == PS_40_LIGHTING_WALL) {
-			sprintf(InfoPanelBuffer, "Damage per second: %i", minDamage);
+			sprintf(InfoPanelBuffer, L("Damage per second: %i"), minDamage);
 			drawLine(InfoPanelBuffer, 1);
 		}else if (spellIndex == PS_4_FLASH) {
-			sprintf(InfoPanelBuffer, "Damage per second: %i", minDamage);
+			sprintf(InfoPanelBuffer, L("Damage per second: %i"), minDamage);
 			drawLine(InfoPanelBuffer, 8);
 		}else if (spellIndex == PS_20_INCINERATE) {
-			sprintf(InfoPanelBuffer, "Damage per second: %i", minDamage);
+			sprintf(InfoPanelBuffer, L("Damage per second: %i"), minDamage);
 			drawLine(InfoPanelBuffer, 4);
 		}else if( minDamage != -1 && !( minDamage == 0 && maxDamage == 0 ) && !is(spellIndex, PS_21_GOLEM, PS_52_LESSER_SUMMON, PS_53_COMMON_SUMMON, PS_54_GREATER_SUMMON)){
-            sprintf( InfoPanelBuffer, "Damage: %i-%i", minDamage, maxDamage );
+            sprintf( InfoPanelBuffer, L("Damage: %i-%i"), minDamage, maxDamage );
 			int le_color;
 			//ELEMENTAL_TYPE damageType;
 			switch (spellIndex) {
@@ -1251,25 +1347,25 @@ void DrawSpellBook()
 			if( HasTrait(CurrentPlayerIndex, TraitId::Hydramancer) && spellIndex == PS_13_HYDRA ){
 				if (PlayerSpellLevel(CurrentPlayerIndex, PS_1_FIREBOLT) > 0) {
 					GetDamageOfPlayerSpell(CurrentPlayerIndex, spellIndex, PlayerSpellLevel(CurrentPlayerIndex, spellIndex), ET_1_FIRE, &minDamage, &maxDamage);
-					sprintf(InfoPanelBuffer, "Fire Damage: %i-%i", minDamage, maxDamage);
+					sprintf(InfoPanelBuffer, L("Fire Damage: %i-%i"), minDamage, maxDamage);
 					drawLine(InfoPanelBuffer, C_4_Orange);
 				}
 
 				if (PlayerSpellLevel(CurrentPlayerIndex, PS_30_CHARGED_BOLT) > 0) {
 					GetDamageOfPlayerSpell(CurrentPlayerIndex, spellIndex, PlayerSpellLevel(CurrentPlayerIndex, spellIndex), ET_2_LIGHTNING, &minDamage, &maxDamage);
-					sprintf(InfoPanelBuffer, "Lightning Damage: %i-%i", minDamage, maxDamage);
+					sprintf(InfoPanelBuffer, L("Lightning Damage: %i-%i"), minDamage, maxDamage);
 					drawLine(InfoPanelBuffer, C_1_Blue);
 				}
 
 				if (PlayerSpellLevel(CurrentPlayerIndex, PS_35_ARCANE_STAR) > 0) {
 					GetDamageOfPlayerSpell(CurrentPlayerIndex, spellIndex, PlayerSpellLevel(CurrentPlayerIndex, spellIndex), ET_3_ARCAN, &minDamage, &maxDamage);
-					sprintf(InfoPanelBuffer, "Arcane Damage: %i-%i", minDamage, maxDamage);
+					sprintf(InfoPanelBuffer, L("Magic Damage: %i-%i"), minDamage, maxDamage);
 					drawLine(InfoPanelBuffer, C_8_Pink);
 				}
 
 				if (PlayerSpellLevel(CurrentPlayerIndex, PS_59_RANCID_BOLT) > 0) {
 					GetDamageOfPlayerSpell(CurrentPlayerIndex, spellIndex, PlayerSpellLevel(CurrentPlayerIndex, spellIndex), ET_4_ACID, &minDamage, &maxDamage);
-					sprintf(InfoPanelBuffer, "Acid Damage: %i-%i", minDamage, maxDamage);
+					sprintf(InfoPanelBuffer, L("Acid Damage: %i-%i"), minDamage, maxDamage);
 					drawLine(InfoPanelBuffer, C_5_Yellow);
 				}
 			}
@@ -1284,11 +1380,11 @@ void DrawSpellBook()
 
 		// 5. Range
 		if (spellIndex == PS_20_INCINERATE) {
-			drawLine("range: 3 tiles");
+			drawLine(L("range: 3 tiles"));
 			drawLine("");
 		}
 		else if (is(spellIndex, PS_23_TELEPORT, PS_33_TELEKINES)) {
-			drawLine("range: 10 tiles");
+			drawLine(L("range: 10 tiles"));
 			drawLine("");
 		}
 
@@ -1297,17 +1393,17 @@ void DrawSpellBook()
         // 7. Mana cost
         if( spellType == SO_1_SPELL ){
             int manaCost = CalculateManaRequiredToCastSpell(CurrentPlayerIndex, spellIndex) / 64;
-            sprintf( InfoPanelBuffer, "Mana cost: %i", manaCost ); // TODO: red or blue depending on bonuses and penalties
+            sprintf( InfoPanelBuffer, L("Mana cost: %i"), manaCost ); // TODO: red or blue depending on bonuses and penalties
             drawLine( InfoPanelBuffer );
         }
 
 		const auto [cdType, cooldown] = GetSpellCooldownValue(CurrentPlayerIndex, spellIndex);
 		if (cooldown > 0) {
 			if (cooldown == 1) {				
-				sprintf(InfoPanelBuffer, "Cooldown: 1 second");
+				sprintf(InfoPanelBuffer, L("Cooldown: 1 second"));
 			}
 			else {				
-				sprintf(InfoPanelBuffer, "Cooldown: %i seconds", cooldown);
+				sprintf(InfoPanelBuffer, L("Cooldown: %i seconds"), cooldown);
 			}
 			drawLine("");
 			drawLine(InfoPanelBuffer);
@@ -1362,6 +1458,7 @@ void ToggleSpellBook()
         CloseInventoryPanel();
         IsPerksPanelVisible = false;
         IsInfoWindowVisible = false;
+        IsChatHistoryVisible = false;
     }
 
     IsSpellBookVisible = !IsSpellBookVisible;

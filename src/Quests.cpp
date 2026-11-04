@@ -5,6 +5,14 @@ bool IsQUESTPanelVisible;// 006EB34C
 char* Data_QuestCEL;// 006EB350
 char* Data_ExclamCEL;
 Quest Quests[Quest_Count];// 006EB358
+
+// (th4) DARK CAMPAIGN mission states, one per mission: DCM_0_UNTOUCHED / DCM_1_BRIEFED /
+// DCM_2_COMPLETE. This is WORLD state, not character state -- it lives in the game save
+// beside Quests[] and is reset by New Game, so a player stuck on a hard mission can start
+// a new session to farm and comes back to mission one, keeping the levels and gold he
+// earned. Putting it in the character file instead would make New Game resume the
+// campaign, which removes exactly that escape.
+uchar DarkMissionState[DARK_MISSION_MAX_50];
 int QuestPanel_SelectedRow;// 006EB5F8
 int QuestPanel_ActiveQuestsList[Quest_Count];// 006EB600
 int QuestPanel_ActiveQuestCounts;// 006EB660
@@ -20,6 +28,7 @@ int TheDenMonsterSpawnTimer = 0;
 
 int Lava_Pits_OneSecondTimer = 0;
 int Lava_Pits_MonsterSpawnTimer = 0;
+
 
 bool CastColiseumPortal = false;
 
@@ -63,7 +72,7 @@ int QuestGroup6[5] = {// 00A35068
 
 RandomizeQuestsGroup RandomizeQuestsTable [10] = {// 00A350A0
 	{QuestGroup1, 4, 2, 0},
-	{QuestGroup2, 4, 2, 0}, // активируем рандомизацию Fleshdoom
+	{QuestGroup2, 4, 2, 0}, // (rt) enable Fleshdoom randomization
 	{QuestGroup3, 3, 2, 0},
 	{QuestGroup4, 4, 2, 0},
 	{QuestGroup5, 5, 2, 0},
@@ -220,7 +229,7 @@ void Frozen_Loch_BlockSet()
 	}while( tile < 162 );
 }
 
-// отключение квеста по таблице RandomizeQuestsTable (fleshdoom в таблице отключен, поэтому он здесь не отключается)
+// (rt) disabling a quest via RandomizeQuestsTable (fleshdoom is disabled in the table, so it isn't disabled here)
 //----- (00716400) --------------------------------------------------------
 void __fastcall OffRandQuestFromGroup (int groupIndex)
 {
@@ -233,8 +242,8 @@ void __fastcall OffRandQuestFromGroup (int groupIndex)
 		questIndex = questsIndexesArray[RNG(questsInGroup)];
 		offedQuest = &Quests[questIndex];
 	}while( offedQuest->status == QS_0_NO);
-	// тут можно форсировать заданный квест
-	//if( questIndex != Q_22_MAIDEN_OF_ANGUISH ) // например andariel
+	// (rt) a given quest can be forced here
+	//(rt) if( questIndex != Q_22_MAIDEN_OF_ANGUISH ) // e.g. andariel
 	//if( questIndex != Q_12_THE_CURSE_OF_KING_LEORIC )
 	offedQuest->status = QS_0_NO;
 }
@@ -267,6 +276,8 @@ void RandomizeQuests()
 //----- (0045F607) --------------------------------------------------------
 void InitQuests()
 {
+	// (th4) Dark Campaign missions reset with the rest of the world on New Game.
+	for( auto& m: DarkMissionState ) m = DCM_0_UNTOUCHED;
 	IsQUESTPanelVisible = false;
 	QuestPanel_PentagramsPicFrame = 1;
 	HorazonGrimspikeDelay = 0;
@@ -276,6 +287,13 @@ void InitQuests()
 	Lava_Pits_OneSecondTimer = 0;
 	Lava_Pits_MonsterSpawnTimer = 0;
 	WaterPaletteInPoizonRiverQuestCave = 0;
+	// OB-----------------------
+	OutbreakState = 0;
+	OutbreakWave = 0;
+	OutbreakSpawned = 0;
+	OutbreakPauseTimer = 0;
+	OutbreakSpawnTimer = 0;
+	//--------------------------
 
 	//int multiPlayerCounter = 0;
 	for( int questIndex = 0; questIndex < Quest_Count; ++questIndex ){
@@ -395,6 +413,10 @@ void InitQuests()
 		Quests[Q_29_IRON_FIGURINE].status2 = 2;
 	}
 
+	if (MaxCountOfPlayersInGame > 1 && Quests[Q_40_SECRETS_OF_MAGIC].status == 3 && !Players[CurrentPlayerIndex].dungeonVisited[DUN_9_CAVE_1] && !Players[CurrentPlayerIndex].dungeonVisited[DUN_10_CAVE_2]) {
+		Quests[Q_40_SECRETS_OF_MAGIC].status2 = 2;
+	}
+
 	if (MaxCountOfPlayersInGame > 1 && Quests[Q_34_GRAVE_MATTERS].status == 3 && !Players[CurrentPlayerIndex].dungeonVisited[DUN_1_CHURCH_1] && !Players[CurrentPlayerIndex].dungeonVisited[DUN_2_CHURCH_2]) {
 		Quests[Q_34_GRAVE_MATTERS].status2 = 2;
 	}
@@ -458,12 +480,12 @@ void GrimspikeOpenScript ()
 	}
 	Quest& horazonQuest = Quests[Q_16_HORAZON_S_DEMONS];
 	switch( horazonQuest.status3 ){
-	case 2:// только что активировали книгу
-		OpenGrimspikeRoom (1);// открытие дверей
-		horazonQuest.status3 = 3; // дверь открыта
-		HorazonGrimspikeDelay = 40; //задержка перед звуком игрока
+	case 2:// (rt) the book was just activated
+		OpenGrimspikeRoom (1);// (rt) opening the doors
+		horazonQuest.status3 = 3; // (rt) the door is open
+		HorazonGrimspikeDelay = 40; //(rt) delay before the player's sound
 		break;
-	case 3:// открыли двери, речи игрока
+	case 3:// (rt) doors opened, player's speech
 		{
 			int soundIndex = S_M1_NO_SOUND;
 			Player& player = Players[CurrentPlayerIndex];
@@ -484,17 +506,17 @@ void GrimspikeOpenScript ()
 				PlayLocalSound (soundIndex, player.Row, player.Col);
 			}
 		}
-		horazonQuest.status3 = 4; // речь произнесена
-		HorazonGrimspikeDelay = 100; //задержка перед вызовом гримспайка
+		horazonQuest.status3 = 4; // (rt) the speech has been said
+		HorazonGrimspikeDelay = 100; //(rt) delay before summoning Grimspike
 		break;
-	case 4:// изменение координат гримспайка
+	case 4:// (rt) change of Grimspike's coordinates
 		{
 			int row = 39;
 			int col = 34;
 			MoveGrimspike (row, col);
 			PlayLocalSound(S_141_STORM, row, col);
 			CastMissile( 0, 0, row, col, 0, MI_62_RISING_2, CT_0_PLAYER, 0, 0, 0, 0 );
-			horazonQuest.status3 = 5; // гримспайк появился
+			horazonQuest.status3 = 5; // (rt) Grimspike has appeared
 			break;
 		}
 	}
@@ -504,6 +526,277 @@ void GrimspikeOpenScript ()
 void QuestsActions()
 {
 	Player& player = Players[CurrentPlayerIndex];
+
+	// (th4) DARK CAMPAIGN HUB: the outbound mission portal lives here rather than in the hub
+	// generator, because its visible half is a red-portal missile and InitMissiles() runs
+	// after level generation -- a missile cast there would be wiped. Same reason the Lazarus
+	// and Sunless Sea portals are cast from this function. OpenDarkCampaignPortal is
+	// idempotent, so running it every tick simply does nothing once the portal exists.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		int dcMission = DarkCampaignCurrentMission();
+		if( dcMission >= 0 && DarkMissionState[dcMission] == DCM_1_BRIEFED ){
+			OpenDarkCampaignPortal( dcMission );
+		}
+	}
+
+	// (th4) DC MISSION 13: the way home is NOT earned by clearing the room -- Lazarus has to
+	// be thanked for it. Three steps, all here so the order is visible:
+	//   1. the player clicked him and has now walked adjacent  -> play the thanks
+	//   2. the thanks panel has closed                          -> hand over his set pieces
+	//   3. mark him thanked                                     -> releases the block below
+	// DarkCampaignLazarusThanked is transient, but it does not need saving: once step 3 runs
+	// the mission flips to DCM_2_COMPLETE, which IS saved, and the gate below tests that too.
+	// So a reload after the portal exists still finds the way home, and a reload BEFORE the
+	// talk simply requires talking again -- the reward cannot be taken twice.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC ){
+		int lazIndex = DarkCampaignLazarusIndex();
+		if( lazIndex < 0 ){
+			DarkCampaignLazarusTalkWanted = false;
+		}
+		else if( DarkCampaignLazarusTalkWanted && DarkCampaignLazarusLairClear() ){
+			const Monster& laz = Monsters[lazIndex];
+			const Player& pl = Players[CurrentPlayerIndex];
+			// Test both the tile he is on and the one he is stepping to: a walk-to only
+			// updates Row/Col when the step lands, and he may be standing on the last tile
+			// of the path for a frame before that happens.
+			int distNow  = max( abs(pl.Row - laz.Row), abs(pl.Col - laz.Col) );
+			int distNext = max( abs(pl.NextRow - laz.Row), abs(pl.NextCol - laz.Col) );
+			if( distNow <= 1 || distNext <= 1 ){
+				DarkCampaignLazarusTalkWanted = false;
+				StartSpeech( SP_DC_LAZARUS_THANKS );
+				DarkCampaignLazarusRewardPending = true;
+			}
+		}
+		// Speech_IsPanelVisible is the whole timer: this line has no VO, so the panel closing
+		// is the only "it finished" there is.
+		if( DarkCampaignLazarusRewardPending && !Speech_IsPanelVisible ){
+			DarkCampaignLazarusRewardPending = false;
+			DarkCampaignLazarusThanked = true;
+			// His ordinary set pieces, on his ordinary conditions -- SpecifiedUniqueDrop reads
+			// Difficulty, fullClassId and traits itself and spawns at monster.Row/Col. It is
+			// normally called from MonsterDeath; nothing in it requires the monster to be dead.
+			SpecifiedUniqueDrop( lazIndex, true );
+			// (th4) ...plus four ordinary drops, exactly as if he had been killed. SpawnItem
+			// is what MonsterDeath's dropNItems lambda calls, and it derives quality from the
+			// monster and the usual level/difficulty factors on its own -- so these roll the
+			// same as any Lazarus kill. Four rather than the three his death case gives.
+			const Monster& lazDrop = Monsters[lazIndex];
+			for( int n = 0; n < 4; ++n ){
+				SpawnItem( lazIndex, lazDrop.Row, lazDrop.Col, true );
+			}
+		}
+	}
+
+	// (th4) DC MISSION 26: the Dark Lord waits in the ruins. Clicking him walks the player
+	// over; standing next to him plays his last words; dismissing them ends the run.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_44_RAVENHOLM ){
+		int lordIndex = DarkCampaignEndLordIndex();
+		if( lordIndex < 0 ){
+			DarkCampaignEndTalkWanted = false;
+		}
+		else if( DarkCampaignEndTalkWanted && !DarkCampaignEndIsPending() ){
+			const Monster& lord = Monsters[lordIndex];
+			Player& pl = Players[CurrentPlayerIndex];
+			int distNow  = max( abs(pl.Row - lord.Row), abs(pl.Col - lord.Col) );
+			int distNext = max( abs(pl.NextRow - lord.Row), abs(pl.NextCol - lord.Col) );
+			if( distNow <= 2 || distNext <= 2 ){
+				DarkCampaignEndTalkWanted = false;
+				DarkCampaignEndSetPending( true );
+				ClearPlayerPath( CurrentPlayerIndex );
+				pl.destAction = PCMD_M1_NOTHING;
+				StartSpeech( SP_DC_CAMPAIGN_END );
+			}
+		}
+		// The campaign ends when he has finished, not when he starts. PrepDoEnding is the
+		// engine's own way out -- the same one the vanilla ending uses.
+		if( DarkCampaignEndIsPending() && !Speech_IsPanelVisible ){
+			DarkCampaignEndSetPending( false );
+			DarkCampaignEndArrived = false;
+			// PrepDoEnding restores sound with IsSoundEnable = SaveSound, and SaveSound is
+			// only ever written by KillDiabloEffect, which mutes the game for Diablo's death
+			// cinematic. Nothing on this path goes through that, so SaveSound would still be
+			// its dataseg zero and the main menu would come back silent. Stash the real value
+			// here, exactly as the Diablo sequence does before its own ending.
+			SaveSound = IsSoundEnable;
+			PrepDoEnding();
+		}
+	}
+
+	// (th4) DC MISSION 25: the Butcher is caged until the player speaks to him. Same three
+	// steps as 13 and 15 -- click arms, proximity fires, and the latch flips him from parked
+	// to following. Unlike those two there is nothing to clear first: freeing him IS the job.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_111_CHURCH_SACRISTY ){
+		int butIndex = DarkCampaignButcherIndex();
+		if( butIndex < 0 ){
+			DarkCampaignButcherTalkWanted = false;
+		}
+		else if( DarkCampaignButcherTalkWanted && !DarkCampaignButcherIsFreed() ){
+			// The click walked him to the tile in front of the cell; the line waits until he
+			// is actually standing on it and has stopped moving.
+			Player& pl = Players[CurrentPlayerIndex];
+			if( pl.Row == DC_BUTCHER_TALK_ROW && pl.Col == DC_BUTCHER_TALK_COL
+			 && pl.NextRow == DC_BUTCHER_TALK_ROW && pl.NextCol == DC_BUTCHER_TALK_COL ){
+				DarkCampaignButcherTalkWanted = false;
+				DarkCampaignButcherJoinPending = true;
+				StartSpeech( SP_DC_BUTCHER_FREED );
+			}
+		}
+		// He gets up when the player DISMISSES the line, not when it opens -- same shape as
+		// the armorer's reward. This line has no VO, so the panel closing is the whole timer.
+		if( DarkCampaignButcherJoinPending && !Speech_IsPanelVisible ){
+			DarkCampaignButcherJoinPending = false;
+			DarkCampaignSetButcherFreed();
+		}
+	}
+
+	// (th4) DC MISSION 15: same shape as mission 13. The way home is not earned by clearing
+	// the forge -- Hephasto has to be thanked for it, and he hands over the Anvil of Fury
+	// reward when he does. Same three steps, same reasoning about the latch: once step 3
+	// runs the mission flips to DCM_2_COMPLETE, which IS saved, so the gate below survives
+	// a reload and the reward cannot be taken twice.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO ){
+		int hepIndex = DarkCampaignHephastoIndex();
+		if( hepIndex < 0 ){
+			DarkCampaignHephastoTalkWanted = false;
+		}
+		// The talk waits for him to be back at the anvil, same as the "!" mark -- clicking
+		// him mid-walk arms the request and it fires when he arrives.
+		else if( DarkCampaignHephastoTalkWanted && DarkCampaignHellforgeClear()
+		      && DarkCampaignHephastoAtForge() ){
+			const Monster& hep = Monsters[hepIndex];
+			const Player& pl = Players[CurrentPlayerIndex];
+			int distNow  = max( abs(pl.Row - hep.Row), abs(pl.Col - hep.Col) );
+			int distNext = max( abs(pl.NextRow - hep.Row), abs(pl.NextCol - hep.Col) );
+			if( distNow <= 1 || distNext <= 1 ){
+				DarkCampaignHephastoTalkWanted = false;
+				StartSpeech( SP_DC_HEPHASTO_THANKS );
+				DarkCampaignHephastoRewardPending = true;
+			}
+		}
+		// This line has no VO either, so the panel closing is the whole timer.
+		if( DarkCampaignHephastoRewardPending && !Speech_IsPanelVisible ){
+			DarkCampaignHephastoRewardPending = false;
+			DarkCampaignHephastoThanked = true;
+			// Exactly what Griswold hands over -- SpawnAnvilOfFuryReward is his own code,
+			// lifted into a shared function, so class, full class, traits, Game Changers
+			// and Difficulty are all honoured without being restated here.
+			const Monster& hep = Monsters[hepIndex];
+			SpawnAnvilOfFuryReward( CurrentPlayerIndex, hep.Row, hep.Col );
+		}
+	}
+
+	// (th4) DARK CAMPAIGN MISSION COMPLETION. When the current mission's level is free of real
+	// monsters (its own summons excepted), the mission is done: mark it complete and open the
+	// way home. Runs in the mission level, not the hub.
+	// The mission 10 escort are real monsters too, so they must be discounted here or a cleared
+	// level would sit forever at two "heroes" remaining and never place the return portal.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon != DUN_117_DARKLORD_HIDEOUT
+	 && MonstersCount - DarkCampaignEscortCountInLevel() <= SummonMonsters_Count ){
+		for( int m = 0; m < DarkMissionCount && m < DARK_MISSION_MAX_50; ++m ){
+			if( Dungeon != DarkMissions[m].dungeon ) continue;
+			if( DarkMissionState[m] == DCM_0_UNTOUCHED ) continue; // not this mission's run
+
+			// (th4) DC mission 13 only: a lair full of dead heroes is not finished. The Dark
+			// Lord's man has to be spoken to first, so hold everything -- completion, the
+			// on-screen message and the portal -- until then. Once complete this test passes
+			// on the saved state alone, so the portal survives a reload.
+			if( Dungeon == DUN_121_UNHOLY_ALTAR_DC
+			 && DarkMissionState[m] != DCM_2_COMPLETE && !DarkCampaignLazarusThanked ) continue;
+			// (th4) DC mission 15: and the same for the Hellforge.
+			if( Dungeon == DUN_43_HEPHASTO
+			 && DarkMissionState[m] != DCM_2_COMPLETE && !DarkCampaignHephastoThanked ) continue;
+			// (th4) DC mission 25: a cellar full of dead heroes is not the job either -- the
+			// Butcher has to be freed. COMPLETE is saved, so what follows can read it as
+			// "the player got him out" and bring him along from here on.
+			// Only freeing him matters -- losing him afterwards does NOT fail the mission.
+			// He is with the player for the rest of the campaign either way.
+			if( Dungeon == DUN_111_CHURCH_SACRISTY
+			 && DarkMissionState[m] != DCM_2_COMPLETE && !DarkCampaignButcherIsFreed() ) continue;
+
+			if( DarkMissionState[m] == DCM_1_BRIEFED ){
+				DarkMissionState[m] = DCM_2_COMPLETE;
+				// (th4) Announce the way home. Inside the BRIEFED->COMPLETE branch, so it fires
+				// exactly once on the clearing tick -- the portal placement below runs every
+				// tick to survive reloads, and would otherwise spam the message.
+				// Not on mission 26: Ravenholm is the last one and has no way home, so there
+				// is nothing to announce.
+				if( Dungeon != DUN_44_RAVENHOLM ){
+					AddOnScreenMessage( OM_112_DC_Exit_Portal );
+				}
+			}
+
+			// (th4) DC MISSION 26, the last one. No way home: instead a portal opens beside
+			// the player and the Dark Lord steps out of it to close the campaign in person.
+			// He then stands idle with the mark over his head until spoken to.
+			if( Dungeon == DUN_44_RAVENHOLM ){
+				if( DarkCampaignEndLordIndex() < 0 ){
+					if( !DarkCampaignEndArrived ){
+						// The portal opens the instant the last hero falls; he comes through
+						// it a beat later. Not both on the same tick -- the point of the
+						// scene is that the portal is there first and he walks out of it.
+						bool havePortal = false;
+						for( int i = 0; i < MissileAmount; ++i ){
+							if( Missiles[ MissileIndexes[i] ].BaseMissileIndex == MI_65_RED_PORTAL ){
+								havePortal = true; break;
+							}
+						}
+						if( !havePortal ){
+							CastMissile( DC_END_PORTAL_ROW, DC_END_PORTAL_COL,
+							             DC_END_PORTAL_ROW, DC_END_PORTAL_COL, 0,
+							             MI_65_RED_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0 );
+						}
+						DarkCampaignEndArrived = true;
+						DarkCampaignEndLordDelay = DC_END_LORD_DELAY;
+					}
+					else if( DarkCampaignEndLordDelay > 0 && --DarkCampaignEndLordDelay == 0 ){
+						DarkCampaignEndSpawnLord( DC_END_PORTAL_ROW, DC_END_PORTAL_COL );
+					}
+				}
+				break;
+			}
+
+			
+
+			// The way home, on THIS mission's own tile (DarkMissions[m].returnRow/Col) -- a
+			// single global tile would land in a wall on some maps, and there is no way out
+			// of a mission until it is cleared. Idempotent, exactly like
+			// OpenDarkCampaignPortal: both halves are re-placed if missing, so it survives a
+			// save/reload inside the cleared level -- the warp is dropped by ClearWarps(),
+			// the red-portal missile by InitMissiles().
+			int retRow = DarkMissions[m].returnRow;
+			int retCol = DarkMissions[m].returnCol;
+			// (th4) A mission whose return tile has not been chosen yet (0,0) would aim the
+			// warp and the portal missile off the map. Neither would ever register, so the
+			// block below would re-cast every tick -- audible as a portal stuck retrying.
+			// Fall back to wherever the player is standing when the level comes clear.
+			if( retRow == 0 && retCol == 0 ){
+				retRow = Players[CurrentPlayerIndex].Row;
+				retCol = Players[CurrentPlayerIndex].Col;
+			}
+			// Test for "already placed" by identity rather than by tile: with the fallback
+			// above the target moves with the player, so a coordinate match would miss and
+			// place a fresh portal every step.
+			bool haveWarp = false;
+			for( auto& w: Warps ){
+				if( w.destDungeon == DUN_117_DARKLORD_HIDEOUT ){ haveWarp = true; break; }
+			}
+			if( !haveWarp ){
+				AddWarp( retRow, retCol, WM_1029_GOTO_QUEST_DUNGEON, DUN_117_DARKLORD_HIDEOUT );
+			}
+			bool havePortal = false;
+			for( int i = 0; i < MissileAmount; ++i ){
+				Missile& mis = Missiles[ MissileIndexes[i] ];
+				if( mis.BaseMissileIndex == MI_65_RED_PORTAL ){
+					havePortal = true; break;
+				}
+			}
+			if( !havePortal ){
+				CastMissile( retRow, retCol, retRow, retCol, 0,
+				             MI_65_RED_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0 );
+			}
+			break;
+		}
+	}
 
 	if (CastColiseumPortal) {
 		CastMissile(60, 60, 60, 60, 0, MI_65_RED_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0);
@@ -566,6 +859,12 @@ void QuestsActions()
 			}
 		}
 	}
+
+	// (rt) Add a call for Outbreak
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+		Outbreak_Script();
+	}
+
 	if( Dungeon->isQuest ){
 		if( Dungeon == DUN_29_ARCHBISHOP_LAZARUS_LAIR ){
 			Quest& lazarusQuest = Quests[Q_15_ARCHBISHOP_LAZARUS];
@@ -582,8 +881,10 @@ void QuestsActions()
 		if (Dungeon == DUN_73_LAVA_PITS) {
 			Lava_Pits_Script();
 		}
+
 		Quest& poisonedWaterQuest = Quests[Q_13_POISONED_WATER_SUPPLY];
-		if( Dungeon == poisonedWaterQuest.questDungeon
+		if( GameMode != GM_DARK_CAMPAIGN								// (th4) DC keeps the water foul, never cleanses
+			&& Dungeon == poisonedWaterQuest.questDungeon
 			&& poisonedWaterQuest.status != QS_1_ACCEPT
 			&& Dungeon->genType == poisonedWaterQuest.dungeonType
 			&& MonstersCount == SummonMonsters_Count
@@ -640,6 +941,12 @@ void QuestsActions()
 			&& iron_Figurine_Quest.status != QS_3_COMPLETE
 			&& MonstersCount == SummonMonsters_Count) {
 			iron_Figurine_Quest.status = QS_3_COMPLETE;
+		}
+		Quest& som_Quest = Quests[Q_40_SECRETS_OF_MAGIC];
+		if (som_Quest.questDungeon == Dungeon
+			&& som_Quest.status != QS_3_COMPLETE
+			&& MonstersCount == SummonMonsters_Count) {
+			som_Quest.status = QS_3_COMPLETE;
 		}
 		Quest& demon_Plague_Quest = Quests[Q_30_DEMON_PLAGUE];
 		if (demon_Plague_Quest.questDungeon == Dungeon
@@ -739,8 +1046,8 @@ void QuestsActions()
 ONSCREEN_MESSAGE BlockMessageToQuestDungeon()
 {	
 	ONSCREEN_MESSAGE msg = OM_0_NO_MESSAGE;
-	if( is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) || SaveAlwaysEnabled
-		|| (MaxCountOfPlayersInGame != 1 && not(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE)) ){ // Easy, Speedrun, Multi, Cheat -> always can
+	if( is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || SaveAlwaysEnabled
+		|| (MaxCountOfPlayersInGame != 1 && not(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE)) ){ // Easy, Speedrun, Dark Campaign, Multi, Cheat -> always can
 		// can go
 	}
 	else if (GameMode == GM_SURVIVAL) {
@@ -765,15 +1072,20 @@ bool ShowDungeonEntryDescriptionsFromQuestLocEntries()
 	for( int questIndex = 0; questIndex < Quest_Count; ++questIndex ){
 		if (questIndex == Q_15_ARCHBISHOP_LAZARUS && Quests[Q_15_ARCHBISHOP_LAZARUS].status2 < LQS_3_MAKE_PORTAL_TO_UNHOLY_ALTAR) continue; // Don't highlight entrance on cursor before handing staff to Cain.  Same condition applies to changing warp access.
 		Quest& quest = Quests[questIndex];
-		if( quest.dungeonStart == Dungeon && quest.questDungeon != DUN_NO && quest.status != QS_0_NO ){
+		if (quest.dungeonStart == Dungeon && quest.questDungeon != DUN_NO && quest.status != QS_0_NO) {
+			// While the Valor vault is still closed, its teleport pad (to Gateway of Blood)
+			// must not reveal transition info on hover.
+			if ((questIndex == Q_9_VALOR /*|| questIndex == Q_39_VALOR_MP*/) && !IsValorVaultOpen()) {
+				continue;
+			}
 			int row = quest.row;
 			int col = quest.col;
 			for( int deltaRangeIndex = 0; deltaRangeIndex < 7; ++deltaRangeIndex ){
 				if( row + MapDeltaRangeRow[deltaRangeIndex] == Cur.Row 
 				 && col + MapDeltaRangeCol[deltaRangeIndex] == Cur.Col ){
-					sprintf(InfoPanelHeader, "To %s", Dungeons[Quests[quest.baseId].questDungeon].warpName);
+					sprintf(InfoPanelHeader, L("To %s"), LocalizedWarpNameAccusative(Dungeons[Quests[quest.baseId].questDungeon].warpName)); // (th4) localize warp hover
 					if( Dungeons[Quests[quest.baseId].questDungeon].warpName2 ){
-						InfoPanel_AddLine(Dungeons[Quests[quest.baseId].questDungeon].warpName2, true);
+						InfoPanel_AddLine(LocalizedWarpName(Dungeons[Quests[quest.baseId].questDungeon].warpName2), true); // (th4) localize 2nd line
 					}
 					Cur.Row = row;
 					Cur.Col = col;
@@ -876,6 +1188,10 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		return;
 	}
 	if( bossIndex == UM_583_Lich_King ){
+		// (th4) DC mission 19 borrows him for the Necropolis. His vanilla death handler opens
+		// the Frozen Loch gates, which rewrites tiles wherever the player happens to be standing,
+		// and completes Q_19 in a save that has no business carrying it. Neither belongs in DC.
+		if( GameMode == GM_DARK_CAMPAIGN ) return;
 		Quests[Q_19_LOST_TREASURE].status = QS_3_COMPLETE;
 		if (isNetData) {
 			NetSendCmdQuest(true, Q_19_LOST_TREASURE);//This makes sure easy map access is enabled also for players on different maps.
@@ -923,6 +1239,15 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		Open_the_Gates_Mossy_Grotto();
 		return;
 	}
+	// not sure how to check for two boss kills here
+	/*if (bossIndex == UM_903_AZGOR && bossIndex == UM_904_DOBAZZU) {
+		Quests[Q_40_SECRETS_OF_MAGIC].status = QS_3_COMPLETE;
+		if (isNetData) {
+			NetSendCmdQuest(true, Q_40_SECRETS_OF_MAGIC);//This makes sure easy map access is enabled also for players on different maps.
+		}
+		//Open_the_Gates_Shimmer_Flats();
+		return;
+	}*/
 	if (bossIndex == UM_708_Grimwing) {
 		Quests[Q_31_GOOD_DEAL].status = QS_3_COMPLETE;
 		return;
@@ -967,12 +1292,16 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 	}
 	if (bossIndex == UM_726_Apparition_of_Arkaine) {
 		if (HasTrait(CurrentPlayerIndex, TraitId::Barbarian, TraitId::OldFashioned)) {
-			Quests[Q_9_VALOR].status = QS_3_COMPLETE;
+			Quests[Q_9_VALOR].status = QS_3_COMPLETE;			
 		}
+		Quests[Q_39_VALOR_MP].status = QS_3_COMPLETE;
 		return;
 	}
 	if (bossIndex == UM_790_Ghost_of_Brother_Martin) {
 		Quests[Q_34_GRAVE_MATTERS].status = QS_3_COMPLETE;
+		if (MaxCountOfPlayersInGame == 1) {
+			Open_the_Gates_Black_Chapel();
+		}
 		return;
 	}
 	if (bossIndex == UM_791_Festergnaw) {
@@ -1030,6 +1359,12 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		return;
 	}
 	if( is(baseMonsterIndex, BM_51_THE_BUTCHER, BM_C_390_BUTCHER) ){
+		// (th4) DC mission 25: the Butcher is an ally there, and the heroes killing him is a
+		// failure, not a quest completed. No "the spirits of the dead are now avenged", and
+		// Q_6 is left alone -- it is not the player's kill and not his quest.
+		if( GameMode == GM_DARK_CAMPAIGN ){
+			return;
+		}
 		Quests[Q_6_THE_BUTCHER].status = QS_3_COMPLETE;
 		PlayerSoundMessageDelay = 30;
 		switch( player.ClassID ){
@@ -1045,7 +1380,7 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		}
 		return;
 	}
-	if( !strcmp(monster.Name, UniqueMonsters[GameMode == GM_CLASSIC ? UM_C_849_GHARBAD : UM_0_Gharbad_the_Weak].NamePtr) ){
+	if( is( bossIndex, UM_0_Gharbad_the_Weak, UM_C_849_GHARBAD ) ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quests[Q_2_GHARBAD_THE_WEAK].status = QS_3_COMPLETE;
 		PlayerSoundMessageDelay = 30;
 		switch( player.ClassID ){
@@ -1058,7 +1393,7 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		}
 		return;
 	}
-	if( !strcmp(monster.Name, UniqueMonsters[GameMode == GM_CLASSIC ? UM_C_870_ZHAR_THE_MAD : UM_2_Zhar_the_Mad].NamePtr) ){
+	if( is( bossIndex, UM_2_Zhar_the_Mad, UM_C_870_ZHAR_THE_MAD ) ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quests[Q_3_ZHAR_THE_MAD].status = QS_3_COMPLETE;
 		PlayerSoundMessageDelay = 30;
 		switch( player.ClassID ){
@@ -1071,7 +1406,7 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		}
 		return;
 	}
-	if( !strcmp(monster.Name, UniqueMonsters[UM_4_ArchBishop_Lazarus].NamePtr) && MaxCountOfPlayersInGame != 1 ){
+	if( is( bossIndex, UM_4_ArchBishop_Lazarus, UM_C_867_LAZARUS ) && MaxCountOfPlayersInGame != 1 ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quest& lazarusQuest = Quests[Q_15_ARCHBISHOP_LAZARUS];
 		lazarusQuest.status = QS_3_COMPLETE;
 		lazarusQuest.status2 = 7;
@@ -1095,11 +1430,26 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		}
 		return;
 	}
-	if( !strcmp(monster.Name, UniqueMonsters[GameMode == GM_CLASSIC ? UM_C_867_LAZARUS : UM_4_ArchBishop_Lazarus].NamePtr) && MaxCountOfPlayersInGame == 1 ){
+	if( is( bossIndex, UM_4_ArchBishop_Lazarus, UM_C_867_LAZARUS ) && MaxCountOfPlayersInGame == 1 ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quest& lazarusQuest = Quests[Q_15_ARCHBISHOP_LAZARUS];
 		lazarusQuest.status = QS_3_COMPLETE;
 		PlayerSoundMessageDelay = 30;
-		if (Dungeon != DUN_101_VOID_CHAMBERS) {
+		// (th4) DC mission 13: DUN_121 is the Dark Campaign's own lair, not the vanilla one.
+		// If Lazarus dies there this block would run the whole normal-campaign aftermath --
+		// AddWarpFromUnholyAltar() drops a WM_1028 warp to DUN_15_HELL_3 on 35,32 and the
+		// missile below puts a red portal on top of it, so a failed mission handed the player
+		// a way out to dungeon level 15. It also completes the Lazarus quest and starts the
+		// Diablo one, in a campaign where neither exists. Excluded the same way the Void
+		// Chambers Lazarus already is.
+		// (th4) DC mission 13: the Arch-Bishop was the mission. Losing him is a failure, so
+		// say so -- the same confirmation sting F12 plays for a hero murder in Ironman
+		// (MenuEngine.cpp), plus the on-screen line. Nothing else happens: no portal, no
+		// quest progress, no victory shout, all of which the guard below withholds.
+		if( Dungeon == DUN_121_UNHOLY_ALTAR_DC ){
+			PlayGlobalSound( S_1216_PIECE_1 );
+			AddOnScreenMessage( OM_113_DC_Mission_Failed );
+		}
+		if (Dungeon != DUN_101_VOID_CHAMBERS && Dungeon != DUN_121_UNHOLY_ALTAR_DC) {
 			AddWarpFromUnholyAltar();
 			lazarusQuest.status2 = 7;
 			lazarusQuest.status3 = 4;
@@ -1108,17 +1458,33 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 			int col = 32;
 			CastMissile(row, col, row, col, 0, MI_65_RED_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0);
 		}
-		switch( player.ClassID ){
-			case PC_0_WARRIOR:
-			case PC_5_SAVAGE:	SoundMessage = S_813_WAR_83 ;		break;
-			case PC_1_ARCHER:
-			case PC_4_ROGUE:		SoundMessage = S_704_ROG_83;			break;
-			case PC_2_MAGE:			SoundMessage = S_601_SOR_83;		break;
-			case PC_3_MONK:			SoundMessage = S_921_MONK_83;			break;
+		// (th4) DC mission 13: "Your madness ends here, betrayer" is the normal campaign's
+		// line for slaying the traitor Arch-Bishop. On DUN_121 he is the player's own side
+		// and killing him is a failed mission, not a triumph -- so no gloating.
+		if( Dungeon != DUN_121_UNHOLY_ALTAR_DC ){
+			switch( player.ClassID ){
+				case PC_0_WARRIOR:
+				case PC_5_SAVAGE:	SoundMessage = S_813_WAR_83 ;		break;
+				case PC_1_ARCHER:
+				case PC_4_ROGUE:		SoundMessage = S_704_ROG_83;			break;
+				case PC_2_MAGE:			SoundMessage = S_601_SOR_83;		break;
+				case PC_3_MONK:			SoundMessage = S_921_MONK_83;			break;
+			}
 		}
 		return;
 	}
-	if( !strcmp(monster.Name, UniqueMonsters[GameMode == GM_CLASSIC ? UM_C_862_WARLORD : UM_8_Warlord_of_Blood].NamePtr) ){
+	// (th4) DC MISSION 15: Hephasto was the mission. Losing him is a failure -- same
+	// treatment as Lazarus in mission 13: the Ironman hero-murder sting, the on-screen
+	// line, and nothing else. The completion gate in QuestsActions holds the way home
+	// because DarkCampaignHephastoThanked can never be set once he is dead, so the run
+	// is over. Deliberate.
+	if( bossIndex == UM_587_Hephasto_the_Armorer
+	 && GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO ){
+		PlayGlobalSound( S_1216_PIECE_1 );
+		AddOnScreenMessage( OM_113_DC_Mission_Failed );
+	}
+
+	if( is( bossIndex, UM_8_Warlord_of_Blood, UM_C_862_WARLORD ) ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quests[Q_11_WARLORD_OF_BLOOD].status = QS_3_COMPLETE;
 		PlayerSoundMessageDelay = 30;
 		switch( player.ClassID ){
@@ -1131,7 +1497,7 @@ void __fastcall SayMessageOnBossKill(int monsterIndex, int isNetData)
 		}
 		return;
 	}
-	if (!strcmp(monster.Name, UniqueMonsters[UM_595_The_Cerberus].NamePtr)) {
+	if( bossIndex == UM_595_The_Cerberus ){ // identity check, not monster.Name (localized name breaks strcmp)
 		Quest& theRampagingDemonQuest = Quests[Q_24_THE_RAMPAGING_DEMON];
 		if (theRampagingDemonQuest.status2 == 4) {
 			theRampagingDemonQuest.status2 = 5;
@@ -1265,7 +1631,9 @@ void __fastcall ApplyBlindAltDun(int row, int col)
 //----- (00460201) --------------------------------------------------------
 void __fastcall ApplyValorDun(int questIndex, int row, int col)
 {
-	ushort* dunFilePtr = (ushort*)LoadFile(GameMode == GM_CLASSIC ? "Levels\\L2Data\\Blood2_cls.DUN" : "Levels\\L2Data\\Blood2.DUN");
+	ushort* dunFilePtr = (ushort*)LoadFile(GameMode == GM_CLASSIC ? "Levels\\L2Data\\Blood2_cls.DUN" : 
+		MaxCountOfPlayersInGame == 1 ? "Levels\\L2Data\\Blood2.DUN" : 
+		"Levels\\L2Data\\blood_MP_Ntree.dun");// MP
 	CurPattern.row = row;
 	CurPattern.col = col;
 	ushort patternMapRows = dunFilePtr[0];
@@ -1284,9 +1652,13 @@ void __fastcall ApplyValorDun(int questIndex, int row, int col)
 	FreeMem(dunFilePtr);
 	//addon
 	if (GameMode != GM_CLASSIC) {
+		int x = 9, y = 2;
+		if (MaxCountOfPlayersInGame != 1) {
+			x -= 3; y += 3;
+		}
 		Quest& quest = Quests[questIndex];
-		quest.row = Convert40to112(row) + 9;
-		quest.col = Convert40to112(col) + 2;
+		quest.row = Convert40to112(row) + x;
+		quest.col = Convert40to112(col) + y;
 	}
 	
 }
@@ -1335,7 +1707,7 @@ void __fastcall AddDungeonQuestPatternToWallMap( int startRow, int startCol ) //
 			case Q_6_THE_BUTCHER:				AddButcherHallTrans                ();                       break;
 			case Q_7_OGDENS_SIGN:				ApplyBannerAltDun                  (    startRow, startCol); break;
 			case Q_8_HALLS_OF_THE_BLIND:		ApplyBlindAltDun                   (    startRow, startCol); break;
-			case Q_9_VALOR:						ApplyValorDun                      (qi, startRow, startCol); break;
+			case Q_9_VALOR or Q_39_VALOR_MP:	ApplyValorDun                      (qi, startRow, startCol); break;
 			case Q_11_WARLORD_OF_BLOOD:			ApplyWarlordDun                    (    startRow, startCol); break;
 			case Q_12_THE_CURSE_OF_KING_LEORIC:	SetWarpToLeoricQuestFloor          (qi, startRow, startCol); break;
 			case Q_14_THE_CHAMBER_OF_BONE:		ApplyBonechamberDunAndSetWarp      (qi, startRow, startCol); break;
@@ -1449,7 +1821,8 @@ void ChangeNearestQuestStatus()
 void ResyncQuests()
 {
 	Quest& poisonWaterQuest = Quests[Q_13_POISONED_WATER_SUPPLY];
-	if( Dungeon->isQuest 
+	if( GameMode != GM_DARK_CAMPAIGN								// (th4) DC manages this level's palette itself (always foul)
+	 && Dungeon->isQuest 
 	 && Dungeon == poisonWaterQuest.questDungeon 
 	 && poisonWaterQuest.status != QS_1_ACCEPT 
 	 && Dungeon->genType == poisonWaterQuest.dungeonType ){
@@ -1517,7 +1890,7 @@ void ResyncQuests()
 			blackMushroomQuest.status2 = 1;
 		}else if( blackMushroomQuest.status == QS_2_IN_PROGRESS ){
 			if( blackMushroomQuest.status2 < 5 ){
-				if( blackMushroomQuest.status2 >= 7 ){// TODO: никогда не выполняется
+				if( blackMushroomQuest.status2 >= 7 ){// (rt) TODO: never runs
 					TownersSpeechAboutQuestArray[TI_1_PEPIN][Q_1_BLACK_MUSHROOM] = SP_M1;
 				}
 			}else{
@@ -1561,6 +1934,11 @@ void ResyncQuests()
 		iron_Figurine_Quest.status3 = 1;
 	}
 
+	Quest& som_Quest = Quests[Q_40_SECRETS_OF_MAGIC];
+	if (IsQuestOnLevel(Q_40_SECRETS_OF_MAGIC) && som_Quest.status2 >= 1) {
+		som_Quest.status3 = 1;
+	}
+
 	Quest& clW_Quest = Quests[Q_36_CLEAR_WATER];
 	if (IsQuestOnLevel(Q_36_CLEAR_WATER) && clW_Quest.status2 >= 1) {
 		clW_Quest.status3 = 1;
@@ -1584,7 +1962,8 @@ void ResyncQuests()
 void MPResyncQuests()
 {
 	Quest& poisonWaterQuest = Quests[Q_13_POISONED_WATER_SUPPLY];
-	if (Dungeon->isQuest
+	if (GameMode != GM_DARK_CAMPAIGN								// (th4) DC keeps the water foul
+		&& Dungeon->isQuest
 		&& Dungeon == poisonWaterQuest.questDungeon
 		&& poisonWaterQuest.status != QS_1_ACCEPT
 		&& Dungeon->genType == poisonWaterQuest.dungeonType) {
@@ -1620,8 +1999,10 @@ void __fastcall DrawQuestText( int position, int rowIndex, int centered, char* r
 	int offset = 0;
 	if( centered ){
 		int textLength = 0;
-		for( size_t i = 0; i < len; ++i ){
-			textLength += FontWidthSmall[FontIndexSmall[Codepage[rowText[i]]]] + 1;
+		for( size_t i = 0; i < len; ){ // (th4) CHI: step by CHARACTER (1 or 2 bytes), not byte
+			int lid, w;
+			i += ChiNextSmall( (const uchar*)rowText + i, &lid, &w );
+			textLength += w + 1;
 		}
 		if( textLength < WIDTH ){
 			offset = (WIDTH - textLength) / 2;
@@ -1629,7 +2010,7 @@ void __fastcall DrawQuestText( int position, int rowIndex, int centered, char* r
 		surfaceOffset += offset;
 	}
 
-	// Рисуем пентаграмму левую если строка выделена
+	// (rt) Draw the left pentagram if the line is selected
 	if( QuestPanel_SelectedRow == rowIndex ){
 		int pentagramPos = position + Screen_LeftBorder + 12;
 		if( centered ){
@@ -1639,17 +2020,18 @@ void __fastcall DrawQuestText( int position, int rowIndex, int centered, char* r
 		Surface_DrawCEL(pentagramPos, lineYOffset + Screen_TopBorder + 44, PentSpn2CELPtr, QuestPanel_PentagramsPicFrame, 12);
 	}
 
-	// пишем все буквы строки
-	for( size_t i = 0; i < len; ++i ){
-		uchar currentChar = FontIndexSmall[Codepage[rowText[i]]];
-		offset += FontWidthSmall[currentChar] + 1;
+	// (rt) write all the letters of the line
+	for( size_t i = 0; i < len; ){ // (th4) CHI: step by CHARACTER, not byte
+		int currentChar, w;
+		i += ChiNextSmall( (const uchar*)rowText + i, &currentChar, &w );
+		offset += w + 1;
 		if( currentChar && offset <= WIDTH ){
 			DrawLetter(surfaceOffset, currentChar, color);
 		}
-		surfaceOffset += FontWidthSmall[currentChar] + 1;
+		surfaceOffset += w + 1;
 	}
 
-	// рисуем правую пентаграмму у выделенной строки
+	// (rt) draw the right pentagram for the selected line
 	if( QuestPanel_SelectedRow == rowIndex ){
 		int pentagramPos;
 		if( centered ){
@@ -1662,19 +2044,108 @@ void __fastcall DrawQuestText( int position, int rowIndex, int centered, char* r
 	}
 }
 
+// (th4) QUEST LOG SCROLLING. The log has room for QUEST_PANEL_VISIBLE entries (rows 6..26, two
+// rows per entry), keeping a free entry-slot of space under the "Quest Log" title (row 2) and
+// above "Close Quest Log" (row QUEST_PANEL_CLOSE_ROW_INDEX = 30). Up to that many active quests
+// are centred vertically as in the original (start row = 17 - count, so rows 17-n .. 15+n). More than that used to spill over the title and the close
+// line; now the list shows a window of QUEST_PANEL_VISIBLE entries starting at QuestPanel_Scroll,
+// with up/down arrows at the right edge, centred (same art as the perk window, scrlarrw1..4.cel).
+// QuestPanel_SelectedRow stays a SCREEN row (Start + 2*slot, or the close row); the quest behind
+// a slot is QuestPanel_ActiveQuestsList[ QuestPanel_Scroll + slot ].
+enum { QUEST_PANEL_VISIBLE = 11, QUEST_PANEL_FIRST_ROW = 6 };
+int QuestPanel_Scroll = 0;
+bool questUpArrowPressed = false, questDownArrowPressed = false;	// visual press state, cleared on mouse up (Main.cpp OnMouseLButtonUp)
+static char* QuestArrowCel[4] = { 0, 0, 0, 0 };	// up, down, up pressed, down pressed
+
+static bool QuestPanel_Scrolls() { return QuestPanel_ActiveQuestCounts > QUEST_PANEL_VISIBLE; }
+static int QuestPanel_VisibleCount() { return QuestPanel_Scrolls() ? QUEST_PANEL_VISIBLE : QuestPanel_ActiveQuestCounts; }
+
+// Arrow geometry in CURSOR coordinates (no screen borders). Right edge of the panel, centred on
+// the entry area. Tune QUEST_ARROW_FROM_RIGHT to move them left/right.
+enum { QUEST_ARROW_SIZE = 17, QUEST_ARROW_FROM_RIGHT = 44, QUEST_ARROW_GAP = 6 };	// 44: clear of the stone frame
+static int QuestArrowX() { return QuestPanelRect.Left + QuestPanelRect.Width - QUEST_ARROW_FROM_RIGHT; }
+static int QuestArrowCenterY()	// middle of the entry rows, in the same space DrawQuestText uses (+44)
+{
+	const int midRow = QUEST_PANEL_FIRST_ROW + QUEST_PANEL_VISIBLE - 1;	// rows 6..26 -> 16
+	return QuestPanelRect.Top + StringRowYPosition[midRow] + 44 - 6;
+}
+static int QuestArrowUpTop()   { return QuestArrowCenterY() - QUEST_ARROW_GAP / 2 - QUEST_ARROW_SIZE; }
+static int QuestArrowDownTop() { return QuestArrowCenterY() + QUEST_ARROW_GAP / 2; }
+static bool CursorIn( int x, int y ){ return CursorX >= x && CursorX < x + QUEST_ARROW_SIZE && CursorY >= y && CursorY < y + QUEST_ARROW_SIZE; }
+
+// keep the selected entry inside the visible window
+static void QuestPanel_ScrollToEntry( int entry )
+{
+	if( !QuestPanel_Scrolls() ){ QuestPanel_Scroll = 0; return; }
+	if( entry < QuestPanel_Scroll ) QuestPanel_Scroll = entry;
+	if( entry >= QuestPanel_Scroll + QUEST_PANEL_VISIBLE ) QuestPanel_Scroll = entry - QUEST_PANEL_VISIBLE + 1;
+	LimitToRange( QuestPanel_Scroll, 0, QuestPanel_ActiveQuestCounts - QUEST_PANEL_VISIBLE );
+}
+static int QuestPanel_SelectedEntry()	// -1 = the close line
+{
+	if( QuestPanel_SelectedRow == QUEST_PANEL_CLOSE_ROW_INDEX || !QuestPanel_ActiveQuestCounts ) return -1;
+	return QuestPanel_Scroll + ( QuestPanel_SelectedRow - QuestPanel_StartRowIndex ) / 2;
+}
+static void QuestPanel_SelectEntry( int entry )
+{
+	if( entry < 0 ){ QuestPanel_SelectedRow = QUEST_PANEL_CLOSE_ROW_INDEX; return; }
+	QuestPanel_ScrollToEntry( entry );
+	QuestPanel_SelectedRow = QuestPanel_StartRowIndex + 2 * ( entry - QuestPanel_Scroll );
+}
+
+// scroll the window by delta entries (arrows); the selection moves with its quest, or to the
+// nearest visible entry if it scrolled out
+void QuestPanel_ScrollBy( int delta )
+{
+	if( !QuestPanel_Scrolls() ) return;
+	const int sel = QuestPanel_SelectedEntry();
+	const int prev = QuestPanel_Scroll;
+	QuestPanel_Scroll += delta;
+	LimitToRange( QuestPanel_Scroll, 0, QuestPanel_ActiveQuestCounts - QUEST_PANEL_VISIBLE );
+	if( prev == QuestPanel_Scroll ) return;
+	PlayGlobalSound( S_75_I_TITLEMOV );
+	if( sel >= 0 ){
+		int keep = sel;
+		LimitToRange( keep, QuestPanel_Scroll, QuestPanel_Scroll + QUEST_PANEL_VISIBLE - 1 );
+		QuestPanel_SelectedRow = QuestPanel_StartRowIndex + 2 * ( keep - QuestPanel_Scroll );
+	}
+}
+
+// Arrow clicks. Called for any click inside QuestPanelRect, before the text-area handling
+// (the arrows sit outside QuestPanelTextAreaRect). Returns true if an arrow took the click.
+bool QuestPanel_CheckArrowClick()
+{
+	if( !IsQUESTPanelVisible || !QuestPanel_Scrolls() ) return false;
+	if( CursorIn( QuestArrowX(), QuestArrowUpTop() ) ){ questUpArrowPressed = true; QuestPanel_ScrollBy( -1 ); return true; }
+	if( CursorIn( QuestArrowX(), QuestArrowDownTop() ) ){ questDownArrowPressed = true; QuestPanel_ScrollBy( 1 ); return true; }
+	return false;
+}
+
 //----- (004609FF) --------------------------------------------------------
 void QuestPanel_Draw()
 {
 	Surface_DrawCEL(Screen_LeftBorder + QuestPanelRect.Left, Screen_TopBorder + QuestPanelRect.Down, Data_QuestCEL, 1, QuestPanelRect.Width);
 	
-	DrawQuestText(0, 2, true, "Quest Log", C_3_Gold);
+	DrawQuestText(0, 2, true, (char*)L("Quest Log"), C_3_Gold);
  
-	for( int activeQuestIndex = 0; activeQuestIndex < QuestPanel_ActiveQuestCounts; ++activeQuestIndex ){
-		int rowIndex = QuestPanel_StartRowIndex + 2 * activeQuestIndex;
-		int questIndex = QuestPanel_ActiveQuestsList[activeQuestIndex];
-		DrawQuestText(0, rowIndex, true, BaseQuests[questIndex].questName, C_0_White);
+	const int visible = QuestPanel_VisibleCount();
+	for( int slot = 0; slot < visible; ++slot ){
+		int rowIndex = QuestPanel_StartRowIndex + 2 * slot;
+		int questIndex = QuestPanel_ActiveQuestsList[QuestPanel_Scroll + slot];
+		DrawQuestText(0, rowIndex, true, LocalizedQuestName( questIndex, BaseQuests[questIndex].questName ), C_0_White);
 	}
-	DrawQuestText(0, QUEST_PANEL_CLOSE_ROW_INDEX, true, "Close Quest Log", C_0_White);
+	DrawQuestText(0, QUEST_PANEL_CLOSE_ROW_INDEX, true, (char*)L("Close Quest Log"), C_0_White);
+	if( QuestPanel_Scrolls() ){
+		if( !QuestArrowCel[0] ){
+			QuestArrowCel[0] = (char*)LoadFile("Data\\scrlarrw1.cel");
+			QuestArrowCel[1] = (char*)LoadFile("Data\\scrlarrw2.cel");
+			QuestArrowCel[2] = (char*)LoadFile("Data\\scrlarrw3.cel");
+			QuestArrowCel[3] = (char*)LoadFile("Data\\scrlarrw4.cel");
+		}
+		const int x = Screen_LeftBorder + QuestArrowX();
+		Surface_DrawCEL( x, Screen_TopBorder + QuestArrowUpTop() + QUEST_ARROW_SIZE,   QuestArrowCel[ questUpArrowPressed ? 2 : 0 ], 1, QUEST_ARROW_SIZE );
+		Surface_DrawCEL( x, Screen_TopBorder + QuestArrowDownTop() + QUEST_ARROW_SIZE, QuestArrowCel[ questDownArrowPressed ? 3 : 1 ], 1, QUEST_ARROW_SIZE );
+	}
 	if( IsMainDraw ) QuestPanel_PentagramsPicFrame = (QuestPanel_PentagramsPicFrame & 7) + 1;
 }
 
@@ -1691,16 +2162,14 @@ void QuestPanel_Open()
 	}
 
 	QuestPanel_ActiveQuestCounts = questPanel_ActiveQuestCounts;
-	int startRowIndex;
-	if( QuestPanel_ActiveQuestCounts <= 10 ){
-		startRowIndex = 17 - (QuestPanel_ActiveQuestCounts);
-	}else{
-		startRowIndex = 17 - (QuestPanel_ActiveQuestCounts);
-	}
-	QuestPanel_StartRowIndex = startRowIndex;
+	// up to QUEST_PANEL_VISIBLE entries: centred as in the original (rows 17-n .. 15+n);
+	// more: a scrolling window starting on the first entry row
+	QuestPanel_StartRowIndex = QuestPanel_Scrolls() ? QUEST_PANEL_FIRST_ROW : 17 - QuestPanel_ActiveQuestCounts;
+	QuestPanel_Scroll = 0;
+	questUpArrowPressed = questDownArrowPressed = false;
 	QuestPanel_SelectedRow = QUEST_PANEL_CLOSE_ROW_INDEX;
 	if( QuestPanel_ActiveQuestCounts ){
-		QuestPanel_SelectedRow = startRowIndex;
+		QuestPanel_SelectedRow = QuestPanel_StartRowIndex;
 	}
 	IsQUESTPanelVisible = true;
 	QuestPanel_PentagramsPicFrame = 1;
@@ -1710,13 +2179,10 @@ void QuestPanel_Open()
 void QuestPanel_ShiftUp()
 {
 	if( QuestPanel_ActiveQuestCounts ){
-		if( QuestPanel_SelectedRow == QuestPanel_StartRowIndex ){
-			QuestPanel_SelectedRow = QUEST_PANEL_CLOSE_ROW_INDEX;
-		}else if( QuestPanel_SelectedRow == QUEST_PANEL_CLOSE_ROW_INDEX ){
-			QuestPanel_SelectedRow = QuestPanel_StartRowIndex + 2 * (QuestPanel_ActiveQuestCounts - 1);
-		}else{
-			QuestPanel_SelectedRow -= 2;
-		}
+		const int sel = QuestPanel_SelectedEntry();
+		if( sel == 0 ) QuestPanel_SelectEntry( -1 );								// first -> close line
+		else if( sel < 0 ) QuestPanel_SelectEntry( QuestPanel_ActiveQuestCounts - 1 );	// close -> last
+		else QuestPanel_SelectEntry( sel - 1 );
 		PlayGlobalSound(S_75_I_TITLEMOV);
 	}
 }
@@ -1725,13 +2191,10 @@ void QuestPanel_ShiftUp()
 void QuestPanel_ShiftDown()
 {
 	if( QuestPanel_ActiveQuestCounts ){
-		if( QuestPanel_SelectedRow == QUEST_PANEL_CLOSE_ROW_INDEX ){
-			QuestPanel_SelectedRow = QuestPanel_StartRowIndex;
-		}else if( QuestPanel_SelectedRow == QuestPanel_StartRowIndex + 2 * (QuestPanel_ActiveQuestCounts - 1) ){
-			QuestPanel_SelectedRow = QUEST_PANEL_CLOSE_ROW_INDEX;
-		}else{
-			QuestPanel_SelectedRow += 2;
-		}
+		const int sel = QuestPanel_SelectedEntry();
+		if( sel < 0 ) QuestPanel_SelectEntry( 0 );												// close -> first
+		else if( sel == QuestPanel_ActiveQuestCounts - 1 ) QuestPanel_SelectEntry( -1 );		// last -> close line
+		else QuestPanel_SelectEntry( sel + 1 );
 		PlayGlobalSound(S_75_I_TITLEMOV);
 	}
 }
@@ -1740,8 +2203,9 @@ void QuestPanel_ShiftDown()
 void QuestPanel_StartSpeech()
 {
 	PlayGlobalSound(S_76_I_TITLSLCT);
-	if( QuestPanel_ActiveQuestCounts && QuestPanel_SelectedRow != QUEST_PANEL_CLOSE_ROW_INDEX ){
-		int questIndex = QuestPanel_ActiveQuestsList[(QuestPanel_SelectedRow - QuestPanel_StartRowIndex) / 2];
+	const int sel = QuestPanel_SelectedEntry();
+	if( sel >= 0 && sel < QuestPanel_ActiveQuestCounts ){
+		int questIndex = QuestPanel_ActiveQuestsList[sel];
 		StartSpeech(Quests[questIndex].speechIndex);
 	}
 	IsQUESTPanelVisible = false;
@@ -1751,8 +2215,9 @@ void QuestPanel_StartSpeech()
 void QuestPanel_CheckLButtonClick()
 {
 	int row = (CursorY - QuestPanelTextAreaRect.Top) / 12;
-	for( int activeQuestIndex = 0; activeQuestIndex < QuestPanel_ActiveQuestCounts; ++activeQuestIndex ){
-		if( row == QuestPanel_StartRowIndex + 2 * activeQuestIndex ){
+	const int visible = QuestPanel_VisibleCount();
+	for( int slot = 0; slot < visible; ++slot ){
+		if( row == QuestPanel_StartRowIndex + 2 * slot ){
 			QuestPanel_SelectedRow = row;
 			QuestPanel_StartSpeech();
 			break;
@@ -1769,11 +2234,11 @@ void __fastcall UpdateQuestStatus( int questIndex, QUEST_STATUS status, int talk
 {
 	Quest& quest = Quests[questIndex];
 	if( quest.status != QS_3_COMPLETE ){
-		if( status > quest.status ){// только на увеличение работает
+		if( status > quest.status ){// (rt) works for increases only
 			quest.status = status;
 		}
-		quest.talkToFlag |= talkToFlag;// может только стать из 0 в 1 но не наоборот
-		if( status2 > quest.status2 ){// тоже на увеличение
+		quest.talkToFlag |= talkToFlag;// (rt) can only change from 0 to 1, not the other way round
+		if( status2 > quest.status2 ){// (rt) also for increases
 			quest.status2 = status2;
 		}
 		if (status3 > quest.status3) {

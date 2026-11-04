@@ -45,8 +45,11 @@ void SPMainMenuHandler()
 	Menu_SetItemAvailability(&SPMainMenu[3], gbValidSaveFile);
 	bool isSaveGameEnabled = 0;
 		
+	// (th4) GM_DARK_CAMPAIGN saves like Easy. It matters that the mode is listed here and not
+	// left to the "!Dungeon->isQuest" fallback: the Hideout and every campaign mission are
+	// QUEST floors, so without this the Save Game item would be greyed out everywhere.
 	if( Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
-	 && (SaveAlwaysEnabled || is(GameMode, GM_EASY, GM_CLASSIC) || !Dungeon->isQuest) && IsSaveAndLeavingEnabled() && !IsPlayerDead  && EnforceNoSave == false ){
+	 && (SaveAlwaysEnabled || is(GameMode, GM_EASY, GM_CLASSIC, GM_DARK_CAMPAIGN) || !Dungeon->isQuest) && IsSaveAndLeavingEnabled() && !IsPlayerDead  && EnforceNoSave == false ){
 		isSaveGameEnabled = 1;
 	}
 
@@ -54,11 +57,11 @@ void SPMainMenuHandler()
 	Menu_SetItemAvailability(&SPMainMenu[1], 1);
 	Menu_SetItemAvailability(&SPMainMenu[2], 1);
 	Menu_SetItemAvailability(&SPMainMenu[4], 1);
-	SPMainMenu[0].NamePtr = "Save Game";
-	SPMainMenu[1].NamePtr = "Setup";
-	SPMainMenu[2].NamePtr = "New Game";
-	SPMainMenu[3].NamePtr = "Load Game";
-	SPMainMenu[4].NamePtr = "Quit";
+	SPMainMenu[0].NamePtr = (char*)L("Save Game");
+	SPMainMenu[1].NamePtr = (char*)L("Setup");
+	SPMainMenu[2].NamePtr = (char*)L("New Game");
+	SPMainMenu[3].NamePtr = (char*)L("Load Game");
+	SPMainMenu[4].NamePtr = (char*)L("Quit");
     SPMainMenu[2].FuncPtr = NewGameMenuHandler;
 
 	if (GameMode == GM_IRONMAN) {
@@ -66,7 +69,7 @@ void SPMainMenuHandler()
 		Menu_SetItemAvailability(&SPMainMenu[2], 1);
 		Menu_SetItemAvailability(&SPMainMenu[3], 0);
 		Menu_SetItemAvailability(&SPMainMenu[4], 0);
-		SPMainMenu[2].NamePtr = "Murder Hero";
+		SPMainMenu[2].NamePtr = (char*)L("Murder Hero");
 		SPMainMenu[2].FuncPtr = MurderHeroMenuHandler;		
 		int ironman_saverate = 4;
 		GetIronmanSaverate(ironman_saverate);
@@ -79,7 +82,7 @@ void SPMainMenuHandler()
 			&& Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
 			&& !IsPlayerDead
 			) {
-			SPMainMenu[4].NamePtr = "Save & Quit";
+			SPMainMenu[4].NamePtr = (char*)L("Save & Quit");
 			Menu_SetItemAvailability(&SPMainMenu[4], 1); 
 		}
 	}
@@ -95,12 +98,25 @@ void SPMainMenuHandler()
 			|| SaveAlwaysEnabled;
 		Menu_SetItemAvailability(&SPMainMenu[0], isSaveGameEnabled);
 	}
+	else if (GameMode == GM_OUTBREAK) {
+		Menu_SetItemAvailability(&SPMainMenu[0], 0);
+		Menu_SetItemAvailability(&SPMainMenu[2], 1);
+		//Menu_SetItemAvailability(&SPMainMenu[3], gbValidSaveFile);
+		Menu_SetItemAvailability(&SPMainMenu[3], 0); // load game forbidden completely now (so you can't mess up your wave timers)
+		isSaveGameEnabled = (Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
+			&& !IsPlayerDead
+			//&& GetNumberOfObjectsInDungeon() <= MaxIronmanObjects
+			&& GetNumberOfMonstersInDungeon() == 0
+			&& EnforceNoSave == false)
+			|| SaveAlwaysEnabled;
+		Menu_SetItemAvailability(&SPMainMenu[0], isSaveGameEnabled);
+	}
 	else if( GameMode == GM_NIGHTMARE || GameMode == GM_SPEEDRUN){
 		EnforceNoSave = ! UberDiabloKilled; 
 		Menu_SetItemAvailability(&SPMainMenu[0], 0);
 		Menu_SetItemAvailability(&SPMainMenu[3], 0);
 		Menu_SetItemAvailability(&SPMainMenu[4], 0);
-		SPMainMenu[2].NamePtr = "Abandon Game";
+		SPMainMenu[2].NamePtr = (char*)L("Abandon Game");
 		SPMainMenu[2].FuncPtr = MurderHeroMenuHandler;
 		Menu_SetItemAvailability(&SPMainMenu[2], 1);
 	}else if( GameMode == GM_HARDCORE ){
@@ -109,7 +125,7 @@ void SPMainMenuHandler()
 			Menu_SetItemAvailability(&SPMainMenu[2], 1);
 			Menu_SetItemAvailability(&SPMainMenu[3], 0);
 			Menu_SetItemAvailability(&SPMainMenu[4], 0);
-			SPMainMenu[2].NamePtr = "Murder Hero";
+			SPMainMenu[2].NamePtr = (char*)L("Murder Hero");
 			SPMainMenu[2].FuncPtr = MurderHeroMenuHandler;
 		}
 		else if (IsSomeMonstersActivated()) {
@@ -126,12 +142,12 @@ void SPMainMenuHandler()
 		}
 	}
 	if( is( GameMode, GM_NIGHTMARE, GM_SPEEDRUN, GM_IRONMAN ) && UberDiabloKilled ){
-		SPMainMenu[ 4 ].NamePtr = "Save & Quit";
+		SPMainMenu[ 4 ].NamePtr = (char*)L("Save & Quit");
 		Menu_SetItemAvailability( &SPMainMenu[ 4 ], 1 );
 	}
 }
 
-void MurderHeroMenuHandlerMurderHeroMenuHandler()
+void MurderHeroMenuHandlerMurderHeroMenuHandler()// wtf ?
 {
 
 }
@@ -152,10 +168,10 @@ void MPMainMenuHandler()
 	MpRestartAvailability(&MPMainMenu[1], IsPlayerDead);
 	Menu_SetItemAvailability(&MPMainMenu[2], IsPlayerDead);
 	MpRestartAvailability(&MPMainMenu[3], IsPlayerDead);
-	MPMainMenu[0].NamePtr = "Setup";
-	MPMainMenu[1].NamePtr = "New Game";
-	MPMainMenu[2].NamePtr = "Restart In Town";
-	MPMainMenu[3].NamePtr = "Quit";
+	MPMainMenu[0].NamePtr = (char*)L("Setup");
+	MPMainMenu[1].NamePtr = (char*)L("New Game");
+	MPMainMenu[2].NamePtr = (char*)L("Restart In Town");
+	MPMainMenu[3].NamePtr = (char*)L("Quit");
     MPMainMenu[1].FuncPtr = NewGameMenuHandler;
 
 	if (is(GameMode, GM_NORMAL, GM_HARD)) {
@@ -171,7 +187,7 @@ void MPMainMenuHandler()
             Menu_SetItemAvailability(&MPMainMenu[2], 0);
 			Menu_SetItemAvailability(&MPMainMenu[3], 0);
 			
-			MPMainMenu[1].NamePtr = "Murder Hero";
+			MPMainMenu[1].NamePtr = (char*)L("Murder Hero");
 			MPMainMenu[1].FuncPtr = MurderHeroMenuHandler;
 			if (Players[CurrentPlayerIndex].CurAction == PCA_8_DEATH || IsPlayerDead) {
 			}
@@ -180,7 +196,7 @@ void MPMainMenuHandler()
 				GetIronmanSaverate(ironman_saverate);
 				if( Dungeon != DUN_0_TOWN && (DUNGEON)Dungeon % ironman_saverate == 0 // TODO: change to save flag in Dungeons
 				 && GetNumberOfObjectsInDungeon() <= MaxIronmanObjects && GetNumberOfMonstersInDungeon() == 0) {
-					MPMainMenu[3].NamePtr = "Save & Quit";
+					MPMainMenu[3].NamePtr = (char*)L("Save & Quit");
 					Menu_SetItemAvailability(&MPMainMenu[1], 0);
 					Menu_SetItemAvailability(&MPMainMenu[3], 1);
 				}
@@ -192,14 +208,14 @@ void MPMainMenuHandler()
 		Menu_SetItemAvailability(&MPMainMenu[2], 0); // no restart
 		Menu_SetItemAvailability(&MPMainMenu[3], 0); // no quit
 
-		//MPMainMenu[1].NamePtr = "Murder Hero";
+		//MPMainMenu[1].NamePtr = (char*)L("Murder Hero");
 		//MPMainMenu[1].FuncPtr = MurderHeroMenuHandler;
 		if (Players[CurrentPlayerIndex].CurAction == PCA_8_DEATH || IsPlayerDead) {
 			Menu_SetItemAvailability(&MPMainMenu[1], 1);
 		}
 		else {
 			if( /*Dungeon != DUN_0_TOWN &&*/ (DUNGEON)Dungeon % 1 == 0 && GetNumberOfObjectsInDungeon() <= MaxIronmanObjects && GetNumberOfMonstersInDungeon() == 0) {
-				MPMainMenu[3].NamePtr = "Quit";
+				MPMainMenu[3].NamePtr = (char*)L("Quit");
 				Menu_SetItemAvailability(&MPMainMenu[1], 1);
 				Menu_SetItemAvailability(&MPMainMenu[3], 1);
 			}
@@ -209,7 +225,7 @@ void MPMainMenuHandler()
 		EnforceNoSave = ! UberDiabloKilled;
 		Menu_SetItemAvailability(&MPMainMenu[0], 1);
 
-        MPMainMenu[1].NamePtr = "Abandon Game";
+        MPMainMenu[1].NamePtr = (char*)L("Abandon Game");
         MPMainMenu[1].FuncPtr = MurderHeroMenuHandler;
         Menu_SetItemAvailability(&MPMainMenu[1], 1);
 
@@ -220,7 +236,7 @@ void MPMainMenuHandler()
 	else if (GameMode == GM_HARDCORE) {
 		if (Players[CurrentPlayerIndex].CurAction == PCA_8_DEATH || IsPlayerDead) {
             Menu_SetItemAvailability(&MPMainMenu[1], 1);
-            MPMainMenu[1].NamePtr = "Murder Hero";
+            MPMainMenu[1].NamePtr = (char*)L("Murder Hero");
             MPMainMenu[1].FuncPtr = MurderHeroMenuHandler;
 
 			Menu_SetItemAvailability(&MPMainMenu[2], 0);
@@ -228,7 +244,7 @@ void MPMainMenuHandler()
 		}
 	}
 	if( is( GameMode, GM_NIGHTMARE, GM_SPEEDRUN, GM_IRONMAN ) && UberDiabloKilled ){
-		MPMainMenu[ 3 ].NamePtr = "Save & Quit";
+		MPMainMenu[ 3 ].NamePtr = (char*)L("Save & Quit");
 		Menu_SetItemAvailability( &MPMainMenu[ 1 ], 0 );
 		Menu_SetItemAvailability( &MPMainMenu[ 3 ], 1 );
 	}
@@ -269,6 +285,10 @@ void __fastcall NewGameMenuHandler(int a1, int a2)
 
 void __fastcall MurderHeroMenuHandler(int a1, int a2)
 {
+    MurderConfirmationMenu[0].NamePtr = (char*)L("Press F12");
+    MurderConfirmationMenu[1].NamePtr = (char*)L("to confirm");
+    MurderConfirmationMenu[2].NamePtr = (char*)L("hero murder");
+    MurderConfirmationMenu[3].NamePtr = (char*)L("Previous Menu");
     Menu_SetupMenuWindow(MurderConfirmationMenu, 0);
 }
 
@@ -282,6 +302,11 @@ void MurderHeroInGame()
 	InstantMurderHero = (is(GameMode, GM_NIGHTMARE, GM_SPEEDRUN, GM_IRONMAN)
 		|| (GameMode == GM_HARDCORE && (Players[CurrentPlayerIndex].CurAction == PCA_8_DEATH || IsPlayerDead)));
 	strcpy(MurderHeroName, Players[CurrentPlayerIndex].playerName);
+	// (th4) Arm the murder for THIS hero's exact save, not just its name: the single- and
+	// multiplayer lists are separate save files, and names repeat (Ironman players reuse
+	// them). CharSlots.cpp LoadCharSlots only deletes the slot in the list that matches both.
+	MurderHeroSlot = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
+	MurderHeroMulti = MaxCountOfPlayersInGame != 1;
 	if( UberDiabloKilled ) InstantMurderHero = false;
 	for( int i = 0; i < PlayersMax_4; ++i ){
 		Players[i].CurAction = PCA_11_QUIT;
@@ -364,7 +389,7 @@ void __fastcall SaveGameMenuHandler(int a1, int a2)
 //----- (0041B48B) -------------------------------------------------------- menu
 void __fastcall RestartMenuHandler(int a1, int a2)
 {
-	if( NetPlayerCount == 1 || true ){ // в th1 в мульти тоже в городе восстанавливаемся
+	if( NetPlayerCount == 1 || true ){ // (rt) in th1 multiplayer we are also restored in town
         NetSendCmd( 1, CMD_91_RETOWN );
 	}else{
         NetSendCmdParam1( 1, CMD_26_RESURRECT, CurrentPlayerIndex );
@@ -377,9 +402,27 @@ void __fastcall SetupMenuHandler(int a1, int a2)
 	SetMusicMenu();
 	SetAmbientMenu();
 	SetSoundMenu();
-	SetWalkMenu();
 	SetGammaMenu();
 	SetContrastMenu();
+
+	OptionsMenu[OP_GAMMA].NamePtr    = (char*)L( "Gamma" );
+	OptionsMenu[OP_CONTRAST].NamePtr = (char*)L( "Contrs" );
+
+	// (th4): Classic has no run/jog -- you always walk (see Running() in Player.cpp).
+	// So the Jog/Walk row must not be shown. Menu_SetupMenuWindow() sizes the list by
+	// scanning for the first null FuncPtr, so hiding a row means physically closing the
+	// gap and re-terminating: Previous Menu moves up into OP_JOG's slot. Rebuilt on every
+	// open (this handler runs each time the menu is entered), so switching game mode
+	// without restarting still gets the right list.
+	if( GameMode == GM_CLASSIC ){
+		OptionsMenu[OP_JOG]     = { (uint)(MENU_ENABLED), (char*)L( "Previous Menu" ), GoBackMenuHandler };
+		OptionsMenu[OP_JOG + 1] = { (uint)(MENU_ENABLED), 0, 0 }; // terminator
+	}else{
+		OptionsMenu[OP_JOG]     = { (uint)(MENU_ENABLED | MENU_SLIDER), 0, WalkMenuHandler };
+		SetWalkMenu(); // re-apply: the line above clobbers the slider ticks/pos and name
+		OptionsMenu[OP_JOG + 1] = { (uint)(MENU_ENABLED), (char*)L( "Previous Menu" ), GoBackMenuHandler };
+		OptionsMenu[OP_JOG + 2] = { (uint)(MENU_ENABLED), 0, 0 }; // terminator
+	}
 
 	if (!tempHeight) tempHeight = ScreenHeight;
 	if (!tempWidth) tempWidth = ScreenWidth;
@@ -454,13 +497,15 @@ void __fastcall SaveToConfig()
 		fprintf(ini, "set showCombatText %s\n", tempshowCombatText ? "on" : "off");
 		fprintf(ini, "set showCombatExp %s\n", tempshowCombatExp ? "on" : "off");
 		fprintf(ini, "set showPercentExpGain %s\n", tempShowPercentExpGain ? "on" : "off");
-		fprintf(ini, "set showReceivedDamage %s\n", tempShowVersionOnScreen ? "on" : "off");
+		fprintf(ini, "set showReceivedDamage %s\n", tempShowReceivedDamage ? "on" : "off");
 		fprintf(ini, "set receivedDamageThreshold %d\n", tempReceivedDamageThreshold);
 		fprintf(ini, "set mergeCombatTexts %s\n", tempmergeCombatTexts ? "on" : "off");
 		fprintf(ini, "set showInflictedDamage %s\n", tempshowInflictedDamage ? "on" : "off");
 		fprintf(ini, "set MonsterReceivedDamageThreshold %d\n", tempMonsterReceivedDamageThreshold);
 		fprintf(ini, "set floatingHPRegenThreshold %d\n", tempFloatingHPRegenThreshold);
 		fprintf(ini, "set floatingManaRegenThreshold %d\n", tempFloatingManaRegenThreshold);
+		fprintf(ini, "set showHPRegen %s\n", ShowHPRegen ? "on" : "off");
+		fprintf(ini, "set showMPRegen %s\n", ShowMPRegen ? "on" : "off");
 		fprintf(ini, "set showBreakWarning %s\n", tempShowBreakWarning ? "on" : "off");
 		fprintf(ini, "\n");
 		fprintf(ini, "// OTHER OPTIONS (don't change these ever! changes will cripple your character with no way to repair them)\n");
@@ -587,7 +632,7 @@ void __fastcall CombatTextOptions1MenuHandler(int a1, int a2){
 	case 200: CombatTextOptions2[0].NamePtr = "Received Damage Threshold: 200"; break;
 	case 300: CombatTextOptions2[0].NamePtr = "Received Damage Threshold: 300"; break;
 	case 500: CombatTextOptions2[0].NamePtr = "Received Damage Threshold: 500"; break;
-	default: CombatTextOptions2[0].NamePtr = "Received Damage Threshold: 0"; tempReceivedDamageThreshold = 0; break;
+	default: { static char buf[64]; sprintf_s(buf, "Received Damage Threshold: %d", tempReceivedDamageThreshold); CombatTextOptions2[0].NamePtr = buf; } break;
 	}
 	switch (tempmergeCombatTexts) {
 	case true: CombatTextOptions2[1].NamePtr = "merge Floating Texts: on"; break;
@@ -616,7 +661,7 @@ void __fastcall CombatTextOptions1MenuHandler(int a1, int a2){
 	case 200: CombatTextOptions2[3].NamePtr = "Monster Received Damage Threshold: 200"; break;
 	case 300: CombatTextOptions2[3].NamePtr = "Monster Received Damage Threshold: 300"; break;
 	case 500: CombatTextOptions2[3].NamePtr = "Monster Received Damage Threshold: 500"; break;
-	default: CombatTextOptions2[3].NamePtr = "Monster Received Damage Threshold: 0"; tempMonsterReceivedDamageThreshold = 0; break;
+	default: { static char buf[64]; sprintf_s(buf, "Monster Received Damage Threshold: %d", tempMonsterReceivedDamageThreshold); CombatTextOptions2[3].NamePtr = buf; } break;
 	}
 	switch (tempFloatingHPRegenThreshold) {
 	case 0: CombatTextOptions3[0].NamePtr = "Floating HP Regen Threshold: 0"; break;
@@ -637,7 +682,7 @@ void __fastcall CombatTextOptions1MenuHandler(int a1, int a2){
 	case 200: CombatTextOptions3[0].NamePtr = "Floating HP Regen Threshold: 200"; break;
 	case 300: CombatTextOptions3[0].NamePtr = "Floating HP Regen Threshold: 300"; break;
 	case 500: CombatTextOptions3[0].NamePtr = "Floating HP Regen Threshold: 500"; break;
-	default: CombatTextOptions3[0].NamePtr = "Floating HP Regen Threshold: 0"; tempFloatingHPRegenThreshold = 0; break;
+	default: { static char buf[64]; sprintf_s(buf, "Floating HP Regen Threshold: %d", tempFloatingHPRegenThreshold); CombatTextOptions3[0].NamePtr = buf; } break;
 	}
 	switch (tempFloatingManaRegenThreshold) {
 	case 0: CombatTextOptions3[1].NamePtr = "Floating ManaRegen Threshold: 0"; break;
@@ -658,7 +703,7 @@ void __fastcall CombatTextOptions1MenuHandler(int a1, int a2){
 	case 200: CombatTextOptions3[1].NamePtr = "Floating ManaRegen Threshold: 200"; break;
 	case 300: CombatTextOptions3[1].NamePtr = "Floating ManaRegen Threshold: 300"; break;
 	case 500: CombatTextOptions3[1].NamePtr = "Floating ManaRegen Threshold: 500"; break;
-	default: CombatTextOptions3[1].NamePtr = "Floating ManaRegen Threshold: 0"; tempFloatingManaRegenThreshold = 0; break;
+	default: { static char buf[64]; sprintf_s(buf, "Floating ManaRegen Threshold: %d", tempFloatingManaRegenThreshold); CombatTextOptions3[1].NamePtr = buf; } break;
 	}
 	switch (tempShowBreakWarning) {
 	case true: CombatTextOptions3[2].NamePtr = "show Break Warning: on"; break;
@@ -1154,12 +1199,12 @@ void __fastcall SetVolumeMenu(char** text, Menu* menu, int volume)
 {
 	if( IsDirectSoundAllocated ){
 		menu->Flags |= MENU_ENABLED | MENU_SLIDER;
-		menu->NamePtr = text[SLIDER_ON];
+		menu->NamePtr = (char*)L( text[SLIDER_ON] );
 		Menu_SetSliderTicks(menu, VOL_TICKS);
 		Menu_SetSlider(menu, VOL_MIN, 0, volume);
 	}else{
 		menu->Flags &= ~(MENU_ENABLED | MENU_SLIDER);
-		menu->NamePtr = text[SLIDER_DISABLED];
+		menu->NamePtr = (char*)L( text[SLIDER_DISABLED] );
 	}
 }
 
@@ -1172,9 +1217,12 @@ void SetSoundMenu()
 //----- (0041B528) -------------------------------------------------------- menu
 void SetWalkMenu()
 {
+	// (th4): in Classic the Jog row does not exist -- OP_JOG's slot holds Previous Menu
+	// (see SetupMenuHandler). Writing slider ticks/name into it would corrupt that row.
+	if( GameMode == GM_CLASSIC ) return;
 	Menu_SetSliderTicks(&OptionsMenu[OP_JOG], 2);
 	Menu_SetSlider(&OptionsMenu[OP_JOG], 0, 1, IsFastWalkEnabled);
-	OptionsMenu[OP_JOG].NamePtr = WalkMenu[IsFastWalkEnabled == 0];
+	OptionsMenu[OP_JOG].NamePtr = (char*)L( WalkMenu[IsFastWalkEnabled == 0] );
 }
 
 //----- (0041B562) -------------------------------------------------------- menu

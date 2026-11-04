@@ -1,6 +1,6 @@
 ﻿#include "stdafx.h"
 
-// обработка ошибок 
+// (rt) error handling 
 enum ERROR_CODE: int {
 	ER_OK					= 0 ,
 	ER_invalid_parametrs	= 1 ,
@@ -56,7 +56,7 @@ int __stdcall ReleaseDC_( HWND hwnd, HDC hdc );
 HDC __stdcall BeginPaint_( HWND hwnd, LPPAINTSTRUCT lppaint );
 int __stdcall EndPaint_( HWND hwnd, const LPPAINTSTRUCT lppaint );
 
-// установка режимов защиты секциям exe 
+// (rt) setting protection modes on exe sections 
 uint PeSetSectionProtection( HMODULE hModule, ulong flag )
 {
 	PIMAGE_SECTION_HEADER pish = IMAGE_FIRST_SECTION( PEHEADER( hModule ) ); 
@@ -88,7 +88,7 @@ void PatchStormWin()
 	CreateWindowEx_storm_adr = (uint) CreateWindowEx_storm;
 	*(uint*) (0x1501238A /*0x150105EF*/ + StormReloc) = (uint) &CreateWindowEx_storm_adr;
 
-	// отключение перехвата PrintScreen storm'ом
+	// (rt) disabling storm's PrintScreen interception
 	*(uchar*) (0x15010878 + StormReloc) = 0xEB; // short jmp
 	
 	if( BackgroundSound ){
@@ -256,7 +256,7 @@ void ValidateSounds()
 //----- (th2) ---------------------------------------------------------------
 void InitTH2( void* arg )
 {
-	// код для анализа двух спрайтов и выгрузки trn между ними	
+	// (rt) code for analysing two sprites and exporting the trn between them	
 	//if( FILE* trn = fopen( "assa.trn", "wb" ) ){
 	//	for( int i = 0; i < 256; ++i ){
 	//		fputc( a[i], trn );
@@ -296,17 +296,18 @@ void InitTH2( void* arg )
 
 	std::ios::sync_with_stdio( false );
 	GetParamsFromConfig();
+	InitLocalization(); // (th4)
 	LoadDlls();
 	PatchStormWin();
-	//SetupDisplayObjectsStructs(); // новый саб, отвечает за присвоение переменным нужных координат и размеров
-	// для переключение между v-sync в fullscreen в game и меню
+	//(rt) SetupDisplayObjectsStructs(); // new sub, assigns the required coordinates and sizes to variables
+	// (rt) for switching v-sync in fullscreen between the game and the menu
 	extern int OldWorldProcess; OldWorldProcess = LoadOnStart ? 1 : 0;
 
-	// динамическая инициализация статических переменных (вызов с++ конструкторов)
-	// InitDoublePrice вынести наружу, crit sects переделать в std _lockit, с exception еще не доразобрался
+	// (rt) dynamic initialization of static variables (calling C++ constructors)
+	// (rt) move InitDoublePrice out; rework the crit sects into std _lockit; the exception handling isn't fully analysed yet
 	SetupDeltaCriticalSection();
 	SetupDDSurfaceCriticalSection();
-	InitLocking(); // это статические конструкторы вызываемые для всех переменных инициализируемых вне main()
+	InitLocking(); // (rt) these are the static constructors called for all variables initialized outside main()
 	//InitializeExceptionHandler();
 	InitDoublePrice();
 	SetupTimingCritSection();
@@ -318,20 +319,22 @@ void InitTH2( void* arg )
 	AttachMetaMenu();
 	
 	#if fileDirectAccess
-	InitStorm( HInstance, 1, 0 ); // для подготовки storm для вызова функции directaccess ниже
-	SFileEnableDirectAccess( 1 ); // тут включается чтение файлов из папок напрямую если их нет в .mpq 
+	InitStorm( HInstance, 1, 0 ); // (rt) to prepare storm for the directaccess call below
+	SFileEnableDirectAccess( 1 ); // (rt) this enables reading files directly from folders if they are not in the .mpq 
 	#endif
 	if( SaveFolder ){
 		for( int i = 0; i < 2; ++i ) create_directory( SaveFolders[i] );
 		if( ColiseumSaveFolder ) create_directory( SaveFolders[2] );
 		if( ClassicSaveFolder  ) create_directory( SaveFolders[3] );
+		if (OutbreakSaveFolder)  create_directory( SaveFolders[4] );
+		if( DarkCampaignSaveFolder ) create_directory( SaveFolders[5] ); // (th4)
 	}
 	InitPerks();
 	if( XinputEnabled && ! LoadLibraryA("xinput9_1_0.dll") ){ XinputEnabled = false; }
 	if( LimitCpuCore ) SetProcessAffinityMask(GetCurrentProcess(), 1);
 }
 
-// выход из th2 -------------------------------------------------------------
+// (rt) exit from th2 -------------------------------------------------------------
 void ExitTH2()
 {
 	void SaveUserParameters(); SaveUserParameters();
@@ -348,7 +351,7 @@ BOOL __stdcall GetCursorPos_( LPPOINT lpPoint )
 	POINT p;
 	BOOL result = GetCursorPos( &p );
 	ScreenToClient( ghMainWnd, &p );
-	// меню пока не умеет в изменяемое окно
+	// (rt) the menu can't handle a resizable window yet
 	static POINT lastValid = {	p.x < 0 ? 0 : (p.x >= ScreenWidth ? ScreenWidth : p.x),
 								p.y < 0 ? 0 : (p.x >= ScreenHeight ? ScreenHeight : p.y) };
 	if( p.x < 0 || p.y < 0 || p.x >= ScreenWidth || p.y >= ScreenHeight ){
@@ -378,7 +381,7 @@ BOOL __stdcall ClientToScreen_( HWND hwnd, LPPOINT lppoint )
 	return result;
 }
 
-// для фикса оконного режима в hell2.dll
+// (rt) for the windowed mode fix in hell2.dll
 BOOL __stdcall ScreenToClient_( HWND hwnd, LPPOINT lppoint )
 {
 	POINT p{ 0, 0 };
@@ -389,7 +392,7 @@ BOOL __stdcall ScreenToClient_( HWND hwnd, LPPOINT lppoint )
 	return result;
 }
 
-// для фикса оконного режима в hell2.dll
+// (rt) for the windowed mode fix in hell2.dll
 BOOL __stdcall GetWindowRect_( HWND hwnd, LPRECT lprect )
 {
 	POINT p{ 0, 0 };
@@ -413,7 +416,7 @@ HWND _stdcall CreateWindowEx_storm( DWORD dwExStyle, LPCSTR lpClassName, LPCSTR 
 	ClientToScreen( ghMainWnd, &p );
 	//return DlgHwnd = CreateWindowExA( dwExStyle, lpClassName, lpWindowName, (dwExStyle == 65536) ? (WS_CHILD /*| WS_CLIPSIBLINGS*/ | (dwStyle & ~WS_POPUP)) : dwStyle, X /*p.x*/, Y /*p.y*/, nWidth, nHeight /*-2*/, global_hWnd /*hWndParent*/, hMenu, hInstance, lpParam );
 	
-	// сделать приращения здесь и в MoveWindow (там еще убрать изменение размеров)
+	// (rt) make the increments here and in MoveWindow (and remove the resizing there)
 	HWND dlgHwnd = CreateWindowExA( dwExStyle, lpClassName, lpWindowName, dwStyle, X + p.x, Y + p.y, nWidth, nHeight /*-2*/, hWndParent, hMenu, hInstance, lpParam );
 	#ifdef META_CHILD
 	if( MainMainMenu )
@@ -457,8 +460,8 @@ HWND _stdcall GetDesktopWindow_()
 
 BOOL __stdcall EnableWindow_( HWND hWnd, BOOL bEnable )
 {
-	// если отключить disabling, то он все равно становится неактивным
-	// так окна главного меню это отдельный WS_POPUP сверху
+	// (rt) even if disabling is turned off, it still becomes inactive
+	// (rt) since the main menu windows are a separate WS_POPUP on top
 	if( false && hWnd == ghMainWnd && bEnable == FALSE && MainMainMenu ){
 		return 0;
 	}else{

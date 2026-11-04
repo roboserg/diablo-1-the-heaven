@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "MenuPortrait.h"
 
 GAME_MODE GameMode = GM_NORMAL;
 int GameModeFilter = -1;
@@ -21,6 +22,8 @@ Mode Modes[GM_count] = {
 	{ GM_SPEEDRUN,	"Speedrun",  "Nightmare variation. Saving allowed only after beating level 24, no Vise, no pause, 200% MF, increased experience, and a timer which stops with your death or His." },
 	{ GM_COLISEUM,	"Coliseum",  "Coliseum mode" },
 	{ GM_CLASSIC,	"Classic",   "Classic mode" },
+    { GM_OUTBREAK,	"Outbreak",   "Outbreak mode" },
+	{ GM_DARK_CAMPAIGN, "Dark Campaign", "The Dark Campaign: serve the Lord of Terror. Single player only." }, // (th4)
 };
 
 int GameModeTitleList[ 2 ] = { ID_CAPTION, 0 };
@@ -92,16 +95,16 @@ Portrait getGameModePortrait( GAME_MODE gameMode )
 {
     Portrait portrait;
     switch( gameMode ){
-        case GM_NORMAL:     portrait = PcxHeros[56]; break;
-        case GM_HARDCORE:	portrait = PcxHeros[ 8]; break;
-        case GM_IRONMAN:	portrait = PcxHeros[80]; break;
-        case GM_NIGHTMARE:	portrait = PcxHeros[ 4]; break;
-        case GM_EASY:	    portrait = PcxHeros[78]; break;
-        case GM_SURVIVAL:	portrait = PcxHeros[54]; break;
-        case GM_HARD:	    portrait = PcxHeros[55]; break;
-		case GM_SPEEDRUN:   portrait = PcxHeros[53]; break;
-		case GM_COLISEUM:   portrait = PcxHeros[56]; break;
-		case GM_CLASSIC:    portrait = PcxHeros[ 2]; break;
+        case GM_NORMAL:     portrait = PcxTraits[56]; break;
+        case GM_HARDCORE:	portrait = PcxTraits[ 8]; break;
+        case GM_IRONMAN:	portrait = PcxTraits[80]; break;
+        case GM_NIGHTMARE:	portrait = PcxTraits[ 4]; break;
+        case GM_EASY:	    portrait = PcxTraits[78]; break;
+        case GM_SURVIVAL:	portrait = PcxTraits[54]; break;
+        case GM_HARD:	    portrait = PcxTraits[55]; break;
+		case GM_SPEEDRUN:   portrait = PcxTraits[53]; break;
+		case GM_COLISEUM:   portrait = PcxTraits[56]; break;
+		case GM_CLASSIC:    portrait = PcxTraits[ 2]; break;
     }
     return portrait;
 }
@@ -110,15 +113,51 @@ Portrait getGameModePortrait( GAME_MODE gameMode )
 const char* getGameModeDescription( GAME_MODE gameMode )
 {
 	if( gameMode >= GM_count ) return "Unknown mode description";
-	else return Modes[gameMode].desc;
+	else return LMenu( Modes[gameMode].desc );
 }
 
 //----- (th3) ---------------------------------------------------------------
 const char* getGameModeName( GAME_MODE gameMode, GAME_CHANGER GameChanger/* = GC_0_CONTINUE*/ )
 {
 	if( gameMode >= GM_count ) return "Unknown mode name";
-    if( gameMode == GM_IRONMAN && GameChanger & BIT(GC_24_RUTHLESS) ) return "Ruthless Iron";
-	else return Modes[gameMode].name;
+    if( gameMode == GM_IRONMAN && GameChanger & BIT(GC_24_RUTHLESS) ) return LMenu("Ruthless Iron");
+	else return LMenu( Modes[gameMode].name );
+}
+
+//----- (th4) ---------------------------------------------------------------
+// TRANSLATED mode name for text drawn with the IN-GAME CEL font (the top-left info
+// lines). getGameModeName() is right for menus, but it returns LMenu()/OVL_MENU text and
+// the Russian values there are DiabloFont-encoded -- CP1251 minus 0x40, bytes 0x80..0x9F.
+// The CEL font maps those to frame 0 = blank, so the line read "GAME MODE:" with nothing
+// after it. Same trap DifNameInGame() and getGameModeNameEnglish() document.
+//
+// Shift the bytes back into the CP1251 range the CEL font renders. Languages that are not
+// byte-shifted have nothing in 0x80..0x9F and pass through untouched.
+const char* getGameModeNameInGame( GAME_MODE gameMode, GAME_CHANGER GameChanger/* = GC_0_CONTINUE*/ )
+{
+	static char name[64];
+	strncpy_s( name, getGameModeName( gameMode, GameChanger ), _TRUNCATE );
+	for( uchar* p = (uchar*)name; *p; ++p ){
+		if( *p >= 0x80 && *p <= 0x9F ) *p += 0x40;   // DiabloFont -> CP1251
+	}
+	return name;
+}
+
+//----- (th4) ---------------------------------------------------------------
+// UNTRANSLATED mode name. Exists solely for the tilde status line, which is a
+// diagnostic string and is deliberately kept English in every language.
+//
+// Do NOT "fix" this to use LMenu()/L(): the tilde line is drawn with the IN-GAME CEL
+// font, and the Russian OVL_MENU values are stored in the title-screen DiabloFont
+// encoding (CP1251 byte - 0x40, i.e. bytes 0x80..0x9F). FontIndexSmall_Cyrillic maps
+// that whole range to frame 0 = blank, so a menu-encoded name drew as NOTHING and the
+// line ended in a bare "mode = ". Returning the raw English table entry sidesteps the
+// encoding question entirely. Menus keep using getGameModeName().
+const char* getGameModeNameEnglish( GAME_MODE gameMode, GAME_CHANGER GameChanger/* = GC_0_CONTINUE*/ )
+{
+	if( gameMode >= GM_count ) return "Unknown mode name";
+	if( gameMode == GM_IRONMAN && GameChanger & BIT(GC_24_RUTHLESS) ) return "Ruthless Iron";
+	return Modes[gameMode].name;
 }
 
 //----- (th3) ---------------------------------------------------------------
@@ -138,6 +177,7 @@ vector<GAME_MODE> GetAvailableGameModes()
 		if( ! ColiseumInMainMenu ) modes.push_back(GM_COLISEUM);
 	}else{ // single
 		if( ! ClassicInMainMenu ) modes.push_back(GM_CLASSIC);
+        if( ! OutbreakInMainMenu) modes.push_back(GM_OUTBREAK);
 	}
 	modes.push_back(GM_HARD);
 	modes.push_back(GM_SURVIVAL);
@@ -148,8 +188,76 @@ vector<GAME_MODE> GetAvailableGameModes()
 	return modes;
 }
 
+// (th4) SCROLLABLE GAME MODE DESCRIPTION ------------------------------------------------
+//
+// Same mechanism as the trait description (see the block above SetTraitInfoText in
+// Traits.cpp) and the Game Changer one -- read the Traits comment first. The mode texts
+// that overflow are Ironman, Nightmare, Survival and Speedrun.
+//
+// The scrollbar (ID_DESC_SCROLL) lives on the CHILD dialog, not the parent, because the
+// child is modal and receives the mouse; both are 256x203 at the same origin so it lines
+// up with the parent's description field. DrawFontString skips the first
+// g_MenuTextSkipLines wrapped lines and reports the total in g_MenuTextLineCount; the
+// scrollbar's "line count" is the number of scroll POSITIONS (total - visible + 1).
+static int g_ModeDescTop  = 0;               // first visible wrapped line
+static int g_ModeDescMax  = 0;               // last legal top (0 when it all fits)
+static int g_ModeDescPage = 1;               // lines visible at once
+
+// The scroll follows the text: resets when the shown mode changes, survives a redraw.
+// (th4) Reset the scroll only when the DESCRIPTION TEXT actually changes.
+//
+// This used to compare an id instead, and that was wrong: SetGameModeInfoText is also called
+// from the BN_SETFOCUS arm of the dialog proc, so simply moving the mouse over the list
+// re-runs the whole info draw. On that path the id is re-derived from the freshly
+// focused button and can differ for an instant from the one the scroll belongs to, which
+// snapped the text back to the top BETWEEN clicks. A debug log of real clicks showed it
+// plainly: "ScrollBy: top 1 -> 2" followed by an unprompted "UpdateScroll: top=0" with
+// the same totalLines, so every second click appeared to do nothing.
+// Comparing the rendered text is immune to that -- it cannot be fooled by an id that is
+// recomputed to a different value for the same description, and it still resets properly
+// when the player really does move to another entry.
+static char g_ModeDescShownText[ 512 ] = { 0 };
+static void ModeDescNoteShown( const char* description )
+{
+    const char* d = description ? description : "";
+    if( strncmp( d, g_ModeDescShownText, sizeof( g_ModeDescShownText ) - 1 ) != 0 ){
+        strncpy( g_ModeDescShownText, d, sizeof( g_ModeDescShownText ) - 1 );
+        g_ModeDescShownText[ sizeof( g_ModeDescShownText ) - 1 ] = 0;
+        g_ModeDescTop = 0;
+    }
+}
+
+// Size and show/hide the scrollbar after a draw. Mirrors the mode list, which hides its
+// own scrollbar when there are six entries or fewer.
+static void ModeDescUpdateScroll( HWND scrollDlg, TextWin* field, int totalLines )
+{
+    if( !scrollDlg || !field ) return;
+    const int fontH = GetCurFontHeight() > 0 ? GetCurFontHeight() : 1;
+    g_ModeDescPage = field->size.cy / fontH;
+    if( g_ModeDescPage < 1 ) g_ModeDescPage = 1;
+    g_ModeDescMax = totalLines - g_ModeDescPage;
+    if( g_ModeDescMax < 0 ) g_ModeDescMax = 0;
+    if( g_ModeDescTop > g_ModeDescMax ) g_ModeDescTop = g_ModeDescMax;
+    if( g_ModeDescTop < 0 ) g_ModeDescTop = 0;
+    const HWND scroll = GetDlgItem( scrollDlg, ID_DESC_SCROLL );
+    if( !scroll ) return;
+    SetScrollOnElem( scrollDlg, ID_DESC_SCROLL, g_ModeDescMax + 1, g_ModeDescTop );
+    const bool want = g_ModeDescMax > 0;
+    if( want != ( IsWindowVisible( scroll ) != 0 ) ){
+        ShowWindow( scroll, want ? SW_SHOW : SW_HIDE );
+        // (th4) These dialogs are painted onto a surface, not by Windows: hiding a
+        // control does NOT clear its pixels, so the bar lingers until something else
+        // repaints. The child is WS_EX_TRANSPARENT, so the parent repaints too.
+        const HWND parent = GetParent( scrollDlg );
+        if( parent ){ InvalidateRect( parent, NULL, FALSE ); UpdateWindow( parent ); }
+        InvalidateRect( scrollDlg, NULL, FALSE ); UpdateWindow( scrollDlg );
+    }
+}
+
 //----- (th3) ---------------------------------------------------------------
-void __fastcall SetGameModeInfoText( HWND parent, const GAME_MODE gameMode )
+// (th4) scrollDlg is the CHILD list dialog that owns ID_DESC_SCROLL. Callers that have
+// no scrollbar (none today) may omit it; the description then simply does not scroll.
+void __fastcall SetGameModeInfoText( HWND parent, const GAME_MODE gameMode, HWND scrollDlg = nullptr )
 {
     ShowWindowList( parent, CharParamNameList, SW_HIDE );
     ShowWindowList( parent, CharParamValueList, SW_HIDE );
@@ -159,8 +267,18 @@ void __fastcall SetGameModeInfoText( HWND parent, const GAME_MODE gameMode )
     const char* description = getGameModeDescription( gameMode );
     
     SetWindowTextA( GetDlgItem( parent, ID_CLASS_DESCRIPTION ), description );
+    ModeDescNoteShown( description );   // (th4) reset the scroll only on a real change
 
-    DrawTextToElemList( parent, ClassDescriptionList, 1 );
+    // (th4) The draw is told how many wrapped lines to skip and reports how many the
+    // text has in all; the scrollbar is sized from that. Skip is reset straight after
+    // so no other menu text inherits it.
+    g_MenuTextSkipLines = g_ModeDescTop;
+    DrawTextToElemList( parent, ClassDescriptionList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+    g_MenuTextSkipLines = 0;
+    {
+        const HWND field = GetDlgItem( parent, ID_CLASS_DESCRIPTION );
+        ModeDescUpdateScroll( scrollDlg, field ? (TextWin*) GetWindowLongA( field, GWL_USERDATA ) : nullptr, g_MenuTextLineCount );
+    }
     
     const HWND portraitWin = GetDlgItem( parent, ID_PLAYER_PORTRAIT );
     struct tagRECT rect;
@@ -168,6 +286,10 @@ void __fastcall SetGameModeInfoText( HWND parent, const GAME_MODE gameMode )
     GetClientRect( portraitWin, &rect );
     AdjustScrollRect( &rect, 0, rect.bottom * portrait.id );
 	SDlgSetBitmap( portraitWin, 0, "Static", -1, 1, portrait.pcx->data, &rect, portrait.pcx->size.cx, portrait.pcx->size.cy, -1 );
+	// (th4) Every paint of ID_PLAYER_PORTRAIT must report, including the sheets that
+	// have no true-colour strip: all five sites share ONE control, so a site that
+	// stays silent leaves the previous sheet on screen over its own art.
+	MenuPortrait_Set( portrait.pcx ? portrait.pcx->name : 0, portrait.id, portraitWin, portrait.pcx ? portrait.pcx->data : 0, portrait.pcx ? (int) portrait.pcx->size.cx : 0 );
 }
 
 //----- (th3) ---------------------------------------------------------------
@@ -199,7 +321,7 @@ void GameModeRefreshCurrentGameModeInfo( HWND hdlg, int button )
     if( const HWND activeElem = GetDlgItem( hdlg, button ); activeElem ){
         if( const auto gameModeWin = (GameModeWin *)GetWindowLongA( activeElem, GWL_USERDATA ); gameModeWin ){
             GameMode = GetAvailableGameModes()[(int)gameModeWin->gameModeIndex];
-            SetGameModeInfoText( GetParent( hdlg ), GameMode );
+            SetGameModeInfoText( GetParent( hdlg ), GameMode, hdlg );
         }
     }
 }
@@ -220,6 +342,49 @@ int __fastcall GetGameModeElemIndex( HWND elem )
 void GameModeRefreshScrollState( const HWND hdlg )
 {
     SetScrollOnElem( hdlg, ID_SCROLL, GetAvailableGameModes().size(), GetGameModeElemIndex( GetFocus() ) );
+}
+
+// (th4) Scroll the description by `delta` wrapped lines and redraw it.
+static void ModeDescScrollBy( HWND hdlg, int delta )
+{
+    int top = g_ModeDescTop + delta;
+    if( top > g_ModeDescMax ) top = g_ModeDescMax;
+    if( top < 0 ) top = 0;
+    if( top == g_ModeDescTop ) return;    // at an end: no move, no sound -- same as the list
+    g_ModeDescTop = top;
+    PlaySoundTitleMove();                 // (th4) S_75_I_TITLEMOV, what the list scroll plays
+    SetGameModeInfoText( GetParent( hdlg ), GameMode, hdlg );
+    // (th4) Force the repaint the list scrollbar gets for free.
+    // These dialogs are painted onto a surface, not by Windows. SetScrollOnElem writes the
+    // new thumb position into the scrollbar's surface, but nothing puts that surface on
+    // screen. The LIST scrollbar never noticed because every list scroll calls SetFocus,
+    // and the BN_SETFOCUS arm of the dialog proc does exactly this InvalidateRect/
+    // UpdateWindow pair ("removes menu freezes"). Scrolling TEXT changes no focus, so
+    // nothing repainted and the bar only caught up on the NEXT click -- it looked like it
+    // reacted to every other click.
+    // Parent first: the child is WS_EX_TRANSPARENT and shows what is underneath it.
+    {
+        const HWND parentDlg = GetParent( hdlg );
+        if( parentDlg ){ InvalidateRect( parentDlg, NULL, FALSE ); UpdateWindow( parentDlg ); }
+        InvalidateRect( hdlg, NULL, FALSE ); UpdateWindow( hdlg );
+    }
+}
+
+// Shared WM_LBUTTONDOWN arm for the description scrollbar. Action codes are the ones
+// GetScrollAction hands the mode list: 1 up-arrow, 2 down-arrow, 3 page up, 4 page down.
+static bool ModeDescHandleScrollClick( HWND hdlg, int cursorX, int cursorY )
+{
+    const HWND scroll = GetDlgItem( hdlg, ID_DESC_SCROLL );
+    if( !scroll || !IsWindowVisible( scroll ) ) return false;
+    if( !CheckCursorOnButton( hdlg, scroll, cursorX, cursorY ) ) return false;
+    switch( GetScrollAction( scroll, cursorX, cursorY ) ){
+        case 1: ModeDescScrollBy( hdlg, -1 ); break;
+        case 2: ModeDescScrollBy( hdlg, +1 ); break;
+        case 3: ModeDescScrollBy( hdlg, -g_ModeDescPage ); break;
+        case 4: ModeDescScrollBy( hdlg, +g_ModeDescPage ); break;
+        default: break;
+    }
+    return true;
 }
 
 //----- (th3) ---------------------------------------------------------------
@@ -435,6 +600,16 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
             
             char tempBuf[32];
 			LoadStringA( HInstance, NewHeroTitle(), tempBuf, 31 );
+			// (th4) Non-English: title/caption/buttons via LMenu overlay (OVL_MENU).
+			// LMenu returns the English input unchanged when a language lacks the entry,
+			// so this is a safe fallback for every language.
+			if( GameLanguage != LANG_EN ){
+				// (th4) All six titles, Dark Campaign and the mode variants included.
+				if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );
+				SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu("Select Game Mode") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+			}
 			WriteAndDrawDialogTitle( GetParent( hdlg ), tempBuf );
             SetWindowLongA( hdlg, GWL_USERDATA, GetWindowLongA( GetParent( hdlg ), GWL_USERDATA ) );
             InitTextElemList( hdlg, GameModeTitleList, 5 );
@@ -443,6 +618,8 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
             ResetGameModeButtons( hdlg, 0 );
             InitSelectionAndLoadPentagram( "ui_art\\focus16.pcx" );
             SDlgSetTimer( hdlg, 1, 55, 0 );
+            InitScroll( hdlg, ID_DESC_SCROLL );                          // (th4) description scrollbar
+            ShowWindow( GetDlgItem( hdlg, ID_DESC_SCROLL ), SW_HIDE );   // shown by the first draw if needed
             InitScroll( hdlg, ID_SCROLL );
             if( GetAvailableGameModes().size() <= 6 ){
                 ShowWindow( GetDlgItem( hdlg, ID_SCROLL ), 0 );
@@ -453,6 +630,7 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
         }
         case WM_DESTROY:
         {
+            DeleteScroll( hdlg, ID_DESC_SCROLL );                        // (th4)
             DeleteScroll( hdlg, ID_SCROLL );
             DeletePentagram();
             DeleteElementListData( hdlg, GameModeButtonList );
@@ -513,6 +691,8 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
                     default:
                         break;
                 }
+            }else{
+                ModeDescHandleScrollClick( hdlg, cursorX, cursorY );   // (th4) description scrollbar
             }
             break;
         }
@@ -520,6 +700,9 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
         {
             if( CheckScrollPressAndRelease( GetDlgItem( hdlg, ID_SCROLL ) ) ){
                 GameModeRefreshScrollState( hdlg );
+            }
+            if( CheckScrollPressAndRelease( GetDlgItem( hdlg, ID_DESC_SCROLL ) ) ){   // (th4) let go of an arrow: repaint it
+                SetScrollOnElem( hdlg, ID_DESC_SCROLL, g_ModeDescMax + 1, g_ModeDescTop );
             }
             break;
         }
@@ -537,6 +720,6 @@ int __stdcall DialogSelectGameMode( HWND hdlg, unsigned int Msg, WPARAM wParam, 
     if( needToCallDefDialogProc ){
         result = SDlgDefDialogProc_( hdlg, Msg, wParam, lParam );
     }
-    
+    NewSaveInfo.GameChanger = 0;
     return result;
 } 

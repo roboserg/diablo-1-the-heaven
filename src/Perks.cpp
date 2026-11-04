@@ -47,7 +47,7 @@ bool IsMouseOnPerkArrowDown()
 void addUnlimitedXpToPlayer( i64 xpGain, int index )
 {
 	Player& player = Players[index];
-	if( LLONG_MAX - player.Xp < xpGain ){ // защита от переполнения
+	if( LLONG_MAX - player.Xp < xpGain ){ // (rt) overflow protection
 		player.Xp = LLONG_MAX;
 	}else{
 		player.Xp += xpGain;
@@ -177,21 +177,37 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 	if( (uint)perkIndex < PERKS_COUNT && perk.id != -1 && perk.level[perkLevel].requiredClassMask & (1u << player.fullClassId) ){
 		switch( perkIndex ){
 		//case PERK_HEALER:      available = HasTrait(playerIndex, TraitId::Leper); break;
+		case PERK_SHADOW_STRIKE:			available = HasTrait(playerIndex, TraitId::Thief); break; // (th4)
+		case PERK_RICOCHET:				available = HasTrait(playerIndex, TraitId::Thief); break; // (th4)
 		//case PERK_TRANQUILITY: available = player.gameChanger & BIT(GC_5_LOTL); break;
-		case PERK_HAGGLER:					available = (!HasTrait(playerIndex, TraitId::Leper, TraitId::Barbarian)) && (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
+		case PERK_EAGLE_EYE:
+		case PERK_RAMPAGE:
+		case PERK_ENDURANCE:
+		case PERK_GAIN_STRENGTH:
+		case PERK_GAIN_MAGIC:
+		case PERK_GAIN_DEXTERITY:
+		case PERK_GAIN_VITALITY:			available = (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
+		case PERK_HAGGLER:					available = (!HasTrait(playerIndex, TraitId::Leper, TraitId::Barbarian)) 
+											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_SLAYER:			
 		case PERK_EXPERT_KILLER:			available = !HasTrait(playerIndex, TraitId::Tormentor); break;
 		case PERK_OVERDRAW:					available = (!(HasTrait(playerIndex, TraitId::Black_Witchery)))
 											&& (!(HasTrait(playerIndex, TraitId::Paladin)))
 											&& (!(HasTrait(playerIndex, TraitId::Ranger)))
 											&& player.fullClassId != PFC_DRUID
-											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
+											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_28_SUPERMUTANT)))
+											&& (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_SWIFT_LEARNER:	
 		case PERK_HERE_AND_NOW:				available = (!HasTrait(playerIndex, TraitId::Sisyphean))
-											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
-		case PERK_EDUCATED:					available = (GameMode != GM_IRONMAN)
+											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
+		case PERK_EDUCATED:					available = (GameMode != GM_IRONMAN) && (GameMode != GM_OUTBREAK)
 											&& (!HasTrait(playerIndex, TraitId::Sisyphean))
-											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
+											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_ACROBATICS:				available = !HasTrait(playerIndex, TraitId::BigFrame); break;
 		case PERK_NIGHT_KIN:				available = player.gameChanger & BIT(GC_9_NIGHT_KIN) && HasTrait(playerIndex, TraitId::Barbarian); break; // mor: iow, this never happens (it's on purpose!)
 		case PERK_LEECH_LIFE:
@@ -210,7 +226,8 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS)))
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
-											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
+											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_OBSESSION:				available = (!HasTrait(playerIndex, TraitId::Barbarian))
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS)))
@@ -227,14 +244,17 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_REHABILITATION:			available = (!(HasTrait(playerIndex, TraitId::Adrenaline, TraitId::DarkPact, TraitId::GrimDeal, TraitId::Barbarism, TraitId::Psion)))
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_22_BLACK_DEATH)))
-											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
-		case PERK_HOT_TEMPERED:				available = !(player.gameChanger & BIT(GC_12_MY_SECRET)); break;
+											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
+		case PERK_HOT_TEMPERED:				available = !(player.gameChanger & BIT(GC_12_MY_SECRET))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_SERENITY:					available = (GameModeType() == GAME_MODE_TYPE::NORMAL) && (!(player.gameChanger & BIT(GC_13_NO_REGENS)))
 											&& GameMode != GM_COLISEUM; break;
 		case PERK_AMPLIFY_DAMAGE:
 		case PERK_PSYCHOKINESIS:			available = HasTrait(playerIndex, TraitId::Psion); break;
 		case PERK_RAISE_THE_BAR:			available = HasTrait(playerIndex, TraitId::BendTheRules); break;
 		case PERK_FOCUS:					available = (!(player.gameChanger & BIT(GC_13_NO_REGENS))) && (!HasTrait(playerIndex, TraitId::Mamluk))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& GameMode != GM_COLISEUM; break;
 		case PERK_QUICK_RECOVERY:
 		case PERK_FORTITUDE:
@@ -243,10 +263,12 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_GIVE_THEM_NOTHING:
 		case PERK_PATH_OF_BLOOD:
 		case PERK_FIGHTING_STANCE:
-		case PERK_TRANQUILITY:				available = (!(player.gameChanger& BIT(GC_13_NO_REGENS))) && GameMode != GM_COLISEUM; break;
+		case PERK_TRANQUILITY:				available = (!(player.gameChanger& BIT(GC_13_NO_REGENS))) && GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_GOLD_FEVER:
 		case PERK_ADVANCED_USER:			available = !(player.gameChanger & BIT(GC_9_NIGHT_KIN)); break;
-		case PERK_AUGMENTED_HEALING:		available = !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) && GameMode != GM_COLISEUM; break;
+		case PERK_AUGMENTED_HEALING:		available = !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) && GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_CONSERVATOR:				available = !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) 
 											&& (player.ClassID != PC_2_MAGE || (player.fullClassId == PFC_ELEMENTALIST && HasTrait(playerIndex, TraitId::Mamluk))) ; break;
 		case PERK_WEAPON_THRIFT:			available = (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))) && (!HasTrait(playerIndex, TraitId::TwoTowers)); break;
@@ -274,14 +296,17 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_DUELIST:					available = HasTrait(playerIndex, TraitId::Fechtmeister) && HasTrait(playerIndex, TraitId::BendTheRules); break;
 		case PERK_DEADLY_PURPOSE:			available = HasTrait(playerIndex, TraitId::Kamikaze) && HasTrait(playerIndex, TraitId::HeavyHanded); break;
 		case PERK_EMERGE_UNSCATHED:			available = HasTrait(playerIndex, TraitId::Kamikaze) && HasTrait(playerIndex, TraitId::RatelHide); break;
-		case PERK_VANDALISM:				available = HasTrait(playerIndex, TraitId::Kamikaze) && HasTrait(playerIndex, TraitId::Zealot); break;
+		case PERK_VANDALISM:				available = HasTrait(playerIndex, TraitId::Kamikaze) && HasTrait(playerIndex, TraitId::Zealot) && (!HasTrait(playerIndex, TraitId::Pistoleer)); break;
 		case PERK_STONEWALL:				available = !HasTrait(playerIndex, TraitId::Juggernaut) && GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (player.fullClassId != PFC_ELEMENTALIST || HasTrait(playerIndex, TraitId::Mamluk)); break;
 		case PERK_STONING_MASTERY:			available = HasTrait(playerIndex, TraitId::BreakerOfStones) || HasTrait(playerIndex, TraitId::Petrifier); break;
 		case PERK_SUMMONING:				available = (!(HasTrait(playerIndex, TraitId::Hydramancer, TraitId::Mamluk))) && GameMode != GM_COLISEUM; break;
 		case PERK_CONJURATION:				
 		case PERK_RETENTION:				available = HasTrait(playerIndex, TraitId::Hydramancer); break;
 		case PERK_HEAVE_HO:					available = HasTrait(playerIndex, TraitId::BendTheRules); break;
+		case PERK_BLESSED_HAMMER:			available = player.fullClassId == PFC_TEMPLAR; break;
+		case PERK_MORE_HAMMERS:				available = player.fullClassId == PFC_TEMPLAR; break; // BH-lvl-1 prereq is in perkReq data
 		case PERK_MIGHT_N_MAGIC:
 		case PERK_PATH_OF_MANA:
 		case PERK_SANCTITY:					available = HasTrait(playerIndex, TraitId::Paladin); break;
@@ -300,7 +325,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_CHAIN_LIGHTNING:
 		case PERK_MIND_OVER_MATTER:
 		case PERK_WILLPOWER:
-		case PERK_MASTER_CASTER:			available = !HasTrait(playerIndex, TraitId::Mamluk); break;
+		case PERK_MASTER_CASTER:			available = !HasTrait(playerIndex, TraitId::Mamluk) && (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case PERK_GOLEM_RESISTANCE:
 		case PERK_EXTRA_GOLEMS:				available = !HasTrait(playerIndex, TraitId::Mamluk) && GameMode != GM_COLISEUM && MaxCountOfPlayersInGame == 1; break;
 		case PERK_FOOTWORK:
@@ -325,8 +350,11 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_HIT_DEFLECTION:			available = !HasTrait(playerIndex, TraitId::Sandman); break;
 		case PERK_HALF_SWORDING:			available = !HasTrait(playerIndex, TraitId::Pistoleer) && GameMode != GM_COLISEUM; break;
 		case PERK_PIERCING_BULLETS:
-		case PERK_MARKSMAN:					available = HasTrait(playerIndex, TraitId::Pistoleer); break;
-		case PERK_STOPPING_POWER:			available = HasTrait(playerIndex, TraitId::Pistoleer) 
+		case PERK_MARKSMAN:					available = HasTrait(playerIndex, TraitId::Pistoleer)
+											&& (!(player.gameChanger & BIT(GC_28_SUPERMUTANT)))
+											&& (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))); break;
+		case PERK_STOPPING_POWER:			available = HasTrait(playerIndex, TraitId::Pistoleer)
+											&& (!(player.gameChanger & BIT(GC_28_SUPERMUTANT)))
 											&& (!HasTrait(playerIndex, TraitId::ChromaticSkin)); break;
 		case PERK_LETHALITY:
 		case PERK_PURGE:
@@ -349,9 +377,32 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case PERK_SPELL_DEFLECTION:			available = GameMode != GM_COLISEUM; break;
 		case PERK_FESTINA_LENTE:			available = !HasTrait(playerIndex, TraitId::Crupellarius); break;
 		case PERK_CASTING_POWERS:			available = player.gameChanger & BIT(GC_9_NIGHT_KIN); break;
+		case PERK_TARGETING_MATRIX:
+		case PERK_RECONSTRUCTION:		
+		case PERK_CONCENTRATED_FIRE:
+		case PERK_IRIDIUM_POWER_CELL:
+		case PERK_MAINTENANCE:
+		case PERK_UNARMED_PROTOCOL:			available = player.gameChanger & BIT(GC_27_TERMINATOR); break;
+		case PERK_PIERCING_ROUNDS:
+		case PERK_MUTILATION:				available = player.gameChanger & BIT(GC_28_SUPERMUTANT); break;
+		case PERK_OVERPENETRATION:
+		case PERK_PRECISION:				available = player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER); break;
+		case PERK_STRONG_MERCENARIES:
+		case PERK_TOUGH_MERCENARIES:
+		case PERK_INDOMITABLE_SPIRIT:
+		case PERK_DAMAGE_SOAK:
+		case PERK_MERC_DFE:
+		case PERK_MERC_CRITS:
+		case PERK_MERC_ARMOR:
+		case PERK_MERC_ACCURACY:
+		case PERK_FRESH_RESERVES:			available = MaxCountOfPlayersInGame == 1 && HasTrait(playerIndex, TraitId::Warlord); break;
 
 		// ************************** SYNERGIES ************************//
-		case SYNERGY_WILL_TO_ENDURE:		available = (!(HasTrait(playerIndex, TraitId::Barbarian, TraitId::Mamluk))) && (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
+		case SYNERGY_STAR_ALIGNMENT:
+		case SYNERGY_STRENGTH_N_HONOR:		available = (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
+		case SYNERGY_WILL_TO_ENDURE:		available = (!(HasTrait(playerIndex, TraitId::Barbarian, TraitId::Mamluk))) 
+											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case SYNERGY_CYCLE_OF_FURY:			available = (!(HasTrait(playerIndex, TraitId::GrimDeal, TraitId::Barbarism))) && GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_12_MY_SECRET))) && (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
 		case SYNERGY_BLOOD_THIEVERY:		available = (!(HasTrait(playerIndex, TraitId::Adrenaline, TraitId::GrimDeal, TraitId::Barbarism, TraitId::Bloodless, TraitId::Ranger, TraitId::Pistoleer)))
@@ -362,6 +413,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
 		case SYNERGY_IRON_BULWARK:			available = (!HasTrait(playerIndex, TraitId::Barbarian)) 
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& GameMode != GM_COLISEUM; break;
 		case SYNERGY_ONSET:					available = (!(HasTrait(playerIndex, TraitId::Black_Witchery)))
 											&& (!(HasTrait(playerIndex, TraitId::Paladin))) 
@@ -370,11 +422,14 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case SYNERGY_STOICISM:				available = (!(HasTrait(playerIndex, TraitId::Juggernaut, TraitId::BigFrame))) && GameMode != GM_COLISEUM; break;
 		case SYNERGY_LONGEVITY:
 		case SYNERGY_INTREPIDITY:			available = !(player.gameChanger & BIT(GC_13_NO_REGENS)) 
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& GameMode != GM_COLISEUM; break;
 		case SYNERGY_AWAKENING:
 		case SYNERGY_SAPIENCE:				available = (!(player.gameChanger & BIT(GC_13_NO_REGENS))) && (!HasTrait(playerIndex, TraitId::Mamluk)) 
-											&& GameMode != GM_COLISEUM; break;
+											&& GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case SYNERGY_RESUMPTION:			available = (!(HasTrait(playerIndex, TraitId::Adrenaline, TraitId::DarkPact, TraitId::GrimDeal, TraitId::Barbarism, TraitId::Psion, TraitId::Barbarian)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
 		case SYNERGY_HEAVY_HITTER:			available = HasTrait(playerIndex, TraitId::HeavyHanded); break;
@@ -386,6 +441,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS))); break;
 		case SYNERGY_SILVER_TONGUE:			available = (GameMode != GM_IRONMAN)
 											&& (!(HasTrait(playerIndex, TraitId::Leper, TraitId::Barbarian, TraitId::Sisyphean)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))) 
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
 		case SYNERGY_AURA_MASTERY:
@@ -397,19 +453,22 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case SYNERGY_CAREFUL_MENDING:		available = ((MaxCountOfPlayersInGame != 1) || (player.gameChanger & BIT(GC_1_AUTO_SAVE)) || (player.gameChanger & BIT(GC_26_ASCETICISM))); break;
 		case SYNERGY_RESTORATION:			available = (!(player.gameChanger & BIT(GC_13_NO_REGENS))) 
 											&& GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (!HasTrait(playerIndex, TraitId::Mamluk)); break;
 		case SYNERGY_GOLDEN_SUNS:			available = (!HasTrait(playerIndex, TraitId::Barbarian))
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS)))
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
-		case SYNERGY_HIGHER_EDUCATION:		available = GameMode != GM_IRONMAN && GameMode != GM_COLISEUM
+		case SYNERGY_HIGHER_EDUCATION:		available = GameMode != GM_IRONMAN && GameMode != GM_COLISEUM && GameMode != GM_OUTBREAK
 											&& (!HasTrait(playerIndex, TraitId::Sisyphean))
 											&& (!(HasTrait(playerIndex, TraitId::Barbarian, TraitId::Mamluk)))
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS)))
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
-		case SYNERGY_FATAL_IMPACTS:			available = !HasTrait(playerIndex, TraitId::Tormentor); break;
+		case SYNERGY_FATAL_IMPACTS:			available = !HasTrait(playerIndex, TraitId::Tormentor)
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case SYNERGY_REJUVENATION:			available = (!HasTrait(playerIndex, TraitId::Barbarian, TraitId::Pistoleer))
 											&& GameMode != GM_COLISEUM 
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
@@ -419,7 +478,9 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case SYNERGY_NEGATION:
 		case SYNERGY_BOLSTER:
 		case SYNERGY_GRACE:
-		case SYNERGY_BUTCHERY:				available = !HasTrait(playerIndex, TraitId::Sisyphean) && (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
+		case SYNERGY_BUTCHERY:				available = !HasTrait(playerIndex, TraitId::Sisyphean) 
+											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case SYNERGY_ACUITY:				available = HasTrait(playerIndex, TraitId::BendTheRules) && (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
 		case SYNERGY_MORTAL_STRIKE:			available = (!(player.gameChanger & BIT(GC_13_NO_REGENS))) && HasTrait(playerIndex, TraitId::Fechtmeister); break;
 		case SYNERGY_SEEKER_ARROWS:			available = HasTrait(playerIndex, TraitId::Ranger); break;
@@ -439,6 +500,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& (!(player.gameChanger & BIT(GC_5_LOTL)))
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
 											&& GameMode != GM_COLISEUM
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
 		case SYNERGY_OSTENTATION:			available = (!HasTrait(playerIndex, TraitId::Sisyphean))
 											&& GameMode != GM_COLISEUM
@@ -446,6 +508,7 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 											&& (!HasTrait(playerIndex, TraitId::BendTheRules))
 											&& (!(player.gameChanger & BIT(GC_14_CLEAN_HANDS)))
 											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
 											&& (!(player.gameChanger & BIT(GC_23_TOUGH_LUCK))); break;
 		case SYNERGY_SNOWBALL_EFFECT:		available = (!HasTrait(playerIndex, TraitId::Barbarian)) && GameMode != GM_COLISEUM; break;
 		case SYNERGY_DAZZLING_LIGHT:		available = !HasTrait(playerIndex, TraitId::Paladin); break;
@@ -462,9 +525,15 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case SYNERGY_PAINKILLER:			available = (!(HasTrait(playerIndex, TraitId::Adrenaline, TraitId::DarkPact, TraitId::GrimDeal, TraitId::Barbarism, TraitId::Psion)))
 											&& GameMode != GM_COLISEUM
 											&& (!(player.gameChanger & BIT(GC_22_BLACK_DEATH)))
-											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS))); break;
-		case SYNERGY_BETTER_CRITS:			available = HasTrait(playerIndex, TraitId::Pistoleer); break;
+											&& (!(player.gameChanger & BIT(GC_13_NO_REGENS)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
+		case SYNERGY_BETTER_CRITS:			available = HasTrait(playerIndex, TraitId::Pistoleer)
+											&& (!(player.gameChanger & BIT(GC_28_SUPERMUTANT)))
+											&& (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))); break;
 		case SYNERGY_GUNDOWN:				available = HasTrait(playerIndex, TraitId::Pistoleer) 
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR)))
+											&& (!(player.gameChanger & BIT(GC_28_SUPERMUTANT)))
+											&& (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))
 											&& (!HasTrait(playerIndex, TraitId::ChromaticSkin)); break;
 		case SYNERGY_BOARDING_TECHNIQUE:
 		case SYNERGY_VERSATILITY:
@@ -475,9 +544,16 @@ bool PerkAvailable( int playerIndex, int perkIndex, int perkLevel )
 		case SYNERGY_STRONGER_QUENCHING:	available = (!HasTrait(playerIndex, TraitId::Leper, TraitId::Barbarian))
 											&& (player.ClassID != PC_2_MAGE || (player.fullClassId == PFC_ELEMENTALIST && HasTrait(playerIndex, TraitId::Mamluk)))
 											&& GameMode != GM_IRONMAN && GameMode != GM_SPEEDRUN && GameMode != GM_NIGHTMARE
-											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN))); break;
+											&& (!(player.gameChanger & BIT(GC_9_NIGHT_KIN)))
+											&& (!(player.gameChanger & BIT(GC_27_TERMINATOR))); break;
 		case SYNERGY_RIGIDITY:				available = HasTrait(playerIndex, TraitId::Leper, TraitId::Crupellarius); break;
 		case SYNERGY_STRONG_HEART:			available = (!HasTrait(playerIndex, TraitId::Ranger, TraitId::Pistoleer, TraitId::FearTheReaper)); break;
+		case SYNERGY_INTIMIDATION:
+		case SYNERGY_IMPENETRABLE:			available = HasTrait(playerIndex, TraitId::Scissor); break;
+		case SYNERGY_COMBAT_LOGS:
+		case SYNERGY_ALLOY_MEMORY:			available = player.gameChanger & BIT(GC_27_TERMINATOR); break;
+		case SYNERGY_ONE_MORE:
+		case SYNERGY_REGENERATION:			available = MaxCountOfPlayersInGame == 1 && HasTrait(playerIndex, TraitId::Warlord); break;
 		default: available = true;
 		}
 	}
@@ -748,6 +824,10 @@ int getPlayerPerksPointsLeft(PERK_TYPE perkType /*= PERK_TYPE_COMMON*/)
 {
 	if( GameMode == GM_CLASSIC ) return 0;
 	int clvl = Players[CurrentPlayerIndex].CharLevel;
+
+	Player& player = Players[CurrentPlayerIndex];
+	if (HasTrait(player, TraitId::RawPower)) return 0;
+
 	switch( perkType ){
 	case PERK_TYPE_SYNERGY: // Sinergy points
 	{
@@ -804,7 +884,16 @@ int getPlayerPerksPointsLeft(PERK_TYPE perkType /*= PERK_TYPE_COMMON*/)
 }
 
 //----- (th2) ------------------------------------------------------------
-const char* getSpellName( int spell )
+const char* getSpellName_en( int spell ); // (th4) raw English name
+const char* getSpellName( int spell ) // (th4) translating wrapper
+{
+	return LocalizedSpell( getSpellName_en( spell ) );
+}
+const char* getSpellNameNominative( int spell ) // (th4) nominative-case wrapper (spellbook/speedbook)
+{
+	return LocalizedSpellNominative( getSpellName_en( spell ) );
+}
+const char* getSpellName_en( int spell )
 {
 	auto& fc = Players[CurrentPlayerIndex].fullClassId;
 	if( spell >= PS_52_LESSER_SUMMON && spell <= PS_54_GREATER_SUMMON && fc >= PFC_DEMONOLOGIST && fc <= PFC_BEASTMASTER ){
@@ -838,7 +927,10 @@ const char* getSpellName( int spell )
 int getSpellIcon( int spell )
 {
 	auto& fc = Players[CurrentPlayerIndex].fullClassId;
-	if( spell >= PS_52_LESSER_SUMMON && spell <= PS_54_GREATER_SUMMON && fc >= PFC_DEMONOLOGIST && fc <= PFC_BEASTMASTER ){
+	if (fc == PFC_INQUISITOR && MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::Warlord) && spell == PS_52_LESSER_SUMMON) {
+		return 239;
+	}
+	else if( spell >= PS_52_LESSER_SUMMON && spell <= PS_54_GREATER_SUMMON && fc >= PFC_DEMONOLOGIST && fc <= PFC_BEASTMASTER ){
 		return SummonerSpellIconIndexes[fc - PFC_DEMONOLOGIST][spell - PS_52_LESSER_SUMMON];
 	}else if( spell == PS_3_LIGHTNING && (PerkValue(PERK_CHAIN_LIGHTNING, CurrentPlayerIndex ) || GameMode == GM_CLASSIC) ){
 		return 16;
@@ -899,6 +991,9 @@ void DrawPerksPanel()
 	int screenX = PerksPanelPos.Left;
 	int screenY = PerksPanelPos.Down - 640;
 	int textX = screenX + 64;
+	// (th4) Right content box, in textX-relative pixels: the four column headers
+	// ("requirements:", "stats:", "spells:", "perks:") are centred inside it.
+	const int PERK_COL_L = 276, PERK_COL_R = 551;
 	int textY = screenY + 160;
 	int offsetX = Screen_LeftBorder + screenX;
 	int offsetY = Screen_TopBorder  + screenY;
@@ -945,7 +1040,7 @@ void DrawPerksPanel()
 
 	//getAvailablePerksList();
 
-	DrawText(textX, textY + 55, 126, by(CurPerkPanel, "   Available perks:", "   Available synergies:", "   Available symptoms:"), C_3_Gold);
+	DrawText(textX, textY + 55, 126, by(CurPerkPanel, L("   Available perks:"), L("   Available synergies:"), L("   Available symptoms:")), C_3_Gold);
 
 	for( int i = PerkPanelLine[CurPerkPanel] - 3; i <= PerkPanelLine[CurPerkPanel] + 3; ++i ){
 		if( i < 0 || i >= AvailablePerksCount ){
@@ -965,7 +1060,7 @@ void DrawPerksPanel()
 			//selectionPrefix = "\202->\202";
 		    //selectionSuffix = "\202<-\202";
 		}
-		sprintf( buff, "%s%s (LVL: %i/%i)%s", selectionPrefix, perk.name, level, maxlvl, selectionSuffix );
+		sprintf( buff, "%s%s (%i/%i)%s", selectionPrefix, LocalizedPerkName(perk.name), level, maxlvl, selectionSuffix );
 		bool allreqsmet = true;
 		if (level < maxlvl) {
 			allreqsmet = checkRequirementsForPerk( AvailablePerks[index], level );
@@ -992,7 +1087,7 @@ void DrawPerksPanel()
 		const PerkLevel& l = perk.level[level];
   
 		int offset = 275;
-		char* infoTitle = "values: (\201current\201), \204next level\204";
+		char* infoTitle = (char*)L("values: (\201current\201), \204next level\204");
 		int x = textX + 110 - GetTextWidth(infoTitle) / 2;
 		DrawTextColored(x, textY + offset, x, infoTitle, C_0_White); offset += 15;
 		int infoLines = 0;
@@ -1006,7 +1101,7 @@ void DrawPerksPanel()
 			}else if( level > 0 ){
 				prevValue = perk.level[level-1].value[v];
 			}
-			string desc = perk.description[v];
+			string desc = LocalizedPerkDesc(perk.description[v]);
 			desc = ReplaceString( desc, "%i", "(\201%i\201) \204%i\204" );
 
 			sprintf(buff, (char*)desc.c_str(), prevValue, value);
@@ -1020,55 +1115,65 @@ void DrawPerksPanel()
 			}
 		}
 		offset = 55;
-		DrawText(textX + 365, textY + offset, textX + 400, "requirements:", C_3_Gold);
+		// (th4) All four column headers centre on the RIGHT CONTENT BOX.
+		// DrawText centres the string inside [xPos, xPosEnd] when it fits, so the span
+		// has to be the box. The box runs from about textX+276 to textX+551 (the panel
+		// art is 640 wide with textX = screenX + 64; the scroll arrows at screenX+316 =
+		// textX+252 sit just LEFT of it), so PERK_COL_L/R below bracket it.
+		// This used to pass a 36px window (365..400), which nothing fits in, so the
+		// header left-aligned at textX+365; and the other three passed 220..400, whose
+		// left edge is ~55px OUTSIDE the box, so they spilled past its border.
+		// Widest translation of any of the four is German "ANFORDERUNGEN:" at 129px,
+		// well inside the 271px span, so every language genuinely centres.
+		DrawText(textX + PERK_COL_L, textY + offset, textX + PERK_COL_R, L("requirements:"), C_3_Gold);
 		offset += 15;
 		{
-			sprintf(buff, "Level: %i", l.charLevel);
+			sprintf(buff, L("Level: %i"), l.charLevel);
 			DrawText(textX + 330, textY + offset, textX + 330, buff, (checkLevelReq(p, level) ? C_0_White : C_2_Red));
 			offset += 15;
 		}
 		if( l.s || l.d || l.m || l.v ){
-			DrawText(textX + 220, textY + offset, textX + 400, "stats:", C_3_Gold);
+			DrawText(textX + PERK_COL_L, textY + offset, textX + PERK_COL_R, L("stats:"), C_3_Gold);
 			offset += 15;
 			if( l.s ){
-			    sprintf(buff, "str: %i", l.s);
+			    sprintf(buff, L("str: %i"), l.s);
 				DrawText(textX + 250, textY + offset, textX + 400, buff, (checkStrReq(p, level) ? C_0_White : C_2_Red));
 				offset += 15;
 			}
 			if( l.d ){
-				sprintf(buff, "dex: %i", l.d);
+				sprintf(buff, L("dex: %i"), l.d);
 				DrawText(textX + 250, textY + offset, textX + 400, buff, (checkDexReq(p, level) ? C_0_White : C_2_Red));
 				offset += 15;
 			}
 			if( l.m ){
-				sprintf(buff, "mag: %i", l.m);
+				sprintf(buff, L("mag: %i"), l.m);
 				DrawText(textX + 250, textY + offset, textX + 400, buff, (checkMagReq(p, level) ? C_0_White : C_2_Red));
 				offset += 15;
 			}
 			if( l.v ){
-				sprintf(buff, "vit: %i", l.v);
+				sprintf(buff, L("vit: %i"), l.v);
 				DrawText(textX + 250, textY + offset, textX + 400, buff, (checkVitReq(p, level) ? C_0_White : C_2_Red));
 				offset += 15;
 			}
 			offset += 15;
 		}
 		if( l.spellReq[0].level ){
-			DrawText(textX + 220, textY + offset, textX + 400, "spells:", C_3_Gold);
+			DrawText(textX + PERK_COL_L, textY + offset, textX + PERK_COL_R, L("spells:"), C_3_Gold);
 			offset += 15;
 			for( auto& req: l.spellReq ){
 				if( ! req.level ) break;
-				sprintf(buff, "%s - level %i", getSpellName( req.spell ), req.level);
+				sprintf(buff, L("%s - level %i"), getSpellName( req.spell ), req.level);
 				DrawText(textX + 300, textY + offset, textX + 400, buff, checkSpellReq(p, level, req.spell) ? C_0_White : C_2_Red);
 				offset += 15;
 			}
 			offset += 15;
 		}
 		if( l.perkReq[0].level ){
-			DrawText(textX + 220, textY + offset, textX + 400, "perks:", C_3_Gold);
+			DrawText(textX + PERK_COL_L, textY + offset, textX + PERK_COL_R, L("perks:"), C_3_Gold);
 			offset += 15;
 			for( auto& req: l.perkReq ){
 				if( ! req.level ) break;
-				sprintf(buff, "%s - level %i", Perks[ req.perk ].name, req.level);
+				sprintf(buff, "%s (%i)", LocalizedPerkName(Perks[ req.perk ].name), req.level);
 				DrawText(textX + 300, textY + offset, textX + 400, buff, checkPerkReq(p, level, req.perk) ? C_0_White : C_2_Red);
 				offset += 15;
 			}
@@ -1084,12 +1189,16 @@ void DrawPerksPanel()
 				int synergy = perk.secondary[i];
 				if( PerkAvailable( CurrentPlayerIndex, synergy ) ){
 					++drawedPerks;
-					sprintf(buff, "%s (LVL: %i)", Perks[synergy].name, player.perk[synergy]);
-					DrawText(textX + 300, textY + offset, textX + 400, buff, C_4_Orange);
+					sprintf(buff, "%s (%i)", LocalizedPerkName(Perks[synergy].name), player.perk[synergy]);
+					// (th4) Pass xPosEnd=0 to disable DrawText's center-in-box behavior so
+					// the secondary list is left-aligned at textX+300. With a fixed right
+					// edge (textX+400) short names like "Grace (0)"/"Bolster (0)" were
+					// centered in the 101px box and appeared indented vs longer names.
+					DrawText(textX + 300, textY + offset, 0, buff, C_4_Orange);
 					offset += 15;
 				}
 			}
-			if( drawedPerks ) DrawText(textX + 320, titleY, textX + 400, "secondary:", C_4_Orange);
+			if( drawedPerks ) DrawText(textX + 320, titleY, textX + 400, L("secondary:"), C_4_Orange);
 			offset += 15;
 		}
 		spendPerkPointsButtonVisisble = checkRequirementsForPerk(p, level) && getPlayerPerksPointsLeft(CurPerkPanel) > 0 && ! maxReached;
@@ -1100,10 +1209,32 @@ void DrawPerksPanel()
 	
 	sprintf(buff, "%i", pointsLeft);
 	DrawText(textX + 505, textY + 445, textX + 560, buff, (pointsLeft > 0 ? C_0_White : C_2_Red));
-	DrawText(textX + 365, textY + 445, textX + 490, "Points to spend:", C_0_White);
+	DrawText(textX + 365, textY + 445, textX + 490, L("Points to spend:"), C_0_White);
 }
 
 //----- (th2) ------------------------------------------------------------
+
+// (th4) In-game trait tooltip uses the CEL font (raw CP1251), but trait strings in
+// Traits.cpp are stored in the DLL atlas scheme (CP1251-0x40) for the Choose Traits
+// menu. Convert atlas->CP1251 here so the in-game hover renders, leaving the shared
+// Traits.cpp strings untouched (meta menu stays correct).
+static const char* TraitAtlasToCP1251( const char* s )
+{
+	// (th4) Bulgarian stores its trait strings in the same atlas scheme as Russian
+	// (see BG_TraitName/Benefit/Penalty in LocalizationBG.cpp), so it needs the same
+	// conversion here. Without it the in-game perk panel fed atlas bytes to the CP1251
+	// CEL font and the Cyrillic drew BLANK, leaving only the ASCII formula visible.
+	if( !s || ( GameLanguage != LANG_RU && GameLanguage != LANG_BG && GameLanguage != LANG_UK ) ) return s; // (th4) UK stores trait strings in the same atlas scheme
+	static char buf[512];
+	int i = 0;
+	for( ; s[i] && i < (int)sizeof(buf)-1; ++i ){
+		unsigned char c = (unsigned char)s[i];
+		buf[i] = ( c >= 0x80 && c <= 0xBF ) ? (char)(c + 0x40) : (char)c;
+	}
+	buf[i] = 0;
+	return buf;
+}
+
 void PerksPanel_MouseMove()
 {
 	int offsetX = PerksPanelPos.Left;
@@ -1120,10 +1251,15 @@ void PerksPanel_MouseMove()
 			if( CursorX >= buttonLeft && CursorX <= buttonLeft + 56 && CursorY >= buttonDown - 56 && CursorY <= buttonDown ){
 				Tooltip_Clear();
 				Tooltip_SetOffsetTop();
-				sprintf(InfoPanelBuffer, "Trait: %s", GetTraitName(trait) );
+				sprintf(InfoPanelBuffer, L("Trait: %s"), TraitAtlasToCP1251(GetTraitName(trait)) );
 				Tooltip_AddLine(InfoPanelBuffer, C_3_Gold);
-				Tooltip_AddLine(GetTraitBenefitDescription(trait), C_1_Blue);
-				Tooltip_AddLine(GetTraitPenaltyDescription(trait), C_2_Red);
+				// (th4) Benefit and penalty wrap at two thirds of the screen width -- a long
+				// penalty used to go out as one line and run off both edges. The name line
+				// above stays as it is. PADDING*2 is the box border, so the LINE limit is
+				// the box limit minus that.
+				const int wrapW = ScreenWidth * 2 / 3 - 12;
+				Tooltip_AddWrapped(TraitAtlasToCP1251(GetTraitBenefitDescription(trait)), C_1_Blue, wrapW);
+				Tooltip_AddWrapped(TraitAtlasToCP1251(GetTraitPenaltyDescription(trait)), C_2_Red, wrapW);
 			}
 			buttonLeft -= 56 + 8;
         }

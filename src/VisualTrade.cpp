@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 // Trade action. Used via icon on bottom
 enum VisualTradeAction
@@ -113,31 +114,31 @@ bool ItemPanel_PutItemInStorage( VisualTradePage pageId, const Item* item, int a
 		currentInvYPosition = 0;
 	}
 
-	for( int i = 0; haveRoomForItem; i++ ){// Вычисление есть ли место для вещи
+	for( int i = 0; haveRoomForItem; i++ ){// (rt) Calculating whether there is room for the item
 		if( currentInvYPosition >= VisualTrade_SlotsY ){
 			haveRoomForItem = false;
-			return haveRoomForItem;// На нет и суда нет
+			return haveRoomForItem;// (rt) Nothing to do in that case
 		}
 		currentInvXPosition = aCellID % VisualTrade_SlotsX;
-		if( currentInvXPosition < 0 ){// Если отрицательный - обнуляем
+		if( currentInvXPosition < 0 ){// (rt) If negative, set to zero
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( !haveRoomForItem ){// То есть по сути чтобы цикл вернул 1 нужно чтобы клетки инвентаря от текущей по х размер ширины были пусты.
-				return haveRoomForItem;// На нет и суда нет
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( !haveRoomForItem ){// (rt) So for the loop to return 1, the inventory cells from the current one across the item's width must be empty.
+				return haveRoomForItem;// (rt) Nothing to do in that case
 			}
 			haveRoomForItem = ! abs((char)storage.usedFlags[currentInvXPosition + currentInvYPosition * VisualTrade_SlotsX]);
 			currentInvXPosition++;
 		}
 		currentInvYPosition++;
-		if( i == aHeight - 1 ){//если есть место для вещи
-			break; // При выходе haveRoomForItem будет 1, что с ним делать следующая конструкция сама решить
+		if( i == aHeight - 1 ){//(rt) if there is room for the item
+			break; // (rt) On exit haveRoomForItem will be 1; the next block decides what to do with it
 		}
 	}
 	if( !haveRoomForItem || !isNotRoomTest ){
 		return haveRoomForItem;
 	}
-	// Собственно впихивание вещи. haveRoomForItem скорее всего будет равно 1, ибо в случаях когда не равно в предыдущем цикле сразу выход
+	// (rt) Placing the item itself. haveRoomForItem will most likely be 1, since otherwise the previous loop exits immediately
 	memcpy(&storage.items[storage.itemCount], item, sizeof(Item));
 	storage.itemCount++;
 	currentInvYPosition = aCellID / VisualTrade_SlotsX;
@@ -151,11 +152,11 @@ bool ItemPanel_PutItemInStorage( VisualTradePage pageId, const Item* item, int a
 		if( currentInvXPosition < 0 ){
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( j || i != aHeight - 1 ){// Обозначаем клетки как занятые вещью
-				storage.usedFlags[currentInvXPosition + currentInvYPosition * VisualTrade_SlotsX] = -storage.itemCount; // Если одна из остальных клеток
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( j || i != aHeight - 1 ){// (rt) Mark the cells as occupied by the item
+				storage.usedFlags[currentInvXPosition + currentInvYPosition * VisualTrade_SlotsX] = -storage.itemCount; // (rt) If it is one of the other cells
 			}else{
-				storage.usedFlags[currentInvXPosition + currentInvYPosition * VisualTrade_SlotsX] = storage.itemCount; // Если клетка с картинкой
+				storage.usedFlags[currentInvXPosition + currentInvYPosition * VisualTrade_SlotsX] = storage.itemCount; // (rt) If it is the cell with the picture
 			}
 			currentInvXPosition++;
 		}
@@ -181,7 +182,7 @@ void GetForcedSuccessionArray(uchar inventoryWidth, uchar inventoryHeight, uchar
 bool VisualTrade_AutoPutItemInStorage( VisualTradePage pageId, const Item* item, bool forced = false )
 {
     SetupItemSizes(item->GraphicValue + CM_12_ITEMS_PICS_START);
-	vector<uchar> successionArray; // Сюда копируется приоритет места инвентаря для каждой позиции.
+	vector<uchar> successionArray; // (rt) The inventory placement priority for each position is copied here.
 	successionArray.reserve(VisualTrade_MaxSlot * 2);
 
     if( forced ){
@@ -210,7 +211,7 @@ void __fastcall VisualTrade_RemoveItemFromStorage( VisualTradePage pageId, int i
 
 	--storage.itemCount;
 	int invItemCount = storage.itemCount;
-	if( invItemCount > 0 && invItemCount != invItemIndex ){// Если вещи есть и удаляемая вещь не последняя
+	if( invItemCount > 0 && invItemCount != invItemIndex ){// (rt) If there are items and the removed item isn't the last one
 		memcpy(&storage.items[invItemIndex], &storage.items[invItemCount], sizeof(Item));
 		for(auto& invUsed : storage.usedFlags){
 			int invItemNumber = invItemIndex + 1;
@@ -320,6 +321,7 @@ void VisualTrade_ResetPage( VisualTradePage pageId )
 //----- (th2) -------------------------------------------------------------
 void __fastcall VisualTrade_Open( VisualTradeMode mode )
 {
+	IsChatHistoryVisible = false;
 	IsVisualTradePanelVisible = true;
 	IsINVPanelVisible = true;
 	
@@ -385,7 +387,7 @@ void DrawVisualTradeItems()
     if( CurrentVisualTradePage == VTP_M1_None ){
         return;
     }
-    const auto& storage = VisualTradeStorages[CurrentVisualTradePage];
+    auto& storage = VisualTradeStorages[CurrentVisualTradePage];	// (th4) not const: IsReqMet is refreshed below
 
     extern bool InventoryBackgroundOldStyle;
     extern bool InventoryTurnOffRedColorItems;
@@ -413,7 +415,13 @@ void DrawVisualTradeItems()
             if( invItemIndex <= 0 ){
                 continue;
             }
-            const Item& inventorySlot = storage.items[invItemIndex - 1];
+            Item& inventorySlot = storage.items[invItemIndex - 1];
+            // (th4) Shop stock keeps whatever IsReqMet it was given when the shop was
+            // generated. Nothing refreshes it afterwards -- RecalcItemsReqMet() walks the
+            // player's inventory, belt and talismans only -- so raising a stat mid-session
+            // left everything on the shelf still flagged unusable and drawn red, while the
+            // tooltip (which tests the requirements live) said it was fine. Re-test here.
+            inventorySlot.IsReqMet = CheckItemReq( CurrentPlayerIndex, &inventorySlot );
             int graphicValue = inventorySlot.GraphicValue + CM_12_ITEMS_PICS_START;
             char itemWidthTable = ItemWidthTable[graphicValue];
             
@@ -422,9 +430,10 @@ void DrawVisualTradeItems()
 			if( ItemHeightTable[graphicValue] >= CELL_SIZE * 3 ) y -= 3;
 			else if( ItemHeightTable[graphicValue] >= CELL_SIZE * 2 ) y -= 1;
 			
+            const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
             char* itemsCELArray = GetItemSprites(graphicValue);
             bool itemUnderCursor = Cur.InventoryCellID == invItemIndex - 1 + Stash_SlotIDStart;
-            // Выбираем цвет обводки
+            // (rt) Pick the outline colour
 			int colorOfBorder = -1;
 			if(itemUnderCursor){
                 colorOfBorder = 197;
@@ -435,7 +444,8 @@ void DrawVisualTradeItems()
                     colorOfBorder = 229;
                 }
             }
-            CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+            ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+            ItemOverlay_Queue(overlayGfx, x, y, itemWidthTable, ItemHeightTable[overlayGfx], inventorySlot.mirrorImage != 0, colorOfBorder, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1);	// (th4)
         }
     }
 }
@@ -520,7 +530,7 @@ int GetSlotMouseAbove_Trade()
 	if( item->ItemCode == IC_11_GOLD ){
 		char* currency = formatGoldAmount(item->amount);
 		char infoPanelString[260];
-		sprintf(infoPanelString, "%i gold %s", item->amount, currency);
+		sprintf(infoPanelString, L("%i gold %s"), item->amount, currency);
 		//InfoPanel_SetHeader(infoPanelString);
 		return inventoryCellIndex;
 	}
@@ -554,53 +564,53 @@ void __fastcall VisualTrade_MouseMove()
             Tooltip_SetOffsetTop();
             switch(actionType){
                 case VTA_Repair:
-                    Tooltip_AddLine("REPAIR ITEM");
-                    Tooltip_AddLine("Hover over item to see price");
-                    Tooltip_AddLine("Click on item to repair");
+                    Tooltip_AddLine(L("REPAIR ITEM"));
+                    Tooltip_AddLine(L("Hover over item to see price"));
+                    Tooltip_AddLine(L("Click on item to repair"));
                     break;
                 case VTA_RepairAll:
                 {
-                    Tooltip_AddLine("REPAIR ALL ITEMS");
+                    Tooltip_AddLine(L("REPAIR ALL ITEMS"));
                     int price = VisualTrade_GetRepairAllPrice();
                     if( price ){
-                        sprintf(InfoPanelBuffer, "price: %i", price);
+                        sprintf(InfoPanelBuffer, L("price: %i"), price);
                         Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                     }else{
-                        Tooltip_AddLine("Nothing to repair");
+                        Tooltip_AddLine(L("Nothing to repair"));
                     }
                 }
                 break;
                 case VTA_Recharge:
-                    Tooltip_AddLine("RECHARGE ITEM");
-                    Tooltip_AddLine("Hover over item to see price");
-                    Tooltip_AddLine("Click on item to recharge");
+                    Tooltip_AddLine(L("RECHARGE ITEM"));
+                    Tooltip_AddLine(L("Hover over item to see price"));
+                    Tooltip_AddLine(L("Click on item to recharge"));
                     break;
                 case VTA_RechargeAll:
                 {
-                    Tooltip_AddLine("RECHARGE ALL ITEMS");
+                    Tooltip_AddLine(L("RECHARGE ALL ITEMS"));
                     int price = VisualTrade_GetRechargeAllPrice();
                     if( price ){
-                        sprintf(InfoPanelBuffer, "price: %i", price);
+                        sprintf(InfoPanelBuffer, L("price: %i"), price);
                         Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                     }else{
-                        Tooltip_AddLine("Nothing to recharge");
+                        Tooltip_AddLine(L("Nothing to recharge"));
                     }
                 }
                     break;
                 case VTA_Identify:
-                    Tooltip_AddLine("IDENTIFY ITEM");
-                    Tooltip_AddLine("Hover over item to see price");
-                    Tooltip_AddLine("Click on item to identify");
+                    Tooltip_AddLine(L("IDENTIFY ITEM"));
+                    Tooltip_AddLine(L("Hover over item to see price"));
+                    Tooltip_AddLine(L("Click on item to identify"));
                     break;
                 case VTA_IdentifyAll:
                 {
-                    Tooltip_AddLine("IDENTIFY ALL ITEMS");
+                    Tooltip_AddLine(L("IDENTIFY ALL ITEMS"));
                     int price = VisualTrade_GetIdentifyAllPrice();
                     if( price ){
-                        sprintf(InfoPanelBuffer, "price: %i", price);
+                        sprintf(InfoPanelBuffer, L("price: %i"), price);
                         Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                     }else{
-                        Tooltip_AddLine("Nothing to identify");
+                        Tooltip_AddLine(L("Nothing to identify"));
                     }
                 }
                     break;
@@ -615,9 +625,9 @@ void __fastcall VisualTrade_MouseMove()
 //                    }
 //
                     int price = VisualTrade_GetRestockPrice();
-                    sprintf(InfoPanelBuffer, "RESTOCK ITEMS for %i gold", price);
+                    sprintf(InfoPanelBuffer, L("RESTOCK ITEMS for %i gold"), price);
                     Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
-                    Tooltip_AddLine("Hotkey: R");
+                    Tooltip_AddLine(L("Hotkey: R"));
                 }
                     break;
                 case VTA_Upgrade:
@@ -626,21 +636,21 @@ void __fastcall VisualTrade_MouseMove()
                         uchar griswoldLevel = VisualTrade_GetGriswoldLevel();
                         if (griswoldLevel >= 25)
                         {
-							sprintf(InfoPanelBuffer, "Item level upgrades: +%i (max)", griswoldLevel);
+							sprintf(InfoPanelBuffer, L("Item level upgrades: +%i (max)"), griswoldLevel);
 							Tooltip_AddLine(InfoPanelBuffer, C_3_Gold);
                         }
                         else
                         {
-                            sprintf(InfoPanelBuffer, "Item level upgrades: +%i ", griswoldLevel);
+                            sprintf(InfoPanelBuffer, L("Item level upgrades: +%i "), griswoldLevel);
                             Tooltip_AddLine(InfoPanelBuffer);
                             int price = VisualTrade_GetGriswoldUpgradePrice();
-                            sprintf(InfoPanelBuffer, "UPGRADE for %i gold", price);
+                            sprintf(InfoPanelBuffer, L("UPGRADE for %i gold"), price);
                             Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                         }
                     }
                     else 
                     {
-						sprintf(InfoPanelBuffer, "Not available");
+						sprintf(InfoPanelBuffer, L("Not available"));
 						Tooltip_AddLine(InfoPanelBuffer, C_2_Red);
                     }
                 }
@@ -656,7 +666,7 @@ void __fastcall VisualTrade_MouseMove()
         if( CursorIntoDisplayObject(obj) ){
             Tooltip_Clear();
             Tooltip_SetOffsetTop();
-            Tooltip_AddLine("Exit");
+            Tooltip_AddLine(L("Exit"));
         }
     }
     
@@ -948,6 +958,13 @@ Item* GetItemBySlotId( int slotId )
     if( slotId < 0 ){
         return nullptr;
 	}else if( slotId < IS_50_47_Belt_Start ){
+	    if( slotId >= IS_Inventory ){
+	        int itemIndex = slotId - IS_Inventory;
+	        extern bool IsSigilInventoryOpen;
+	        if( IsSigilInventoryOpen && itemIndex < player.TalItemCount ){
+	            return &player.TalismanSlots[itemIndex];
+	        }
+	    }
 	    return &player.OnBodySlots[ slotId ]; // onBody slots and inventory
     }else if( slotId < IS_50_47_Belt_End ){
         return &player.BeltInventory[ slotId - IS_50_47_Belt_Start ];
@@ -1012,7 +1029,7 @@ void VisualTrade_ForEachPlayerItem( std::function<void(Item* item)> cb )
     for( int i = 0, ie = player.InvItemCount; i != ie; ++i ){
         cb( &player.InventorySlots[i] );
     }
-    
+
     for( auto& item : player.BeltInventory ){
         cb( &item );
     }
@@ -1044,10 +1061,19 @@ int VisualTrade_GetRechargeAllPrice()
 int VisualTrade_GetIdentifyAllPrice()
 {
     int price = 0;
-    VisualTrade_ForEachPlayerItem( [&price]( Item* item )
-                                   {
-                                        price += VisualTrade_GetIdentificationPrice( item );
-                                   } );
+    extern bool IsSigilInventoryOpen;
+    if( IsSigilInventoryOpen ){
+        // Only count unidentified sigils in the sigil inventory
+        Player& player = Players[CurrentPlayerIndex];
+        for( int i = 0; i < player.TalItemCount; ++i ){
+            price += VisualTrade_GetIdentificationPrice( &player.TalismanSlots[i] );
+        }
+    } else {
+        VisualTrade_ForEachPlayerItem( [&price]( Item* item )
+                                       {
+                                            price += VisualTrade_GetIdentificationPrice( item );
+                                       } );
+    }
     return price;
 }
 
@@ -1072,10 +1098,19 @@ void VisualTrade_RechargeAll()
 //----- (th2) -------------------------------------------------------------
 void VisualTrade_IdentifyAll()
 {
-    VisualTrade_ForEachPlayerItem( []( Item* item )
-                                   {
-                                        VisualTrade_IdentifyItem( item );
-                                   } );
+    extern bool IsSigilInventoryOpen;
+    if( IsSigilInventoryOpen ){
+        // Only identify sigils in the sigil inventory
+        Player& player = Players[CurrentPlayerIndex];
+        for( int i = 0; i < player.TalItemCount; ++i ){
+            VisualTrade_IdentifyItem( &player.TalismanSlots[i] );
+        }
+    } else {
+        VisualTrade_ForEachPlayerItem( []( Item* item )
+                                       {
+                                            VisualTrade_IdentifyItem( item );
+                                       } );
+    }
 }
 
 //----- (th2) -------------------------------------------------------------

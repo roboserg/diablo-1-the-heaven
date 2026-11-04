@@ -470,7 +470,7 @@ error:
 	return false;
 }
 
-// возможны расхождения в размере файлов если разные данные так как запись пишется при переходе между уровнями
+// (rt) file sizes may differ if the data differs, since the save is written when moving between levels
 //----- (00445BEA) --------------------------------------------------------
 bool __fastcall ReadMpqFileHdr(FullHeader* hdr, uint* nextFileStart)
 {
@@ -527,7 +527,7 @@ void __fastcall CloseSaveArchive(char* archiveName, bool clearHashBuffer, int he
 		HashLoaded = false;
 	}
 	if( CurrentSaveArchiveHandle != INVALID_HANDLE_VALUE ){
-		CloseHandle(CurrentSaveArchiveHandle);// какая то ошибка при уходе с данжеона
+		CloseHandle(CurrentSaveArchiveHandle);// (rt) some error when leaving the dungeon
 		CurrentSaveArchiveHandle = INVALID_HANDLE_VALUE;
 	}
 	if( SaveChanged ){

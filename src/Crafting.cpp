@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 bool IsCraftPanelVisible;
 DisplayObject CraftPanel;
@@ -66,15 +67,15 @@ array<Item, GemCombineSlotAmount>          GemCombineItems;
 array<DisplayObject, SocketingSlotAmount> SocketingSlots;
 array<Item, SocketingSlotAmount>          SocketingItems;
 
-// Сокетинг. План реализации.
-// 1. У Гризволда добавляется еще одно меню. Если персонаж достиг уровня 60: Add Sockets.
-//    Если неудобно добавлять с привязкой к уровню игрока, можно и просто так добавить.
-// 3. Оно открывает такой же интерфейс как у квенча. Не будем изобретать велосипед.
-// 4. Там так же, одна кнопка. С надписью add socket
-// 5. Туда вставляются только предметы класса enchanted
-// 6. Разрешено добавлять до 4 сокетов
-// 7. Требования по количеству сокетов в зависимости от уровня игрока: {60, 80, 100, 120}
-// 8. Разрешить вставлять (сокетные && энчантовые) предметы Гризволду в сервисе крафтинга, во вкладке Items
+// (rt) Socketing. Implementation plan.
+// (rt) 1. Griswold gets one more menu, if the character has reached level 60: Add Sockets.
+//    (rt) If tying it to the player's level is inconvenient, it can be added unconditionally.
+// (rt) 3. It opens the same interface as quenching. No need to reinvent it.
+// (rt) 4. Likewise one button there, labelled add socket
+// (rt) 5. Only enchanted items can be inserted there
+// (rt) 6. Up to 4 sockets may be added
+// (rt) 7. Player level requirements per socket count: {60, 80, 100, 120}
+// (rt) 8. Allow inserting (socketed && enchanted) items at Griswold's crafting service, in the Items tab
 
 char AddSocketString[256];
 bool AddSocketPressed;
@@ -142,13 +143,14 @@ void DrawAddSocketButton(Item& item)
         Tooltip_SetOffsetBottom();
 
         if( item.ItemCode == IC_M1_NONE || nextAmount > MaxAddSockets_4 ){
-            Tooltip_AddLine("Add sockets to enchanted item,");
-            Tooltip_AddLine("Clvl 55 required for adding 1 socket,");
-            Tooltip_AddLine("clvl 70 for 2, clvl 85 for 3, clvl 100 for 4");
+            // (th4) localized -- was hardcoded English, the rest of this panel already used L()
+            Tooltip_AddLine(L("Add sockets to enchanted item,"));
+            Tooltip_AddLine(L("Clvl 55 required for adding 1 socket,"));
+            Tooltip_AddLine(L("clvl 70 for 2, clvl 85 for 3, clvl 100 for 4"));
 		}else if( !(item.dropType & D_ENCHANT) ){
-			Tooltip_AddLine("Adding sockets is possible only for enchanted items", C_2_Red);
+			Tooltip_AddLine(L("Adding sockets is possible only for enchanted items"), C_2_Red);
 		}else{
-            sprintf(InfoPanelBuffer, "Add socket to enchanted item, for %i gold", BuyPrice(SocketPrice(nextAmount))/*, SocketReqClvlToAdd(nextAmount)*/);
+            sprintf(InfoPanelBuffer, L("Add socket to enchanted item, for %i gold"), BuyPrice(SocketPrice(nextAmount))/*, SocketReqClvlToAdd(nextAmount)*/);
             Tooltip_AddLine(InfoPanelBuffer);
         }
     }
@@ -297,33 +299,33 @@ Gem Gems[] =
 //----- (th2) -------------------------------------------------------------
 void PrintGemEffectToStringBuffer(GemEffect& effect, bool twoHandedWeapon)
 {
-	char* desc = "";
+	const char* desc = "";
 	auto value = effect.value;
 	switch (effect.type){ // TODO: move to Gem::EffectType[]
-	case GemEffectType::FireElementPercent:		        desc = "+%i%% fire element";		          break;
-	case GemEffectType::LightningElementPercent:        desc = "+%i%% lightning element";		      break;
-	case GemEffectType::AcidElementPercent:		        desc = "+%i%% acid element";		          break;
-	case GemEffectType::HolyElementPercent:		        desc = "+%i%% holy element";		          break;
-	case GemEffectType::ColdElementPercent:		        desc = "+%i%% cold element";		          break;
-	case GemEffectType::ArcaneElementPercent:		    desc = "+%i%% arcane element";		          break;
-	case GemEffectType::ResistAllPercent:		        desc = "+%i resist all";		              break;
-	case GemEffectType::Life:		                    desc = "+%i life";		                      break;
-	case GemEffectType::LifePercent:		            desc = "+%i%% life";		                  break;
-	case GemEffectType::LifeRegenPercent:		        desc = "+%i%% life regeneration";		      break;
-	case GemEffectType::Mana:		                    desc = "+%i mana";		                      break;
-	case GemEffectType::ManaRegenPercent:		        desc = "+%i%% mana regeneration";		      break;
-	case GemEffectType::Damage:		                    desc = "+%i damage"; if( twoHandedWeapon || CurTrait(TraitId::Pistoleer)) value *= 2; break;
-	case GemEffectType::DamagePercent:		            desc = "+%i%% weapon damage";		          break;
-	case GemEffectType::CritDamagePercent:		        desc = "+%i%% critical damage";	              break;
-	case GemEffectType::ToHit:		                    desc = "+%i accuracy";                        break;
-	case GemEffectType::ArmorClass:		                desc = "+%i armor class";		              break;
-	case GemEffectType::DFE:		                    desc = "%i damage from enemies";		      break;
-	case GemEffectType::MeleeDamageResistPercent:		desc = "+%i melee damage resistance";		  break;
-	case GemEffectType::ArrowDamageResistPercent:		desc = "+%i arrow damage resistance";		  break;
-	case GemEffectType::MagicfindPercent:		        desc = "+%i%% chance of finding magic items"; break;
-	case GemEffectType::GoldfindPercent:		        desc = "+%i%% to Gold Found";                 break;
-	case GemEffectType::SummonDamage:		            desc = "+%i to damage of summoned minions";	  break;
-	case GemEffectType::SummonHP:		                desc = "+%i to health of summoned minions";	  break;
+	case GemEffectType::FireElementPercent:		        desc = L("+%i%% fire element");		          break;
+	case GemEffectType::LightningElementPercent:        desc = L("+%i%% lightning element");		      break;
+	case GemEffectType::AcidElementPercent:		        desc = L("+%i%% acid element");		          break;
+	case GemEffectType::HolyElementPercent:		        desc = L("+%i%% holy element");		          break;
+	case GemEffectType::ColdElementPercent:		        desc = L("+%i%% cold element");		          break;
+	case GemEffectType::ArcaneElementPercent:		    desc = L("+%i%% magic element");		          break;
+	case GemEffectType::ResistAllPercent:		        desc = L("+%i resist all");		              break;
+	case GemEffectType::Life:		                    desc = L("+%i life");		                      break;
+	case GemEffectType::LifePercent:		            desc = L("+%i%% life");		                  break;
+	case GemEffectType::LifeRegenPercent:		        desc = L("+%i%% life regeneration");		      break;
+	case GemEffectType::Mana:		                    desc = L("+%i mana");		                      break;
+	case GemEffectType::ManaRegenPercent:		        desc = L("+%i%% mana regeneration");		      break;
+	case GemEffectType::Damage:		                    desc = L("+%i damage"); if( twoHandedWeapon || CurTrait(TraitId::Pistoleer)) value *= 2; break;
+	case GemEffectType::DamagePercent:		            desc = L("+%i%% weapon damage");		          break;
+	case GemEffectType::CritDamagePercent:		        desc = L("+%i%% critical damage");	              break;
+	case GemEffectType::ToHit:		                    desc = L("+%i accuracy");                        break;
+	case GemEffectType::ArmorClass:		                desc = L("+%i armor class");		              break;
+	case GemEffectType::DFE:		                    desc = L("%i damage from enemies");		      break;
+	case GemEffectType::MeleeDamageResistPercent:		desc = L("+%i melee damage resistance");		  break;
+	case GemEffectType::ArrowDamageResistPercent:		desc = L("+%i arrow damage resistance");		  break;
+	case GemEffectType::MagicfindPercent:		        desc = L("+%i%% chance of finding magic items"); break;
+	case GemEffectType::GoldfindPercent:		        desc = L("+%i%% to Gold Found");                 break;
+	case GemEffectType::SummonDamage:		            desc = L("+%i to damage of summoned minions");	  break;
+	case GemEffectType::SummonHP:		                desc = L("+%i to health of summoned minions");	  break;
 	}
 	sprintf(InfoPanelBuffer, desc, value);
 }
@@ -449,13 +451,14 @@ void ApplyGemEffects( Item& item )
     CollectSocketEffects( effects, item );
     
     if (effects.empty() ) {
-		if( item.MagicLevel == ML_0_USUAL ) sprintf(item.FullMagicalItemName, "Socketed %s", item.Name);
+		if( item.MagicLevel == ML_0_USUAL ) sprintf(item.FullMagicalItemName, L("Socketed %s"), item.Name);
 	}
 	else {
         for( GemEffect& e : effects ){
             ApplyGemEffect(item, e);			
 		}
-		if( item.MagicLevel == ML_0_USUAL ) sprintf(item.FullMagicalItemName, "Gemmed %s", item.Name);
+		// (th4) localized -- sibling of the L("Socketed %s") case above, which was missed
+		if( item.MagicLevel == ML_0_USUAL ) sprintf(item.FullMagicalItemName, L("Gemmed %s"), item.Name);
     }
 }
 
@@ -470,7 +473,7 @@ bool CanGrind()
      //   && !(Players[CurrentPlayerIndex].gameChanger & BIT( GC_9_NIGHT_KIN ))
      //   && !HasTrait(CurrentPlayerIndex, TraitId::Barbarian);
     
-    if( is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_COLISEUM, GM_CLASSIC) ){ // There is no sense in grinding in special modes (original crafting condition)
+    if( is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_COLISEUM, GM_CLASSIC, GM_OUTBREAK) ){ // There is no sense in grinding in special modes (original crafting condition)
         return false;
     }
     
@@ -532,7 +535,16 @@ void SetupCraftPanel()
     int socketingSlotHeight = 130;
     int socketingSlotY = 66;
     
-    SetupDisplayObject(SocketingItemSlot,    CraftPanel.Left + 46,  CraftPanel.Top + socketingSlotY, socketingSlotWidth, socketingSlotHeight);
+   //SetupDisplayObject(SocketingItemSlot,    CraftPanel.Left + 46,  CraftPanel.Top + socketingSlotY, socketingSlotWidth, socketingSlotHeight);
+    if ( 
+        (Players && (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < PlayersMax_4))// is "Players" check needed here? is "PlayersMax_4" check better than "MaxCountOfPlayersInGame"?
+        && ((Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) || (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))
+        ) {
+        SetupDisplayObject(SocketingItemSlot, CraftPanel.Left + 33, CraftPanel.Top + 41, CELL_SIZE * 4, CELL_SIZE * 7);
+    }
+    else {
+        SetupDisplayObject(SocketingItemSlot, CraftPanel.Left + 46, CraftPanel.Top + socketingSlotY, socketingSlotWidth, socketingSlotHeight);
+    }
     SetupDisplayObject(SocketingSocketsSlot, CraftPanel.Left + 186, CraftPanel.Top + socketingSlotY, socketingSlotWidth, socketingSlotHeight);
     SocketingSlots[SocketingItemSlotIndex] = SocketingItemSlot;
     
@@ -553,6 +565,7 @@ void Craft_Gems_DrawOneItem( int slotIndex, DisplayObject& rect, Item& item )
     int graphicValue = item.GraphicValue + CM_12_ITEMS_PICS_START;
     int itemWidth = ItemWidthTable[graphicValue];
     int itemHeight = ItemHeightTable[graphicValue];
+    const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
     char* itemsCELArray = GetItemSprites( graphicValue );
     
     int x = rect.Left + Screen_LeftBorder + (rect.Width - itemWidth) / 2;
@@ -577,7 +590,8 @@ void Craft_Gems_DrawOneItem( int slotIndex, DisplayObject& rect, Item& item )
         
         TransparentMode = 0;
     }else{
-        CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+        ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+        ItemOverlay_Queue(overlayGfx, x, y, itemWidth, itemHeight, item.mirrorImage != 0, colorOfBorder, (int)!item.IsReqMet | item.mirrorImage << 1);	// (th4)
     }
 }
 
@@ -634,15 +648,25 @@ Item* Craft_Socketing_GetItemBySlotId( int slotId )
 void Craft_RetrieveAllItems()
 {
     Player& player = Players[CurrentPlayerIndex];
+    // Only a cursor with an item graphic attached actually holds an item.
+    // ItemOnCursor may still contain stale data after an item was placed into
+    // an empty inventory cell (PutCursorItemToInv leaves the struct populated
+    // while resetting the graphic to hand); saving/restoring it unconditionally
+    // would resurrect that stale item onto the cursor on panel close.
+    bool cursorHasItem = Cur.GraphicsID >= CM_12_ITEMS_PICS_START;
     Item tmpItem;
-    memcpy( &tmpItem, &player.ItemOnCursor, sizeof(Item) );
+    if( cursorHasItem ){
+        memcpy( &tmpItem, &player.ItemOnCursor, sizeof(Item) );
+    }
+    bool retrievedAny = false;
     
-    auto retrieveItemToPlayer = [&player]( Item* itemPtr ){
+    auto retrieveItemToPlayer = [&player, &retrievedAny]( Item* itemPtr ){
         memcpy( &player.ItemOnCursor, itemPtr, sizeof(Item) );
         if( !AutoPutCursorToInventoryOrDrop( false /*allowDropWhenInvFull*/ ) ){
             InvPutItem( CurrentPlayerIndex, player.Row, player.Col );
         }
         itemPtr->ItemCode = IC_M1_NONE;
+        retrievedAny = true;
     };
     
     for( Item& item : GemCombineItems ){
@@ -658,7 +682,15 @@ void Craft_RetrieveAllItems()
         }
     }
     
-    memcpy( &player.ItemOnCursor, &tmpItem, sizeof(Item) );
+    if( cursorHasItem ){
+        memcpy( &player.ItemOnCursor, &tmpItem, sizeof(Item) );
+        if( retrievedAny && player.ItemOnCursor.ItemCode != IC_M1_NONE ){
+            SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
+            FixItemCursor(-1);
+        }
+    }else{
+        player.ItemOnCursor.ItemCode = IC_M1_NONE;
+    }
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -689,8 +721,8 @@ int Craft_GetCombiningPrice()
 //----- (th2) -------------------------------------------------------------
 constexpr int Craft_Gems_CalculateUpgradePrice( int currentGrade )
 {
-    // апгрейд тира сокетабла : (5 * грейд камней) ^ 3
-    // (т.е., от 125 за 1й грейд до 91125 за 9й)
+    // (rt) socketable tier upgrade: (5 * gem grade) ^ 3
+    // (rt) (i.e. from 125 for grade 1 to 91125 for grade 9)
     int n = 5 * currentGrade;
     return n * n * n;
 }
@@ -711,7 +743,7 @@ int Craft_Gems_CalculateUpgradeFinalPrice( int currentGrade )
 //----- (th2) -------------------------------------------------------------
 constexpr int Craft_Socketing_CalculateGemInsertPrice( int currentGrade )
 {
-    // вставка предмета в сокет : (10 * грейд) ^ 2
+    // (rt) inserting an item into a socket: (10 * grade) ^ 2
     int n = 10 * currentGrade;
     return n * n;
 }
@@ -732,7 +764,7 @@ int Craft_Socketing_CalculateGemInsertFinalPrice( int currentGrade )
 //----- (th2) -------------------------------------------------------------
 constexpr int Craft_Socketing_CalculateGemExtractionPrice( int currentGrade )
 {
-    // изъятие предмета из сокета : (20 * грейд) ^ 2
+    // (rt) removing an item from a socket: (20 * grade) ^ 2
     int n = 20 * currentGrade;
     return n * n;
 }
@@ -917,6 +949,7 @@ void __fastcall Craft_Socketing_Draw()
         int graphicValue = item.GraphicValue + CM_12_ITEMS_PICS_START;
         int itemWidth = ItemWidthTable[graphicValue];
         int itemHeight = ItemHeightTable[graphicValue];
+        const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
         char* itemsCELArray = GetItemSprites( graphicValue );
         
         int x = rect.Left + Screen_LeftBorder + (rect.Width - itemWidth) / 2;
@@ -932,7 +965,8 @@ void __fastcall Craft_Socketing_Draw()
                 colorOfBorder = 229;
             }
         }
-        CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+        ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+        ItemOverlay_Queue(overlayGfx, x, y, itemWidth, itemHeight, item.mirrorImage != 0, colorOfBorder, (int)!item.IsReqMet | item.mirrorImage << 1);	// (th4)
     }
     
     if( socketedItem.ItemCode != IC_M1_NONE && socketedItem.socketsAmount > 0 ){
@@ -947,6 +981,7 @@ void __fastcall Craft_Socketing_Draw()
                 int graphicValue = item.GraphicValue + CM_12_ITEMS_PICS_START;
                 int itemWidth = ItemWidthTable[graphicValue];
                 int itemHeight = ItemHeightTable[graphicValue];
+                const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
                 char* itemsCELArray = GetItemSprites( graphicValue );
                 
                 int x = rect.Left + Screen_LeftBorder + (rect.Width - itemWidth) / 2;
@@ -962,7 +997,8 @@ void __fastcall Craft_Socketing_Draw()
                         colorOfBorder = 229;
                     }
                 }
-                CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+                ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!item.IsReqMet | item.mirrorImage << 1, colorOfBorder);
+                ItemOverlay_Queue(overlayGfx, x, y, itemWidth, itemHeight, item.mirrorImage != 0, colorOfBorder, (int)!item.IsReqMet | item.mirrorImage << 1);	// (th4)
             }
         }
     }else{
@@ -1034,21 +1070,36 @@ void Craft_RecalcItemsReq()
 //----- (th2) -------------------------------------------------------------
 void __fastcall Craft_Open()
 {
-    for( auto& item : GemCombineItems ){
+    for (auto& item : GemCombineItems) {
         item.ItemCode = IC_M1_NONE;
     }
-    
-    for( auto& item : SocketingItems ){
+    for (auto& item : SocketingItems) {
         item.ItemCode = IC_M1_NONE;
     }
-    
+
+    // if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+    if ((Players && (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < PlayersMax_4)) 
+        && ((Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) || (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))) {
+        FreeMemZero(CraftPanelCEL);
+        CraftPanelCEL = (char*)LoadFile("data\\aio_v2.cel"); // gems panel unchanged
+        FreeMemZero(CraftPanel2CEL);
+        CraftPanel2CEL = (char*)LoadFile("data\\craft\\enclave_socket_enchanted.cel");
+    }
+    else {
+        FreeMemZero(CraftPanelCEL);
+        CraftPanelCEL = (char*)LoadFile("data\\aio_v2.cel");
+        FreeMemZero(CraftPanel2CEL);
+        CraftPanel2CEL = (char*)LoadFile("data\\craft\\socket_panel_v7.cel");
+    }
+
+    IsChatHistoryVisible = false;
     IsCraftPanelVisible = true;
-	IsINVPanelVisible = true;
-	
-	Craft_ChangeCraftPage( CraftPages[0] );
-	
-	CurrentDialogIndex = PD_0_None;
-	PlayGlobalSound(S_75_I_TITLEMOV);
+    IsINVPanelVisible = true;
+
+    Craft_ChangeCraftPage(CraftPages[0]);
+
+    CurrentDialogIndex = PD_0_None;
+    PlayGlobalSound(S_75_I_TITLEMOV);
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -1074,7 +1125,9 @@ void __fastcall Craft_Draw()
     for( int i = 0, ie = CraftPages.size(); i != ie; ++i ){
         CraftPage pageType = CraftPages[i];
         int index = Craft_TabsStartIndex + i;
-        DrawCraftTab( CraftButtons[index], pageType == CurrentCraftPage, CraftPagesNames[pageType] );
+        // (th4) localized. The (char*) cast is required: DrawCraftTab takes char*, L()
+        // returns const char* -- casting at the call site rather than changing the callee.
+        DrawCraftTab( CraftButtons[index], pageType == CurrentCraftPage, (char*)L(CraftPagesNames[pageType]) );
     }
     switch( CurrentCraftPage ){
     case CP_Gems     : Craft_Gems_Draw();      break;
@@ -1147,12 +1200,12 @@ void __fastcall Craft_MouseMove()
                 {
                     if( Craft_IsCombinationReady() ){
                         int price = Craft_GetCombiningPrice();
-                        sprintf(InfoPanelBuffer, "combine for %i gold", price);
+                        sprintf(InfoPanelBuffer, L("combine for %i gold"), price);// (th4) localized
                         Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                     }else if( Craft_IsCombinationResultReady() ){
-                        Tooltip_AddLine("retrieve upgraded gem first", C_2_Red);
+                        Tooltip_AddLine(L("retrieve upgraded gem first"), C_2_Red);
                     }else{
-                        Tooltip_AddLine("place 3 gems of the same grade and type to combine", C_2_Red);
+                        Tooltip_AddLine(L("place 3 gems of the same grade and type to combine"), C_2_Red);
                     }
                     break;
                 }
@@ -1167,7 +1220,7 @@ void __fastcall Craft_MouseMove()
         if( CursorIntoDisplayObject(obj) ){
             Tooltip_Clear();
             Tooltip_SetOffsetTop();
-            Tooltip_AddLine("Exit");
+            Tooltip_AddLine(L("Exit"));
         }
     }
     
@@ -1271,6 +1324,33 @@ bool __fastcall Craft_Gems_TryToPlaceItemIntoCraftSlot()
     }
 
     return false;
+}
+
+//----- (th4) -------------------------------------------------------------
+// SHIFT-CLICK a gem from the inventory into the gem combiner (called from InventoryPanel.cpp,
+// the shift-click branch that also serves stash / transmute). It must end the same way as
+// manual placement (Craft_Gems_PlaceItemIntoCraftSlot above): Craft_Gems_RefreshCombineResult()
+// builds the greyed-out result preview, and Craft_IsCombinationReady() -- which enables the
+// Combine button -- only looks at that preview. Without the refresh, three matching gems
+// sit in the slots but the button stays inactive. Same "is this a gem" rule and same slot
+// count as the manual path. Returns false (cursor untouched) if not a gem or no free slot.
+bool Craft_Gems_AutoPutCursorItem()
+{
+    Player& player = Players[CurrentPlayerIndex];
+    Item& cursorItem = player.ItemOnCursor;
+    if( !Craft_Gems_IsItemAllowedToBeConsumable( &cursorItem ) ){
+        return false;
+    }
+    const int slot = Craft_Gems_FindFreeConsumableSlot();	// first empty of the GemCombineConsumablesAmount slots
+    if( slot == -1 ){
+        return false;
+    }
+    memcpy( &GemCombineItems[slot], &cursorItem, sizeof(Item) );
+    cursorItem.ItemCode = IC_M1_NONE;
+    SetCursorGraphics( CM_1_NORMAL_HAND );
+    Craft_Gems_RefreshCombineResult();
+    PlayGlobalSound( S_56_I_INVGRAB );
+    return true;
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -1687,7 +1767,7 @@ void __fastcall TryToDropGem(int row, int col)
         return;
     }
     
-    // вероятность дропа камушков грейда 3: только на думе. с вероятностью RNG( 400 - ( DLVL * 6) )
+    // (rt) grade 3 gem drop chance: Doom only, with probability RNG( 400 - ( DLVL * 6) )
     //if( Difficulty == DL_2_DOOM ){
     //    auto randomFactor = RNG(400 - ( 6 * DungeonLevel) );
     //    if( randomFactor == 0 ){
@@ -1696,7 +1776,7 @@ void __fastcall TryToDropGem(int row, int col)
     //    }
     //}
     //
-    //// вероятность дропа камушков грейда 2 на пурге = 0,5%, на думе: 1%
+    //(rt) // grade 2 gem drop chance on Purgatory = 0.5%, on Doom: 1%
     //if( Difficulty >= DL_1_PURGATORY ){
     //    auto randomFactor = RNG(100'0);
     //    auto dropChanceInTensOfPercent = (Difficulty == DL_1_PURGATORY) ? 5 : 10;
@@ -1706,7 +1786,7 @@ void __fastcall TryToDropGem(int row, int col)
     //    }
     //}
     //
-    //// вероятность дропа камушков 1го грейда = 1% + ( DLVL / 12 ) + ( Difficulty * 2 )
+    //(rt) // grade 1 gem drop chance = 1% + ( DLVL / 12 ) + ( Difficulty * 2 )
     //{
     //    auto randomFactor = RNG(100);
     //    auto dropChanceInPercent = 1 + (DungeonLevel / 12) + (Difficulty * 2);
@@ -1746,17 +1826,17 @@ void __fastcall TryToDropGem(int row, int col)
 //----- (th2) -------------------------------------------------------------
 void __fastcall TryToAddSocketsToItem( Item& item, int qlvl, uchar difficulty ) // TODO: remove difficulty dependencied from regeneration (move it to smart drop)
 {
-	// сокетовыми могут быть только белые айтемы. оружие и броня. кольца - без крафта
+	// (rt) only white items can be socketed: weapons and armour. rings are not craftable
 	if( item.MagicLevel == ML_0_USUAL && is(item.TypeID, ITEM_1_WEAPON, ITEM_2_ARMOR) ){
-        // белый айтем будет сокетовый с вероятностью ( (50 - ( ilvl / 2 )) / (Difficulty + 2))%
-        // т.е. если уровень предмета = 54, то шанс что он станет сокетовым, равен 27% на хорроре, 13% на пурге и 6% на думе.
+        // (rt) a white item becomes socketed with probability ( (50 - ( ilvl / 2 )) / (Difficulty + 2))%
+        // (rt) i.e. if the item level = 54, the chance to become socketed is 27% on Horror, 13% on Purgatory and 6% on Doom.
         int randomFactor = RNG(100);
         int becomeSocketableChanceInPercent = (40 - ( qlvl / 10 )) / (2 + difficulty / 2); // needs better formula for 9 difs (updated once but could need more)
         if( randomFactor < becomeSocketableChanceInPercent ){
-            // количество сокетов на любом айтеме генерируется по формуле:
-            // (difficulty + 1) + (цикл на 50% шанс добавить +1 сокет, повторяемый (difficulty + 1) количество ) раз
-            // тогда если начальный шанс получить сокетовый айтем на думе с 3 дырками = 6%,
-            // то шанс на 4 дырки будет равен 3%, на 5: 1,5% и на 6: 0,75%
+            // (rt) the number of sockets on any item is generated by the formula:
+            // (rt) (difficulty + 1) + (a 50% chance loop to add +1 socket, repeated (difficulty + 1) times)
+            // (rt) so if the initial chance of a socketed item with 3 sockets on Doom = 6%,
+            // (rt) then the chance of 4 sockets is 3%, of 5: 1.5% and of 6: 0.75%
             int sockets = by(difficulty, 1, 1, 2, 2, 3, 3, 3, 3, 3);
             //LimitToMax(socketsAmount, 3);
             int mfier =         by(difficulty, 2, 3, 3, 4, 3, 3, 3, 3, 3);
@@ -1771,7 +1851,7 @@ void __fastcall TryToAddSocketsToItem( Item& item, int qlvl, uchar difficulty ) 
             //LimitToMax(socketsAmount, by(Difficulty, 3, 4, 5, 6, 6, 6, 6, 6, 6));
             item.socketsBase = sockets;
 			item.socketsAmount = sockets;
-			sprintf(item.FullMagicalItemName, "Socketed %s", item.Name);
+			sprintf(item.FullMagicalItemName, L("Socketed %s"), item.Name);
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 bool IsStashPanelVisible = false;
 bool Is_LMB_Pressed = false;
@@ -207,16 +208,16 @@ void GetSuccessionArray(uchar inventoryWidth, uchar inventoryHeight, uchar itemW
 
 	switch (sizeOfItem ){ // TODO: change switch to bound calculation for support any sizes
 		case 11:
-			for( int i = (successinHeight - 1); i >= 0; i-- ){// снизу вверх
-				for( int j = 0; j < successinWidth; j++ ){// Справа налево. Заполняя вначале весь ряд а потом уже переходя на следующий
+			for( int i = (successinHeight - 1); i >= 0; i-- ){// (rt) bottom to top
+				for( int j = 0; j < successinWidth; j++ ){// (rt) Right to left. Fill the whole row first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
 			break;
 		case 12:
-			for( int i = 0; i < successinHeight; i++ ){// снизу вверх
-				// Хитроумная конструкция для того чтобы вначале ряды шли от нижнего до верхнего через 1
-				// А потом опять таки снизу вверх оставшиеся
+			for( int i = 0; i < successinHeight; i++ ){// (rt) bottom to top
+				// (rt) An arrangement that first takes the rows from bottom to top, skipping every other one
+				// (rt) And then the remaining ones, again from bottom to top
 				char i2 = (successinHeight - 1) - i * 2;
 				if( i2 < 0 ){
 					i2 += successinHeight;
@@ -224,31 +225,31 @@ void GetSuccessionArray(uchar inventoryWidth, uchar inventoryHeight, uchar itemW
 						i2--;
 					}
 				}
-				for( int j = (successinWidth - 1); j >= 0; j-- ){// Справа налево. Заполняя вначале весь ряд а потом уже переходя на следующий
+				for( int j = (successinWidth - 1); j >= 0; j-- ){// (rt) Right to left. Fill the whole row first, then move to the next one
 					successionArray.push_back(i2 * inventoryWidth + j);
 				}
 			}
 			break;
 		case 13:
-			for( int i = 0; i < successinHeight; i++ ){// сверху вниз
-				for( int j = 0; j < successinWidth; j++ ){// Справа налево. Заполняя вначале весь ряд а потом уже переходя на следующий
+			for( int i = 0; i < successinHeight; i++ ){// (rt) top to bottom
+				for( int j = 0; j < successinWidth; j++ ){// (rt) Right to left. Fill the whole row first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
 			break;
 		case 22:
-			for( int j = (successinWidth - 1); j >= 0; j -= 2 ){// справа налево через 1
-				for( int i = 0; i < successinHeight; i += 1 ){// Снизу вверх. Заполняя вначале всю колонку а потом уже переходя на следующую
+			for( int j = (successinWidth - 1); j >= 0; j -= 2 ){// (rt) right to left, every other one
+				for( int i = 0; i < successinHeight; i += 1 ){// (rt) Bottom to top. Fill the whole column first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
-			for( int i = (successinHeight - 1); i >= 0; i -= 2 ){// Сверху вниз.
-				for( int j = (successinWidth % 2); j < successinWidth; j += 2 ){// слева направо через 1. Начиная с 0 при четной ширине и с 1 при нечётной. Заполняем вначале весь ряд а потом уже переходя на следующий
+			for( int i = (successinHeight - 1); i >= 0; i -= 2 ){// (rt) Top to bottom.
+				for( int j = (successinWidth % 2); j < successinWidth; j += 2 ){// (rt) left to right, every other one. Starting from 0 for an even width and from 1 for an odd one. Fill the whole row first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
-			for( int i = (successinHeight - 2); i >= 0; i -= 2 ){// Сверху вниз оставшиеся ряды
-				for( int j = 0; j < successinWidth; j++ ){// слева направо. Заполняем вначале весь ряд а потом уже переходя на следующий
+			for( int i = (successinHeight - 2); i >= 0; i -= 2 ){// (rt) The remaining rows, top to bottom
+				for( int j = 0; j < successinWidth; j++ ){// (rt) left to right. Fill the whole row first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
@@ -257,8 +258,8 @@ void GetSuccessionArray(uchar inventoryWidth, uchar inventoryHeight, uchar itemW
 		case 23:
 		case 24:
         default:
-			for( int i = 0; i < successinHeight; i++ ){// сверху вниз
-				for( int j = 0; j < successinWidth; j++ ){// Справа налево. Заполняя вначале весь ряд а потом уже переходя на следующий
+			for( int i = 0; i < successinHeight; i++ ){// (rt) top to bottom
+				for( int j = 0; j < successinWidth; j++ ){// (rt) Right to left. Fill the whole row first, then move to the next one
 					successionArray.push_back(i * inventoryWidth + j);
 				}
 			}
@@ -269,7 +270,7 @@ void GetSuccessionArray(uchar inventoryWidth, uchar inventoryHeight, uchar itemW
 //----- (th2) -------------------------------------------------------------
 void __fastcall DrawStashItems()
 {
-    const auto& stashTab = StashTabs[StashCurrentTab];
+    auto& stashTab = StashTabs[StashCurrentTab];	// (th4) not const: IsReqMet is refreshed below
 	extern bool InventoryBackgroundOldStyle;
 	extern bool InventoryTurnOffRedColorItems;
 
@@ -299,7 +300,11 @@ void __fastcall DrawStashItems()
             if( invItemIndex <= 0 ){
                 continue;
             }
-            const Item& inventorySlot = stashTab.items[invItemIndex - 1];
+            Item& inventorySlot = stashTab.items[invItemIndex - 1];
+            // (th4) Same staleness as the shop: RecalcItemsReqMet() walks inventory, belt
+            // and talismans only, so stashed items keep the flag they had when they were
+            // put away and stay red after a stat-up. Re-test here.
+            inventorySlot.IsReqMet = CheckItemReq( CurrentPlayerIndex, &inventorySlot );
             int graphicValue = inventorySlot.GraphicValue + CM_12_ITEMS_PICS_START;
             char itemWidthTable = ItemWidthTable[graphicValue];
             
@@ -308,9 +313,10 @@ void __fastcall DrawStashItems()
 			if( ItemHeightTable[graphicValue] >= CELL_SIZE * 3 ) y -= 3;
 			else if( ItemHeightTable[graphicValue] >= CELL_SIZE * 2 ) y -= 1;
 			
+            const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
             char* itemsCELArray = GetItemSprites(graphicValue);
 			bool itemUnderCursor = Cur.InventoryCellID == invItemIndex - 1 + Stash_SlotIDStart;
-			// Выбираем цвет обводки
+			// (rt) Pick the outline colour
             int colorOfBorder = -1;
 			if(itemUnderCursor){
                 colorOfBorder = 197;
@@ -321,7 +327,8 @@ void __fastcall DrawStashItems()
                     colorOfBorder = 229;
                 }
             }
-			CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+			ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+			ItemOverlay_Queue(overlayGfx, x, y, itemWidthTable, ItemHeightTable[overlayGfx], inventorySlot.mirrorImage != 0, colorOfBorder, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1);	// (th4)
         }
     }
 }
@@ -329,6 +336,7 @@ void __fastcall DrawStashItems()
 //----- (th2) -------------------------------------------------------------
 void __fastcall StashPanel_Open()
 {
+	IsChatHistoryVisible = false;
 	IsStashPanelVisible = true;
 	IsINVPanelVisible = true;
 	Stash_ItemsSortSwitchState = 0;
@@ -638,7 +646,7 @@ int GetSlotMouseAbove_Stash()
 	if( item->ItemCode == IC_11_GOLD ){
 		char* currency = formatGoldAmount(item->amount);
 		char infoPanelString[260];
-		sprintf(infoPanelString, "%i gold %s", item->amount, currency);
+		sprintf(infoPanelString, L("%i gold %s"), item->amount, currency);
 		//InfoPanel_SetHeader(infoPanelString);
 		return inventoryCellIndex;
 	}
@@ -662,8 +670,8 @@ void __fastcall StashPanel_MouseMove()
 		int totalGold = Players[CurrentPlayerIndex].TotalGold;
 		Tooltip_SetOffsetTop();
 		Tooltip_Clear();
-		Tooltip_AddLine("BUY ANOTHER STASH TAB");
-		sprintf(InfoPanelBuffer, "price: %i", StashTabPrice);
+		Tooltip_AddLine(L("BUY ANOTHER STASH TAB"));
+		sprintf(InfoPanelBuffer, L("price: %i"), StashTabPrice);
 		Tooltip_AddLine(InfoPanelBuffer, totalGold >= StashTabPrice ? C_0_White : C_2_Red);
 	}
 
@@ -672,7 +680,7 @@ void __fastcall StashPanel_MouseMove()
 	if (CursorIntoDisplayObject(StashExitButton)) {
 		Tooltip_SetOffsetTop();
 		Tooltip_Clear();
-		Tooltip_AddLine("EXIT");
+		Tooltip_AddLine(L("EXIT"));
 	}
 
 	currsorOverButton = CursorIntoDisplayObject(StashSortButton);
@@ -680,9 +688,9 @@ void __fastcall StashPanel_MouseMove()
 	if (currsorOverButton) {
 		Tooltip_SetOffsetTop();
 		Tooltip_Clear();
-		Tooltip_AddLine("AUTO-SORT ITEMS ON THIS TAB");
-		constexpr char stash_sort_info[][16] = { "Quality Level", "Magic Level", "Price", "Image" };
-		sprintf(InfoPanelBuffer, "by %s", stash_sort_info[Stash_ItemsSortSwitchState]);
+		Tooltip_AddLine(L("AUTO-SORT ITEMS ON THIS TAB"));
+		const char* stash_sort_info[] = { L("Quality Level"), L("Magic Level"), L("Price"), L("Image") };
+		sprintf(InfoPanelBuffer, L("by %s"), stash_sort_info[Stash_ItemsSortSwitchState]);
 		Tooltip_AddLine(InfoPanelBuffer, C_0_White);
 	}
 }
@@ -824,9 +832,9 @@ void DrawButtons()
 //----- (th2) -------------------------------------------------------------
 void __fastcall StashPanel_Draw()
 {
-	Surface_DrawCEL(VisualStashPanel.Left + Screen_LeftBorder, VisualStashPanel.Down + Screen_TopBorder, VisualStashPanelCEL, 1, VisualStashPanel.Width);// Тут рисуется сама картинка инвентаря
-	DrawStashItems(); // Тут рисуются вещи инвентаря
-	DrawButtons(); // Тут рисуются кнопочки
+	Surface_DrawCEL(VisualStashPanel.Left + Screen_LeftBorder, VisualStashPanel.Down + Screen_TopBorder, VisualStashPanelCEL, 1, VisualStashPanel.Width);// (rt) The inventory picture itself is drawn here
+	DrawStashItems(); // (rt) The inventory items are drawn here
+	DrawButtons(); // (rt) The buttons are drawn here
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -865,18 +873,18 @@ bool __fastcall ItemPanel_PutItemInStorage( int playerIndex, int aCellID, int aW
 		currentInvYPosition = 0;
 	}
 
-	for( int i = 0; haveRoomForItem; i++ ){// Вычисление есть ли место для вещи
+	for( int i = 0; haveRoomForItem; i++ ){// (rt) Calculating whether there is room for the item
 		if( currentInvYPosition >= Stash_SlotsY ){
 			haveRoomForItem = false;
-			return haveRoomForItem;// На нет и суда нет
+			return haveRoomForItem;// (rt) Nothing to do in that case
 		}
 		currentInvXPosition = aCellID % Stash_SlotsX;
-		if( currentInvXPosition < 0 ){// Если отрицательный - обнуляем
+		if( currentInvXPosition < 0 ){// (rt) If negative, set to zero
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( !haveRoomForItem ){// То есть по сути чтобы цикл вернул 1 нужно чтобы клетки инвентаря от текущей по х размер ширины были пусты.
-				return haveRoomForItem;// На нет и суда нет
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( !haveRoomForItem ){// (rt) So for the loop to return 1, the inventory cells from the current one across the item's width must be empty.
+				return haveRoomForItem;// (rt) Nothing to do in that case
 			}
 			int inventorySlotsIndex = abs(stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX]);
 			if( inventorySlotsIndex ){
@@ -888,14 +896,14 @@ bool __fastcall ItemPanel_PutItemInStorage( int playerIndex, int aCellID, int aW
 			currentInvXPosition++;
 		}
 		currentInvYPosition++;
-		if( i == aHeight - 1 ){//если есть место для вещи
-			break; // При выходе haveRoomForItem будет 1, что с ним делать следующая конструкция сама решить
+		if( i == aHeight - 1 ){//(rt) if there is room for the item
+			break; // (rt) On exit haveRoomForItem will be 1; the next block decides what to do with it
 		}
 	}
 	if( !haveRoomForItem || !isNotRoomTest ){
 		return haveRoomForItem;
 	}
-	// Собственно впихивание вещи. haveRoomForItem скорее всего будет равно 1, ибо в случаях когда не равно в предыдущем цикле сразу выход
+	// (rt) Placing the item itself. haveRoomForItem will most likely be 1, since otherwise the previous loop exits immediately
 	stash.items[stash.itemCount] = player.ItemOnCursor;
 	stash.itemCount++;
 	currentInvYPosition = aCellID / Stash_SlotsX;
@@ -909,11 +917,11 @@ bool __fastcall ItemPanel_PutItemInStorage( int playerIndex, int aCellID, int aW
 		if( currentInvXPosition < 0 ){
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( j || i != aHeight - 1 ){// Обозначаем клетки как занятые вещью
-				stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX] = -stash.itemCount; // Если одна из остальных клеток
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( j || i != aHeight - 1 ){// (rt) Mark the cells as occupied by the item
+				stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX] = -stash.itemCount; // (rt) If it is one of the other cells
 			}else{
-				stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX] = stash.itemCount; // Если клетка с картинкой
+				stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX] = stash.itemCount; // (rt) If it is the cell with the picture
 			}
 			currentInvXPosition++;
 		}
@@ -926,7 +934,7 @@ bool __fastcall ItemPanel_PutItemInStorage( int playerIndex, int aCellID, int aW
 void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 {
 	Player& player = Players[playerIndex];
-	int currentY;
+	//int currentY;
 
 	int itemForReplacing;
 	Item tempItem {};
@@ -936,7 +944,7 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 	int xPos = mX + (Cur.ItemWidth / 2);
 	int newCursorGraphics = 0;
 
-	//displayObject BeltSize; Нужно использовать эти переменные, чтобы просто и очевидно сделать проверку
+	//(rt) displayObject BeltSize; These variables should be used so the check is simple and clear
 	//displayObject InventorySlotsSize;
 	//displayObject OnBodySlots[IS_10_7_Inventory];
 
@@ -944,10 +952,10 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 	//int cellID;
 
 	if( !(ItemWidthCells & 1) ){ // even
-		xPos -= CELL_SIZE / 2; // Отступ влево на полклетки для вещей с чётной шириной. Чтобы ставились на клетки под вещьюа не правее
+		xPos -= CELL_SIZE / 2; // (rt) Shift left by half a cell for items of even width, so they land on the cells under the item and not to the right
 	}
 	if( !(ItemHeightCells & 1) ){ // even
-		yPos -= CELL_SIZE / 2; // Отступ вверх для вещей с чётной высотой. Для тех же целей
+		yPos -= CELL_SIZE / 2; // (rt) Shift up for items of even height, for the same purpose
 	}
 
 	int cellIndex = GetCellIndex(StashInventory, xPos, yPos);
@@ -978,7 +986,7 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 				return;
 			}
 			bool haveRoomForItem = !stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX];
-			if( !haveRoomForItem ){ // Запоминаем какая вещь нам попалась под нашу вещь, если их несколько - выходим
+			if( !haveRoomForItem ){ // (rt) Remember which item is under ours; if there are several, exit
 				if( !itemForReplacing ){
 					itemForReplacing = stash.usedFlags[currentInvXPosition + currentInvYPosition * Stash_SlotsX];
 					if( itemForReplacing < 0 ){
@@ -994,12 +1002,12 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 		currentInvYPosition++;
 	}
 
-	if( playerIndex == CurrentPlayerIndex ){ // Если кладём текущему игроку - играем соответствующий звук
+	if( playerIndex == CurrentPlayerIndex ){ // (rt) If placing for the current player, play the corresponding sound
 		PlayGlobalSound(Flip_InventorySound[ItemFlipTable[player.ItemOnCursor.GraphicValue]]);
 	}
 
-	if( !itemForReplacing ){
-		//если нечем заменять
+/*	if( !itemForReplacing ){
+		(rt) //if there is nothing to replace with
 		currentY = cellIndex / Stash_SlotsX - ((ItemHeightCells - 1) / 2);
 		if( currentY < 0 ){
 			currentY = 0;
@@ -1008,17 +1016,51 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
         ItemPanel_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 );
 	}
 	else if( itemForReplacing ){
-	 //если есть чем заменять
-		tempItem =  stash.items[itemForReplacing - 1]; // Сохранили в темп заменяемую вещь
-		ClearStashSlot(StashCurrentTab, itemForReplacing - 1); // Удаляемая вещь становится под номером равным количеству вещей
+	 (rt) //if there is something to replace with
+		(rt) tempItem =  stash.items[itemForReplacing - 1]; // Saved the item being replaced into temp
+		(rt) ClearStashSlot(StashCurrentTab, itemForReplacing - 1); // The removed item gets the number equal to the item count
 		currentY = cellIndex / Stash_SlotsX - ((ItemHeightCells - 1) / 2);
 		if( currentY < 0 ){
 			currentY = 0;
 		}
 		cellIndex = cellIndex % Stash_SlotsX + Stash_SlotsX * currentY;
-        ItemPanel_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 ); // Сюда вещь копируется с курсора
-		newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor); // Поменяли вещи
+        (rt) ItemPanel_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 ); // The item is copied here from the cursor
+		(rt) newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor); // Swapped the items
+	}*/
+
+	// Fixed item placement for 3+ cell wide items
+	//----------NEW SOLUTION TO PREVENT 3X2 OR 4X2 OR 4X7 ITEM ERASE WHEN PUTTING IN STASH (PREVIOUS SOLUTION IS COMMENTED OUT ABOVE)---------------
+	if (!itemForReplacing) {
+		int currentX = cellIndex % Stash_SlotsX - (ItemWidthCells - 1) / 2;
+		if (currentX < 0) currentX = 0;
+		if (currentX + ItemWidthCells > Stash_SlotsX) currentX = Stash_SlotsX - ItemWidthCells;
+		int currentY = cellIndex / Stash_SlotsX - (ItemHeightCells - 1) / 2;
+		if (currentY < 0) currentY = 0;
+		if (currentY + ItemHeightCells > Stash_SlotsY) currentY = Stash_SlotsY - ItemHeightCells;
+		cellIndex = currentX + Stash_SlotsX * currentY;
+		if (ItemPanel_PutItemInStorage(playerIndex, cellIndex, ItemWidthCells, ItemHeightCells, 1)) {
+			// (th4) Same stale-cursor-copy dupe guard as in AutoPutCursorItemToStash().
+			player.ItemOnCursor.ItemCode = IC_M1_NONE;
+		} else {
+			// (th4) Put failed: keep the item visibly on the cursor instead of hiding a
+			// live item behind a hand cursor (the "vanished item" state).
+			newCursorGraphics = player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START;
+		}
 	}
+	else if (itemForReplacing) {
+		tempItem = stash.items[itemForReplacing - 1];
+		ClearStashSlot(StashCurrentTab, itemForReplacing - 1);
+		int currentX = cellIndex % Stash_SlotsX - (ItemWidthCells - 1) / 2;
+		if (currentX < 0) currentX = 0;
+		if (currentX + ItemWidthCells > Stash_SlotsX) currentX = Stash_SlotsX - ItemWidthCells;
+		int currentY = cellIndex / Stash_SlotsX - (ItemHeightCells - 1) / 2;
+		if (currentY < 0) currentY = 0;
+		if (currentY + ItemHeightCells > Stash_SlotsY) currentY = Stash_SlotsY - ItemHeightCells;
+		cellIndex = currentX + Stash_SlotsX * currentY;
+		ItemPanel_PutItemInStorage(playerIndex, cellIndex, ItemWidthCells, ItemHeightCells, 1);
+		newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor);
+	}
+	//------------------------------- END OF THIS SOLUTION -------------------------------------------
 
 	RecalcPlayer(playerIndex, 1);
 	if( playerIndex == CurrentPlayerIndex ){
@@ -1062,7 +1104,7 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
 {
 	Player& player = Players[playerIndex];
 
-	if( player.CurAction > PCA_3_WALK_HORISONTAL ){// Если мы не ходим и не стоим (т.е. атакуем, блокируем и т.п.)
+	if( player.CurAction > PCA_3_WALK_HORISONTAL ){// (rt) If we are neither walking nor standing (i.e. attacking, blocking, etc.)
 		return;
 	}
 
@@ -1084,7 +1126,7 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
         }
     }
     
-	// тут чистая копия саба клеар инвентори слот. Только до рекалк плеер
+	// (rt) an exact copy of the ClearInventorySlot sub here, only up to RecalcPlayer
 	int takeItemIndex;
 
 	player.ItemOnCursor.ItemCode = IC_M1_NONE;
@@ -1097,8 +1139,8 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
 			}
 		}
 		int invItemIndex = takeItemIndex - 1;
-		memcpy(&player.ItemOnCursor, &stash.items[takeItemIndex - 1], sizeof(Item)); // из инвенторя в курсор
-		//NeedDrawBelt = 1;                                                                                               // для глюка с дублем
+		memcpy(&player.ItemOnCursor, &stash.items[takeItemIndex - 1], sizeof(Item)); // (rt) from the inventory to the cursor
+		//(rt) NeedDrawBelt = 1;                                                                                               // for the duplication glitch
 		stash.itemCount--;
 		if( stash.itemCount > 0 && stash.itemCount != (takeItemIndex - 1) ){
 			memcpy(&stash.items[takeItemIndex - 1], &stash.items[stash.itemCount], sizeof(Item));
@@ -1113,7 +1155,7 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
 		}
 	}
 
-	if( player.ItemOnCursor.ItemCode != IC_M1_NONE ){ //  если что то подцепили на курсор
+	if( player.ItemOnCursor.ItemCode != IC_M1_NONE ){ //  (rt) if something was picked up onto the cursor
 		if( player.ItemOnCursor.ItemCode == IC_11_GOLD ){
 			player.TotalGold = CalcTotalGold(playerIndex);
 		}
@@ -1139,8 +1181,8 @@ void __fastcall ClearStashSlot(int pageIndex, int itemIndex)
 		}
 	}
 	--stash.itemCount;
-	if( stash.itemCount > 0 && stash.itemCount != itemIndex ){// Если вещи есть и удаляемая вещь не последняя
-		stash.items[itemIndex] = stash.items[stash.itemCount]; // перенос крайнего в массиве предмета на индекс удалённого
+	if( stash.itemCount > 0 && stash.itemCount != itemIndex ){// (rt) If there are items and the removed item isn't the last one
+		stash.items[itemIndex] = stash.items[stash.itemCount]; // (rt) move the last item in the array to the removed item's index
 
 		for(auto& invUsed : stash.usedFlags){
 			if( invUsed == stash.itemCount + 1 ){
@@ -1171,13 +1213,21 @@ void __fastcall Stash_LButtonDown()
 bool __fastcall AutoPutCursorItemToStash(int playerIndex)
 {
 	SetupItemSizes(Players[CurrentPlayerIndex].ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
-	vector<uchar> successionArray; // Сюда копируется приоритет места инвентаря для каждой позиции.
+	vector<uchar> successionArray; // (rt) The inventory placement priority for each position is copied here.
 	successionArray.reserve(Stash_MaxSlot * 2);
 
 	GetSuccessionArray(Stash_SlotsX, Stash_SlotsY, ItemWidthCells, ItemHeightCells, successionArray);
 
 	for( auto cellId: successionArray ){
-		if( ItemPanel_PutItemInStorage(CurrentPlayerIndex, cellId, ItemWidthCells, ItemHeightCells, 1) ) return true;
+		if( ItemPanel_PutItemInStorage(CurrentPlayerIndex, cellId, ItemWidthCells, ItemHeightCells, 1) ){
+			// (th4) The stash now owns the item -- kill the live cursor copy. ItemOnCursor is
+			// serialized in the character save and dropped by PlayerDeadItem() on death, so a
+			// stale copy left here resurfaces later as a same-seed twin, which FindGetItem()
+			// then "detects and destroys" as a duplicate (player report: items that went
+			// through the stash get falsely marked as dupes).
+			Players[CurrentPlayerIndex].ItemOnCursor.ItemCode = IC_M1_NONE;
+			return true;
+		}
 	}
 	return false;
 }

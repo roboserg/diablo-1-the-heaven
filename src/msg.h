@@ -8,20 +8,20 @@
 // sizeof 1
 struct TCmd
 {
-	char bCmd;// 0
+	uchar bCmd;// 0
 };
 
 // sizeof 3
 struct TCmdParam1
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	short firstArg;// 1
 };
 
 // sizeof 5
 struct TCmdParam2
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	short firstArg;// 1
 	short secondArg;// 3
 };
@@ -29,7 +29,7 @@ struct TCmdParam2
 // sizeof 7
 struct TCmdParam3
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	short firstArg;// 1
 	short secondArg;// 3
 	short thirdArg;// 5
@@ -38,7 +38,7 @@ struct TCmdParam3
 // sizeof 3
 struct TCmdLoc
 {
-	char bCmd;// 0
+	uchar bCmd;// 0
 	char row;// 1
 	char col;// 2
 };
@@ -46,7 +46,7 @@ struct TCmdLoc
 // sizeof 5
 struct TCmdLocParam1
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	char row;// 1
 	char col;// 2
 	short firstArg; // 3
@@ -65,7 +65,7 @@ struct TCmdLocParam2
 // sizeof 9
 struct TCmdLocParam3
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	char row;// 1
 	char col;// 2
 	short firstArg; // 3
@@ -76,14 +76,14 @@ struct TCmdLocParam3
 // sizeof 2
 struct TCmdDelItem
 {
-	char netCmdIndex;// 0
+	uchar netCmdIndex;// 0
 	char onBodyIndex;// 1
 };
 
 // sizeof 8
 struct TCmdQuest
 {
-	char netCmdIndex;	// 0
+	uchar netCmdIndex;	// 0
 	char questIndex;	// 1
 	QUEST_STATUS status;// 2
 	char talkToFlag;	// 3
@@ -96,7 +96,7 @@ struct TCmdQuest
 // sizeof 6
 struct TCmdDamage
 {
-	char netCmdIndex;	// 0
+	uchar netCmdIndex;	// 0
 	char targetPlayerIndex;	// 1
 	int damage;		// 2
 };
@@ -109,7 +109,7 @@ struct TCmdString {
 // sizeof 7
 struct TCmdDamageMonster
 {
-	char netCmdIndex;			// 0
+	uchar netCmdIndex;			// 0
 	short targetMonsterIndex;	// 1
 	int damage;				// 3
 };
@@ -117,7 +117,7 @@ struct TCmdDamageMonster
 //Used for syncing monster.acidDot between players
 struct TCmdAcidDotMonster
 {
-	char netCmdIndex;
+	uchar netCmdIndex;
 	short targetMonsterIndex;
 	int DeltaMonAcidDot;
 	DUNGEON dungeon;
@@ -128,14 +128,14 @@ struct TCmdAcidDotMonster
 //Used for syncing PvP state between players
 struct TCmdPvP
 {
-	char netCmdIndex;
+	uchar netCmdIndex;
 	char playerIndex;
 	bool IsPlayerEnemy;
 };
 
 struct TCmdWallRecast
 {
-	char netCmdIndex;
+	uchar netCmdIndex;
 	short firstArg;
 	short secondArg;
 	short thirdArg;
@@ -150,7 +150,7 @@ struct TCmdWallRecast
 // sizeof 11
 struct TCmdChItem // player item
 {
-	char netCmdIndex;			// 0
+	uchar netCmdIndex;			// 0
 	char onBodyIndex;			// 1
 	LastItemInfo info;
 };
@@ -341,16 +341,17 @@ void DeltaSaveLevel();
 void DeltaLoadLevel();
 void NetSendCmd( bool bHiPri, uchar bCmd );
 void NetSendCmdAwakeSummon( uint summonIndex, int row, int col, int dlvl, const DSummonStr& params );
-void NetSendCmdLoc( int highPriority, char bCmd, short row, short col );
-void NetSendCmdLocParam1( int someFlag, char netCmdIndex, short row, short col, ushort firstArg );
-void NetSendCmdLocParam2( int someFlag, char netCmdIndex, short row, short col, ushort firstArg, ushort secondArg );
-void NetSendCmdLocParam3( int someFlag, char netCmdIndex, short row, short col, ushort firstArg, ushort secondArg, ushort thirdArg );
-void NetSendCmdParam1( int someFlag, char netCmdIndex, ushort firstArg );
-void NetSendCmdParam2( int someFlag, char netCmdIndex, ushort firstArg, ushort secondArg );
-void NetSendCmdParam3( int someFlag, char netCmdIndex, ushort firstArg, ushort secondArg, ushort thirdArg );
+void NetSendCmdLoc( int highPriority, uchar bCmd, short row, short col );
+void NetSendCmdLocParam1( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg );
+void NetSendCmdLocParam2( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg );
+void NetSendCmdLocParam2Direct( uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg );
+void NetSendCmdLocParam3( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg, ushort thirdArg );
+void NetSendCmdParam1( int someFlag, uchar netCmdIndex, ushort firstArg );
+void NetSendCmdParam2( int someFlag, uchar netCmdIndex, ushort firstArg, ushort secondArg );
+void NetSendCmdParam3( int someFlag, uchar netCmdIndex, ushort firstArg, ushort secondArg, ushort thirdArg );
 void NetSendCmdQuest( int someFlag, char questIndex );
 void NetSendCmdGItem( int someFlag, uchar netCmdIndex, char master, char playerIndex, uchar itemIndex );
-void NetSendCmdPItem( int someFlag, char netCmdIndex, short row, short col );
+void NetSendCmdPItem( int someFlag, uchar netCmdIndex, short row, short col );
 void NetSendCmdChItem( int isHand, char onBodyIndex );
 void NetSendCmdDelItem( int isHand, char onBodyIndex );
 void NetSendCmdDItem(bool hiPri,int itemIndex);
@@ -450,5 +451,5 @@ uint On_DEBUG( const TCmd* packet, int playerIndex );
 uint On_OPEN_WEAK_UBER( const TCmd* packet, int playerIndex );
 uint On_SETPERK( const TCmdParam2* packet, int playerIndex );
 bool i_own_level( int dungeonLevel );
-void NetSendCmdGItem2( int usOnly, char netCmdIndex, char master, char playerIndex, const TCmdGItem* packet );
+void NetSendCmdGItem2( int usOnly, uchar netCmdIndex, char master, char playerIndex, const TCmdGItem* packet );
 bool NetSendCmdReq2(BYTE bCmd,BYTE mast,BYTE pnum,const TCmdGItem * p);

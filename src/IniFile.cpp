@@ -35,7 +35,7 @@ bool* GetControl(int key)
 }
 
 // ---------------------------------------------------------------------
-// Таблица соответствия имен и номеров клавиш
+// (rt) Mapping table of key names to numbers
 struct { 
 	char* name;
 	int number;
@@ -65,7 +65,7 @@ struct {
 	{"num*", VK_MULTIPLY},{"num/", VK_DIVIDE},	{"num.", VK_DECIMAL}
 };
 
-// Поиск номера клавиши по имени
+// (rt) Find a key number by name
 int GetKeyNumberByName(const char* data)
 {
 	for( int i = 1; i < countof(Keys); i++ ){
@@ -76,7 +76,7 @@ int GetKeyNumberByName(const char* data)
 	return 0;
 }
 
-// Поиск имени клавиши по номеру
+// (rt) Find a key name by number
 char* GetKeyNameByNumber(int key)
 {
 	for( int i = 1; i < countof(Keys); i++ ){
@@ -87,7 +87,7 @@ char* GetKeyNameByNumber(int key)
 	return "unknown";
 }
 
-// Поиск переменной по имени
+// (rt) Find a variable by name
 ConfigLine* FindVarByName(int type, ConfigLine* configStructure, char* data)
 {
 	for( int i = 0; configStructure[i].type && i < 1024; i++ ){
@@ -99,7 +99,7 @@ ConfigLine* FindVarByName(int type, ConfigLine* configStructure, char* data)
 }
 
 char ZeroCfg[] = "";
-// Загрузка конфигурационного файла
+// (rt) Loading the configuration file
 void ConfigLoad(ConfigLine* configStructure, char* iniFileName /*= "config.ini"*/ )
 {
 	static char data[4096];
@@ -141,7 +141,7 @@ void ConfigLoad(ConfigLine* configStructure, char* iniFileName /*= "config.ini"*
 					strncpy_s( *v, strlen(*v) + 1, data, _TRUNCATE );
 				}
 				void* p = ((CfgParam*)cl.value)->param;
-				switch( cl.def ){ // попробовать переделать на вызов лямбды по дефайну
+				switch( cl.def ){ // (rt) try reworking this into a lambda call via a define
 				case ON: *(bool*)p = !(_stricmp( *v, "off" ) == 0); break; // default on
 				case OFF: *(bool*)p = _stricmp( *v, "on" ) == 0; break; // default off
 				} } }
@@ -168,7 +168,7 @@ void ConfigLoad(ConfigLine* configStructure, char* iniFileName /*= "config.ini"*
 	}
 }
 
-// Запись конфигурационного файла
+// (rt) Writing the configuration file
 void ConfigSave(ConfigLine* configStructure, char* iniFileName /*= "config.ini"*/ )
 {
 	if( FILE* ini = fopen(iniFileName,"w") ){

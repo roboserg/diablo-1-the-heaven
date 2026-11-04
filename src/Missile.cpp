@@ -88,7 +88,7 @@ uchar NovaCircleDeltas [ 23 ][ 30 ] = {// 004A7460
 // ║                           jmp inline chunks                                 ║
 // ╚═════════════════════════════════════════════════════════════════════════════╝
 
-// оптимизация, Инлайн функция чуть упрощающая рассчеты для смещения фаербластов
+// (rt) optimization: inline function that slightly simplifies the calculations for the fireblast offsets
 __forceinline bool SomeStrangeFireblastExRoomsCheck(int row, int col)
 {
 	return TransList[TransMap[row][col]] && TileBlockWalking[FineMap[row][col]];
@@ -154,7 +154,11 @@ int __fastcall GetDamageOfPlayerSpell(int playerIndex, int spellIndex, int spell
 		maxDamage = 4 + (player.BaseVitality / 2) * 2 + spellLevel * 2;		
 
 			// advanced rules
-		if (player.fullClassId == PFC_EXECUTIONER) {
+		/*if (player.gameChanger & BIT(GC_27_TERMINATOR)) { // THIS DOESN'T WORK! SEE CASTHEALING()
+			minDamage = 9500;
+			maxDamage = minDamage;
+		}
+		else */if (player.fullClassId == PFC_EXECUTIONER) {
 			minDamage += minDamage / 2;
 			maxDamage += maxDamage / 2;
 		}
@@ -164,8 +168,8 @@ int __fastcall GetDamageOfPlayerSpell(int playerIndex, int spellIndex, int spell
 				maxDamage /= 2;
 			}
 		}
-		minDamage += minDamage * (PerkValue(PERK_AUGMENTED_HEALING, playerIndex) + PerkValue(PERK_HEALING_MASTERY, playerIndex)) / 100;
-		maxDamage += maxDamage * (PerkValue(PERK_AUGMENTED_HEALING, playerIndex) + PerkValue(PERK_HEALING_MASTERY, playerIndex)) / 100;
+		minDamage += minDamage * (PerkValue(PERK_AUGMENTED_HEALING, playerIndex) + PerkValue(PERK_HEALING_MASTERY, playerIndex) / 100 + PerkValue(PERK_MAINTENANCE, playerIndex)) / 100;
+		maxDamage += maxDamage * (PerkValue(PERK_AUGMENTED_HEALING, playerIndex) + PerkValue(PERK_HEALING_MASTERY, playerIndex) / 100 + PerkValue(PERK_MAINTENANCE, playerIndex)) / 100;
 		break;
 	case PS_3_LIGHTNING:
 	case PS_48_RUNE_OF_LIGHT:
@@ -499,10 +503,29 @@ int __fastcall IsPathBlockedToMoveSpell( int row1, int col1, int row2, int col2 
 		row += RowDelta[orientation];
 		col += ColDelta[orientation];
 		if( TileBlockWalking[FineMap[ row ][ col ]] ){
-			result = 1; // место для оптимизации после сверки, можно поставить return 1;
+			result = 1; // (rt) room for optimization after the comparison, can put return 1;
 		}
 	}
 	return result;
+}
+
+// (th4) SPLASH REACH, for the explosions of Fire Blast and Fire Nova segments (ActFireblast) and of
+// Elemental (ActElemental). Is the straight path from the cell the spell was CAST from (missile.CasterRow/
+// CasterCol, fixed at the cast) to a splash cell blocked for MISSILES? Those explosions used
+// IsPathBlockedToMoveSpell from the caster's CURRENT position and the WALKING table: a caster who had
+// moved or teleported out of sight lost the splash, and tiles that stop walking but not missiles took it
+// away too (DSF 1.09 bug list: "Fireball splash removed"). A check is still needed -- without one, an
+// explosion against a wall splashes the room behind it.
+static bool IsSplashBlocked( int row1, int col1, int row2, int col2 )
+{
+	int row = row1, col = col1;
+	while( row != row2 || col != col2 ){
+		const int orientation = OrientationToTarget( row, col, row2, col2 );
+		row += RowDelta[ orientation ];
+		col += ColDelta[ orientation ];
+		if( !In112( row, col ) || TileBlockMissle[ FineMap[ row ][ col ] ] ) return true;
+	}
+	return false;
 }
 
 //----- (0042EFAB) --------------------------------------------------------
@@ -714,15 +737,69 @@ int __fastcall MvM_Ranged( int defenderIndex, int attackerIndex, int minDamage, 
 	if( !isInternalHP ){
 		damage *= 64;
 	}
-	if( spellEffect == MI_140_EXPLODER ){
-		damage *= 14;
+
+	// (th4) DARK CAMPAIGN mission 10: the Dark Lord's two succubi hit five times as hard while
+	// escorting the player. Their arcane stars are tuned for Lazarus' lair, which leaves them
+	// harmless against a level stocked with hero veterans. Applied here in the monster-vs-monster
+	// spell path -- that is what they actually attack with -- and confined to DUN_118, so Red Vex
+	// and Dark Jade are unchanged everywhere else.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_118_POISONED_WATER_SUPPLY_DC
+	 && attackerIndex != M1_TRAP && (attacker.flag & MF_6_FRIENDLY) && attacker.newBossId
+	 && DarkCampaignIsEscortBoss( attacker.newBossId - 1 ) ){
+		damage *= 10;
 	}
-	if( monsterSprite.baseMonsterIndex == BM_109_GOLEM ){
+	// (th4) DC mission 13: the same problem in Lazarus' lair, and here it applies to all
+	// THREE friendlies -- both succubi and the Arch-Bishop -- so it is keyed on the friendly
+	// flag rather than on DarkCampaignIsEscortBoss, which does not know about him.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+	 && attackerIndex != M1_TRAP && (attacker.flag & MF_6_FRIENDLY) && attacker.newBossId ){
+		damage *= 5;
+	}
+	if( spellEffect == MI_140_EXPLODER && monsterSprite.baseMonsterIndex != BM_392_WARLORD_MERC){
+		damage *= 12;
+	}
+/*	if( monsterSprite.baseMonsterIndex == BM_109_GOLEM ){
 	    damage -= (50 + PerkValue(PERK_GOLEM_RESISTANCE, defenderIndex / SummonMonstersPerPlayer_Count)) * damage / 100; // legacy golem range resist to all damage
 		damage -= PerkValue(PERK_GOLEM_MASTERY, defenderIndex) * damage / 100; // mordor: preparing perk that will increase golem's damage resistance (upd: the time has come!)
-    }else if( defender.flag & MF_6_FRIENDLY ){
-        damage /= 2; // resist for summons
     }
+	else if (monsterSprite.baseMonsterIndex == BM_392_WARLORD_MERC) {
+		if (MaxCountOfPlayersInGame == 1) {
+			//damage -= (50 + PerkValue(PERK_GOLEM_RESISTANCE, defenderIndex / SummonMonstersPerPlayer_Count)) * damage / 100; // legacy golem range resist to all damage
+			damage /= 2;// basic
+			damage -= (Dungeon->level / 2 + Difficulty * 12 + PerkValue(PERK_MERC_DFE, CurrentPlayerIndex)) << 6;
+			LimitToMin(damage, 64);
+			damage -= PerkValue(PERK_DAMAGE_SOAK, defenderIndex) * damage / 100;
+		}
+	}*/
+	// new block replacing commented above, fixes perk processing--------------------------
+	bool isFriendlySummon = (defender.flag & MF_6_FRIENDLY);
+	bool hasResistApplied = false;
+
+	if (defenderIndex < SummonMonsters_Count) {
+		const int ownerIndex = defenderIndex / SummonMonstersPerPlayer_Count;
+		if (monsterSprite.baseMonsterIndex == BM_109_GOLEM) {
+			damage -= (50 + PerkValue(PERK_GOLEM_RESISTANCE, ownerIndex)) * damage / 100;
+			damage -= PerkValue(PERK_GOLEM_MASTERY, ownerIndex) * damage / 100;
+			hasResistApplied = true; // Golem already has its own resist logic
+		}
+		else if (monsterSprite.baseMonsterIndex == BM_392_WARLORD_MERC) {
+			if (MaxCountOfPlayersInGame == 1) {
+				// 1. Flat reduction
+				damage -= (Dungeon->level / 2 + Difficulty * 12 + PerkValue(PERK_MERC_DFE, ownerIndex)) << 6;
+				// 2. Limit minimum
+				LimitToMin(damage, 64);
+				// 3. Percent reductions
+				damage /= 2;
+				damage -= PerkValue(PERK_DAMAGE_SOAK, ownerIndex) * damage / 100;
+				hasResistApplied = true; // Warlord Merc already got its /2
+			}
+		}
+	}
+
+	// Apply general summon resist only if not already applied
+	if (!hasResistApplied && isFriendlySummon) {
+		damage /= 2; // resist for summons
+	}//-----------------------------------------------------------------------------------
 	
 	if( isResist ){
 	    damage /= 4;
@@ -743,6 +820,9 @@ int __fastcall MvM_Ranged( int defenderIndex, int attackerIndex, int minDamage, 
 	if( defender.newBossId - 1  == UM_12_Uber_Diablo || defender.newBossId - 1 == UM_773_The_Dark_Lord){
 		damage = 2 * damage / 5;
 	}	
+	if( DarkCampaignHephastoShielded( defenderIndex ) ){	// (th4) DC mission 15, Doom+: Hephasto takes 80 % less (Monster.cpp DarkCampaignHephastoShielded; same line in MvM_Melee)
+		damage /= 5;
+	}
 	
 	if( ! reflected && attackerIndex != M1_TRAP && Monsters[attackerIndex].flag & MF_6_FRIENDLY ){
 	    if( MaxCountOfPlayersInGame != 1 ){
@@ -807,7 +887,7 @@ int Calc_PvM_Ranged_Hit_Chance( int playerIndex, int monsterIndex, int distance,
 	}
 	
 	if( monsterClass == MON_0_UNDEAD && is( baseMissileIndex, MI_61_ELEMENTAL, MI_63_BONE_SPIRIT)
-	 || monsterClass != MON_0_UNDEAD && damageType == ET_5_HOLY // по андедам попадает весь урон + holy, по остальным только физический
+	 || monsterClass != MON_0_UNDEAD && damageType == ET_5_HOLY // (rt) undead take the full damage + holy, the rest take only physical
 	 || baseMonsterIndex == BM_109_GOLEM && MaxCountOfPlayersInGame != 1 && PlayerFriendly() ){
         return IMMUNE_TO_RANGE_ATTACK;
     }
@@ -844,9 +924,9 @@ int Calc_PvM_Ranged_Hit_Chance( int playerIndex, int monsterIndex, int distance,
 			case PFC_WARRIOR or PFC_INQUISITOR or PFC_TEMPLAR:		hitChance += 10; break;
 			case PFC_DIMACHAERUS or PFC_THRAEX or PFC_SECUTOR:		hitChance += 15; break;
 			case PFC_GUARDIAN or PFC_IRON_MAIDEN:					hitChance += 30; break;
-			case PFC_EXECUTIONER or PFC_SAVAGE or PFC_BERSERKER:                                         hitChance += 25; break;
+			case PFC_EXECUTIONER or PFC_SAVAGE or PFC_BERSERKER:    hitChance += 25; break;
 			case PFC_ARCHER or PFC_SCOUT or PFC_MURMILLO:			hitChance += 20; break;
-			case PFC_ASSASSIN:										hitChance += 15; break;
+			case PFC_ASSASSIN or PFC_GLADIATRIX:					hitChance += 15; break;
 			}
 
 			if (player.fullClassId == PFC_EXECUTIONER) { // because Executioner now has max Dex of 25, he needs this boost
@@ -883,6 +963,7 @@ int Calc_PvM_Ranged_Hit_Chance( int playerIndex, int monsterIndex, int distance,
 			case PFC_BOMBARDIER:	hitChance += 60; break;
 			}
 			if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) { hitChance += 30; 	}
+			if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) { hitChance -= 200; }
 			hitChance += PerkValue(PERK_MASTER_CASTER, playerIndex) + PerkValue(PERK_SANCTITY, playerIndex);			
 			if (HasTrait(playerIndex, TraitId::Paladin)) {	hitChance += 30;	}
         }
@@ -926,6 +1007,9 @@ int Calc_PvM_Ranged_Hit_Chance( int playerIndex, int monsterIndex, int distance,
 	if (HasTrait(playerIndex, TraitId::Zealot)) {
 		maxChanceToHit -= 15 * maxChanceToHit / 100;
 	}
+	if (HasTrait(playerIndex, TraitId::Frenzied)) {
+		maxChanceToHit -= 40 * maxChanceToHit / 100;
+	}
 	LimitToMin(maxChanceToHit, 15);
 	LimitToRange(hitChance, 5, maxChanceToHit);
 	return hitChance;
@@ -955,7 +1039,7 @@ int CalculateArrowDistance( int playerIndex, int monsterIndex )
 }
 
 //----- (th2) --------------------------------------------------------
-void MultiplyElementalWeaponExplosion( int& minDamage, int& maxDamage, int damageType, int baseMissileIndex, int playerIndex )
+void ModifyElementalWeaponDamage( int& minDamage, int& maxDamage, int damageType, int baseMissileIndex, int playerIndex )
 {
 	Player& player = Players[ playerIndex ];
 	
@@ -1004,6 +1088,7 @@ void MultiplyElementalWeaponExplosion( int& minDamage, int& maxDamage, int damag
 						   break;
     case PFC_IRON_MAIDEN : classCoef = 0.3; break;
     case PFC_BOMBARDIER  : classCoef = 1.0; break;
+	case PFC_GLADIATRIX	 : classCoef = 0.4; break;
 
     case PFC_SAVAGE      : classCoef = 0.3; break;
     case PFC_BERSERKER   : classCoef = 0.3; break;
@@ -1015,6 +1100,11 @@ void MultiplyElementalWeaponExplosion( int& minDamage, int& maxDamage, int damag
 	case PFC_DRUID       : classCoef = 0.3; break;
 	}
 	
+	// apply Fury bonus-----------------
+	if ((player.activeBuffFlag & BF_2_FURY_ACTIVE) && (is(player.fullClassId, PFC_INQUISITOR,PFC_SCOUT))) {
+		classCoef += 0.2;
+	}//---------------------------------
+
 	if (GameMode == GM_CLASSIC) classCoef = 0.5;
 
 	double baseDamageCoef = 0.06 * player.BaseDamage;
@@ -1023,9 +1113,9 @@ void MultiplyElementalWeaponExplosion( int& minDamage, int& maxDamage, int damag
 	minDamage = int( ( baseDamageCoef * minDamage + 5 + (double)player.CharLevel / 2 ) * classCoef );
 	maxDamage = int( ( baseDamageCoef * maxDamage + 5 + (double)player.CharLevel / 2 ) * classCoef );
 	
-	// damage = damage + player.BaseDamage; // вариант TH 1
+	// (rt) damage = damage + player.BaseDamage; // TH 1 variant
 
-	// damage = damage * log( player.BaseDamage, 4 ); // вариант с логарифмической кривой
+	// (rt) damage = damage * log( player.BaseDamage, 4 ); // variant with a logarithmic curve
 
 	double elemMultiplier = 1; // more value - more damage
 	if( baseMissileIndex == MI_64_WEAPON_ELEMENTAL_DAMAGE ){ // melee weapon elemental explosion
@@ -1067,8 +1157,12 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
     int damageType = baseMissle.DamageType;
 
 	int toHitRandFactor = RNG(100);
+	// by (th4): Blessed Hammer is a perk ability, not a weapon attack. It ALWAYS hits (no
+	// accuracy roll, no block), takes its damage straight from the perk (missile.Damage), and
+	// skips all player stat/item damage scaling below. Monster-side mitigation still applies.
+	bool isBlessedHammer = (baseMissileIndex == MI_160_BLESSED_HAMMER);
 	int hitChance = Calc_PvM_Ranged_Hit_Chance( playerIndex, monsterIndex, distance, baseMissileIndex );
-	if( hitChance < 0 ){
+	if( hitChance < 0 ){ // immune to ranged / physical -> even the hammer respects immunity
 		return 0;
 	}
 	//dam += isInternalHP ? (minDamage + maxDamage) / 2 : (minDamage + maxDamage) * 32;
@@ -1076,15 +1170,29 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 	if( OneShoot ){
 		KillMonsterByPlayer(monsterIndex, playerIndex); return 1;
 	}
-	if( toHitRandFactor >= hitChance ){
+	if( !isBlessedHammer && ( toHitRandFactor >= hitChance 
+		|| (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER) && effectType == MT_1_MAGIC) ) ){
 		return 0;
 	}
-	bool monsterMayBlock = is( baseMonsterIndex, BM_162_CORRUPT_PALADIN, BM_208_WARPED_ONE ) ? (baseMissle.EffectType == MT_0_ARROW && damageType == ET_0_PHYSICAL) : true;
-	if( int isMonsterHit = 0; monsterMayBlock && CheckMonsterPhaseOrBlock( monsterIndex, &isMonsterHit ) ){ return isMonsterHit; }
+	bool monsterMayBlock = is( baseMonsterIndex, 
+		BM_162_CORRUPT_PALADIN, 
+		BM_208_WARPED_ONE, 
+		BM_H_399_WAR_L_SS, 
+		BM_H_401_MONK_M_MS, 
+		BM_H_404_WAR_M_MS, 
+		BM_H_408_WAR_M_SS,
+		BM_H_410_MONK_H_SS,
+		BM_H_414_WAR_H_MS,
+		BM_H_416_MON_H_MS,
+		BM_H_417_WAR_H_SS_WARRIOR_ELITE) ? (baseMissle.EffectType == MT_0_ARROW && damageType == ET_0_PHYSICAL) : true; // (th4) the sword+shield Warrior blocks on the Paladin's terms: ranged blocks only against physical arrows. (th4) DC mission 6: Sir Cabbot (BM_H_404) added on the same terms.
+	if( int isMonsterHit = 0; monsterMayBlock && CheckMonsterPhaseOrBlock( monsterIndex, &isMonsterHit, playerIndex ) ){ return isMonsterHit; }
 	if( effectType == MT_0_ARROW && damageType != ET_0_PHYSICAL ){
-		MultiplyElementalWeaponExplosion( minDamage, maxDamage, damageType, baseMissileIndex, playerIndex );
+		if (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))) {
+			ModifyElementalWeaponDamage(minDamage, maxDamage, damageType, baseMissileIndex, playerIndex);
+		}
 	}
 	int damage = baseMissileIndex == MI_63_BONE_SPIRIT ? ((monster.CurrentLife / (8 + Difficulty - PerkValue(PERK_ATROPHY, playerIndex))) >> 6u) : RngFromRange(minDamage, maxDamage);
+	if( isBlessedHammer ){ damage = missile.Damage; } // perk-only damage; no weapon roll
 	bool trap = baseMissileIndex == MI_121_TRAPPER_GUN_ARROW;
 	bool bs = baseMissileIndex == MI_63_BONE_SPIRIT;
 
@@ -1097,19 +1205,20 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 	}
 
 	if( effectType == MT_0_ARROW && damageType == ET_0_PHYSICAL ){ // physical arrow part (including magic arrow)
-		damage += damage * player.ItemsAddDamagePercents / 100;
-		int damageFromItem = RngFromRange(player.MinDamageFromItem, player.MaxDamageFromItem);
+	  if( !isBlessedHammer ){ // by (th4): hammer takes damage straight from the perk; skip player buildup, but still hit monster mitigation below
+		damage += damage * player.ItemsAddDamagePercents / 100; // +%damage affix effect applied to weapon only damage
+		int damageFromItem = RngFromRange(player.MinDamageFromItem, player.MaxDamageFromItem);// +damage affix applied
 		
-		if( ! trap ){ // на физические ловушки игрока не действуют аффиксы физического урона на вещах, это странно (Mor: все тут правильно, эти целочисленные добавки могут сильно калечить баланс)			
-			damage += player.BaseDamage; // на физические ловушки игрока не действует базовый урон игрока, это вроде логично
+		if( ! trap ){ // certain affixes don't work on traps (flat additions)
+			damage += player.BaseDamage; // base damage is not applied to traps and elemental arrows
 			if (missile.flag & MSF_MULTISHOT) { // sub arrow from multiply shot
 				switch (player.fullClassId) {
 				case PFC_SHARPSHOOTER: damage /= 4; break; // damage = int((double) damage * 0.25); break;
 				default:      damage = damage * (40 + PerkValue(PERK_STRONG_LATERALS, playerIndex)) / 100; break; // side damage = 40% + 10% per perk level of "strong laterals"
 				}
 			}			
-			damage += player.ItemsAddDamage;
-			damage += RngFromRange(player.spiciesDamageMin[monsterClass], player.spiciesDamageMax[monsterClass]);// flat species damages are not applied to trap damage
+			damage += player.ItemsAddDamage;// +damage applied, but not for traps and elem.missiles
+			damage += RngFromRange(player.spiciesDamageMin[monsterClass], player.spiciesDamageMax[monsterClass]);// flat species damage not applied to trap damage
 		}
 		damage += damageFromItem * (player.spiciesDamagePercent[monsterClass]) / 100;
 
@@ -1118,9 +1227,8 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 
 		int clvl = player.CharLevel;
 		int maxArrowDamage = 100'000; // just init value for debug, should always overwrite below
-		if(       clvl <  50 ){ maxArrowDamage = (15 + 2 * clvl / 5) * clvl;
-		}else /* clvl 50+ */ {	maxArrowDamage = 35 * clvl;
-		}
+		if(       clvl <  50 ){ maxArrowDamage = (15 + 2 * clvl / 5) * clvl;}
+		else /* clvl 50+ */   {	maxArrowDamage = 35 * clvl;}
 
 		if( BaseItems[player.OnBodySlots[IS_LeftHand].baseItemIndex].AnimationDelay ){// crossbows can damage more...
 		    maxArrowDamage *= 6; // animDelay + 2;
@@ -1143,7 +1251,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			}
 			else {
 				damage = damage * 165 / 100;
-			}
+			} 
 		}
 		if (HasTrait(playerIndex, TraitId::Pistoleer) && (abs(missile.CasterRow - monster.Row) >= 2 || abs(missile.CasterCol - monster.Col) >= 2)) {
 			int dist_row = abs(missile.CasterRow - monster.Row), dist_col = abs(missile.CasterCol - monster.Col);// initializing variables for distance coordinates
@@ -1153,6 +1261,9 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 		if (HasTrait(playerIndex, TraitId::Destroyer)) {
 			damage += 3 * damage / 20; // +15%
 		}
+		if (HasTrait(playerIndex, TraitId::Frenzied)) {
+			damage += damage * 75 / 100;
+		}
 		//crit checks
 		bool canCrit = true;
 		if (is(player.fullClassId, PFC_SAVAGE, PFC_SCOUT) || HasTrait(playerIndex, TraitId::Tormentor)) {
@@ -1161,6 +1272,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 		if (canCrit) {
 			ActCriticalHit(damage, playerIndex, monster.Row, monster.Col, true, damageType, baseMissileIndex);
 		}
+	  } // end !isBlessedHammer player buildup; hammer falls through to monster mitigation below
 		//------------
 		if (GameMode == GM_CLASSIC) { goto CLASSIC_DAMAGE_MODIFY_SKIP_R; }
         if( baseMonsterIndex == BM_137_UBER_DIABLO ){ 
@@ -1384,7 +1496,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else {	flat_dfe_gw = by(Difficulty, 50, 200, 400, 600, 800, 1000, 1200, 1400, 1600);	}
 			flat_dfe_gw -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_gw, 0);
-			damage -= flat_dfe_gw * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_gw * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
         }
 		else if( baseMonsterIndex == BM_96_CURSE_BEARER   ){ 
 			int flat_dfe_cb;
@@ -1393,7 +1505,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else {	flat_dfe_cb = by(Difficulty, 60, 225, 425, 625, 825, 1025, 1225, 1425, 1625);	}
 			flat_dfe_cb -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_cb, 0);
-			damage -= flat_dfe_cb * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_cb * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (baseMonsterIndex == BM_261_SKELETAL_KNIGHT) {
 			int flat_dfe_cb;
@@ -1403,7 +1515,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else { flat_dfe_cb = by(Difficulty, 70, 250, 450, 660, 900, 1100, 1350, 1550, 1800); }
 			flat_dfe_cb -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_cb, 0);
-			damage -= flat_dfe_cb * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_cb * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if( baseMonsterIndex == BM_122_BLOOD_SPECTRE ){
 			int flat_dfe_bs;
@@ -1412,7 +1524,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else {	flat_dfe_bs = by(Difficulty, 80, 275, 500, 750, 1000, 1250, 1500, 1750, 2000);	}
 			flat_dfe_bs -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_bs, 0);
-			damage -= flat_dfe_bs * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_bs * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if( is(baseMonsterIndex, BM_233_BLOOD_LORD, BM_297_OROG) ){
 			if (Dungeon == DUN_113_THE_MAZE) {
@@ -1430,7 +1542,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			}
 			flat_dfe_bl -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_bl, 0);
-			damage -= flat_dfe_bl * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_bl * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (is(baseMonsterIndex, BM_267_BONE_BLADE, BM_268_BONE_BLADE_2)) {
 			damage -= damage / 2;
@@ -1441,7 +1553,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else { flat_dfe_bl = 20 + Difficulty * 25; }
 			flat_dfe_bl -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_bl, 0);
-			damage -= flat_dfe_bl * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_bl * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (baseMonsterIndex == BM_275_BEHEMOTH) {
 			damage -= 6 * damage / 10;
@@ -1452,7 +1564,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else { flat_dfe_bl = 20 + Difficulty * 30; } 
 			flat_dfe_bl -= PerkValue(PERK_PENETRATION, playerIndex); 
 			LimitToMin(flat_dfe_bl, 0); 
-			damage -= flat_dfe_bl * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100; 
+			damage -= flat_dfe_bl * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (baseMonsterIndex == BM_234_STEEL_LORD) {
 			damage -= damage / 4;
@@ -1462,14 +1574,14 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			else {	flat_dfe_sl = by(Difficulty, 40, 150, 270, 390, 510, 630, 750, 870, 990); }
 			flat_dfe_sl -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_sl, 0);
-			damage -= flat_dfe_sl * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_sl * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (baseMonsterIndex == BM_242_REANIMATED_HORROR) {
 			damage -= damage / 4;
 			int flat_dfe_ro = by(Difficulty, 10, 70, 140, 210, 280, 350, 420, 490, 560);
 			flat_dfe_ro -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_ro, 0);
-			damage -= flat_dfe_ro * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_ro * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 		}
 		else if (baseMonsterIndex == BM_197_CEROMORTH) {
 			damage /= 4;
@@ -1484,7 +1596,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			int flat_dfe_biclops = by(Difficulty, 6, 24, 41, 60, 80, 100, 120, 140, 160);
 			flat_dfe_biclops -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_biclops, 0);
-			damage -= flat_dfe_biclops * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_biclops * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 			damage -= damage / 3;
 		}	
 		else if (is(baseMonsterIndex, BM_252_HEPHASTO)) {
@@ -1494,7 +1606,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 			}
 			flat_dfe_smith -= PerkValue(PERK_PENETRATION, playerIndex);
 			LimitToMin(flat_dfe_smith, 0);
-			damage -= flat_dfe_smith * (100 - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
+			damage -= flat_dfe_smith * (100 - PerkValue(PERK_PIERCING_ROUNDS, playerIndex) - PerkValue(PERK_BODKIN_POINTS, playerIndex) - PerkValue(PERK_BODKIN_ARROWS, playerIndex)) / 100;
 			if (is(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE, GM_EASY)) {
 				damage -= damage / 4;
 			}
@@ -1502,8 +1614,54 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 				damage -= 2 * damage / 5;
 			}
 		}
+		else if (is(baseMonsterIndex, BM_H_404_WAR_M_MS, BM_H_406_SCOUT, BM_H_408_WAR_M_SS, BM_H_413_SOR_H_T)) {
+			damage -= 1 + Difficulty;
+			damage -= damage / 5;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_407_MONK_M_X, BM_H_410_MONK_H_SS, BM_H_411_ROG_H_B, BM_H_415_ROG_H_B_ELITE_ARCHER, BM_H_416_MON_H_MS, BM_H_418_SOR_H_T_SORC_ELITE, BM_H_419_ROG_H_B_SS_ELITE)) {
+			damage -= 2 + Difficulty * 2;
+			damage -= damage / 3;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_409_MONK_H_T, BM_H_414_WAR_H_MS, BM_H_417_WAR_H_SS_WARRIOR_ELITE)) {
+			damage -= 3 + Difficulty * 3;
+			damage -= damage / 2;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_412_WAR_H_X_EXEC, BM_H_421_WAR_H_X_EXEC_ELITE, BM_H_423_ROG_H_B_BLACK_ARCHER)) {
+			damage -= 4 + Difficulty * 4;
+			damage -= 3 * damage / 5;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_422_WAR_H_ROYAL_GUARD)) {
+			damage -= 5 + Difficulty * 5;
+			damage -= 4 * damage / 5;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_NPC_420_GRISWOLD)) {
+			damage -= 6 + Difficulty * 6;
+			damage -= 5 * damage / 6;
+			LimitToMin(damage, 0);
+			}
 	}	
 	else { // spells and magic arrow/melee elemental explosion
+		// ---------------------------ENCLAVE SOLDIER ---------------------------------
+		if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {// ES gets physical boosts for his elemental damage
+			damage += damage * player.ItemsAddDamagePercents / 100; // +%ED effect
+			int weapon_damage = RngFromRange(player.MinDamageFromItem, player.MaxDamageFromItem);// weapon damage
+			damage += player.BaseDamage; // base damage 
+			damage += player.ItemsAddDamage;// +damage applied			
+			damage += weapon_damage * (player.spiciesDamagePercent[monsterClass]) / 100; // + % damage vs monster species
+			damage += RngFromRange(player.spiciesDamageMin[monsterClass], player.spiciesDamageMax[monsterClass]);// flat species damage
+			if (HasTrait(playerIndex, TraitId::Frenzied)) { damage += damage * 75 / 100; }			
+			ActCriticalHit(damage, playerIndex, monster.Row, monster.Col, true, damageType, baseMissileIndex);// CRITS, need to change to physical type		
+			if (missile.flag & MSF_MULTISHOT) { // sub dmg from multishot
+				damage = damage * 40 / 100; // side damage = 40% 
+			}
+		}
+		// ---------------------------END OF ENCLAVE SOLDIER -------------------------
+
 	   // spell bonus
 		int spellIndex = missile.spellIndex;
 		damage += damage * player.spellPercent[spellIndex] / 100;
@@ -1589,6 +1747,9 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 		if (player.fullClassId == PFC_INQUISITOR && HasTrait(playerIndex, TraitId::Tormentor)) {
 			canCrit_with_elemental_damage = false;
 		}
+		if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) { // ES can't crit anymore
+			canCrit_with_elemental_damage = false;
+		}
 		// Scout can crit with elemental damage!
 		//if (player.fullClassId == PFC_SCOUT) {
 		//	canCrit_with_elemental_damage = false;
@@ -1609,14 +1770,14 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 		// -----  MODIFICATION OF PvM MAGIC DAMAGE AGAINST MONSTERS  ------
 		if (GameMode == GM_CLASSIC) { goto CLASSIC_DAMAGE_MODIFY_SKIP_R; }
 		if (baseMonsterIndex == BM_137_UBER_DIABLO) {
-			// damage /= MaxCountOfPlayersInGame != 1 ? by (Difficulty, 4, 6, 8) : 4; // тут как и с мили. <- old code, changed to the one below in v1.0036
+			// (rt) damage /= MaxCountOfPlayersInGame != 1 ? by (Difficulty, 4, 6, 8) : 4; // same as with melee. <- old code, changed to the one below in v1.0036
 			int damageReducePercents;
 			if (is( GameModeType(), GAME_MODE_TYPE::NIGHTMARE, GAME_MODE_TYPE::IRON )) {
 				if (MaxCountOfPlayersInGame == 1) {
-					damageReducePercents = 56; // для IM / NM:  в сингле -56%
+					damageReducePercents = 56; // (rt) for IM / NM:  in single player -56%
 				}
 				else {
-					damageReducePercents = by(Difficulty, 67, 80, 85, 85, 85, 85, 85, 85, 85); // для IM / NM:  в мульти  хорроре: -67%,  -80% на пурге, и - 85% на думе+
+					damageReducePercents = by(Difficulty, 67, 80, 85, 85, 85, 85, 85, 85, 85); // (rt) for IM / NM:  in multiplayer horror: -67%,  -80% on purgatory, and -85% on doom+
 				}
 			}
 			else {
@@ -1626,7 +1787,7 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 					else { damageReducePercents = 68; }// rest normal and hardcore: 68% dmg resist					
 				}
 				else {
-					damageReducePercents = by(Difficulty, 77, 82, 86, 86, 86, 86, 86, 86, 86); // для нормы  и хардкора в мульти: хоррор -77%, пург: -82%, дум+: -86%
+					damageReducePercents = by(Difficulty, 77, 82, 86, 86, 86, 86, 86, 86, 86); // (rt) for normal and hardcore in multiplayer: horror -77%, purgatory: -82%, doom+: -86%
 				}
 			}
 			damage -= damage * damageReducePercents / 100;
@@ -1885,6 +2046,36 @@ int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int
 				damage -= damage / 3;
 			}
 		}
+		else if (is(baseMonsterIndex, BM_H_404_WAR_M_MS, BM_H_406_SCOUT, BM_H_408_WAR_M_SS, BM_H_413_SOR_H_T)) {
+			damage -= 1 + Difficulty;
+			damage -= damage / 5; 
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_407_MONK_M_X, BM_H_410_MONK_H_SS, BM_H_411_ROG_H_B, BM_H_415_ROG_H_B_ELITE_ARCHER, BM_H_416_MON_H_MS, BM_H_418_SOR_H_T_SORC_ELITE, BM_H_419_ROG_H_B_SS_ELITE)) {
+			damage -= 2 + Difficulty * 2;
+			damage -= damage / 3;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_409_MONK_H_T, BM_H_414_WAR_H_MS, BM_H_417_WAR_H_SS_WARRIOR_ELITE)) {
+			damage -= 3 + Difficulty * 3;
+			damage -= damage / 2;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_412_WAR_H_X_EXEC, BM_H_421_WAR_H_X_EXEC_ELITE, BM_H_423_ROG_H_B_BLACK_ARCHER)) {
+			damage -= 2 + Difficulty * 2; // careful with dot damage !
+			damage -= 3 * damage / 5;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_H_422_WAR_H_ROYAL_GUARD)) {
+			damage -= 2 + Difficulty * 2;
+			damage -= 4 * damage / 5;
+			LimitToMin(damage, 0);
+		}
+		else if (is(baseMonsterIndex, BM_NPC_420_GRISWOLD)) {
+			damage -= 2 + Difficulty * 2;
+			damage -= 5 * damage / 6;
+			LimitToMin(damage, 0);
+		}
 	}
 	if (player.gameChanger & BIT(GC_20_2X_DAMAGE) && MaxCountOfPlayersInGame == 1) {
 		damage *= 2;
@@ -1930,6 +2121,14 @@ CLASSIC_DAMAGE_MODIFY_SKIP_R:
 				PlayLocalSound(S_972_CRIT_SOUND_01, player.Row, player.Col);
 			}
 		}
+		// (th4) THIEF: the strike from the dark. A ranged hit on a monster that has NEVER
+		// been activated (ActivationCounter still 0) deals x5 damage. Trait is SP-only by
+		// registration, the MaxCountOfPlayersInGame gate here is belt-and-braces.
+		if (MaxCountOfPlayersInGame == 1 && HasTrait(playerIndex, TraitId::Thief) && monster.ActivationCounter == 0) {
+			// (th4) 500% base, +100% per Shadow Strike level (perk value carries the extra %)
+			damage = damage * (500 + PerkValue(PERK_SHADOW_STRIKE, playerIndex)) / 100;
+			//PlayLocalSound(S_972_CRIT_SOUND_01, player.Row, player.Col); // (th4) per Mordor: no bash sfx on the ambush strike; kept for possible re-enable
+		}
 
 	}
 	if (HasTrait(playerIndex, TraitId::Hunger)) { // trait 'Hunger' reduces all damage dealt to monsters in ranged battle
@@ -1948,7 +2147,7 @@ CLASSIC_DAMAGE_MODIFY_SKIP_R:
 	 || monster.ResistImmune & MR_10_COLD && baseMissle.DamageType == ET_6_COLD ){
 		monsterHaveResist = 2;
 	}
-	// if( effectIndex == MI_53_HOLY_BOLT ) // остатки старого кода
+	// (rt) if( effectIndex == MI_53_HOLY_BOLT ) // remains of old code
 	
 	if (effectType == MT_0_ARROW && damageType == ET_0_PHYSICAL) {
 		// no additional resist
@@ -1959,8 +2158,13 @@ CLASSIC_DAMAGE_MODIFY_SKIP_R:
 		}
 	}
 	
-	if( monsterHaveResist > 0 ){
-		damage >>= monsterHaveResist;
+	if (monsterHaveResist > 0) {
+		if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			damage += damage / 2;
+		}
+		else {
+			damage >>= monsterHaveResist;
+		}
 	}
 
 	
@@ -2051,7 +2255,7 @@ CLASSIC_DAMAGE_MODIFY_SKIP_R:
 			}
 			monster.CurAction = A_15_STONE;
 		}else{
-			if( DoesMissileKnockback(playerIndex, baseMissileIndex) ){
+			if( !isBlessedHammer && DoesMissileKnockback(playerIndex, baseMissileIndex) ){
 				if (baseMissileIndex != MI_14_HELLFIRE_SEGMENT) {
 					KnockbackMonster(monsterIndex, OrientationToTarget(monster.Row, monster.Col, missile.CasterRow, missile.CasterCol), GameMode == GM_HARD ? 1 : 2);
 				}else{
@@ -2131,11 +2335,16 @@ void __fastcall MonsterChainActivation( int monsterIndex )// #chain activation
 	if (MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::CrowdSeeker)) {
 		activateRadius += 2;
 	}
+	if (MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::Thief)) {
+		activateRadius -= 1; // (th4) THIEF: quieter kills -- Sharpshooter's 3 becomes 2 (LimitToMin below keeps the floor)
+	}
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) { activateRadius += 1; }
+	if (GameMode == GM_CLASSIC) activateRadius = 2; // maybe should be just 1 ?
 	LimitToMin(activateRadius, 2);
 	MonsterGreetings( monsterIndex );
 	Monster& monster = Monsters[monsterIndex];
 	int maxCountToActivate = 8;
-	int countToActivate = MonstersCount - SummonMonsters_Count; // было MonstersCount (глюк th1)
+	int countToActivate = MonstersCount - SummonMonsters_Count; // (rt) was MonstersCount (th1 glitch)
 	if( countToActivate <= 0 ){
 		return;
 	}
@@ -2158,7 +2367,7 @@ void __fastcall MonsterChainActivation( int monsterIndex )// #chain activation
 
 //----- (0070B1A0) --------------------------------------------------------
 void __fastcall Limit_MvP_Ranged_Arrow_ToHit_Chance (int playerIndex, int& realToHitChance, int& Autohit, int& Automiss)
-// ограничение макс шанса монстрам попасть - по игроку стрелами
+// (rt) limit on monsters' max chance to hit the player with arrows
 {
 	Player& player = Players[playerIndex];
 		
@@ -2168,7 +2377,7 @@ void __fastcall Limit_MvP_Ranged_Arrow_ToHit_Chance (int playerIndex, int& realT
 			Autohit += 2;
 		}
 	}
-	else if (player.fullClassId == PFC_DIMACHAERUS) {
+	else if (is(player.fullClassId, PFC_DIMACHAERUS, PFC_GLADIATRIX )) {
 		Autohit = 13;
 	}
 	else if (player.fullClassId == PFC_EXECUTIONER) {
@@ -2186,6 +2395,9 @@ void __fastcall Limit_MvP_Ranged_Arrow_ToHit_Chance (int playerIndex, int& realT
 	}
 	else if (HasTrait(playerIndex, TraitId::Crupellarius)) {
 		Autohit -= 1;
+	}
+	else if (HasTrait(playerIndex, TraitId::Thief)) {
+		Autohit += 4;
 	}
 
 	// doomwhorl extra check
@@ -2216,7 +2428,7 @@ void __fastcall Limit_MvP_Ranged_Arrow_ToHit_Chance (int playerIndex, int& realT
 	LimitToRange(realToHitChance, Autohit, Automiss);
 }
 
-// ограничение макс шанса монстрам попасть - по игроку магией -------------
+// (rt) limit on monsters' max chance to hit the player with magic -------------
 void __fastcall Limit_MvP_Ranged_Magical_ToHit_Chance(int playerIndex, int& realToHitChance)
 {
 	Player& player = Players[playerIndex];
@@ -2298,6 +2510,7 @@ int __fastcall AddDamageReduction(int playerIndex, int damage) // #ard
 	case PFC_ASSASSIN:		
 	case PFC_IRON_MAIDEN:	
 	case PFC_BOMBARDIER:	damage = damage * 44 / 100;	break;
+	case PFC_GLADIATRIX:	damage = damage * 48 / 100;	break;
 	case PFC_SAVAGE:		
 	case PFC_BERSERKER:		
 	case PFC_EXECUTIONER:	
@@ -2313,14 +2526,6 @@ int __fastcall AddDamageReduction(int playerIndex, int damage) // #ard
 	}		break;
 	case PFC_DIMACHAERUS:	damage = damage * 46 / 100;	break;
 	case PFC_SECUTOR:		damage = damage * 42 / 100;	break;
-	
-		/*if (player.ClassID == PC_1_ARCHER || player.ClassID == PC_3_MONK) {
-			damage -= damage >> 3;
-		}
-		else if (player.ClassID == PC_4_ROGUE) {
-			damage -= damage >> 4;
-		}*/
-		
 	}
 	return damage;
 }
@@ -2338,7 +2543,9 @@ void MvP_Ranged_Max_Block_Chance(int playerIndex, int& maxBlockChanceRanged)
 }
 
 //----- (0042F60F) -------------------------------------------------------- MvP Ranged
-int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int minDamage, int maxDamage, int effectIndex, char isInternalHP, int isLightningOrFirewall, uchar* attackBlockedPtr, uchar* missileReflected /*= 0*/)
+// (th4) isPierce is the SAME flag MissileAttack was called with: 0 for a flying missile,
+// 1 for a piercing one. Only the REBOUND synergy reads it -- see the gate below.
+int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int minDamage, int maxDamage, int effectIndex, char isInternalHP, int isLightningOrFirewall, uchar* attackBlockedPtr, uchar* missileReflected /*= 0*/, char isPierce /*= 0*/)
 {
 	if( (uint)(monsterIndex + 1) >= Monsters_Max_Count + 1 || (uint)playerIndex >= PlayersMax_4 ){ return 0; }
 	Player& player = Players[ playerIndex ];
@@ -2423,7 +2630,10 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 			canBlock = false;
 	}
 	if (player.fullClassId == PFC_DIMACHAERUS) {
-			canBlock = false;
+		canBlock = false;
+	}
+	if (HasTrait(playerIndex, TraitId::Scissor)) {
+		canBlock = false;
 	}
 
 	int blockRnd = not( player.CurAction, PCA_0_STAND, PCA_4_ATTACK ) || !canBlock ? 100 : RNG(100);
@@ -2431,8 +2641,7 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 		blockRnd = 100;
 	}
 	int a_rose_with_thorns_trait_penalty_ranged = HasTrait(playerIndex, TraitId::ARoseWithThorns) ? (player.CharLevel / 3) : 0;
-	int blockChance = player.BlockBonus
-		+ player.BaseDexterity
+	int blockChance = player.BaseDexterity	// (th4) class block bonus retired
 		+ player.blockChance
 		- a_rose_with_thorns_trait_penalty_ranged
 		- PerkValue(SYNERGY_AGGRESSION, playerIndex, 0);
@@ -2518,6 +2727,7 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 			if (bm.EffectType == MT_0_ARROW) {
 				LimitToMin(damage, (Dungeon->level / 2 + by(Difficulty, 0, 12, 24, 36, 48, 60, 72, 84, 96)) << 6);
 			}
+			// ------- LIMIT OF SPELL DAMAGE FROM BELOW ----------
 			else { // bm.EffectType >= MT_1_MAGIC
 				int minDamage = 0;
 				switch (effectIndex) {
@@ -2527,7 +2737,7 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 				case MI_48_INCINERATE_SEGMENT:
 					minDamage = Dungeon->level / 4 + by(Difficulty, 0, 5, 10, 13, 16, 19, 22, 25, 28); // multi-frame spell (threshold higher because Incinerate is less dangerous than Lite/Flash)
 					break;
-				case MI_8_LIGHTING_SEGMENT:
+				case MI_8_LIGHTING_SEGMENT:			
 				case MI_23_MONSTER_LIGHTING_SEGMENT:
 				case MI_11_FLASH_FR:
 				case MI_12_FLASH_BACK:
@@ -2535,6 +2745,10 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 					break;
 				case MI_22_MONSTER_LIGHTNING:
 					minDamage = 1 + Dungeon->level / 8 + Difficulty * 3; // advocate lightning?
+					break;
+				case MI_70_LIGHTNING_WALL_SEGMENT:
+				case MI_5_FIRE_WALL_SEGMENT:
+					minDamage = 0 + Dungeon->level / 13 + Difficulty; // fire/lightning wall/ring
 					break;
 				default:
 					minDamage = Dungeon->level / 4 + by(Difficulty, 0, 6, 12, 17, 22, 27, 32, 37, 42); // other spells (missile type) need higher minThreshold
@@ -2545,13 +2759,32 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 			}
 			//}
 		}
-		if( PerkValue(SYNERGY_REBOUND, playerIndex, 0) > RNG(100) && bm.EffectType == MT_0_ARROW && bm.DamageType == ET_0_PHYSICAL ){
-			int reflectedArrowDamage = (PerkValue(SYNERGY_REBOUND, playerIndex, 1) + 100) * rebound_dmg / 100; // place for reflected arrow damage formula
+		// (th4) REBOUND fires at most ONCE per incoming arrow.
+		// bm.EffectType is a property of the BaseMissile ROW, not of what is happening right
+		// now, and an elemental arrow lives through TWO phases that both keep MT_0_ARROW:
+		//   ActMagicArrow flight     -> MissileAttack( ..., isPierce = 0 )
+		//   ActMagicArrow explosion  -> MissileAttack( ..., isPierce = 1 )   "can pierce"
+		// so the old gate rolled rebound in both, and the piercing explosion rolled again on
+		// EVERY animation frame the player stayed inside it -- a multi-element arrow spawns
+		// one explosion missile per element on top of that. Result: 2+ arrows sent back from
+		// one incoming shot. Plain arrows use ActArrow, which has no explosion phase, which
+		// is why only elemental arrows showed it.
+		// !isPierce selects the flight phase only, for every arrow type.
+		// NOT gated on DamageType: five ActArrow missiles (CORROSIVE/FIRE/LASER/GRAVITY_SHOT
+		// and KRULL) are MT_0_ARROW with a NON-physical element and only ever have one phase,
+		// so a physical-only test would silently stop them rebounding at all.
+		if (PerkValue(SYNERGY_REBOUND, playerIndex, 0) > RNG(100) && bm.EffectType == MT_0_ARROW && !isPierce) {
+			int reflectedArrowDamage = (PerkValue(SYNERGY_REBOUND, playerIndex, 1) + 100) * rebound_dmg / 100;
 			auto dir = OrientationToTarget(player.Row, player.Col, monster.Row, monster.Col);
-			// see PM_DoRangedAttack and CastSpecialArrowSpell for used service values [0,1,2,5,6,7]
 			int casterIndex = playerIndex * SummonMonstersPerPlayer_Count;
-			Monsters[casterIndex].flag |= MF_6_FRIENDLY; // fix pseudo caster to correct MvM_Ranged logic for reflected arrow
-			CastMissile(player.Row, player.Col, monster.Row, monster.Col, dir, bm.BaseMissileIndex, CT_1_MONSTER_AND_TRAP, casterIndex, reflectedArrowDamage, 0, 0, {0}, 0, MSF_REFLECTED);
+			Monsters[casterIndex].flag |= MF_6_FRIENDLY;
+			int missileToCast = bm.BaseMissileIndex;
+			// Check if this is an elemental arrow by its base missile index
+			bool isElementalArrow = (is(bm.BaseMissileIndex, MI_27_FIRE_ARROW, MI_56_LIGHTING_ARROW, MI_108_ARCANE_ARROW, MI_109_ACID_ARROW, /*MI_77_HOLY_BOLT_ARROW,*/ MI_126_COLD_ARROW));
+			if (isElementalArrow) {
+				missileToCast = MI_0_NONE_ARROW;  // -> Plain physical arrow
+			}
+			CastMissile(player.Row, player.Col, monster.Row, monster.Col, dir, missileToCast, CT_1_MONSTER_AND_TRAP, casterIndex, reflectedArrowDamage, 0, 0, { 0 }, 0, MSF_REFLECTED);
 			*missileReflected = 1;
 			PlayLocalSound(RngFromRange(1627, 1629), player.Row, player.Col);
 		}
@@ -2596,17 +2829,6 @@ int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int distance, int 
 				if (RNG(100) < 10) {
 					damage *= 3;
 					PlayLocalSound(S_972_CRIT_SOUND_01, player.Row, player.Col);
-				}
-			}
-			// executioning mode:
-			if (
-				(HasTrait(playerIndex, TraitId::Psion) && player.fullClassId != PFC_MAGE)
-				|| (HasTrait(playerIndex, TraitId::Cleric) && player.fullClassId != PFC_MAGE)
-				|| (HasTrait(playerIndex, TraitId::Hydramancer) && player.fullClassId != PFC_WARLOCK)
-				|| (HasTrait(playerIndex, TraitId::LordOfTheRings) && player.fullClassId != PFC_MONK)
-				) {
-				if (RNG(100) < 10) {
-					damage *= 20;
 				}
 			}
 
@@ -2715,12 +2937,12 @@ void __fastcall LoadMissileSprite( uint spriteIndex )
 	char fileName[256];
 	MissileSprite& missileSprite = MissileSprites[spriteIndex];
 
-	if( missileSprite.fileFlag & MFF_MULTI ){// вся анимация в одном файле
-		// TODO: никаких проверок на то, загружен уже файл или нет
+	if( missileSprite.fileFlag & MFF_MULTI ){// (rt) the whole animation in one file
+		// (rt) TODO: no checks whether the file is already loaded
 		sprintf(fileName, strchr(missileSprite.name, '\\') ? "%s" : "Missiles\\%s.CL2", missileSprite.name);
 		char* file = (char*)LoadFile(fileName);
 		for( int dir = 0; dir < missileSprite.animDirectionsCount; ++dir ){
-			// таблица в начале файла это оффсеты от начала файла на начало анимации
+			// (rt) the table at the start of the file holds offsets from the file start to the start of each animation
 			int curAnimationFileOffset = ((int*)file)[dir];
 			missileSprite.anim[dir] = &file[curAnimationFileOffset];
 		}
@@ -2742,6 +2964,14 @@ void __fastcall LoadMissileSprite( uint spriteIndex )
 	case MIS_82_TOXIC_AURA:                         trn = "X\\Missile_TRNS\\Fire-Arrow-to-Acid-Arrow1.trn";       break;
 	case MIS_81_COLD_GUARD:                         trn = "X\\Missile_TRNS\\GuardianOfIce.trn";                   break;
 	case MIS_83_THROWING_KNIFE:                     trn = "X\\Missile_TRNs\\krull_steel.trn";                     break;
+	case MIS_88_LASER_BLUE:							trn = "X\\Missile_TRNs\\laser_blue.trn";                      break;
+	case MIS_89_LASER_ORNG:							trn = "X\\Missile_TRNs\\laser_ORNG.trn";                      break;
+	case MIS_90_LASER_CRIMZ:						trn = "X\\Missile_TRNs\\laser_CRIMZ.trn";                     break;
+	case MIS_91_LASER_YELLOW:						trn = "X\\Missile_TRNs\\laser_YELLOW.trn";                    break;
+	case MIS_92_LASER_WHITE:						trn = "X\\Missile_TRNs\\laser_white.trn";                     break;
+	case MIS_93_PLASMA_YELLOW:						trn = "X\\Missile_TRNs\\plasma_yellow.trn";                   break;
+	case MIS_95_PLASMA_CRIMZ:						trn = "X\\Missile_TRNs\\plasma_crimz.trn";                    break;
+	case MIS_96_PLASMA_ORANGE:						trn = "X\\Missile_TRNs\\plasma_orange.trn";                   break;
 	}
 	if( trn ){
 		uchar* colorTable = (uchar*)LoadFile(trn);
@@ -2777,7 +3007,7 @@ void __fastcall FreeMissileSprite( uint spriteIndex )
 {
 	MissileSprite& missileSprite = MissileSprites[spriteIndex];
 
-	if( missileSprite.fileFlag & MFF_MULTI ){// вся анимация в одном файле
+	if( missileSprite.fileFlag & MFF_MULTI ){// (rt) the whole animation in one file
 		if( missileSprite.anim[0] ){
 			int headerSize = missileSprite.animDirectionsCount * sizeof (int);
 			void* filePtr = (void*)(missileSprite.anim[0] - headerSize);
@@ -2785,8 +3015,8 @@ void __fastcall FreeMissileSprite( uint spriteIndex )
 			missileSprite.anim[0] = 0;
 		}
 	}else{
-		// в простой анимации, каждая анимация находится с самого начала файла
-		// просто освобождаем каждую. Числом AnimDirectionsCount
+		// (rt) in a simple animation, each animation starts at the very beginning of the file
+		// (rt) just free each one. AnimDirectionsCount of them
 		for( int orientation = 0; orientation < missileSprite.animDirectionsCount; ++orientation ){
 			if( missileSprite.anim[orientation] ){
 				FreeMemZero(missileSprite.anim[orientation]);
@@ -2850,7 +3080,7 @@ void __fastcall CastRuneOfFire(int missileIndex, int casterRow, int casterCol, i
 {
 	Missile& missile = Missiles[missileIndex];
 	if( casterIndex >= 0 ){
-		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_47_NO_SPELL);// TODO: руна не используется, потому заменена
+		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_47_NO_SPELL);// (rt) TODO: the rune isn't used, so it was replaced
 	}
 	if( FoundCellForTargetInRadius(missileIndex, &targetRow, &targetCol, 10) ){ // TODO: try remove check, moved to CursorSkillApply
 		int runeActivationEffect = MI_94_BIG_FIRE_EX;
@@ -2949,7 +3179,7 @@ void __fastcall CastRuneOfStone(int missileIndex, int casterRow, int casterCol, 
 {
 	Missile& missile = Missiles[missileIndex];
 	if( casterIndex >= 0 ){
-		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_51_EMPTY);// не используется
+		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_51_EMPTY);// (rt) not used
 	}
 	if( FoundCellForTargetInRadius(missileIndex, &targetRow, &targetCol, 10) ){ // TODO: try remove check, moved to CursorSkillApply
         int runeActivationEffect = MI_30_STONE_CURSE;
@@ -2970,7 +3200,7 @@ void __fastcall CastReflect(int missileIndex, int casterRow, int casterCol, int 
 	if( casterIndex >= 0 ){
 		int spellLevel = missile.SpellLevel;
 		if( !spellLevel ){
-			spellLevel = 2;// C реликта при незнании заклинания уровень считается 2м
+			spellLevel = 2;// (rt) From a relic, if the spell isn't known, its level counts as 2
 		}
 		int armadillo_trait_benefit = HasTrait(casterIndex, TraitId::Armadillo) ? (player.CharLevel / 13 + 2) : 0;
 		player.CountOfReflectCharges += 1 + (player.BaseVitality / 50) + armadillo_trait_benefit + PerkValue(SYNERGY_IRON_BULWARK, casterIndex);
@@ -2981,7 +3211,7 @@ void __fastcall CastReflect(int missileIndex, int casterRow, int casterCol, int 
 	missile.IsDeleted = false;
 }
 
-// отключено в 1.150c RC8
+// (rt) disabled in 1.150c RC8
 //----- (004303A8) --------------------------------------------------------
 void __fastcall CastBerserk(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
 {
@@ -3012,7 +3242,7 @@ void __fastcall CastBerserk(int missileIndex, int casterRow, int casterCol, int 
 							monster.MaxDamage = ftol(((double)(RNG(10) + 20) * 0.01 + 1.0) * (double)monster.MaxDamage + spellLevel);
 							monster.SecondMinDamage = ftol(((double)(RNG(10) + 20) * 0.01 + 1.0) * (double)monster.SecondMinDamage	+ spellLevel);
 							monster.SecondMaxDamage = ftol(((double)(RNG(10) + 20) * 0.01 + 1.0) * (double)monster.SecondMaxDamage + spellLevel);
-							// в 1.216 эта функция не только отключена, но и сломана, и нижний код отсутсвует как занятый куском другой функции
+							// (rt) in 1.216 this function is not only disabled but broken, and the code below is missing, taken over by a piece of another function
 							monster.MaxDamage = LimitPvMMeleeDamage(casterIndex, monster.MaxDamage);
 							int lightness;
 							if( Dungeon->graphType != DT_6_ABYSS ){
@@ -3081,7 +3311,7 @@ void __fastcall PutMissile( int missileIndex )
 		missile.IsDeleted = 1;
 	}
 	if( ! missile.IsDeleted ){
-		// добавил работу с этой функцией в MotionInterpolationBegin
+		// (rt) added handling of this function in MotionInterpolationBegin
 		FlagMap[ row ][ col ] |= CF_1_SPELL_CAST;
 		if( MissilesMap[ row ][ col ] == 0 ){
 			MissilesMap[ row ][ col ] = missileIndex + 1;
@@ -3144,7 +3374,7 @@ void __fastcall CastSpell82_StealBottlesFromBelt(int missileIndex, int casterRow
 					int beltItemMagicCode = beltItem.MagicCode;
 					int newMagicCode = -1;
 					if( beltItem.ItemCode != IC_0_OTHER ){
-						goto checkMagicCode; // ну такой вот он, оригинальный код
+						goto checkMagicCode; // (rt) this is how the original code does it
 					}
 					if( !RNG(2) ){
 						continue;
@@ -3177,7 +3407,7 @@ void __fastcall CastSpell82_StealBottlesFromBelt(int missileIndex, int casterRow
 							break;
 					}
 					checkMagicCode:
-					// ловушка для бутылок, добавить сохранение/восстановление курсорной вещи как переключении оружия
+					// (rt) trap for potions; add saving/restoring the cursor item as when switching weapons
 					if( newMagicCode != -1 ){
 						int baseItemIndex = FindBaseItemWithMagicCode(newMagicCode);
 						if( baseItemIndex != -1 ){
@@ -3281,7 +3511,7 @@ uchar FirstQuadrantDirections_16 [5] = { 14, 15,  0,  1,  2 };
 uchar FourthQuadrantDirections_16[5] = { 14, 13, 12, 11, 10 };
 uchar SecondQuadrantDirections_16[5] = {  6,  5,  4,  3,  2 };
 uchar ThirdQuadrantDirections_16 [5] = {  6,  7,  8,  9, 10 };
-// в тх2 заменена на универсальную, хоть и более медленную SelectMissileDirection
+// (rt) in th2 replaced with the universal, though slower, SelectMissileDirection
 //----- (00430C93) --------------------------------------------------------
 int __fastcall SelectMissileDirectionFrom16(int casterRow, int casterCol, int targetRow, int targetCol)
 {
@@ -3327,6 +3557,40 @@ int GetPlayerArrowSpeed( int playerIndex )
 }
 
 //----- (00431323) --------------------------------------------------------
+// (th4) ENERGY GUN ROUNDS: laser, plasma and EMP.
+// These are fired by the energy pistols BI_2711..BI_2732 (Player.cpp ~6514 and
+// on), which are plain IC_23_PISTOL weapons -- the mapping is gated on the ITEM
+// only, never on class or game changer, so whoever can equip one fires these:
+// Pistoleer, Supermutant, Terminator, Enclave Soldier alike. NOTE they are NOT
+// the IF_ENCLAVE_GUNS set, which is base ids 2788..2887 (Item.cpp ~10103) -- a
+// different range.
+// They all share CastArrow/ActArrow, so one predicate serves the light creation,
+// the per-tick move and the teardown.
+// Deliberately NOT here:
+//  - MI_143_BULLET. The DEFAULT round for every IC_23_PISTOL, so it is what an
+//    ordinary firearm fires for all of those classes. A physical slug must not
+//    glow.
+//  - MI_149_GRENADE (M79, MM1). Launcher ordnance, not an energy round.
+//  - MI_141_THROWING_MALLET. Shares the 16-direction sprite block in CastArrow
+//    but it is a thrown hammer.
+static bool IsEnergyGunMissile( int baseMissileIndex )
+{
+	return is( baseMissileIndex,
+		MI_146_LASER,
+		MI_147_LASER_BLUE,
+		MI_148_LASER_ORNG,
+		MI_150_LASER_CRIMZ,
+		MI_151_LASER_YELLOW,
+		MI_152_LASER_WHITE,
+		MI_153_PLASMA_YELLOW,
+		MI_154_EMP_WHITE,
+		MI_155_PLASMA_CRIMZ,
+		MI_156_CORROSIVE_SHOT,
+		MI_157_FIRE_SHOT,
+		MI_158_LASER_SHOT,
+		MI_159_GRAVITY_SHOT );
+}
+
 void __fastcall CastArrow(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
 {
 	Missile& missile = Missiles[missileIndex];
@@ -3343,12 +3607,38 @@ void __fastcall CastArrow(int missileIndex, int casterRow, int casterCol, int ta
 	}
 	// 004313FF
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, arrowSpeed);
-	if( missile.BaseMissileIndex == MI_141_THROWING_MALLET ){
+	if( is(missile.BaseMissileIndex, 
+		MI_141_THROWING_MALLET, 
+		MI_146_LASER, 
+		MI_147_LASER_BLUE, 
+		MI_148_LASER_ORNG, 
+		MI_150_LASER_CRIMZ, 
+		MI_151_LASER_YELLOW, 
+		MI_152_LASER_WHITE,
+		MI_153_PLASMA_YELLOW,
+		MI_154_EMP_WHITE,
+		MI_155_PLASMA_CRIMZ,
+		MI_156_CORROSIVE_SHOT,
+		MI_157_FIRE_SHOT,
+		MI_158_LASER_SHOT,
+		MI_159_GRAVITY_SHOT) ){
 		SetMissileDirection(missileIndex, SelectMissileDirectionFrom16(casterRow, casterCol, targetRow, targetCol));
 	}else{
 		missile.FrameIndex = SelectMissileDirectionFrom16(casterRow, casterCol, targetRow, targetCol) + 1;
 	}
 	missile.TimeToLive = 256;
+	// (th4) ULTRA ONLY: give energy gun rounds a small travelling light, so the
+	// colored tint from GetMissileLightTint has a pool to color. Gated on
+	// g_ARGBLighting for the same reason ApplyMissileLightTint is: outside ultra the
+	// lighting must stay byte-identical to master, and an extra light here would
+	// change LightsCount, the light pool order and every lit pixel around the shot.
+	// Radius 3 (arrows carry none, spells use 5-8): a muzzle-bright bullet would
+	// out-light the caster, and these fire in bursts.
+	// AddLight returns -1 when the pool is full or FullLighting is on; the whole
+	// light path below is guarded on LightIndex >= 0, so that is a clean no-op.
+	if( g_ARGBLighting && IsEnergyGunMissile( missile.BaseMissileIndex ) ){
+		missile.LightIndex = AddLight( casterRow, casterCol, 3 );
+	}
 }
 
 // unused (old original fire blast, fire + lighting flags hack)
@@ -3395,7 +3685,7 @@ void __fastcall CastPhasing(int missileIndex, int casterRow, int casterCol, int 
 	bool isPlaceSelect = false;
 	Missile& missile = Missiles[missileIndex];
 
-	for( int i = 1; i <= 500; i++){// Пробуем случайные перемещения до тех пор пока перемещение не окажется допустимым
+	for( int i = 1; i <= 500; i++){// (rt) Try random moves until the move turns out to be valid
 		int casterRowChange = RNG(3) + 4;
 		int casterColChange = RNG(3) + 4;
 		if( RNG(2) ){
@@ -3407,16 +3697,16 @@ void __fastcall CastPhasing(int missileIndex, int casterRow, int casterCol, int 
 		row = casterRow + casterRowChange;
 		col = casterCol + casterColChange;
 
-		if( In112(row, col) ){// Проверка на выход за границу карты
+		if( In112(row, col) ){// (rt) Check for leaving the map bounds
 			int dungeonMap = FineMap[ row ][ col ];
-			if( !TileBlockWalking[dungeonMap] && !ObjectsMap[ row ][ col ] && !MonsterMap[ row ][ col ] ){// Проверка допустимости нахождения в клетке игрока
+			if( !TileBlockWalking[dungeonMap] && !ObjectsMap[ row ][ col ] && !MonsterMap[ row ][ col ] ){// (rt) Check that the player may be in the cell
 				isPlaceSelect = true;
 				break;
 			}
 		}
 	}
 
-	if( !isPlaceSelect){// Если после 500 попыток не вышло найти место
+	if( !isPlaceSelect){// (rt) If no place was found after 500 attempts
 		row = casterRow;
 		col = casterCol;// phase where you are then
 	}
@@ -3468,7 +3758,7 @@ void __fastcall CastWarp(int missileIndex, int casterRow, int casterCol, int tar
 	int col = casterCol;
 	for( auto& warp: Warps ){
 		if( is(warp.GameMessage, WM_1032_RETURN_TO_TOWN, WM_1027_PREV_DUNGEON, WM_1026_NEXT_DUNGEON, WM_1028_RETURN_FROM_QUEST_DUNGEON) ){
-			// Чтобы не телепортнуться на клетку внутри лестницы делаем отступ.
+			// (rt) Keep a margin so as not to teleport onto a cell inside the stairs.
 			int warpRow = warp.Row;
 			int warpCol = warp.Col;
 			if( is(Dungeon->genType, DT_1_CHURCH, DT_2_CATACOMB)
@@ -3531,7 +3821,7 @@ void __fastcall CastFirebolt(int missileIndex, int casterRow, int casterCol, int
 		LimitToMax(missileSpeed, 30);
 	}else{
 		// 004318BB
-		missileSpeed = 26;// ловушки, монстры?
+		missileSpeed = 26;// (rt) traps, monsters?
 	}
 	// 004318BE
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, missileSpeed);
@@ -3542,6 +3832,9 @@ void __fastcall CastFirebolt(int missileIndex, int casterRow, int casterCol, int
 	lastRow = casterRow;
 	lastCol = casterCol;
 	missile.LightIndex = AddLight(casterRow, casterCol, 8);
+	// (th4) Stage 3: the red firebolt tint now lives in the per-missile-type
+	// table GetMissileLightTint(MI_1_FIREBOLT) and is applied centrally in
+	// ProcessMissiles — no per-missile blocks like this are needed anymore.
 }
 
 //----- (0043191C) --------------------------------------------------------
@@ -3815,8 +4108,11 @@ void __fastcall CastFireblast(int missileIndex, int casterRow, int casterCol, in
 #endif
 		// 00431E70
 		missileSpeed = (missile.SpellLevel / 3) + 20 + RNG(missile.SpellLevel / 3 + 1);
+		if (missile.BaseMissileIndex == MI_149_GRENADE) { missileSpeed = 40; }
 		LimitToMax(missileSpeed, 40);
-		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_12_FIREBLAST);
+		if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+			MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_12_FIREBLAST);
+		}
 	}
 	// 00431E95
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, missileSpeed);
@@ -3826,7 +4122,7 @@ void __fastcall CastFireblast(int missileIndex, int casterRow, int casterCol, in
 	int& lastCol = missile.value[1];
 	lastRow = casterRow;
 	lastCol = casterCol;
-	missile.value[2] = 0;// похоже 3 неиспользуемых значения
+	missile.value[2] = 0;// (rt) looks like 3 unused values
 	missile.value[3] = casterRow;
 	missile.value[4] = casterCol;
 	missile.LightIndex = AddLight(casterRow, casterCol, 8);
@@ -3904,9 +4200,17 @@ void __fastcall MissileAttack( int missileIndex, int minDamage, int maxDamage, c
 		}
 	}
 	if (missile.CasterType == CT_0_PLAYER && HasTrait(missile.CasterIndex, TraitId::Pistoleer)) {
-		const int pierceRandFactor = RNG(100);
-		if (pierceRandFactor < PerkValue(PERK_PIERCING_BULLETS, missile.CasterIndex)) {
-			PiercingShot = true;
+		if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			const int acid_RNG = RNG(100);
+			if (acid_RNG < PerkValue(PERK_OVERPENETRATION, missile.CasterIndex)) {
+				PiercingShot = true;
+			}
+		}
+		else {
+			const int pierceRandFactor = RNG(100);
+			if (pierceRandFactor < PerkValue(PERK_PIERCING_BULLETS, missile.CasterIndex)) {
+				PiercingShot = true;
+			}
 		}
 	}
 	if( missile.CasterType == CT_2_WALL || casterIndex == -1 ){ // trap, rebound arrow
@@ -3915,7 +4219,7 @@ void __fastcall MissileAttack( int missileIndex, int minDamage, int maxDamage, c
 		MonsterHorizontalHitFix( monsterNum, attackRow, attackCol );
 		if( monsterNum > 0 ){
 			if( missile.CasterType == CT_2_WALL ){ // golem? hydra?
-				// TODO: уязвимость, монстры и алтари тоже умеют кастовать стены
+				// (rt) TODO: vulnerability, monsters and shrines can cast walls too
 				isMonsterHit = PvM_Ranged(missile.CasterIndex, monsterNum - 1, minDamage, maxDamage, missile.Distance, missile.BaseMissileIndex, isInternalHp, missileIndex );
 			}else{ // cast.CasterType == -1 
 				isMonsterHit = MvM_Ranged(monsterNum - 1, missile.CasterIndex, minDamage, maxDamage, missile.Distance, missile.BaseMissileIndex, isInternalHp);
@@ -3936,7 +4240,7 @@ void __fastcall MissileAttack( int missileIndex, int minDamage, int maxDamage, c
 		if( playerNum > 0 ){
 			int isLightningOrFirewall = missile.spriteIndex == MIS_4_FIREWAL || missile.spriteIndex == MIS_3_LGHNING;
 			casterIndex = -1; // trap ?
-			isPlayerHit = MvP_Ranged(playerNum - 1, casterIndex, missile.Distance, minDamage, maxDamage, missile.BaseMissileIndex, isInternalHp, isLightningOrFirewall, &attackBlocked, &missileReflected);
+			isPlayerHit = MvP_Ranged(playerNum - 1, casterIndex, missile.Distance, minDamage, maxDamage, missile.BaseMissileIndex, isInternalHp, isLightningOrFirewall, &attackBlocked, &missileReflected, isPierce);
 		}
 	}else if( missile.CasterType == CT_0_PLAYER ){ // caster is player
 		monsterNum = MonsterMap[ attackRow ][ attackCol ];
@@ -3994,7 +4298,7 @@ void __fastcall MissileAttack( int missileIndex, int minDamage, int maxDamage, c
                 HorizontalHit = true;
             }
             if( playerNum > 0 ){
-                isPlayerHit = MvP_Ranged(playerNum - 1, missile.CasterIndex, missile.Distance, minDamage, maxDamage, missile.BaseMissileIndex, isInternalHp, 0, &attackBlocked, &missileReflected);
+                isPlayerHit = MvP_Ranged(playerNum - 1, missile.CasterIndex, missile.Distance, minDamage, maxDamage, missile.BaseMissileIndex, isInternalHp, 0, &attackBlocked, &missileReflected, isPierce);
             }
         }
 	}
@@ -4081,7 +4385,7 @@ bool __fastcall PvP_Ranged( int attackerPlayerIndex, int targetPlayerIndex, int 
 	int toHitRandFactor = RNG(100);
 	
 	int hitChance;
-	if( BaseMissiles[spellIndex].EffectType != MT_0_ARROW ){// маг атака
+	if( BaseMissiles[spellIndex].EffectType != MT_0_ARROW ){// (rt) magic attack
 		hitChance = attacker.CurMagic - 2 * defender.CharLevel - distance + 25;
 		switch (attacker.ClassID){
 			case PC_2_MAGE:			hitChance += 20;		break;
@@ -4121,7 +4425,7 @@ bool __fastcall PvP_Ranged( int attackerPlayerIndex, int targetPlayerIndex, int 
 		blockRandFactor = RNG(100);
 	}
 
-	int blockChance = defender.BaseDexterity + defender.BlockBonus + 2 * (defender.CharLevel - attacker.CharLevel);
+	int blockChance = defender.BaseDexterity + 2 * (defender.CharLevel - attacker.CharLevel);	// (th4) class block bonus retired
 	blockChance += defender.blockChance;
 	LimitToRange(blockChance, 0, 80);
 
@@ -4301,7 +4605,7 @@ void __fastcall Cast_Lightning_Segment(int missileIndex, int casterRow, int cast
 	missile.CasterRow = targetRow;
 	missile.CasterCol = targetCol;
 	if( sourceCastIndex >= 0 ){
-		missile.ColDisplacement = sourceCast.ColDisplacement; // молния не двигается, а стоит на месте и исчезает за 8-10 кадров
+		missile.ColDisplacement = sourceCast.ColDisplacement; // (rt) the lightning doesn't move, it stays in place and vanishes within 8-10 frames
 		missile.RowDisplacement = sourceCast.RowDisplacement;
 		missile.WholeDeltaY	 = sourceCast.WholeDeltaY;
 		missile.WholeDeltaX	 = sourceCast.WholeDeltaX;
@@ -4448,6 +4752,74 @@ bool __fastcall IsPointNearWarp( int row, int col )
 }
 
 //----- (00432D5F) --------------------------------------------------------
+
+// ===================== DEBUG INSTRUMENTATION (th4) -- TOWN PORTAL ===================
+// Set TH4_PORTAL_DEBUG to 0 to disable. Observes only, changes no behaviour.
+// Investigating "the open town portal sometimes animates at double speed" (SP, 2026-09).
+// Double speed on the loop is what two MI_10_TOWN_PORTAL missiles on the same tile look
+// like (each advances one frame per tick, out of step). This logs to TH4_portal.log next
+// to the exe:
+//   CAST  -- every CastTownPortal: new index, tile, caster, caster type, dungeon, the
+//            caster position it was given ((0,0) = AddWarpMissile / SyncPortals path),
+//            and how many MI_10 missiles are alive right after it;
+//   STATE -- whenever the set of live MI_10 missiles changes (checked once per tick in
+//            ProcessMissiles), one line per portal, flagging tiles holding two or more.
+// Remove once the cause is found.
+#define TH4_PORTAL_DEBUG 0
+#if TH4_PORTAL_DEBUG
+static int PortalDbg_CountAlive()
+{
+	int n = 0;
+	for( int i = 0; i < MissileAmount; ++i ){
+		const Missile& m = Missiles[MissileIndexes[i]];
+		if( m.BaseMissileIndex == MI_10_TOWN_PORTAL && !m.IsDeleted ) ++n;
+	}
+	return n;
+}
+static void PortalDbg_Cast( int missileIndex, int casterRow, int casterCol, int casterType, int casterIndex )
+{
+	if( FILE* f = fopen("TH4_portal.log", "a") ){
+		const Missile& m = Missiles[missileIndex];
+		fprintf(f, "[CAST ] tick=%u dungeon=%d idx=%d tile(%d,%d) caster=%d type=%d given(%d,%d) deleted=%d  aliveMI10=%d\n",
+			(unsigned)WorldFrameIndex, (int)(DUNGEON)Dungeon, missileIndex, m.Row, m.Col, casterIndex, casterType,
+			casterRow, casterCol, (int)m.IsDeleted, PortalDbg_CountAlive());
+		fclose(f);
+	}
+}
+static void PortalDbg_Tick()
+{
+	// signature of the live portal set: indices + tiles; log only when it changes
+	static unsigned lastSig = 0; static bool first = true;
+	unsigned sig = 2166136261u; int n = 0;
+	for( int i = 0; i < MissileAmount; ++i ){
+		const int idx = MissileIndexes[i]; const Missile& m = Missiles[idx];
+		if( m.BaseMissileIndex != MI_10_TOWN_PORTAL || m.IsDeleted ) continue;
+		sig = (sig ^ (unsigned)(idx * 131 + m.Row * 7 + m.Col)) * 16777619u; ++n;
+	}
+	sig ^= (unsigned)(DUNGEON)Dungeon * 97u;
+	if( !first && sig == lastSig ) return;
+	first = false; lastSig = sig;
+	if( FILE* f = fopen("TH4_portal.log", "a") ){
+		fprintf(f, "[STATE] tick=%u dungeon=%d liveMI10=%d\n", (unsigned)WorldFrameIndex, (int)(DUNGEON)Dungeon, n);
+		for( int i = 0; i < MissileAmount; ++i ){
+			const int idx = MissileIndexes[i]; const Missile& m = Missiles[idx];
+			if( m.BaseMissileIndex != MI_10_TOWN_PORTAL || m.IsDeleted ) continue;
+			int sameTile = 0;
+			for( int j = 0; j < MissileAmount; ++j ){
+				const Missile& o = Missiles[MissileIndexes[j]];
+				if( o.BaseMissileIndex == MI_10_TOWN_PORTAL && !o.IsDeleted && o.Row == m.Row && o.Col == m.Col ) ++sameTile;
+			}
+			fprintf(f, "        idx=%d tile(%d,%d) caster=%d type=%d dir=%d sprite=%d frame=%d/%d delay=%d step=%d ttl=%d%s\n",
+				idx, m.Row, m.Col, m.CasterIndex, m.CasterType, m.direction, (int)m.spriteIndex,
+				m.FrameIndex, m.framesCount, m.animationDelayFrameCount, m.FrameStep, m.TimeToLive,
+				sameTile > 1 ? "   <<< DUPLICATE TILE" : "");
+		}
+		fclose(f);
+	}
+}
+#endif
+// ===================================================================================
+
 void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
 {
 	Missile& missile = Missiles[missileIndex];
@@ -4455,7 +4827,7 @@ void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, i
 	int& StartAnimationEndFrame = missile.value[0];
 
 	if( Dungeon == DUN_0_TOWN ){
-		// Появление портала в городе. кастуется програмно при заходе в город
+		// (rt) Portal appearing in town. Cast programmatically on entering town
 		// 00432E5E
 		missile.Row = targetRow;
 		missile.Col = targetCol;
@@ -4514,7 +4886,7 @@ void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, i
 	StartAnimationEndFrame = 100 - missile.framesCount;
 	missile.value[1] = 0;
 
-	// закрываем другие порталы того же игрока
+	// (rt) close other portals of the same player
 	for( int i = 0; i < MissileAmount; i++){
 		int castIndex = MissileIndexes[i];
 		Missile& missile = Missiles[castIndex];
@@ -4526,6 +4898,9 @@ void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, i
 	}
 	// 00432EEC
 	PutMissile(missileIndex);
+	#if TH4_PORTAL_DEBUG
+	PortalDbg_Cast(missileIndex, casterRow, casterCol, casterType, casterIndex);
+	#endif
 	if( casterIndex == CurrentPlayerIndex && !missile.IsDeleted && Dungeon != DUN_0_TOWN ){
 		int destLvl = (DUNGEON)Dungeon;
 		if( Dungeon->isQuest
@@ -4541,11 +4916,11 @@ void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, i
 void __fastcall CastFlashForward(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
 {
 	Missile& missile = Missiles[missileIndex];
-	if( casterType != CT_0_PLAYER ){ // Монстр
+	if( casterType != CT_0_PLAYER ){ // (rt) Monster
 		missile.Damage = 16 * (Monsters[casterIndex].ArmorClass - 3); // 0043300C
-	}else if( casterIndex == -1 ){ // Ловушка? Алтарь
+	}else if( casterIndex == -1 ){ // (rt) Trap? Shrine
 		missile.Damage = Dungeon->level; // 00432FFB
-	}else{ // Игрок
+	}else{ // (rt) Player
 		/*missile.Damage = 0; // 00432F76 <<- old fucked up formula
 		for( int i = 0; i <= Players[casterIndex].CharLevel; i++){
 			missile.Damage += RNG(43) + 1;
@@ -4570,15 +4945,15 @@ void __fastcall CastNullSpell(int missileIndex, int casterRow, int casterCol, in
 void __fastcall CastSomeAnotherFlashBk(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
 {
 	Missile& missile = Missiles[missileIndex];
-	if( casterType != CT_0_PLAYER ){ // Монстры не умеют это кастовать?
+	if( casterType != CT_0_PLAYER ){ // (rt) Monsters can't cast this?
 		return;
 	}
-	if( casterIndex == -1 ){// Ловушки не умеют этого?
+	if( casterIndex == -1 ){// (rt) Traps can't do this?
 		return;
 	}
 	missile.Damage = 0;
 	int timeToLive;
-	if( 2 * (casterIndex > 0) ){// TODO: а ничего страшного что у игрока в сингле индекс 0?
+	if( 2 * (casterIndex > 0) ){// (rt) TODO: isn't it a problem that the player's index in single player is 0?
 		timeToLive = Players[casterIndex].CharLevel;
 	}else{
 		timeToLive = 1;
@@ -4591,7 +4966,7 @@ void __fastcall CastFlashBack( int missileIndex, int casterRow, int casterCol, i
 {
 	Missile& missile = Missiles[missileIndex];
 	if( casterType == CT_0_PLAYER ){
-		if( casterIndex == -1 ){ // TODO: не будет выполнено. У ловушек casterType 1
+		if( casterIndex == -1 ){ // (rt) TODO: will never run. Traps have casterType 1
 			missile.Damage = Dungeon->level; // 0043313F
 		}else{
 			Player& player = Players[casterIndex]; // 004330BE
@@ -4629,7 +5004,7 @@ void __fastcall CastManaShield(int missileIndex, int casterRow, int casterCol, i
     playerLastBaseLife = player.BaseLife;
 	missile.value[7] = -1;
 	// 004331C4
-	if( casterType == CT_0_PLAYER ){// ненужная перестраховка. Всё равно никто кроме игроков не способен кастовать мш
+	if( casterType == CT_0_PLAYER ){// (rt) unnecessary safeguard. Nobody but players can cast mana shield anyway
 		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_11_MANA_SHIELD);
 	}
 }
@@ -4742,7 +5117,7 @@ void __fastcall CastHydra(int missileIndex, int casterRow, int casterCol, int ta
 			int row = targetRow + CircleAndWallSegmentDeltas[1 + circleOffset + coordinateIndex*2];
 			int col = targetCol + CircleAndWallSegmentDeltas[1 + circleOffset + coordinateIndex*2 + 1];
 
-			if( To112(row, col) // было +-15 в th2, сделал как в th1 с 1 до 111
+			if( To112(row, col) // (rt) was +-15 in th2, made it like th1, from 1 to 111
 			 && CheckCastInSight(casterRow, casterCol, row, col) 
 			 && !MonsterMap[ row ][ col ] 
 			 && !TileBlockMissle[FineMap[ row ][ col ]] 
@@ -4889,7 +5264,7 @@ void __fastcall CastRunAttack( int missileIndex, int casterRow, int casterCol, i
 	int tilesInCell = 0;
 	MonsterPosAdjust(&monsterAnimation->oriented[casterDirection], missile.value[3], missile.value[2], tilesInCell);
 	missile.flag |= MSF_LIGHT;
-	if( monster.newBossId ){// (16) расширение номера босса 0043362A
+	if( monster.newBossId ){// (rt) (16) boss number extension 0043362A
 		missile.uniqTrans = monster.uniqTrans + 1;
 		missile.LightIndex = monster.LightIndex;
 	}
@@ -4924,7 +5299,7 @@ void __fastcall CastSomeAnotherMonsterRun( int missileIndex, int casterRow, int 
 	missile.value[0] = 0;
 	missile.value[1] = 0;
 	missile.flag |= MSF_LIGHT;
-	if( monster.newBossId ){// (17) расширение номера босса 004336B5
+	if( monster.newBossId ){// (rt) (17) boss number extension 004336B5
 		missile.uniqTrans = monster.uniqTrans + 1;
 	}
 	missile.TimeToLive = 256;
@@ -5034,7 +5409,7 @@ void __fastcall CastAcidMissile( int missileIndex, int casterRow, int casterCol,
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, 16);
 	int orientation = SelectMissileDirectionFrom16(casterRow, casterCol, targetRow, targetCol);
 	SetMissileDirection(missileIndex, orientation);
-	if( (missile.DeltaY & 0xFFFF0000) || (missile.DeltaX & 0xFFFF0000) ){ // похоже предотвращение висения плевка в воздухе
+	if( (missile.DeltaY & 0xFFFF0000) || (missile.DeltaX & 0xFFFF0000) ){ // (rt) looks like it prevents a spit from hanging in the air
 		if( casterType == CT_0_PLAYER ){
 			if( !CastingNovaInProgress && !(missile.spellIndex == PS_13_HYDRA && HasTrait(missile.CasterIndex, TraitId::Hydramancer))){
 				MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, missile.spellIndex);
@@ -5084,7 +5459,7 @@ void __fastcall CastSpell59AcidPools( int missileIndex, int casterRow, int caste
     else
     {
         AcidPoolLimiter( missileIndex );
-        missile.TimeToLive = RNG(15) + 40 * (Monsters[missile.CasterIndex].intel + 1);// TODO: идиотский рассчет времени жизни
+        missile.TimeToLive = RNG(15) + 40 * (Monsters[missile.CasterIndex].intel + 1);// (rt) TODO: questionable lifetime calculation
     }
     
 	missile.DeltaY = 0;
@@ -5150,9 +5525,10 @@ void __fastcall CastStoneCurse( int missileIndex, int casterRow, int casterCol, 
 }
 
 //----- (th2) -------------------------------------------------------------
-int CalculateLesserSummonsMaxAmount( int slvl )
+int CalculateLesserSummonsMaxAmount( int slvl, int playerindex)
 {
     int result = 3 + slvl / 2;
+	result += PerkValue(SYNERGY_ONE_MORE, playerindex);
     LimitToRange( result, 3, SummonLesserAmount );
     return result;
 }
@@ -5182,7 +5558,7 @@ int CalculateGolemMaxAmount(int playerindex)
 int CalculateSummonsMaxAmount( int summonType, int slvl, int playerindex )
 {
     switch( summonType ){
-        case SUM_LESSER: return CalculateLesserSummonsMaxAmount( slvl ); break;
+        case SUM_LESSER: return CalculateLesserSummonsMaxAmount( slvl, playerindex); break;
         case SUM_COMMON: return CalculateCommonSummonsMaxAmount( slvl ); break;
 		case SUM_GOLEM:  return CalculateGolemMaxAmount ( playerindex ); break;
         default:                                                        break;
@@ -5502,7 +5878,7 @@ void __fastcall CastHealing( int missileIndex, int casterRow, int casterCol, int
 		do{
 			healingPoints += (RNG(2) + 1) * 64; // +[1-2] * baseVIT
 
-		}while( ++i < player.BaseVitality / 2);// TODO: несоответствие проверки вначале и тут, баг
+		}while( ++i < player.BaseVitality / 2);// (rt) TODO: the check at the start doesn't match the one here, bug
 	}
 	// 00433E2C
 	for( int i = 0; i < missile.SpellLevel; i++ ){
@@ -5515,8 +5891,11 @@ void __fastcall CastHealing( int missileIndex, int casterRow, int casterCol, int
 	}else if( player.fullClassId == PFC_EXECUTIONER ){ // +50%
 		healingPoints += healingPoints / 2;
 	}
+	else if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		healingPoints = 1000 * 64;
+	}
 
-	healingPoints += healingPoints * (PerkValue(PERK_AUGMENTED_HEALING, casterIndex) + PerkValue(PERK_HEALING_MASTERY, casterIndex)) / 100;
+	healingPoints += healingPoints * (PerkValue(PERK_AUGMENTED_HEALING, casterIndex) + PerkValue(PERK_HEALING_MASTERY, casterIndex) + PerkValue(PERK_MAINTENANCE, casterIndex)) / 100;
 
 	// 00433E8D
 	player.CurLife  += healingPoints;
@@ -5539,7 +5918,7 @@ void __fastcall CastManaRecharge( int missileIndex, int casterRow, int casterCol
 		int i = 0;
 		do{
 			manaAddsCount += (RNG(2) + 1) * 64;
-		}while( ++i < player.BaseMagic);// TODO: несоответствие проверки вначале и тут, баг
+		}while( ++i < player.BaseMagic);// (rt) TODO: the check at the start doesn't match the one here, bug
 	}
 	// 00433F4F
 	for( int i = 0; i < missile.SpellLevel; i++ ){
@@ -5664,7 +6043,7 @@ void __fastcall CastElemental( int missileIndex, int casterRow, int casterCol, i
 	MinusManaOrChargeOrRelicByPriceOfSSpell( casterIndex, PS_29_ELEMENTAL );
 }
 
-// в тх2 заменена на универсальную, хоть и более медленную SelectMissileDirection
+// (rt) in th2 replaced with the universal, though slower, SelectMissileDirection
 char DirTable_8[16][16] = {
 	{	2,	0,	0,	0,		0,	0,	0,	0,		0,	0,	0,	0,		0,	0,	0,	0	},// 0
 	{	2,	1,	1,	1,		0,	0,	0,	0,		0,	0,	0,	0,		0,	0,	0,	0	},// 1
@@ -5768,8 +6147,8 @@ void __fastcall CastMagicWall( int missileIndex, int casterRow, int casterCol, i
 		missile.value[5] = col;                       // wallSecondBeamCol
 		missile.value[6] = 0;                         // isSecondBeamBlocked
 		missile.value[7] = 0;                         // isFirstBeamBlocked
-		missile.TimeToLive = 7; // длина стены в каждую сторону от точки каста
-		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, missile.spellIndex);// TODO: и у молниевой стены и у огненной снимается как у огненной
+		missile.TimeToLive = 7; // (rt) wall length in each direction from the cast point
+		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, missile.spellIndex);// (rt) TODO: both the lightning wall and the fire wall are removed like the fire wall
 	}
 }
 
@@ -5841,7 +6220,7 @@ void __fastcall CastFury( int missileIndex, int casterRow, int casterCol, int ta
 	Player& player = Players[casterIndex];
 	Missile& missile = Missiles[missileIndex];
 	
-	if( casterIndex == -1 || player.activeBuffFlag & (BF_2_FURY_ACTIVE|BF_3_FURY_LETARGY) // casterIndex == -1 это ловушка/моб ?
+	if( casterIndex == -1 || player.activeBuffFlag & (BF_2_FURY_ACTIVE|BF_3_FURY_LETARGY) // (rt) casterIndex == -1 means trap/monster?
 	 /*|| player.CurLife <= player.CharLevel * 64*/ ){ // was commented what this condition is extra 
 		missile.IsDeleted = true; // repeated Fury deletes immediately 
 	}else{
@@ -5864,7 +6243,12 @@ void __fastcall CastFury( int missileIndex, int casterRow, int casterCol, int ta
 			case PFC_WARRIOR:
 			case PFC_INQUISITOR:
 			case PFC_GUARDIAN:
-			case PFC_TEMPLAR:			si = S_800_WAR_FURY; break;	// PlayLocalSound( S_800_WAR_FURY, player.Row, player.Col ); break;
+			case PFC_TEMPLAR:
+			{
+				if(player.gameChanger & BIT(GC_28_SUPERMUTANT)){ si = S_1910_MUTIE_FURY; }
+				else { si = S_800_WAR_FURY; }
+			}
+				break;	// PlayLocalSound( S_800_WAR_FURY, player.Row, player.Col ); break;
 			case PFC_ARCHER:
 			case PFC_SCOUT:
 			case PFC_SHARPSHOOTER:
@@ -5883,6 +6267,7 @@ void __fastcall CastFury( int missileIndex, int casterRow, int casterCol, int ta
 			case PFC_ASSASSIN:
 			case PFC_IRON_MAIDEN:
 			case PFC_BOMBARDIER:
+			case PFC_GLADIATRIX:
 				switch ( RNG(2) ) {
 					case 0:	si = S_1207; break;
 					case 1:	si = S_1208; break;
@@ -6036,7 +6421,7 @@ void __fastcall CastIncinerateSegment( int missileIndex, int casterRow, int cast
 	// 00434FCA
 	missile.CasterRow = targetRow;
 	missile.CasterCol = targetCol;
-	Missile& missile2 = Missiles[incinerateIndex];// ссылка на инферно который создал этот фрагмент
+	Missile& missile2 = Missiles[incinerateIndex];// (rt) reference to the inferno that created this fragment
 	missile.ColDisplacement = missile2.ColDisplacement;
 	missile.RowDisplacement = missile2.RowDisplacement;
 	missile.WholeDeltaY = missile2.WholeDeltaY;
@@ -6081,7 +6466,7 @@ void __fastcall CastIncinerate( int missileIndex, int casterRow, int casterCol, 
 	}
 	// 004350DF
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, 32);
-	if( casterType == CT_0_PLAYER ){// человек
+	if( casterType == CT_0_PLAYER ){// (rt) human
 		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_20_INCINERATE);
 	}
 	// 004350FE
@@ -6271,7 +6656,7 @@ void __fastcall CastSpell77HolyBoltArrow( int missileIndex, int casterRow, int c
 	}
 	// 00435413
 	int missileSpeed = 16;
-	if( casterIndex != -1 ){// ловушка?
+	if( casterIndex != -1 ){// (rt) trap?
 		missileSpeed = 2 * missile.SpellLevel + 16;
 	}
 	LimitToMax(missileSpeed, 63);
@@ -6294,7 +6679,7 @@ void __fastcall CastSpellRising( int missileIndex, int casterRow, int casterCol,
 	Missile& missile = Missiles[missileIndex];
 	missile.IsDeleted = true;
 	if( casterIndex == CurrentPlayerIndex && Cur.GraphicsID == CM_1_NORMAL_HAND ){
-		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_32_BONE_SPIRIT_REAL_RESSURECT);// TODO: заклинание воскрешения похоже отсутствует в списке заклинаний и вместо него теперь бон спирит
+		MinusManaOrChargeOrRelicByPriceOfSSpell(casterIndex, PS_32_BONE_SPIRIT_REAL_RESSURECT);// (rt) TODO: the resurrection spell seems to be missing from the spell list, and Bone Spirit is there instead
 		SetCursorGraphics(CM_8_RISING);
 	}
 }
@@ -6421,7 +6806,7 @@ void __fastcall CastTentacle(int missileIndex, int casterRow, int casterCol, int
 	Monster& monster = Monsters[missile.CasterIndex];
 	monster.flag |= MF_16_TRACK_ATTACK;
 	missile.Damage = RngFromRange(monster.SecondMinDamage, monster.SecondMaxDamage);
-	missile.Damage = 7 * missile.Damage / 5; // tentacle damage increased by 40%
+	missile.Damage = 13 * missile.Damage / 10; // tentacle damage increased by 30%
 	int missileSpeed = 11 + Difficulty / 2;
 	LimitToMax(missileSpeed, 40);
 	SetMissileMovementDelta(missileIndex, casterRow, casterCol, targetRow, targetCol, missileSpeed);
@@ -6533,7 +6918,7 @@ int __fastcall CastMissile(int casterRow, int casterCol, int targetRow, int targ
 	int casterDirection = casterDirection_missileIndex;
 	missile.direction = casterDirection;
 	//__debugbreak();
-	if( missile.spriteIndex == MIS_M1_NONE || MissileSprites[missile.spriteIndex].animDirectionsCount < 8 ){// Если имеются касты не для всех 8ми направлений выбираем 0е направление
+	if( missile.spriteIndex == MIS_M1_NONE || MissileSprites[missile.spriteIndex].animDirectionsCount < 8 ){// (rt) If casts exist not for all 8 directions, pick direction 0
 		casterDirection = 0;
 	}
 	SetMissileDirection(missileIndex, casterDirection);
@@ -6568,6 +6953,12 @@ int __fastcall CastMissile(int casterRow, int casterCol, int targetRow, int targ
 		}
 	}
 	baseMissile.castFunc(missileIndex, casterRow, casterCol, targetRow, targetCol, casterDirection_missileIndex, casterType, casterIndex, damage);
+	// (th4) optional Shockwave screen effect (dx_utility.cpp): a distortion ring where an
+	// Exploder's explosion starts. The only other source is the Fireblast IMPACT, which is
+	// not a separate missile -- see ActFireblast, where it switches to its explosion sprite.
+	if( Shockwave > 0 && baseMissileIndex == MI_140_EXPLODER ){
+		Shockwave_Add( Missiles[missileIndex].Row, Missiles[missileIndex].Col, Missiles[missileIndex].ColDisplacement, Missiles[missileIndex].RowDisplacement );
+	}
 	return missileIndex;
 }
 
@@ -6578,6 +6969,19 @@ struct Hydra { int elem, missile, spell; } Hydras[] = {
 	{ ET_4_ACID     , MI_137_RANCID_BOLT             , PS_59_RANCID_BOLT  },
 };
 //----- (004358C1) --------------------------------------------------------
+// (th4) Is this monster a legitimate target for a PLAYER's auto-targeting effect?
+// Two things exclude it: living in a summon slot (the player's own golem / minions),
+// and carrying MF_6_FRIENDLY -- which is how the Dark Campaign escorts (Red Vex, Dark
+// Jade, Hephasto, the freed Butcher) and befriended monsters are marked. They live in
+// ORDINARY slots, so an index-range test alone reads them as enemies. That is why a
+// player's hydra sat firing at its own escort with nothing else in sight. The hit path
+// (MissileAttack) already skips friendlies, so the bolts did nothing but keep coming.
+static bool IsPlayerAutoTarget( int monsterIndex )
+{
+	if( monsterIndex < SummonMonsters_Count ) return false;
+	return !( Monsters[monsterIndex].flag & MF_6_FRIENDLY );
+}
+
 bool __fastcall AttackCellByHydra( int missileIndex, int row, int col )
 {
 	Missile& missile = Missiles[missileIndex];
@@ -6602,7 +7006,7 @@ bool __fastcall AttackCellByHydra( int missileIndex, int row, int col )
 				//Firing mana cost is turned off in CastFireBolt(), CastArcaneStar(), CastAcidMissile().  For Charged Bolt, it's automatically turned off.
 				if( PlayerSpellLevel(missile.CasterIndex, spell, SO_1_SPELL) <= 0 ) return false;
 			}
-			if( ! IsMonsterImmuneToMissile(monsterIndex, elem, missile.CasterIndex) && monsterIndex >= SummonMonsters_Count ){
+			if( ! IsMonsterImmuneToMissile(monsterIndex, elem, missile.CasterIndex) && IsPlayerAutoTarget( monsterIndex ) ){
 				int damage = GetDamageOfPlayerSpell(missile.CasterIndex, missile.spellIndex, missile.SpellLevel, elem); // use hydra level for damage calc
 				int dir = OrientationToTarget(missile.Row, missile.Col, row, col);
 				missile.value[2] = MissileIndexList[0]; // CurHydraFireboltIndex
@@ -6678,7 +7082,7 @@ void __fastcall ActRune(int missileIndex)
 	Missile& missile = Missiles[missileIndex];
 	int row = missile.Row;
 	int col = missile.Col;
-	int monsterIndex = abs (MonsterMap[ row ][ col ]) - 1;// TODO: уязвимость из за убранного условия наступления монстра на руну. Может читать данные -1 монстра. хорошо что только читать
+	int monsterIndex = abs (MonsterMap[ row ][ col ]) - 1;// (rt) TODO: vulnerability due to the removed condition of a monster stepping on the rune. May read the data of monster -1. Good thing it only reads
 	missile.IsDeleted = true;
 	int orientation = OrientationToTarget(row, col, Monsters[monsterIndex].Row, Monsters[monsterIndex].Col);
 	LightOff(missile.LightIndex);
@@ -6721,6 +7125,7 @@ void __fastcall ActGolem(int missileIndex)
 			if( To112(row, col)
 				&& CheckCastInSight(casterRow, casterCol, row, col) 
 				&& ! MonsterMap[ 0 ][ cell ] 
+				&& ! PlayerMap[ 0 ][ cell ]	// (th4) never on a hero's tile: the ring search goes on to the nearest free one
 				&& ! TileBlockWalking[ FineMap[ 0 ][ cell ] ] 
 				&& ! ObjectsMap[ 0 ][ cell ] ){
 					// 00435CA8
@@ -6907,6 +7312,475 @@ void __fastcall ActMagicArrow( int missileIndex )
 	}
 	PutMissile(missileIndex);
 }
+//----- (new by th4) ------------------------------------------------------
+// TOWN ARCANE STARS -- decoration, not a spell. While the Maiden of Anguish quest is
+// ACTIVE (Q_22 status QS_2_IN_PROGRESS: Cain has given it, Andariel not yet dead) and the
+// game is SINGLE PLAYER, a few arcane stars swirl in a small circle over fixed Tristram
+// tiles and flash by pulsing their light. They never hit anything: the act function below
+// never calls a collision/hit routine, and the caster is CT_M1_MAP_OBJECT.
+//
+// Pieces that belong together:
+//   enums.h            MI_161_TOWN_ARCANE_STAR
+//   SpellCasts.cpp     BaseMissiles[161] row (sprite MIS_22_FLARE, the original crimson arcane star; no sounds)
+//   funcs.h            the three declarations below
+//   TownMap.cpp        ProcessTowners() calls TownArcaneStars_Update() every town tick
+//   Missile.cpp        GetMissileLightTint: crimson, matching the Flare sprite, so
+//                      in Ultra (g_ARGBLighting) the pulsing light tints the ground around it
+//
+// TO ADD A STAR: append its tile to TownArcaneStarSpots. Each star remembers its spot index
+// in value[2]; the updater spawns whichever spot has no live star, so a save/load (missiles
+// are saved) never duplicates one. Each star owns one light slot of the 128 per level.
+static const struct { int row, col; } TownArcaneStarSpots[] = {
+	{ 80, 17 },	// beside the Halls of Anguish entrance (quest portal at 80,14)
+	{ 79, 28 },
+	{ 79, 43 },
+	{ 68, 45 },
+};
+static const int TownArcaneStarSpotCount = sizeof(TownArcaneStarSpots) / sizeof(TownArcaneStarSpots[0]);
+
+// One lap of the swirl: cos/sin * 1024 for 32 steps. No <math.h> in this project (stdafx.h).
+static const int TownStarCircle[32][2] = { {1024,0}, {1004,200}, {946,392}, {851,569}, {724,724}, {569,851}, {392,946}, {200,1004}, {0,1024}, {-200,1004}, {-392,946}, {-569,851}, {-724,724}, {-851,569}, {-946,392}, {-1004,200}, {-1024,0}, {-1004,-200}, {-946,-392}, {-851,-569}, {-724,-724}, {-569,-851}, {-392,-946}, {-200,-1004}, {0,-1024}, {200,-1004}, {392,-946}, {569,-851}, {724,-724}, {851,-569}, {946,-392}, {1004,-200} };
+// Light radius per tick of the flash cycle (3..7). The authored arcane star uses 8.
+static const int TownStarFlash[12] = { 5, 6, 7, 7, 7, 6, 5, 4, 3, 3, 3, 4 };
+static const int TownStarOrbit1024 = 640;	// orbit radius, 1/1024 tile (0.625 tile)
+
+static bool TownArcaneStars_Wanted()
+{
+	return Dungeon == DUN_0_TOWN
+		&& MaxCountOfPlayersInGame == 1
+		&& Quests[Q_22_MAIDEN_OF_ANGUISH].status == QS_2_IN_PROGRESS;
+}
+
+void __fastcall CastTownArcaneStar(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
+{
+	Missile& missile = Missiles[missileIndex];
+	missile.value[0] = 0;					// swirl step (0..31)
+	missile.value[1] = 0;					// flash step (0..11)
+	missile.value[2] = casterDirection;		// which TownArcaneStarSpots entry this star serves
+	missile.TimeToLive = 1;					// lifetime is owned by the Wanted() check, not by TTL
+	missile.CasterRow = casterRow;			// swirl centre
+	missile.CasterCol = casterCol;
+	missile.LightIndex = AddLight(casterRow, casterCol, TownStarFlash[0]);
+}
+
+void __fastcall ActTownArcaneStar(int missileIndex)
+{
+	Missile& missile = Missiles[missileIndex];
+	if( !TownArcaneStars_Wanted() ){
+		missile.IsDeleted = true;
+		LightOff(missile.LightIndex);
+		return;
+	}
+	if( IsMainDraw ){	// advance only on real game ticks, not on interpolation passes
+		// swirl: 3/8 of a step per tick (value[3] accumulates eighths), a lap per ~85 ticks
+		missile.value[3] += 3;
+		if( missile.value[3] >= 8 ){ missile.value[3] -= 8; missile.value[0] = (missile.value[0] + 1) & 31; }
+		if( ++missile.value[1] >= 12 ) missile.value[1] = 0;
+	}
+	// Tile offset on the circle -> MoveMissile's isometric fixed-point deltas (same maths as
+	// ActBlessedHammer: WholeDeltaX = 16*(dR+dC), WholeDeltaY = 32*(dR-dC), whole px << 16).
+	const int dR = TownStarOrbit1024 * TownStarCircle[missile.value[0]][0] / 1024;	// 1/1024 tile
+	const int dC = TownStarOrbit1024 * TownStarCircle[missile.value[0]][1] / 1024;
+	missile.WholeDeltaX = (16 * (dR + dC) / 1024) << 16;
+	missile.WholeDeltaY = (32 * (dR - dC) / 1024) << 16;
+	MoveMissile(missileIndex);
+	if( missile.IsDeleted ) return;
+	if( IsMainDraw ) ChangeLightRadius(missile.LightIndex, TownStarFlash[missile.value[1]]);
+	PutMissile(missileIndex);
+}
+
+// Called every town tick from ProcessTowners (TownMap.cpp). Spawns a star for any spot that
+// has none; stars delete themselves (ActTownArcaneStar) once Wanted() turns false.
+void TownArcaneStars_Update()
+{
+	if( !TownArcaneStars_Wanted() ) return;
+	for( int spot = 0; spot < TownArcaneStarSpotCount; ++spot ){
+		bool present = false;
+		for( int i = 0; i < MissileAmount; ++i ){
+			const Missile& m = Missiles[MissileIndexes[i]];
+			if( m.BaseMissileIndex == MI_161_TOWN_ARCANE_STAR && !m.IsDeleted && m.value[2] == spot ){ present = true; break; }
+		}
+		if( !present ){
+			const int r = TownArcaneStarSpots[spot].row, c = TownArcaneStarSpots[spot].col;
+			CastMissile(r, c, r, c, spot, MI_161_TOWN_ARCANE_STAR, CT_M1_MAP_OBJECT, -1, 0, 0, 0);
+		}
+	}
+}
+
+//----- (new by th4) ------------------------------------------------------
+// Blessed Hammer: a persistent missile that orbits its caster (a Templar with the
+// PERK_BLESSED_HAMMER perk at level > 0). It reuses the throwing-mallet sprite. It is NOT
+// an aura: it only hits a monster whose tile the hammer currently overlaps. The hit is a
+// guaranteed, perk-only-scaled direct damage (no to-hit roll, no stat/item influence).
+// Lifetime is owned by the per-player maintenance in ProcessPlayers (BlessedHammer_Update),
+// so the hammer never deletes itself here.
+
+// Rings of tile offsets tracing circles of radius 2 / 3 / 4 in fine-map tile space (16 steps
+// each). Each hammer picks a ring by index (value[3]): hammer 0 -> ring 0 (radius 2),
+// hammer 1 -> ring 1 (radius 3), hammer 2 -> ring 2 (radius 4). Capped at 3 hammers.
+static const struct { int dRow, dCol; } BlessedHammerRings[3][16] = {
+	{ // [0] radius 2 (1st hammer)
+		{0,2}, {1,2}, {1,1}, {2,1}, {2,0}, {2,-1}, {1,-1}, {1,-2},
+		{0,-2}, {-1,-2}, {-1,-1}, {-2,-1}, {-2,0}, {-2,1}, {-1,1}, {-1,2},
+	},
+	{ // [1] radius 3 (2nd hammer)
+		{0,3}, {1,3}, {2,2}, {3,1}, {3,0}, {3,-1}, {2,-2}, {1,-3},
+		{0,-3}, {-1,-3}, {-2,-2}, {-3,-1}, {-3,0}, {-3,1}, {-2,2}, {-1,3},
+	},
+	{ // [2] radius 4 (3rd hammer)
+		{0,4}, {2,4}, {3,3}, {4,2}, {4,0}, {4,-2}, {3,-3}, {2,-4},
+		{0,-4}, {-2,-4}, {-3,-3}, {-4,-2}, {-4,0}, {-4,2}, {-3,3}, {-2,4},
+	},
+};
+static const int BlessedHammerRingSize = 16;
+static const int BlessedHammerRingCount = 3; // number of distinct radii available
+
+//----- (new by th4) ------------------------------------------------------
+// (th4) BLESSED HAMMER DIAGNOSTIC -- temporary. Set to 0 to switch off.
+// Writes TH4_hammer.log beside the exe: one line per ring step and one per cell decision.
+// NOTE the placement: this must sit ABOVE every use of HammerLog. An "#if TH4_HAMMER_DEBUG"
+// that appears before the #define evaluates as #if 0 and silently compiles the block out,
+// which is exactly why the first log had no "wrap" lines in it.
+#define TH4_HAMMER_DEBUG 0
+
+#if TH4_HAMMER_DEBUG
+// Variadic MACRO, not a varargs function: stdarg.h is commented out in stdafx.h.
+#define HammerLog(...) do{ FILE* f_ = fopen("TH4_hammer.log", "a"); \
+	if( f_ ){ fprintf(f_, __VA_ARGS__); fclose(f_); } }while(0)
+#endif
+
+//----- (new by th4) ------------------------------------------------------
+// One hit per target per pass of the hammer.
+//
+// This used to be free: the hammer struck only the single tile it stood on, and a ring is 16
+// DISTINCT tiles, so a monster could coincide with at most one of them per lap. Widening the
+// strike to a 3x3 footprint broke that -- consecutive ring points are one tile apart, so a
+// monster stays inside the moving footprint for several steps in a row and took a hit on every
+// one of them.
+//
+// TWO rules are needed, and one alone is not enough:
+//
+//  * LAP mask -- a monster struck this lap is not struck again until the ring index wraps to 0.
+//    On its own this fails at the seam: the wrap is a fixed point in SPACE, so a monster sitting
+//    near ring step 0 gets struck late in one lap and again immediately after the wrap while it
+//    is still under the hammer. That is the two-hits-per-lap case seen in testing (hit at idx 13,
+//    blocked at 14 and 15, hit again at idx 0).
+//
+//  * PREV mask -- what the footprint covered on the previous step. A monster is only struck on
+//    the step it ENTERS the footprint, never while it merely remains inside. On its own this
+//    also fails: on the inner ring exactly one tile is covered by four SEPARATE arcs of the lap,
+//    so it would take four entry hits per lap.
+//
+// Together they give exactly one hit per pass, with no seam artefact. The lap mask is cleared on
+// wrap; the prev mask deliberately is NOT, so a monster straddling the seam stays blocked until
+// the footprint actually leaves it.
+//
+// Kept in a side table rather than in Missile::value[] -- only value[4..7] are free, 128 bits,
+// and Monsters_Max_Count is 244. A side table also keeps the Missile struct (and therefore the
+// save format) untouched.
+static const int BlessedHammerMaskWords = (Monsters_Max_Count + 31) / 32;	// 8 words = 256 bits
+static const int BlessedHammerSlots     = PlayersMax_4 * 8;					// 4 players * up to 8 hammers
+static int  BlessedHammerSlotMissile[BlessedHammerSlots] = { 0 };			// owning missile index, -1 = free
+static uint BlessedHammerSlotLap [BlessedHammerSlots][BlessedHammerMaskWords] = { 0 };	// struck this lap
+static uint BlessedHammerSlotPrev[BlessedHammerSlots][BlessedHammerMaskWords] = { 0 };	// covered last step
+static uint BlessedHammerSlotCur [BlessedHammerSlots][BlessedHammerMaskWords] = { 0 };	// covered this step
+static bool BlessedHammerSlotsReady = false;
+
+// True while a slot still belongs to a live hammer. A deleted or recycled missile releases it.
+static bool BlessedHammer_SlotAlive(int slot)
+{
+	const int mi = BlessedHammerSlotMissile[slot];
+	if( mi < 0 || mi >= MissilesMax ) return false;
+	const Missile& m = Missiles[mi];
+	return m.BaseMissileIndex == MI_160_BLESSED_HAMMER && !m.IsDeleted;
+}
+
+// Drop this missile's slot, if it owns one. Called when a hammer is (re)cast, so a recycled
+// missile index can never inherit the previous hammer's hit list.
+static void BlessedHammer_ReleaseSlot(int missileIndex)
+{
+	if( !BlessedHammerSlotsReady ) return;
+	fori( BlessedHammerSlots ){
+		if( BlessedHammerSlotMissile[i] == missileIndex ) BlessedHammerSlotMissile[i] = -1;
+	}
+}
+
+// The slot holding this hammer's masks. Clears the LAP mask when the lap wraps; the PREV mask
+// survives the wrap on purpose (see the comment above). Returns -1 only if every slot is taken
+// by a live hammer, which needs more simultaneous hammers than the game can produce -- and even
+// then the caller just falls back to unfiltered hits rather than losing one.
+static int BlessedHammer_Slot(int missileIndex, bool lapWrapped)
+{
+	if( !BlessedHammerSlotsReady ){			// statics start zeroed, but 0 is a valid missile index
+		fori( BlessedHammerSlots ) BlessedHammerSlotMissile[i] = -1;
+		BlessedHammerSlotsReady = true;
+	}
+	int slot = -1;
+	fori( BlessedHammerSlots ){
+		if( BlessedHammerSlotMissile[i] == missileIndex ){ slot = i; break; }
+	}
+	if( slot < 0 ){							// first step for this hammer: claim a free/stale slot
+		fori( BlessedHammerSlots ){
+			if( !BlessedHammer_SlotAlive(i) ){ slot = i; break; }
+		}
+		if( slot < 0 ) return -1;
+		BlessedHammerSlotMissile[slot] = missileIndex;
+		fori( BlessedHammerMaskWords ){		// a brand new hammer starts with everything clear
+			BlessedHammerSlotLap[slot][i]  = 0;
+			BlessedHammerSlotPrev[slot][i] = 0;
+			BlessedHammerSlotCur[slot][i]  = 0;
+		}
+		lapWrapped = false;					// already clean, nothing more to do
+	}
+	if( lapWrapped ){
+		fori( BlessedHammerMaskWords ) BlessedHammerSlotLap[slot][i] = 0;
+		#if TH4_HAMMER_DEBUG
+		HammerLog("-- wrap: missile=%d slot=%d lap mask cleared (prev kept)\n", missileIndex, slot);
+		#endif
+	}
+	return slot;
+}
+
+// Called once after all nine cells of a step have been processed: this step's coverage becomes
+// the next step's "was already inside" set.
+static void BlessedHammer_EndStep(int slot)
+{
+	if( slot < 0 ) return;
+	fori( BlessedHammerMaskWords ){
+		BlessedHammerSlotPrev[slot][i] = BlessedHammerSlotCur[slot][i];
+		BlessedHammerSlotCur[slot][i]  = 0;
+	}
+}
+
+// Strike one cell of the footprint. A cell holds either a monster or a player, never both, so
+// returning early on an already-struck monster cannot swallow a PvP hit.
+static void BlessedHammer_StrikeCell(int missileIndex, int slot, int row, int col)
+{
+	if( !In112(row, col) ) return;
+	if( slot >= 0 ){
+		int monsterNum = MonsterMap[row][col];
+		// Resolve exactly as MissileAttack does. A monster mid-horizontal-step reserves a
+		// SECOND cell holding the same negative index; MonsterHorizontalHitFix promotes only
+		// the cell the monster actually stands on, so the reserved one never resolves to a
+		// hit and must not consume the monster's allowance either.
+		MonsterHorizontalHitFix(monsterNum, row, col);
+		if( monsterNum > 0 ){
+			const int monsterIndex = monsterNum - 1;
+			if( (uint)monsterIndex < Monsters_Max_Count ){
+				const uint bit = 1u << (monsterIndex & 31);
+				const int  w   = monsterIndex >> 5;
+				const bool hitThisLap  = (BlessedHammerSlotLap [slot][w] & bit) != 0;
+				const bool insideAlready = (BlessedHammerSlotPrev[slot][w] & bit) != 0;
+				BlessedHammerSlotCur[slot][w] |= bit;		// under the hammer on THIS step
+				#if TH4_HAMMER_DEBUG
+				HammerLog("    cell(%d,%d) mon=%d %s\n", row, col, monsterIndex,
+					hitThisLap ? "BLOCKED(lap)" : insideAlready ? "BLOCKED(inside)" : "HIT");
+				#endif
+				if( hitThisLap || insideAlready ) return;
+				BlessedHammerSlotLap[slot][w] |= bit;
+			}
+		}
+	}
+	const Missile& missile = Missiles[missileIndex];
+	MissileAttack(missileIndex, missile.Damage, missile.Damage, false, row, col, 0);
+}
+
+void __fastcall CastBlessedHammer(int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage)
+{
+	Missile& missile = Missiles[missileIndex];
+	// value[0] = current index into the orbit ring (starting phase passed via casterDirection).
+	// value[3] = which ring (radius) this hammer uses (0/1/2), passed via targetRow as a carrier.
+	missile.value[0] = casterDirection % BlessedHammerRingSize;
+	missile.value[3] = (targetRow >= 0 && targetRow < BlessedHammerRingCount) ? targetRow : 0;
+	missile.value[2] = -1;  // last sprite direction (force a SetMissileDirection on first Act)
+	missile.TimeToLive = 1; // kept alive by maintenance; not used to expire the hammer
+	missile.Distance = 1;   // non-zero so hit code treats it like a travelled projectile
+	BlessedHammer_ReleaseSlot(missileIndex); // fresh hammer, never inherit a recycled hit list
+	#if TH4_HAMMER_DEBUG
+	HammerLog("== CAST missile=%d ring=%d phase=%d dmg=%d (slot released)\n",
+		missileIndex, missile.value[3], missile.value[0], damage);
+	#endif
+}
+
+//----- (new by th4) ------------------------------------------------------
+void __fastcall ActBlessedHammer(int missileIndex)
+{
+	Missile& missile = Missiles[missileIndex];
+
+	// Caster must still be a valid, existing player on this level; otherwise let the missile
+	// die (maintenance will also stop re-arming it).
+	if( (uint)missile.CasterIndex >= PlayersMax_4 ){ missile.IsDeleted = true; return; }
+	Player& player = Players[missile.CasterIndex];
+	if( !player.IsExists || Dungeon != player.dungeon ){ missile.IsDeleted = true; return; }
+
+	// (th4) The hit list is fetched HERE, at the advance, not down in the strike block. The
+	// strike block is behind a line-of-sight test and a "not on the caster's tile" test; if the
+	// lap happened to wrap on a frame where either failed, the reset would be skipped and every
+	// target struck on the previous lap would stay immune for the whole of the next one.
+	int  hammerSlot = -1;
+	bool lapWrapped = false;
+	if( IsMainDraw ){
+		// advance orbit one step every OTHER game frame (half speed). value[1] is the toggle.
+		missile.value[1] ^= 1;
+		if( missile.value[1] == 0 ){
+			missile.value[0] = (missile.value[0] + 1) % BlessedHammerRingSize;
+			// Back to the start of the ring: a new lap, so every target is fair game again.
+			lapWrapped = (missile.value[0] == 0);
+		}
+		hammerSlot = BlessedHammer_Slot(missileIndex, lapWrapped);
+	}
+	int idx = missile.value[0];
+	int prevIdx = (idx - 1 + BlessedHammerRingSize) % BlessedHammerRingSize;
+	int ringIdx = missile.value[3];
+	if( ringIdx < 0 || ringIdx >= BlessedHammerRingCount ) ringIdx = 0;
+	const auto* ring = BlessedHammerRings[ringIdx];
+
+	// Anchor to the player's CURRENT position, then offset by the ring, reusing MoveMissile's
+	// isometric math. From MoveMissile: tile offset (dR,dC) <=> WholeDeltaX=16*(dR+dC),
+	// WholeDeltaY=32*(dR-dC) (in whole units; << 16 for the fixed-point fields it consumes).
+	missile.CasterRow = player.Row;
+	missile.CasterCol = player.Col;
+	int dR = ring[idx].dRow;
+	int dC = ring[idx].dCol;
+	missile.WholeDeltaX = (16 * (dR + dC)) << 16;
+	missile.WholeDeltaY = (32 * (dR - dC)) << 16;
+	MoveMissile(missileIndex); // sets Row/Col + sub-tile displacement from Whole deltas
+	if( missile.IsDeleted ) return; // MoveMissile flags off-map; maintenance will respawn
+
+	// Face the hammer along its travel direction (previous ring point -> current).
+	// SetMissileDirection re-inits the sprite: it reloads the authored 9-tick anim delay and
+	// resets FrameIndex to 1. We want a continuous spin regardless of facing changes, so:
+	//  - preserve FrameIndex across the direction switch,
+	//  - force animationDelayFrameCount to 1 (advance the spin one frame per game tick).
+	int newDir = SelectMissileDirectionFrom16(
+		player.Row + ring[prevIdx].dRow, player.Col + ring[prevIdx].dCol,
+		missile.Row, missile.Col );
+	if( newDir != missile.value[2] ){
+		int savedFrame = missile.FrameIndex;
+		int savedDelayIdx = missile.AnimationDelayIndex;
+		SetMissileDirection(missileIndex, newDir);
+		missile.FrameIndex = savedFrame;             // keep the spin going, don't snap to frame 1
+		missile.AnimationDelayIndex = savedDelayIdx;
+		missile.value[2] = newDir;
+	}
+	missile.animationDelayFrameCount = 1; // spin one sprite frame per game tick (full speed)
+
+	if( IsMainDraw ){
+		// Route the hit through the normal arrow path (MissileAttack -> PvM_Ranged) so ALL
+		// monster-side mitigation (boss halving, resistances, armored affix, per-monster
+		// reductions, ...) is applied in one place. PvM_Ranged has surgical isBlessedHammer
+		// guards that skip the accuracy roll (always hit) and all player stat/item damage
+		// scaling (damage comes straight from the perk via missile.Damage). Friendly summons
+		// are skipped inside MissileAttack (MF_6_FRIENDLY). Knockback is disabled for the hammer.
+		// Only strike on the advance frame (value[1]==0) -> one hit per tile occupancy.
+		// Also require the player to have line of sight to the hammer's tile, so the hammer
+		// can't damage monsters through walls / in spots the player can't see (CasterRow/Col
+		// were anchored to the player's current position above).
+		if( missile.value[1] == 0
+		 && (missile.Row != missile.CasterRow || missile.Col != missile.CasterCol)
+		 && CheckCastInSight( missile.CasterRow, missile.CasterCol, missile.Row, missile.Col ) ){
+			// (th4): the hammer now strikes a 3x3 footprint centred on its tile (like Fire
+			// Blast's splash, ActFireBlast's RowDelta/ColDelta pattern), not just the single
+			// tile it occupies. Centre first, then the 8 neighbours. Every cell routes through
+			// the same MissileAttack path, so all monster-side mitigation still applies per hit.
+			// (th4) Both the centre and the splash go through BlessedHammer_StrikeCell, which
+			// drops any monster this hammer has already struck on the current lap. Without it
+			// the widened footprint hits the same target on several consecutive ring steps.
+			#if TH4_HAMMER_DEBUG
+			HammerLog("step missile=%d ring=%d idx=%d at(%d,%d) slot=%d\n",
+				missileIndex, ringIdx, idx, missile.Row, missile.Col, hammerSlot);
+			#endif
+			BlessedHammer_StrikeCell(missileIndex, hammerSlot, missile.Row, missile.Col);
+			for( int i = 0; i < 8; i++ ){
+				int splashRow = missile.Row + RowDelta[i];
+				int splashCol = missile.Col + ColDelta[i];
+				// (th4) LOS is checked PER SPLASH CELL, not just once for the hammer's own tile.
+				// The condition above only proves the player can see where the hammer IS; a
+				// neighbouring cell can still lie behind a wall, which is what let the 3x3
+				// footprint damage monsters in rooms the player cannot see into. Same origin
+				// (CasterRow/Col, anchored to the player's current position) as the centre check.
+				if( !CheckCastInSight( missile.CasterRow, missile.CasterCol, splashRow, splashCol ) ) continue;
+				BlessedHammer_StrikeCell(missileIndex, hammerSlot, splashRow, splashCol);
+			}
+			// (th4) This step's coverage becomes the next step's "was already inside" set.
+			BlessedHammer_EndStep(hammerSlot);
+		}
+		missile.TimeToLive = 1; // undo any TimeToLive=0 from a hit; hammer lifetime is owned by maintenance
+	}
+	PutMissile(missileIndex);
+}
+
+//----- (new by th4) ------------------------------------------------------
+// Count how many Blessed Hammer missiles this player currently owns.
+static int BlessedHammer_Count(int playerIndex)
+{
+	int count = 0;
+	for( int i = 0; i < MissileAmount; ++i ){
+		Missile& m = Missiles[ MissileIndexes[i] ];
+		if( m.BaseMissileIndex == MI_160_BLESSED_HAMMER && m.CasterIndex == playerIndex && !m.IsDeleted ){
+			++count;
+		}
+	}
+	return count;
+}
+
+//----- (new by th4) ------------------------------------------------------
+// Per-player, per-frame maintenance for the Blessed Hammer. Perk-driven:
+//   PERK_BLESSED_HAMMER : level > 0 activates the hammer; its value[] adds flat damage.
+//   PERK_MORE_HAMMERS   : value[] = number of EXTRA hammers (each on its own wider ring).
+// Hammers orbit on nested rings: 1st = radius 2, 2nd = radius 3, 3rd = radius 4 (capped at 3).
+// Dungeons only (never town). Call once per player from ProcessPlayers.
+void __fastcall BlessedHammer_Update(int playerIndex)
+{
+	if( (uint)playerIndex >= PlayersMax_4 ) return;
+	Player& player = Players[playerIndex];
+
+	int bhLevel = PerkPoints(PERK_BLESSED_HAMMER, playerIndex); // 0 = perk not taken
+
+	bool active =
+		    player.IsExists
+		 && Dungeon == player.dungeon
+		 && Dungeon != DUN_0_TOWN            // dungeons only, never town
+		 && player.fullClassId == PFC_TEMPLAR
+		 && bhLevel > 0
+		 && (player.CurLife & ~63) > 0;      // not dead
+
+	int extraHammers   = active ? PerkValue(PERK_MORE_HAMMERS, playerIndex) : 0; // +1 per More Hammers level
+	int desiredHammers = active ? (1 + extraHammers) : 0;
+	int haveHammers    = BlessedHammer_Count(playerIndex);
+
+	// Damage is perk-only now: 0 base + the Blessed Hammer perk's value (mordor tunes +5/level).
+	int damage = PerkValue(PERK_BLESSED_HAMMER, playerIndex);
+
+	if( haveHammers != desiredHammers ){
+		// Count changed: clear all this player's hammers and respawn the exact set, so each
+		// gets the correct radius (base vs extra) and evenly spread starting phases.
+		for( int i = 0; i < MissileAmount; ++i ){
+			Missile& m = Missiles[ MissileIndexes[i] ];
+			if( m.BaseMissileIndex == MI_160_BLESSED_HAMMER && m.CasterIndex == playerIndex ){
+				m.IsDeleted = true;
+			}
+		}
+		for( int k = 0; k < desiredHammers; ++k ){
+			int phase  = (BlessedHammerRingSize * k) / desiredHammers; // spread around the ring
+			int ringIdx = (k < BlessedHammerRingCount) ? k : (BlessedHammerRingCount - 1); // 0->r2, 1->r3, 2->r4
+			// targetRow carries the ring (radius) index into CastBlessedHammer; casterDirection carries phase.
+			CastMissile( player.Row, player.Col, ringIdx, player.Col,
+						 phase, MI_160_BLESSED_HAMMER, CT_0_PLAYER, playerIndex,
+						 damage, 0, 0, Missile::zeroValue, false, 0 );
+		}
+	}else if( desiredHammers > 0 ){
+		// Count unchanged: keep existing hammers' damage synced to the current formula
+		// (a persistent hammer wouldn't otherwise pick up CLVL / perk-level changes).
+		for( int i = 0; i < MissileAmount; ++i ){
+			Missile& m = Missiles[ MissileIndexes[i] ];
+			if( m.BaseMissileIndex == MI_160_BLESSED_HAMMER && m.CasterIndex == playerIndex && !m.IsDeleted ){
+				m.Damage = damage;
+			}
+		}
+	}
+}
+
 //----- (0043600F) --------------------------------------------------------
 void __fastcall ActArrow( int missileIndex )
 {
@@ -6922,6 +7796,127 @@ void __fastcall ActArrow( int missileIndex )
 	missile.WholeDeltaX += missile.DeltaX;
 	MoveMissile(missileIndex);
 	if( ! IsMainDraw ) return;
+
+	// (th4) PERK "Ricochet": a THIEF using a bow bounces her arrows off walls, once per perk
+	// level. Rather than mutate the live projectile (which fights MoveMissile's origin+accumulator
+	// model and teleports the arrow), we do what the engine's own arrow-REBOUND does at MvP_Ranged:
+	// spawn a FRESH arrow from the bounce cell in the reflected direction, carrying MSF_REFLECTED
+	// and a decremented bounce budget, then delete the original. Reflection itself is computed in
+	// TILE space: a wall blocks one tile axis, so we mirror the travel across that axis. The arrow
+	// still strikes monsters normally and Piercing Shot still pierces -- ricochet only concerns walls.
+	if( !missile.IsDeleted && missile.CasterType == CT_0_PLAYER
+	 && BaseMissiles[missile.BaseMissileIndex].EffectType == MT_0_ARROW
+	 && MaxCountOfPlayersInGame == 1 && HasTrait(missile.CasterIndex, TraitId::Thief)
+	 && Players[missile.CasterIndex].IsBowInHand ){
+		if( missile.value[6] == 0 && !(missile.flag & MSF_REFLECTED) ){
+			int lvl = PerkValue(PERK_RICOCHET, missile.CasterIndex);
+			missile.value[6] = lvl > 0 ? lvl : -1; // -1 = perk not owned, never ricochet
+		}
+		if( missile.value[6] > 0 ){
+			int r = missile.Row, c = missile.Col;
+			if( In112(r, c) && TileBlockMissle[ FineMap[r][c] ] ){
+				// The arrow's LOCAL heading (which tile it entered the wall from) comes from its
+				// actual velocity, NOT the coarse direction to its far-away launch point -- that
+				// mismatch is what spawned reflected arrows on the wrong (too-high) tile. The
+				// engine's tile motion is (2*DeltaX + DeltaY, 2*DeltaX - DeltaY); its sign per
+				// axis is the arrow's true per-tile step.
+				int motRow = 2*missile.DeltaX + missile.DeltaY;
+				int motCol = 2*missile.DeltaX - missile.DeltaY;
+				int stepR = (motRow>0)-(motRow<0);
+				int stepC = (motCol>0)-(motCol<0);
+				// last open cell the arrow actually came from = spawn point for the reflected arrow
+				int backR = r - stepR, backC = c - stepC;
+				if( !In112(backR, backC) || TileBlockMissle[ FineMap[backR][backC] ] ){ backR = r; backC = c; }
+				// which tile axis does the wall block? Probe the two faces the arrow could have
+				// crossed (validated against 175 logged bounces: correct at faces and true
+				// corners). When the arrow touched the wall only diagonally (thin-wall END --
+				// the probes see nothing), fall back to the WALL'S OWN SHAPE: which axis do its
+				// solid neighbours extend along? (log-validated hybrid: kept 170/175, fixed 5)
+				bool rowBlocked = In112(backR + stepR, backC) && TileBlockMissle[ FineMap[backR+stepR][backC] ];
+				bool colBlocked = In112(backR, backC + stepC) && TileBlockMissle[ FineMap[backR][backC+stepC] ];
+				if( !rowBlocked && !colBlocked ){
+					bool shapeRow = (In112(r, c-1) && TileBlockMissle[ FineMap[r][c-1] ]) || (In112(r, c+1) && TileBlockMissle[ FineMap[r][c+1] ]);
+					bool shapeCol = (In112(r-1, c) && TileBlockMissle[ FineMap[r-1][c] ]) || (In112(r+1, c) && TileBlockMissle[ FineMap[r+1][c] ]);
+					if( shapeRow != shapeCol ){ rowBlocked = shapeRow; colBlocked = shapeCol; }
+					else { rowBlocked = colBlocked = true; } // pillar/ambiguous -> straight back
+				}
+				// (th4) DERIVED reflection (verified against MoveMissile's own transform, not
+				// guessed). The engine moves the arrow by tile-deltas dRow = 2*DeltaX + DeltaY,
+				// dCol = 2*DeltaX - DeltaY. A wall reflects by negating the BLOCKED tile axis in
+				// THAT space; we then invert the transform to get the reflected velocity:
+				//   DeltaX' = (dRow' + dCol') / 4,   DeltaY' = (dRow' - dCol') / 2.
+				// This preserves the true incidence angle instead of snapping to a flip/swap.
+				int dRow = 2*missile.DeltaX + missile.DeltaY;
+				int dCol = 2*missile.DeltaX - missile.DeltaY;
+				if( rowBlocked ) dRow = -dRow;
+				if( colBlocked ) dCol = -dCol;
+				int refDeltaX = (dRow + dCol) / 4;
+				int refDeltaY = (dRow - dCol) / 2;
+				// aim the fresh arrow far along the reflected velocity (tile-space direction).
+				// reflected tile motion is (2*refDeltaX + refDeltaY, 2*refDeltaX - refDeltaY);
+				// scale it down to a sane on-map aim point and add to the spawn cell.
+				int aimTileR = 2*refDeltaX + refDeltaY;
+				int aimTileC = 2*refDeltaX - refDeltaY;
+				// normalise to ~16 tiles of reach without overflowing the map
+				int mag = max( abs(aimTileR), abs(aimTileC) );
+				if( mag == 0 ) mag = 1;
+				int tgtR = backR + aimTileR * 16 / mag;
+				int tgtC = backC + aimTileC * 16 / mag;
+				int dir = SelectMissileDirectionFrom16( backR, backC, tgtR, tgtC );
+				// ======== (th4) RICOCHET DIAGNOSTIC (kept for future tuning) ========
+				// Flip to 1 to log every bounce to ricochet_log.txt
+				#define TH4_RICOCHET_LOG 0
+				#if TH4_RICOCHET_LOG
+				// One line per bounce: every quantity in the pipeline, plus a 5x5 solidity map
+				// around the hit cell (X = blocks missiles, . = open, * = the hit cell itself).
+				{
+					FILE* rf = fopen("ricochet_log.txt", "a");
+					if( rf ){
+						fprintf(rf, "RIC hit(r=%d,c=%d) launch(cr=%d,cc=%d) D(dX=%d,dY=%d) W(wX=%d,wY=%d) disp(rd=%d,cd=%d) mot(mR=%d,mC=%d) step(sR=%d,sC=%d) back(bR=%d,bC=%d) blk(row=%d,col=%d) refD(dX=%d,dY=%d) tgt(tR=%d,tC=%d) dir=%d ttl=%d dist=%d\n",
+							r, c, missile.CasterRow, missile.CasterCol,
+							missile.DeltaX, missile.DeltaY, missile.WholeDeltaX, missile.WholeDeltaY,
+							missile.RowDisplacement, missile.ColDisplacement,
+							motRow, motCol, stepR, stepC, backR, backC,
+							(int)rowBlocked, (int)colBlocked, refDeltaX, refDeltaY,
+							tgtR, tgtC, dir, missile.TimeToLive, missile.Distance);
+						for( int gr = -2; gr <= 2; gr++ ){
+							fprintf(rf, "    ");
+							for( int gc = -2; gc <= 2; gc++ ){
+								int qr = r + gr, qc = c + gc;
+								char ch = '?';
+								if( In112(qr, qc) ) ch = TileBlockMissle[ FineMap[qr][qc] ] ? 'X' : '.';
+								if( gr == 0 && gc == 0 ) ch = (ch=='X') ? '*' : 'o';
+								fputc(ch, rf);
+							}
+							fputc('\n', rf);
+						}
+						fclose(rf);
+					}
+				}
+				#endif // TH4_RICOCHET_LOG
+				// ======== end diagnostic ========
+				int childVal[8] = {0,0,0,0,0,0, missile.value[6]-1, 0};
+				missile.value[6] = -9; // (th4) idempotency: this missile can never cast twice (log showed 30 duplicate double-casts)
+				int childIdx = CastMissile( backR, backC, tgtR, tgtC, dir, missile.BaseMissileIndex,
+				             CT_0_PLAYER, missile.CasterIndex, missile.Damage, missile.SpellLevel,
+				             missile.spellIndex, childVal, false, MSF_REFLECTED );
+				if( (uint)childIdx < (uint)MissilesMax ){
+					// (th4) visual fix: the child spawns in the BACK cell, but the player saw the
+					// arrow die at the wall -- preload the child's accumulator so it STARTS 3/4 of
+					// a tile toward the impact point (position stays accumulator-consistent, so
+					// MoveMissile carries on cleanly -- no origin surgery, no teleport).
+					int offRow = stepR * 48, offCol = stepC * 48;         // 48/64 of a tile
+					Missiles[childIdx].WholeDeltaX = ((offRow + offCol) << 16) / 4;
+					Missiles[childIdx].WholeDeltaY = ((offRow - offCol) << 16) / 2;
+				}
+				PlayLocalSound( S_95_ARROWALL, backR, backC );
+				missile.IsDeleted = true; // original stops at the wall
+				PutMissile(missileIndex);
+				return;
+			}
+		}
+	}
+
 	int minDamage, maxDamage;
 	if( missile.CasterIndex == M1_TRAP ){ // trap ? TODO: change to CT_M1_MAP_OBJECT ?
 		// 0043608F
@@ -6959,6 +7954,20 @@ void __fastcall ActArrow( int missileIndex )
 	if( !missile.TimeToLive ){
 		missile.IsDeleted = true;
 	}
+	// (th4) Energy gun light: follow the round, and retire the slot when the round
+	// dies. Compared against the LIGHT's own row/col rather than a missile value[]
+	// slot -- ActArrow already uses value[6] (ricochet budget) and value[7]
+	// (explosion element), and the arrow family has no spare pair the way
+	// ActFireArcanBolt does. Reading LightList costs nothing and cannot collide.
+	// MissileAttack above can delete the round, so the teardown check comes last.
+	if( missile.LightIndex >= 0 && missile.LightIndex < Lights_128_Count ){
+		if( missile.IsDeleted ){
+			LightOff( missile.LightIndex );
+		}else if( LightList[missile.LightIndex].row != missile.Row
+		       || LightList[missile.LightIndex].col != missile.Col ){
+			ChangeLightPos( missile.LightIndex, missile.Row, missile.Col );
+		}
+	}
 	PutMissile(missileIndex);
 }
 
@@ -6968,7 +7977,7 @@ void __fastcall ActFireArcanBolt(int missileIndex) // actarcanestar
 	Missile& missile = Missiles[missileIndex];
 	if( !IsMainDraw ) goto motion;
 	missile.TimeToLive--;
-	if( missile.BaseMissileIndex == MI_63_BONE_SPIRIT && missile.direction == 8 ){// лишний код. вон спирит больше не по этой функции проходит
+	if( missile.BaseMissileIndex == MI_63_BONE_SPIRIT && missile.direction == 8 ){// (rt) redundant code. Bone Spirit no longer goes through this function
 		if( !missile.TimeToLive ){
 			if( missile.LightIndex >= 0 ){
 				LightOff(missile.LightIndex);
@@ -6988,7 +7997,7 @@ void __fastcall ActFireArcanBolt(int missileIndex) // actarcanestar
 	MoveMissile(missileIndex);
 	if( !IsMainDraw ) return;
 	int damage;
-	if( missile.CasterIndex == -1 ){ // ловушка // 00436241 // хак 0045A2CA сразу подставлен
+	if( missile.CasterIndex == -1 ){ // (rt) trap // 00436241 // hack 0045A2CA substituted directly
 		// damage = ( DungeonLevel + by( Difficulty, 0, 40, 200 ) ) * 8 + RNG(ModifyFireBoltDamage() + 1 ); // old damage
 		if (Difficulty < 1) {
 			damage = 40 + Dungeon->level * 15 + RNG(Dungeon->level * 5);
@@ -7080,7 +8089,7 @@ void __fastcall ActLightningNovaSegment(int missileIndex)
 		missile.TimeToLive = prevTimeToLive;//
 	}
 	// 004364B7
-	int specialRow = missile.value[0];// если находимся в стартовой точке, а в ней алтарь то двигаемся дальше. Чтобы адекватно работал алтарь с новой
+	int specialRow = missile.value[0];// (rt) if we are at the start point and there is a shrine in it, move on. So that the shrine works properly with the new
 	int specialCol = missile.value[1];
 	int objectNum = abs(ObjectsMap[ specialRow ][ specialCol ]);
 	if( objectNum && specialRow == missile.Row && specialCol == missile.Col ){
@@ -7101,12 +8110,24 @@ void __fastcall ActLightningNovaSegment(int missileIndex)
 
 void __fastcall ActSpell70LightningWallSegment(int castIndex)
 {
-	if( !IsMainDraw ) return;
+	if (!IsMainDraw) return;
 	Missile& missile = Missiles[castIndex];
+	int& Lightness = missile.value[2];
+
+	int lightLevels[14] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 12, 0 };
 	missile.TimeToLive--;
 	MissileAttack(castIndex, missile.Damage, missile.Damage, 1, missile.Row, missile.Col, 1);
-	if( !missile.TimeToLive ){
+	if (!missile.TimeToLive) {
 		missile.IsDeleted = true;
+		LightOff(missile.LightIndex);
+	}
+	// ramp the light radius up over the first frames, same as Fire Wall
+	if (missile.TimeToLive && Lightness < 12) {
+		if (!Lightness) {
+			missile.LightIndex = AddLight(missile.Row, missile.Col, lightLevels[0]);
+		}
+		ChangeLight(missile.LightIndex, missile.Row, missile.Col, Lightness < countof(lightLevels) ? lightLevels[Lightness] : 0);
+		Lightness++;
 	}
 	PutMissile(castIndex);
 }
@@ -7160,12 +8181,12 @@ void __fastcall ActFireWallSegment(int missileIndex)
 	
 	int lightLevels[14] = { 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12, 12, 0 };
 	missile.TimeToLive--;
-	if( missile.TimeToLive == StartAnimationEndFrame ){// анимацию старта огненной стены програли, ставим анимацию просто стены
+	if( missile.TimeToLive == StartAnimationEndFrame ){// (rt) the fire wall start animation has played, set the plain wall animation
 		SetMissileDirection(missileIndex, 1);
 		missile.FrameIndex = RNG(11) + 1;
 	}
 	// 004366FA
-	if( missile.TimeToLive == missile.framesCount - 1 ){// начать анимацию исчезновения огненной стены
+	if( missile.TimeToLive == missile.framesCount - 1 ){// (rt) start the fire wall's vanishing animation
 		SetMissileDirection(missileIndex, 0);
 		missile.FrameIndex = 13;
 		missile.FrameStep = -1;
@@ -7245,12 +8266,12 @@ void __fastcall ActFireblast(int missileIndex)
 	// 004368C0
 	ChangeLight(missile.LightIndex, row, col, missile.FrameIndex );
 	for( int i = 0; i < 9; ++i ){
-		if( !IsPathBlockedToMoveSpell(casterRow, casterCol, row + RowDeltaFB[i] , col + ColDeltaFB[i] ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, row + RowDeltaFB[i], col + ColDeltaFB[i] ) ){	// (th4) see IsSplashBlocked
 			MissileAttack(missileIndex, spellDamage, spellDamage, 0, row + RowDeltaFB[i], col + ColDeltaFB[i], 1);
 		}
 	}
 	// 00436A64
-	// очевидно хитрая проверка чтобы взрывы фаерболов впечатавшихся в углы и стены выглядели более верно, не торчащими из стены
+	// (rt) apparently a check so that explosions of fireballs that hit corners and walls look right, not sticking out of the wall
 	if( !TransList[TransMap[ row ][ col ]] 
 		|| missile.DeltaY < 0 && (SomeStrangeFireblastExRoomsCheck (row, col + 1)	|| SomeStrangeFireblastExRoomsCheck (row, col - 1)) ){
 			missile.Row++;
@@ -7267,6 +8288,7 @@ void __fastcall ActFireblast(int missileIndex)
 	missile.direction = 0;
 	SetMissileSprite(missileIndex, MIS_19_BIGEXP);
 	missile.TimeToLive = missile.framesCount - 1;
+	Shockwave_Add( missile.Row, missile.Col, missile.ColDisplacement, missile.RowDisplacement );	// (th4) optional Shockwave ring on IMPACT (dx_utility.cpp)
 	// 00436BD8
 	PutMissile(missileIndex);
 }
@@ -7337,7 +8359,7 @@ void __fastcall ActSpell88FireBall( int missileIndex )
 		deltaX = missile.DeltaX;
 		break;
 	default:
-		deltaY = 0;// в оригинале неициализированный мусор
+		deltaY = 0;// (rt) uninitialized data in the original
 		deltaX = 0;
 		break;
 	}
@@ -7446,7 +8468,7 @@ void __fastcall ActLightning(int missileIndex)
 		return;
 	}
 	if( TileBlockMissle[ FineMap[ row ][ col ] ] ){ // 00437174
-		if( missile.CasterIndex != -1 || missile.CasterRow != row || missile.CasterCol != col ){// не первый тайл ловушки
+		if( missile.CasterIndex != -1 || missile.CasterRow != row || missile.CasterCol != col ){// (rt) not the first tile of the trap
 			missile.TimeToLive = 0;
 			missile.IsDeleted = true;
 		}
@@ -7454,7 +8476,7 @@ void __fastcall ActLightning(int missileIndex)
 	}
 	int& lastRow = missile.value[0];
 	int& lastCol = missile.value[1];
-	if( row == lastRow && col == lastCol){ // 004371C4 // Если не передвинулись на следующий тайл
+	if( row == lastRow && col == lastCol){ // (rt) 004371C4 // If we haven't moved to the next tile
 		return;
 	}
 	if( missile.CasterIndex != -1 ){
@@ -7494,7 +8516,7 @@ void __fastcall ActLightningAsArrow(int missileIndex)
 	if( TileBlockMissle[FineMap[ row ][ col ]] ){
 		if( missile.CasterIndex != -1 
 			|| missile.CasterRow != row 
-			|| missile.CasterCol != col ){// не первый тайл ловушки
+			|| missile.CasterCol != col ){// (rt) not the first tile of the trap
 				missile.TimeToLive = 0;
 		}
 		// 00437414
@@ -7508,7 +8530,7 @@ void __fastcall ActLightningAsArrow(int missileIndex)
 	
 	int& lastRow = missile.value[0];
 	int& lastCol = missile.value[1];
-	if( row == lastRow && col == lastCol ){// Если не передвинулись на следующий тайл
+	if( row == lastRow && col == lastCol ){// (rt) If we haven't moved to the next tile
 		// 00437414
 		if( !missile.TimeToLive || row <= 0 || col <= 0 || row >= 112 || col > 112 ){
 			missile.IsDeleted = true;
@@ -7517,7 +8539,7 @@ void __fastcall ActLightningAsArrow(int missileIndex)
 	}
 
 	// 00437414
-	if( row <= 0 || col <= 0 || row >= 112 || col > 112 ){// вышли за пределы карты
+	if( row <= 0 || col <= 0 || row >= 112 || col > 112 ){// (rt) went outside the map
 		missile.IsDeleted = true;
 		return;
 	}
@@ -7585,13 +8607,13 @@ void __fastcall ActTownPortal( int missileIndex)
 	}
 	// 0043756B
 	if( Dungeon != DUN_0_TOWN && missile.direction != 1 && missile.TimeToLive ){
-		if( !Lightness ){// Если лайт радиуса ещё нет, добавляем
+		if( !Lightness ){// (rt) If there is no light radius yet, add one
 			missile.LightIndex = AddLight(missile.Row, missile.Col,	1);
 		}
 		int lightLevel[17] = {
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 15
 		};
-		ChangeLight( missile.LightIndex, missile.Row, missile.Col, Lightness < countof(lightLevel) ? lightLevel[Lightness++] : 0 );// Увеличиваем интенсивность
+		ChangeLight( missile.LightIndex, missile.Row, missile.Col, Lightness < countof(lightLevel) ? lightLevel[Lightness++] : 0 );// (rt) Increase the intensity
 	}
 
 	// 004375CD
@@ -7606,9 +8628,9 @@ void __fastcall ActTownPortal( int missileIndex)
 				ClearPlayerPath(playerIndex);
 				if( playerIndex == CurrentPlayerIndex ){
 					// 00437622
-					if( MaxCountOfPlayersInGame == 1 // в сингле свободный вход
-					 || missile.CasterIndex == playerIndex // в свой тп свободный вход
-					 || Dungeon != DUN_0_TOWN ){// в город свободный вход
+					if( MaxCountOfPlayersInGame == 1 // (rt) free entry in single player
+					 || missile.CasterIndex == playerIndex // (rt) free entry into one's own TP
+					 || Dungeon != DUN_0_TOWN ){// (rt) free entry into town
 						// 00713A90
 						if( MaxCountOfPlayersInGame != 1 || Dungeon->isQuest || IsSaveAndLeavingEnabled() ){
                             NetSendCmdParam1( 1, CMD_31_WARP, missile.CasterIndex );
@@ -7629,7 +8651,7 @@ void __fastcall ActTownPortal( int missileIndex)
 						NetSendCmdLoc(PRIORITY_LOW, CMD_1_WALKXY, player.Row, player.Col + 1);
 						break;
 					}
-					if( player.CharLevel >= clvlReq ){// доросли до входа в тп
+					if( player.CharLevel >= clvlReq ){// (rt) high enough level to enter the TP
 						if( MaxCountOfPlayersInGame != 1 || Dungeon->isQuest || IsSaveAndLeavingEnabled() ){
                             NetSendCmdParam1( 1, CMD_31_WARP, missile.CasterIndex );
 							player.CurAction = PCA_10_NEW_LEVEL;
@@ -7639,7 +8661,7 @@ void __fastcall ActTownPortal( int missileIndex)
 						break;
 					}
 					// 007139E0
-					// не доросли до входа в тп. Пишем сообщение, играем звук, отходим
+					// (rt) not high enough level to enter the TP. Show a message, play a sound, step back
 					int messageIndex = ClvlNotReqForEnterInDungeonMessagesIndexesTable[ Difficulty ][ destDungeonTypeLevel ];// << arrays need update
 					AddOnScreenMessage(messageIndex);
 					SOUND soundIndex = S_M1_NO_SOUND;
@@ -7680,7 +8702,7 @@ void __fastcall ActFlashForward(int missileIndex)
 	// 004376AE
 	missile.TimeToLive--;
 
-	// фикс старыми недофункциями ещё до расширения. Его функции вызываются как функции, а используют регистры от этой
+	// (rt) fix with old half-functions from before the extension. Its functions are called as functions but use this one's registers
 	MordorsFlashAttackHack1(missileIndex, missile.Row, missile.Col);
 	MordorsFlashAttackHack1(missileIndex, missile.Row, missile.Col + 1);
 	MordorsFlashAttackHack1(missileIndex, missile.Row, missile.Col - 1);
@@ -7727,7 +8749,7 @@ void __fastcall ActSomeAnotherFlashFr( int missileIndex )
 	if( !missile.TimeToLive ){
 		missile.IsDeleted = true;
 		if( missile.CasterType == CT_0_PLAYER && missile.CasterIndex != -1 ){
-			player.BlockBonus -= 50; // обратно не восстанавливается, разобраться (хотя этот каст пока не используется)
+			player.BlockBonus -= 50; // (rt) not restored back, look into it (although this cast isn't used yet)
 		}
 	}
 	PutMissile(missileIndex);
@@ -7816,6 +8838,203 @@ void __fastcall ActReflect(int missileIndex)
 	PutMissile(missileIndex);
 }
 
+// (th4) CARRIED REFLECT ---------------------------------------------------------------
+//
+// Same policy as the carried mana shield below: survives a level change, but not a trip
+// to town and not the Dark Campaign hub.
+//
+// TWO things are lost on a level change, not one:
+//   - the MISSILE, killed by RemovePlayerMissiles in the same switch case as the shield
+//     (it is what draws the icon and what runs ActReflect);
+//   - the CHARGES. player.CountOfReflectCharges looks like it should survive, since it
+//     is a Player field, but InitMissiles() ends with `player.CountOfReflectCharges = 0`
+//     and runs on every level entry -- BEFORE the restore point in LoadGameLevel. An
+//     earlier version of this read the charges at restore time and always found zero,
+//     so nothing ever carried. They have to be snapshot on the way out like everything
+//     else. (They do survive a save/load: Saving.cpp brackets them by hand.)
+//
+// THE TRAP: CastReflect ADDS charges (1 + BaseVitality/50 + Armadillo + Iron Bulwark)
+// and calls MinusManaOrChargeOrRelicByPriceOfSSpell. Re-casting it on every staircase
+// would hand out free charges and bill the player for them. It cannot be dodged with a
+// casterType or a negative casterIndex either -- CastReflect binds Players[casterIndex]
+// before it tests anything.
+//
+// So two things are neutralised around the call:
+//   - the charge count is snapshot and put straight back, which is exact and does not
+//     depend on knowing that formula;
+//   - readySpellType is forced to SO_0_SKILL for the duration. The spend function
+//     switches on it and handles only SO_1_SPELL / SO_2_RELIC / SO_3_EQUIPED_ITEM, so
+//     SO_0_SKILL makes it a no-op. This matters: restoring mana afterwards would NOT be
+//     enough, because with a relic or a staff selected it would have eaten a relic out
+//     of the inventory or a charge off the staff, and neither is undoable by snapshot.
+// The cooldown that function sets before its switch is snapshot and restored too -- a
+// carry-over must not put Reflect on cooldown.
+bool CarriedReflectEnabled()
+{
+	return GameMode != GM_CLASSIC;	// same rule as the carried mana shield
+}
+
+static int CarriedReflectCharges = 0;
+
+void ClearCarriedReflect()
+{
+	CarriedReflectCharges = 0;
+}
+
+// Called from RemovePlayerMissiles, before InitMissiles() has a chance to zero them.
+void CaptureCarriedReflect( int playerIndex )
+{
+	ClearCarriedReflect();
+	if( ! CarriedReflectEnabled() ) return;
+	if( playerIndex != CurrentPlayerIndex ) return;
+	CarriedReflectCharges = Players[playerIndex].CountOfReflectCharges;
+}
+
+void RestoreCarriedReflect()
+{
+	const int carried = CarriedReflectCharges;
+	ClearCarriedReflect();
+	if( carried <= 0 || ! CarriedReflectEnabled() ) return;
+	if( Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT ) return;
+	Player& player = Players[CurrentPlayerIndex];
+	if( ! player.IsExists ) return;
+	player.CountOfReflectCharges = carried;	// InitMissiles() zeroed them on the way in
+	// Snapshot everything CastReflect is about to change, cast, then put it back.
+	const int   savedCharges       = player.CountOfReflectCharges;
+	const char  savedReadySpellType = player.readySpellType;
+	ushort savedCooldowns[CD_CAP];
+	memcpy( savedCooldowns, player.cooldowns, sizeof( savedCooldowns ) );
+	player.readySpellType = SO_0_SKILL;	// makes the mana/relic/staff spend a no-op
+	// Silent, for the same reason the shield is: a carry-over is not a cast. See the note
+	// there -- CastMissile has no quiet flag, so the sound is lifted out of the table for
+	// the duration of the call and put straight back.
+	BaseMissile& reflectBase = BaseMissiles[ MI_79_REFLECT ];
+	const SOUND prevCastSound = reflectBase.CastSound;
+	reflectBase.CastSound = S_M1_NO_SOUND;
+	CastMissile( player.Row, player.Col, player.Row, player.Col,
+	             player.dir, MI_79_REFLECT, CT_0_PLAYER,
+	             CurrentPlayerIndex, 0, 0, PS_16_REFLECT );
+	reflectBase.CastSound = prevCastSound;
+	player.CountOfReflectCharges = savedCharges;
+	player.readySpellType        = savedReadySpellType;
+	memcpy( player.cooldowns, savedCooldowns, sizeof( savedCooldowns ) );
+}
+
+// (th4) CARRIED MANA SHIELD -----------------------------------------------------------
+//
+// Players asked for the shield to survive a level change. It could not: the shield is a
+// MISSILE, and RemovePlayerMissiles() destroys every missile the player owns on the way
+// out (Player.cpp, the MI_13_MANA_SHIELD case in its switch).
+//
+// Modelled directly on the carried summons in Monster.cpp: snapshot before the wipe,
+// rebuild after the new level has settled, and clear on a new game or savegame load so
+// nothing leaks in from a previous session.
+//
+// The shield's whole state is four numbers, so no sprite or slot bookkeeping is needed:
+//   TimeToLive  -- what is left of 48 * CharLevel
+//   value[0],[1] -- the life snapshot ManaShieldAction diffs against each frame
+//   value[7]     -- the ear flag, set by TryToDie while the shield is up
+struct CarriedManaShield
+{
+	bool used;
+	int  timeToLive;
+	int  prevCurLife;
+	int  prevBaseLife;
+	int  earFlag;
+};
+static CarriedManaShield CarriedShield;
+
+// Unlike the carried summons this is NOT singleplayer-only. Summons are monsters in
+// shared slots that multiplayer syncs through its own per-level deltas, so carrying
+// them locally would desync clients. The shield has neither problem: each client
+// builds its own copy of the missile (On_SPELLXY sets the remote player's destAction
+// and the normal cast path runs locally), and the absorption itself only ever runs on
+// the owner's client -- ManaShieldAction returns early for any other playerIndex after
+// merely drawing it. So a local carry is mechanically correct for everyone.
+//
+// KNOWN LIMIT: other clients drop a remote player's shield missile when he leaves
+// their level (the Dungeon != player.dungeon test in ManaShieldAction) and nothing
+// tells them to rebuild it when he arrives on a new one, so they may not DRAW his
+// shield until he casts again. His damage absorption is unaffected. Fixing the visual
+// would need a new "shield is up" command alongside the existing CMD_97_ENDSHIELD.
+//
+// Classic stays excluded: it must behave like vanilla Diablo.
+bool CarriedManaShieldEnabled()
+{
+	return GameMode != GM_CLASSIC;
+}
+
+void ClearCarriedManaShield()
+{
+	CarriedShield = {};
+}
+
+// Called from RemovePlayerMissiles, while the shield missile still exists.
+void CaptureCarriedManaShield( int playerIndex )
+{
+	ClearCarriedManaShield();
+	if( ! CarriedManaShieldEnabled() ) return;
+	if( playerIndex != CurrentPlayerIndex ) return;
+	for( int i = 0; i < MissileAmount; ++i ){
+		const Missile& m = Missiles[ MissileIndexes[i] ];
+		if( m.BaseMissileIndex != MI_13_MANA_SHIELD ) continue;
+		if( m.CasterIndex != playerIndex || m.IsDeleted ) continue;
+		if( m.TimeToLive <= 0 ) continue;		// already expiring: let it go
+		CarriedShield.used         = true;
+		CarriedShield.timeToLive   = m.TimeToLive;
+		CarriedShield.prevCurLife  = m.value[0];
+		CarriedShield.prevBaseLife = m.value[1];
+		CarriedShield.earFlag      = m.value[7];
+		break;
+	}
+}
+
+// Called once the destination level is built and the player is standing on it.
+void RestoreCarriedManaShield()
+{
+	if( ! CarriedShield.used || ! CarriedManaShieldEnabled() ){
+		ClearCarriedManaShield();
+		return;
+	}
+	// (th4) The two exclusions Ibragim asked for, and the same pair the carried summons
+	// use: the shield drops on a town trip and on a visit to the Dark Campaign hub, which
+	// is a peace zone where almost nothing may be cast.
+	if( Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		ClearCarriedManaShield();
+		return;
+	}
+	Player& player = Players[CurrentPlayerIndex];
+	if( ! player.IsExists || player.CurMana <= 0 ){	// ManaShieldAction would kill it at once
+		ClearCarriedManaShield();
+		return;
+	}
+	// CT_M1_MAP_OBJECT, not CT_0_PLAYER: CastManaShield only charges mana for a player
+	// cast, and this is a carry-over rather than a new cast. Object.cpp does the same for
+	// the shrine that grants a free shield. CastMissile also refuses a second shield for a
+	// player who already has one, so this cannot double up.
+	// SILENT. CastMissile plays baseMissile.CastSound (S_128_MSHIELD) for every cast, and
+	// a carry-over is not a cast -- the player hearing the shield go up again on every
+	// staircase is wrong. There is no "quiet" flag on CastMissile, so the sound is lifted
+	// out of the table for the duration of the call and put straight back, the same way
+	// ActMagicArrow borrows baseMissile.DamageType for its explosion phase.
+	BaseMissile& shieldBase = BaseMissiles[ MI_13_MANA_SHIELD ];
+	const SOUND prevCastSound = shieldBase.CastSound;
+	shieldBase.CastSound = S_M1_NO_SOUND;
+	const int missileIndex = CastMissile( player.Row, player.Col, player.Row, player.Col,
+	                                      player.dir, MI_13_MANA_SHIELD, CT_M1_MAP_OBJECT,
+	                                      CurrentPlayerIndex, 0, 0, PS_11_MANA_SHIELD );
+	shieldBase.CastSound = prevCastSound;	// restored before anything else can cast one
+	if( missileIndex >= 0 ){
+		Missile& m = Missiles[missileIndex];
+		// CastManaShield has just re-seeded these from the CURRENT life, which is right --
+		// the level change itself must not be read as damage taken. Only the remaining
+		// duration and the ear flag are carried over.
+		m.TimeToLive = CarriedShield.timeToLive;
+		m.value[7]   = CarriedShield.earFlag;
+	}
+	ClearCarriedManaShield();
+}
+
 //----- (00437A54) --------------------------------------------------------
 void __fastcall ManaShieldAction(int missileIndex)
 {
@@ -7859,7 +9078,7 @@ void __fastcall ManaShieldAction(int missileIndex)
 	int& prevCurLife = missile.value[0];
     int& prevBaseLife = missile.value[1];
 	
-	// Здесь считается урон под ManaShield
+	// (rt) Damage under ManaShield is calculated here
 	if( player.CurLife < prevCurLife ){
 		int damage = prevCurLife - player.CurLife;
 		int modified_damage = damage;
@@ -7889,14 +9108,14 @@ void __fastcall ManaShieldAction(int missileIndex)
 			player.CurMana -= modified_damage;
 			player.BaseMana -= modified_damage;
 		}else{
-			// снятие жизни в процентном соотношении по остатку урона по манашиту
+			// (rt) take life proportionally to the damage remaining after the mana shield
 			damage = (modified_damage - player.CurMana) * 128 / modified_damage * damage / 128;
 			player.CurLife -= damage;
 			player.BaseLife -= damage;
 			player.CurMana = 0;
 			player.BaseMana = player.MaxBaseMana - player.MaxCurMana;
 			missile.TimeToLive = 0;
-			missile.IsDeleted = 1; //curLife; // = StartPlayerHit() всегда возвращает true
+			missile.IsDeleted = 1; //(rt) curLife; // = StartPlayerHit() always returns true
 			if( player.CurLife < 0 ){
 				SetPlayerHitPoints(playerIndex, 0);
 			}
@@ -7974,7 +9193,7 @@ void __fastcall ActForcewaveSegment(int missileIndex)
 	MoveMissile(missileIndex);
 	if( !IsMainDraw ) goto motion2;
 	int lastTTL = missile.TimeToLive;
-	MissileAttack(missileIndex, missile.Damage, missile.Damage, 0, missile.Row, missile.Col, 0);// вообще надо сделать флаг 1 в конце
+	MissileAttack(missileIndex, missile.Damage, missile.Damage, 0, missile.Row, missile.Col, 0);// (rt) in general a flag 1 should be made at the end
 	if( missile.isHitTarget == 1 ){
 		missile.TimeToLive = lastTTL;
 	}
@@ -8010,14 +9229,14 @@ void __fastcall ActHydra(int missileIndex)
 		int prevRowDelta = 0;
 		int prevColDelta = 0;
 
-//		for( int radius = 0; radius < 14; ++radius ){ // в оригинале радиус 5, в th1 1.216 радиус 20 (переполнение, на лету исправлено)
+//		(rt) for( int radius = 0; radius < 14; ++radius ){ // radius 5 in the original, 20 in th1 1.216 (overflow, fixed on the fly)
 //			for( int angleOffset = 0; angleOffset < 23; angleOffset++){
 		for (int angleOffset = 0; angleOffset < 23; angleOffset++) {
 			for (int radius = 0; radius < 14; ++radius) {
 				int rowDelta = NovaCircleDeltas[ angleOffset ][ radius * 2 ];
 				int colDelta = NovaCircleDeltas[ angleOffset ][ radius * 2 + 1 ];
-				if( !rowDelta && !colDelta ) break; // оба нулевых сдвига - out of radius
-				if( prevRowDelta != rowDelta || prevColDelta != colDelta ){ // два раза не проверять одну и ту же клетку на близких расстояниях
+				if( !rowDelta && !colDelta ) break; // (rt) both zero offsets - out of radius
+				if( prevRowDelta != rowDelta || prevColDelta != colDelta ){ // (rt) don't check the same cell twice at close distances
 					if( AttackCellByHydra(missileIndex, missile.Row + rowDelta, missile.Col + colDelta)
 					 || AttackCellByHydra(missileIndex, missile.Row - rowDelta, missile.Col - colDelta)
 					 || AttackCellByHydra(missileIndex, missile.Row + rowDelta, missile.Col - colDelta)
@@ -8081,7 +9300,7 @@ void __fastcall ActChainLightning(int missileIndex)
 					if( monsterNum > 0 && CheckCastInSight(missile.Row, missile.Col, row, col ) ){
 						int monsterIndex = monsterNum - 1;
 						Monster& monster = Monsters[monsterIndex];
-						if( ! IsMonsterImmuneToMissile(monsterIndex, BaseMissiles[missile.BaseMissileIndex].DamageType, missile.CasterIndex) && monsterIndex >= SummonMonsters_Count ){
+						if( ! IsMonsterImmuneToMissile(monsterIndex, BaseMissiles[missile.BaseMissileIndex].DamageType, missile.CasterIndex) && IsPlayerAutoTarget( monsterIndex ) ){
 							int dir = OrientationToTarget(missile.Row, missile.Col, row, col);
 							CastMissile(missile.Row, missile.Col, row, col, dir, MI_7_LIGHTNING, CT_0_PLAYER, missile.CasterIndex, 1, missile.SpellLevel, missile.spellIndex);
 							if (--extraChains <= 0) { goto endOfChains; }
@@ -8127,10 +9346,15 @@ void __fastcall ActWeaponElementalDamage(int missileIndex)
     int& weaponElementalDamageType = missile.value[1];
 	
 	missile.TimeToLive--;
-	int lightLevels[] = { 9, 10, 11, 12, 11, 10, 8, 6, 4, 2 };
+	// (th4) About half the original flash (9,10,11,12,11,10,8,6,4,2), in EVERY lighting mode: the
+	// hit lights its own spot instead of out-shining the hero's light (radius 11). In Ultra lighting
+	// the hit's colour tint (GetMissileLightTint) also wins wherever this light is the brightest, so
+	// the old flash handed the whole room to the element's colour. First value = the AddLight radius.
+	static const int lightLevels[] = { 5, 5, 6, 6, 6, 5, 4, 3, 2, 1 };
+	const int lightLevelCount = 10;
 
 	ELEMENTAL_TYPE defaultDamageType = bm.DamageType;
-	Player& player = Players[missile.CasterIndex];// тут нужно добавить проверку на кастер тайп. И только если игрок сюда переводить
+	Player& player = Players[missile.CasterIndex];// (rt) a caster type check should be added here. And only switch here if it's a player
 	auto& damage = player.effectActionValue[EA_MELEE_FIRE + weaponElementalDamageType - 1];
 	bm.DamageType = (ELEMENTAL_TYPE) weaponElementalDamageType;
 	MissileAttack(missileIndex, damage.minVal, damage.maxVal, 0, missile.Row, missile.Col, 1);
@@ -8138,10 +9362,10 @@ void __fastcall ActWeaponElementalDamage(int missileIndex)
 
 	if( LightLevelIndex ){
 		if( missile.TimeToLive ){
-			ChangeLight( missile.LightIndex, missile.Row, missile.Col, LightLevelIndex < countof(lightLevels) ? lightLevels[LightLevelIndex] : 0 );
+			ChangeLight( missile.LightIndex, missile.Row, missile.Col, LightLevelIndex < lightLevelCount ? lightLevels[LightLevelIndex] : 0 );
 		}
 	}else{
-		missile.LightIndex = AddLight(missile.Row, missile.Col, 9);
+		missile.LightIndex = AddLight(missile.Row, missile.Col, lightLevels[ 0 ]);
 	}
 	// 004383EE
 	LightLevelIndex++;
@@ -8230,7 +9454,7 @@ void __fastcall ActTeleport(int missileIndex)
 		return;
 	}
 	PlayerMap[ player.Row ][ player.Col ] = 0;
-	SomeWithTeleportAndTransparent2(player.Row, player.Col);// установили непрозрачносте всем комнатам
+	SomeWithTeleportAndTransparent2(player.Row, player.Col);// (rt) made all rooms opaque
 	player.PrevRow = player.Row;
 	player.PrevCol = player.Col;
 	player.PrevCursorX = player.CursorRow;
@@ -8243,7 +9467,7 @@ void __fastcall ActTeleport(int missileIndex)
 	player.oldCol = player.Col;
 	player.TargetRow = player.Row;//Fix back and forth movements seen by other players after Teleport in MP.  These 2 lines here make sure in multi.cpp, MakePlayerPath( playerIndex, pkt->targx, pkt->targy, 1 ); takes the correct arguments.
 	player.TargetCol = player.Col;
-	SomeWithTeleportAndTransparent(player.Row, player.Col);// установили прозрачность комнате с игроком
+	SomeWithTeleportAndTransparent(player.Row, player.Col);// (rt) made the player's room transparent
 	missile.value[0] = 1;
 	PlayerMap[ player.Row ][ player.Col ] = (uchar)missile.CasterIndex + 1;
 	if( Dungeon->genType || Dungeon->isQuest /*&& QuestFloorIndex == QF_11_PASSAGE_OF_FIRE*/ ){
@@ -8282,7 +9506,7 @@ void __fastcall ActStoneCurse(int missileIndex)
 		missile.IsDeleted = true;
 		if(monsterTarget.CurrentLife <= 0){
 			// 0043874D
-			AddMonsterCorpse(monsterTarget.Row, monsterTarget.Col, monsterTarget.newBossId ? monsterTarget.udeadNum : monsterTarget.SpritePtr->deadSpriteNum, monsterTarget.Orientation); // это байт устанавливается в InitDead
+			AddMonsterCorpse(monsterTarget.Row, monsterTarget.Col, monsterTarget.newBossId ? monsterTarget.udeadNum : monsterTarget.SpritePtr->deadSpriteNum, monsterTarget.Orientation); // (rt) this byte is set in InitDead
 		}else{
 			monsterTarget.CurAction = lastMonsterTargetAction;
 		}
@@ -8357,7 +9581,7 @@ void __fastcall ActMonstersRun(int missileIndex)
 	monster.PrevCol = castCol;
 	monster.Col = castCol;
 	MonsterMap[ castRow ][ castCol ] = -1 - missile.CasterIndex;
-	if( monster.newBossId ){// (18) расширение номера босса 00438914
+	if( monster.newBossId ){// (rt) (18) boss number extension 00438914
 		ChangeLightPos(missile.LightIndex, castRow, castCol);
 	}
 	// 00438932
@@ -8443,7 +9667,7 @@ void __fastcall ActSomeAnotherMonsterRun(int missileIndex)
 	 && CheckCellForMeleeMonsterSafeMove(missile.CasterIndex, row, col) ){
 		// 00438B05
 		ChargeAttackImpact(missileIndex, row, col);
-		isHitTarget = targetCol;// Мусор?
+		isHitTarget = targetCol;// (rt) Unused data?
 		missile.IsDeleted = true;
 	}else{
 		// 00438B21
@@ -8476,7 +9700,7 @@ void __fastcall ActFireWall(int missileIndex)
 {
 	if( !IsMainDraw ) return;
 	Missile& missile = Missiles[missileIndex];
-	missile.TimeToLive--; // длина стены в каждую сторону от точки каста
+	missile.TimeToLive--; // (rt) wall length in each direction from the cast point
 	int casterIndex = missile.CasterIndex;
 	if( !missile.TimeToLive ){
 		missile.IsDeleted = true;
@@ -8502,7 +9726,7 @@ void __fastcall ActFireWall(int missileIndex)
 	}else{
 		// 00438C57
 		CastMissile(wallFirstBeamRow, wallFirstBeamCol, wallFirstBeamRow, wallFirstBeamCol, Players[casterIndex].dir, MI_5_FIRE_WALL_SEGMENT, 2, casterIndex, 0, missile.SpellLevel, missile.spellIndex );
-		if( wallFirstBeamRow != wallFirstBeamNextRow && wallFirstBeamCol != wallFirstBeamNextCol && !TileBlockMissle[FineMap[ wallFirstBeamRow ][ wallFirstBeamNextCol ]] ){ // каст стены по диагонали
+		if( wallFirstBeamRow != wallFirstBeamNextRow && wallFirstBeamCol != wallFirstBeamNextCol && !TileBlockMissle[FineMap[ wallFirstBeamRow ][ wallFirstBeamNextCol ]] ){ // (rt) diagonal wall cast
 			CastMissile(wallFirstBeamRow, wallFirstBeamNextCol, wallFirstBeamRow, wallFirstBeamNextCol, Players[casterIndex].dir, MI_5_FIRE_WALL_SEGMENT, 2, casterIndex, 0, missile.SpellLevel, missile.spellIndex );
 		}
 		wallFirstBeamRow = wallFirstBeamNextRow;
@@ -8519,7 +9743,7 @@ void __fastcall ActFireWall(int missileIndex)
 	}else{
 		// 00438CF9
 		CastMissile(wallSecondBeamRow, wallSecondBeamCol, wallSecondBeamRow, wallSecondBeamCol, Players[casterIndex].dir, MI_5_FIRE_WALL_SEGMENT, 2, casterIndex, 0, missile.SpellLevel, missile.spellIndex );
-		if( wallSecondBeamRow != wallSecondBeamNextRow && wallSecondBeamCol != wallSecondBeamNextCol && !TileBlockMissle[FineMap[ wallSecondBeamNextRow ][ wallSecondBeamCol ]] ){ // каст стены по диагонали
+		if( wallSecondBeamRow != wallSecondBeamNextRow && wallSecondBeamCol != wallSecondBeamNextCol && !TileBlockMissle[FineMap[ wallSecondBeamNextRow ][ wallSecondBeamCol ]] ){ // (rt) diagonal wall cast
 			CastMissile(wallSecondBeamNextRow, wallSecondBeamCol, wallSecondBeamNextRow, wallSecondBeamCol, Players[casterIndex].dir, MI_5_FIRE_WALL_SEGMENT, 2, casterIndex, 0, missile.SpellLevel, missile.spellIndex );
 		}
 		wallSecondBeamRow = wallSecondBeamNextRow;
@@ -8618,11 +9842,11 @@ void __fastcall ActLightningWall(int missileIndex)
 {
 	if( !IsMainDraw ) return;
 	Missile& missile = Missiles[missileIndex];
-	missile.TimeToLive--; // длина стены в каждую сторону от точки каста
+	missile.TimeToLive--; // (rt) wall length in each direction from the cast point
 	int casterIndex = missile.CasterIndex;
 	int clvl = 0;
-	if( casterIndex < 0 ) return; // ловушки ? только игроки (ниже используется как playerIndex)
-	if( false ){ // отключаем пока, чтобы не дохли от собственных стен
+	if( casterIndex < 0 ) return; // (rt) traps? players only (used as playerIndex below)
+	if( false ){ // (rt) disabled for now, so they don't die from their own walls
 		Player& player = Players[casterIndex];
 		clvl = player.CharLevel;
 	}
@@ -8658,7 +9882,7 @@ void __fastcall ActLightningWall(int missileIndex)
 	}else{
 		// 004390F5
 		CastMissile(wallFirstBeamRow, wallFirstBeamCol, wallFirstBeamRow, wallFirstBeamCol, Players[casterIndex].dir, MI_70_LIGHTNING_WALL_SEGMENT, 2, casterIndex, damage, missile.SpellLevel, missile.spellIndex );
-		if( wallFirstBeamRow != wallFirstBeamNextRow && wallFirstBeamCol != wallFirstBeamNextCol && !TileBlockMissle[FineMap[ wallFirstBeamRow ][ wallFirstBeamNextCol ]] ){ // каст стенки по диагонали
+		if( wallFirstBeamRow != wallFirstBeamNextRow && wallFirstBeamCol != wallFirstBeamNextCol && !TileBlockMissle[FineMap[ wallFirstBeamRow ][ wallFirstBeamNextCol ]] ){ // (rt) diagonal wall cast
 			CastMissile(wallFirstBeamRow, wallFirstBeamNextCol, wallFirstBeamRow, wallFirstBeamNextCol, Players[casterIndex].dir, MI_70_LIGHTNING_WALL_SEGMENT, 2, casterIndex, damage, missile.SpellLevel, missile.spellIndex );
 		}
 		wallFirstBeamRow = wallFirstBeamNextRow;
@@ -8679,7 +9903,7 @@ void __fastcall ActLightningWall(int missileIndex)
 	}else{
 		// 00439198
 		CastMissile(wallSecondBeamRow, wallSecondBeamCol, wallSecondBeamRow, wallSecondBeamCol, Players[casterIndex].dir, MI_70_LIGHTNING_WALL_SEGMENT, 2, casterIndex, damage, missile.SpellLevel, missile.spellIndex );
-		if( wallSecondBeamRow != wallSecondBeamNextRow && wallSecondBeamCol != wallSecondBeamNextCol && !TileBlockMissle[FineMap[ wallSecondBeamNextRow ][ wallSecondBeamCol ]] ){ // каст стенки по диагонали
+		if( wallSecondBeamRow != wallSecondBeamNextRow && wallSecondBeamCol != wallSecondBeamNextCol && !TileBlockMissle[FineMap[ wallSecondBeamNextRow ][ wallSecondBeamCol ]] ){ // (rt) diagonal wall cast
 			CastMissile(wallSecondBeamNextRow, wallSecondBeamCol, wallSecondBeamNextRow, wallSecondBeamCol, Players[casterIndex].dir, MI_70_LIGHTNING_WALL_SEGMENT, 2, casterIndex, damage, missile.SpellLevel, missile.spellIndex );
 		}
 		wallSecondBeamRow = wallSecondBeamNextRow;
@@ -8732,7 +9956,7 @@ void __fastcall ActApocalypse(int missileIndex)
 				monsterNumber = -monsterNumber;
 			}
 			Monster& monster = Monsters[monsterNumber - 1];
-//			if( monsterNumber > 3 //0043928F TODO: не голем. только вот голем 3го игрока может попасть под раздачу
+//			(rt) if( monsterNumber > 3 //0043928F TODO: not a golem. except the 3rd player's golem can get caught too
 //				//&& !TileBlockWalking[FineMap[ 0 ][ cell ]]  removing unwalkable tile condition
 //				&& CheckCastInSight(missile.Row, missile.Col, row, col) ){
 			if (monsterNumber > SummonMonsters_Count && (FlagMap[row][col] & CF_2_VISIBLE_BY_PLAYER)) {//Area of a square is greater than that of a circle with the same radius, could be unintended nerf if apocRadius = 8, but CheckCastInSight() is buggy...
@@ -9049,11 +10273,14 @@ void __fastcall ActIncinerate(int missileIndex)
 	if (GameMode == GM_HARD) {
 		incinerate_range = 6;
 	}
+	else if (GameMode == GM_OUTBREAK) {
+		incinerate_range = 4;
+	}
 	else {
 		incinerate_range = 3;
 	}
 	if( !missile.TimeToLive || CountOfIncinerateFragmentsCasted
-	 ==	(missile.CasterType != 1 || !IsThisBoss(missile.CasterIndex, UM_582_Izual) ? incinerate_range : 9) ){ // Ограничение в 3 элемента ( 9 for Izual )
+	 ==	(missile.CasterType != 1 || !IsThisBoss(missile.CasterIndex, UM_582_Izual) ? incinerate_range : 9) ){ // (rt) Limited to 3 elements ( 9 for Izual )
 		missile.IsDeleted = true;
 	}
 }
@@ -9234,37 +10461,38 @@ void __fastcall ActElemental(int missileIndex)
 		int playerRow = player.Row;
 		int playerCol = player.Col;
 		ChangeLight(missile.LightIndex, spellRow, spellCol, missile.FrameIndex);
-		if( !IsPathBlockedToMoveSpell(playerRow, playerCol, spellRow, spellCol) ){
+		// (th4) splash measured from where the spell was cast, for missiles: see IsSplashBlocked
+		if( !IsSplashBlocked(missile.CasterRow, missile.CasterCol, spellRow, spellCol) ){
 			MissileAttack(missileIndex, damage, damage, 1, spellRow, spellCol, 1);
 		}
 		#ifndef REFACTOR
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow, spellCol + 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow, spellCol + 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow, spellCol + 1, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow, spellCol - 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow, spellCol - 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow, spellCol - 1, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow + 1, spellCol ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow + 1, spellCol ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow + 1, spellCol, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow + 1, spellCol - 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow + 1, spellCol - 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow + 1, spellCol - 1, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow + 1, spellCol + 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow + 1, spellCol + 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow + 1, spellCol + 1, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow - 1, spellCol ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow - 1, spellCol ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow - 1, spellCol, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow - 1, spellCol + 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow - 1, spellCol + 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow - 1, spellCol + 1, 1 );
 		}
-		if( !IsPathBlockedToMoveSpell( playerRow, playerCol, spellRow - 1, spellCol - 1 ) ){
+		if( !IsSplashBlocked( missile.CasterRow, missile.CasterCol, spellRow - 1, spellCol - 1 ) ){
 			MissileAttack( missileIndex, damage, damage, 1, spellRow - 1, spellCol - 1, 1 );
 		}
 		#else
 		for( int i = 0; i < 8; i++ ){
-			if( !IsPathBlockedToMoveSpell(playerRow, playerCol, spellRow + RowDelta[i], spellCol + ColDelta[i]) ){
+			if( !IsSplashBlocked(missile.CasterRow, missile.CasterCol, spellRow + RowDelta[i], spellCol + ColDelta[i]) ){
 				MissileAttack(missileIndex, damage, damage, 0, spellRow + RowDelta[i], spellCol + ColDelta[i], 1);
 			}
 		}
@@ -9285,12 +10513,12 @@ void __fastcall ActElemental(int missileIndex)
 		spellCol = missile.Col;
 		MissileAttack(missileIndex, damage, damage, 0, spellRow, spellCol, 0);
 		if( !HomingStatus && spellRow == homingBiginRow && spellCol == homingBiginCol ){
-			HomingStatus = 1;// дошли до целевой точки, включаем поиск цели
+			HomingStatus = 1;// (rt) reached the target point, enable target search
 		}
 
 		// 0043A245
-		if( HomingStatus == 1 ){// нужна наводка
-			HomingStatus = 2;// наводка произведена
+		if( HomingStatus == 1 ){// (rt) homing needed
+			HomingStatus = 2;// (rt) homing done
 			missile.TimeToLive = 255;
 			int monsterIndex = FindMonsterTargetInRadius(spellRow, spellCol, 19,
 			    [casterIndex]( int monsterIndex )
@@ -9355,14 +10583,14 @@ void __fastcall ActBoneSpirit(int missileIndex)
 	}
 	missile.TimeToLive--;
 	int casterIndex = missile.CasterIndex;
-	if( missile.direction == 8 ){// анимация взрыва
+	if( missile.direction == 8 ){// (rt) explosion animation
 		// 0043A38E
 		ChangeLight(missile.LightIndex, missile.Row, missile.Col, missile.FrameIndex);
 		if( !missile.TimeToLive ){
 			missile.IsDeleted = true;
 			LightOff(missile.LightIndex);
 		}
-	}else{// полёт
+	}else{// (rt) flight
 		// 0043A3D2
 		motion:
 		missile.WholeDeltaY += missile.DeltaY;
@@ -9374,12 +10602,12 @@ void __fastcall ActBoneSpirit(int missileIndex)
 		int spellDamage = missile.Damage;
 		MissileAttack(missileIndex, spellDamage, spellDamage, 0, spellRow, spellCol, 0);
   
-		if( !HomingStatus && spellRow == homingBiginRow && spellCol == homingBiginCol ){// достижение точки смены направления
+		if( !HomingStatus && spellRow == homingBiginRow && spellCol == homingBiginCol ){// (rt) reached the direction-change point
 			HomingStatus = 1;
 		}
 		// 0043A434
-		if( HomingStatus == 1 ){// если пора менять направление
-			HomingStatus = 2;// направление сменили
+		if( HomingStatus == 1 ){// (rt) if it's time to change direction
+			HomingStatus = 2;// (rt) direction changed
 			missile.TimeToLive = 255;
 			int monsterIndex = FindMonsterTargetInRadius(spellRow, spellCol, 19,
 			    [casterIndex]( int monsterIndex )
@@ -9462,7 +10690,10 @@ void __fastcall ActRedPortal(int missileIndex)
 		ChangeLight(missile.LightIndex, missile.Row, missile.Col, Lightness < countof(light) ? light[Lightness++] : 0);
 	}
 	if (missile.TimeToLive) {
-		LightList[missile.LightIndex].off = false;
+		// (th4) Rev 2.46 hardening: when AddLight fails (LightList full) the
+		// index is -1 and the unguarded write below hit LightList[-1] — memory
+		// corruption of whatever global precedes the array. Guarded.
+		if (missile.LightIndex >= 0) LightList[missile.LightIndex].off = false;
 	}
 	// 0043A67F
 	if( !missile.TimeToLive ){
@@ -9476,6 +10707,349 @@ void __fastcall ActRedPortal(int missileIndex)
 
 
 //----- (0043A6A5) --------------------------------------------------------
+
+// (th4) Stage 3: per-missile-type light tint table (white = no tint).
+// One row per colored missile — the V2 light field automatically follows the
+// winning light's tint, so adding a color is ONE table row here, nothing
+// else. Applied centrally from ProcessMissiles (below), so every missile
+// that owns a light gets its table color regardless of which Cast*/update
+// code created the light — no per-missile AddLight-site hacks.
+// (th4) 2026-09-05: owner-aware — per-caster decisions (Elementalist hydra,
+// Ice Age portal) read the missile OWNER's player slot, never
+// CurrentPlayerIndex (which is the LOCAL player and would desync in
+// multiplayer where every client processes the same missile list).
+static LightTint GetMissileLightTint(const Missile& missile)
+{
+	// The player who cast this missile, or null for monster/trap/shrine casters.
+	const Player* owner = nullptr;
+	if (Players && missile.CasterType == CT_0_PLAYER
+		&& missile.CasterIndex >= 0 && missile.CasterIndex < PlayersMax_4) {
+		owner = &Players[missile.CasterIndex];
+	}
+	const bool ownerIceAge = owner && (owner->gameChanger & BIT(GC_15_ICE_AGE)) != 0;
+	switch (missile.BaseMissileIndex) {
+		case MI_1_FIREBOLT:                   { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // orange red
+		// (th4) Energy gun rounds (laser / plasma / EMP). Color follows the SPRITE, not the
+		// damage element -- same rule as MI_10_TOWN_PORTAL above, so the pool never
+		// fights what is drawn. Sprites are recolored by the TRN table in
+		// LoadMissileSprite (~2938); MIS_87_LASER and MIS_94_EMP_WHITE get NO TRN and
+		// render as their base "r_laser" / "emp" CELs, which is why 146 is red and
+		// 154/159 are white. Three rounds deliberately share a color with another
+		// round because they share its sprite: 156 uses plasma_yellow, 158 uses
+		// laser_blue, 159 uses the untinted emp CEL.
+		case MI_146_LASER:                    { LightTint t; t.r = 255; t.g = 40;  t.b = 40;  return t; } // red (base r_laser, no TRN)
+		case MI_147_LASER_BLUE:
+		case MI_158_LASER_SHOT:               { LightTint t; t.r = 60;  t.g = 140; t.b = 255; return t; } // laser_blue.trn
+		case MI_148_LASER_ORNG:               { LightTint t; t.r = 255; t.g = 150; t.b = 40;  return t; } // laser_ORNG.trn
+		case MI_150_LASER_CRIMZ:
+		case MI_155_PLASMA_CRIMZ:             { LightTint t; t.r = 255; t.g = 30;  t.b = 90;  return t; } // crimson TRNs
+		case MI_151_LASER_YELLOW:             { LightTint t; t.r = 255; t.g = 230; t.b = 60;  return t; } // laser_YELLOW.trn
+		case MI_152_LASER_WHITE:              { LightTint t; t.r = 235; t.g = 245; t.b = 255; return t; } // laser_white.trn
+		case MI_153_PLASMA_YELLOW:
+		case MI_156_CORROSIVE_SHOT:           { LightTint t; t.r = 220; t.g = 255; t.b = 70;  return t; } // plasma_yellow.trn
+		case MI_154_EMP_WHITE:
+		case MI_159_GRAVITY_SHOT:             { LightTint t; t.r = 200; t.g = 230; t.b = 255; return t; } // emp CEL, no TRN
+		case MI_157_FIRE_SHOT:                { LightTint t; t.r = 255; t.g = 140; t.b = 45;  return t; } // plasma_orange.trn
+		case MI_2_HYDRA: {
+			// Hydra has different looks for Elementalist
+			LightTint t;
+			if (owner && owner->fullClassId == PFC_ELEMENTALIST) {
+				t.r = 51; t.g = 153; t.b = 255; // light blue
+			}
+			else {
+				t.r = 255; t.g = 128; t.b = 0; // orange
+			}
+			return t;
+		}
+		case MI_6_FIREBLAST:                  { LightTint t; t.r = 255; t.g = 155; t.b = 55;  return t; } // orange red
+		case MI_10_TOWN_PORTAL: {
+			// (th4) Match the portal ART: SetMissileSprite swaps to the blue
+			// "Portalblu" CEL when BlueTownPortal / Ice Age / classic mode is on;
+			// otherwise the classic red-orange "Portal" CEL shows. The light pool
+			// follows the same switch so the tint never fights the sprite.
+			// (th4) 2026-09-05: the tint reads the OWNER's Ice Age game changer
+			// (multiplayer-safe); the sprite art still reads the local player, but
+			// Ice Age is a single-player-only game changer, so owner == local in
+			// every case where the bit matters and the two can never disagree.
+			// BlueTownPortal/GameMode are global client config and stay global.
+			LightTint t;
+			if (BlueTownPortal || ownerIceAge || GameMode == GM_CLASSIC) {
+				t.r = 0; t.g = 0; t.b = 255; // blue light pool (blue CEL)
+			} else {
+				t.r = 255; t.g = 128; t.b = 0; // orange light pool (classic CEL)
+			}
+			return t;
+		}
+		case MI_161_TOWN_ARCANE_STAR:         { LightTint t; t.r = 255; t.g = 0;   t.b = 127; return t; } // (th4) town decoration: Flare sprite, crimson (the default MI_24 arcane star)
+		case MI_24_ARCANE_STAR: {
+			// (th4) 2026-09-08: the arcane star's sprite — and so its color —
+			// is decided by the monster branch of CastArcaneStar: classic game
+			// mode re-skins by caster species, then a chain of species / Ice
+			// Age GC / quest dungeon / boss checks. Duplicated here (no
+			// refactor) so the light pool always matches the sprite the cast
+			// actually picked. Player-cast stars (and casterIndex <= 0, which
+			// the cast code also skips) keep the default Flare sprite.
+			// NOTE: reads Players[CurrentPlayerIndex] exactly like the cast
+			// code — the recolor is a local visual decision, so the tint must
+			// follow the sprite THIS client renders, not the caster's owner
+			// (unlike MI_10_TOWN_PORTAL above).
+			LightTint t;
+			t.r = 255; t.g = 0; t.b = 127; // default: Flare, pink
+			if (missile.CasterType == CT_0_PLAYER || missile.CasterIndex <= 0) {
+				return t;
+			}
+			const Monster& caster = Monsters[missile.CasterIndex];
+			const int baseMonsterIndex = caster.SpritePtr->baseMonsterIndex;
+			if (GameMode == GM_CLASSIC) {
+				switch (baseMonsterIndex) {
+					case BM_C_322_SNOW_WITCH:
+						t.r = 200; t.g = 220; t.b = 250; // Scubmisblu, cold blue
+						break;
+					case BM_C_323_HELL_SPAWN:
+						t.r = 150; t.g = 40;  t.b = 40;  // Scubmisd, dark red
+						break;
+					case BM_C_324_SOUL_BURNER:
+						t.r = 255; t.g = 255; t.b = 25;  // Scubmisc, yellow
+						break;
+					default:
+						break; // Flare, pink (already the default)
+				}
+				return t;
+			}
+			// Non-classic: the ordered chain from CastArcaneStar — species
+			// checks first, then the two Ice-Age boss recolors, then the last
+			// two species checks. A switch on baseMonsterIndex plus a decided
+			// flag reproduces the else-if order exactly; the order is
+			// load-bearing because a boss whose species branch already fired
+			// must NOT take the boss recolor.
+			bool decided = false;
+			switch (baseMonsterIndex) {
+				case BM_101_DARK_MISTRESS:
+					if (!ownerIceAge && !Dungeon->isQuest) {
+						decided = true; // Flare (already the default tint)
+					}
+					break;
+				case BM_102_SUCCUBUS:
+					if (!ownerIceAge && !Dungeon->isQuest) {
+						t.r = 100; t.g = 160; t.b = 255; // Scubmisb, blue
+						decided = true;
+					}
+					break;
+				default:
+					break;
+			}
+			if (!decided && IsThisBoss(missile.CasterIndex, UM_85_Lustbrood_the_Carnal) && ownerIceAge) {
+				t.r = 150; t.g = 40; t.b = 40; // Scubmisd, dark red
+				decided = true;
+			}
+			if (!decided && IsThisBoss(missile.CasterIndex, UM_529_Sybil) && ownerIceAge) {
+				decided = true; // Flare (already the default tint)
+			}
+			if (!decided) {
+				switch (baseMonsterIndex) {
+					case BM_103_BLOOD_WITCH:
+						if (Dungeon->level != 18 && !IsThisBoss(missile.CasterIndex, UM_593_Witchmoon)) {
+							t.r = 150; t.g = 40; t.b = 40; // Scubmisd, dark red
+						}
+						break;
+					case BM_104_DARK_WITCH:
+						if (!IsThisBoss(missile.CasterIndex, UM_319_Lustsoul)) {
+							t.r = 255; t.g = 255; t.b = 25; // Scubmisc, yellow
+						}
+						break;
+					default:
+						break;
+				}
+			}
+			return t;
+		}
+		case MI_28_BALL_LIGHTNING:            { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // light blue
+		case MI_48_INCINERATE_SEGMENT:        { LightTint t; t.r = 255; t.g = 105; t.b = 55;  return t; } // orange red
+		case MI_52_CHARGED_BOLT:              { LightTint t; t.r = 255; t.g = 255; t.b = 0;   return t; } // yellow, small same light radius is problematic, sharp edges when interacting with other colored tint, e.g. town portal.  Fixed in Rev 2.37 commit d3dc1025
+		case MI_53_HOLY_BOLT:                 { LightTint t; t.r = 150; t.g = 200; t.b = 255; return t; } // light blue
+		case MI_61_ELEMENTAL:                 { LightTint t; t.r = 255; t.g = 225; t.b = 0;   return t; } // Yellow
+		case MI_63_BONE_SPIRIT:               { LightTint t; t.r = 0;   t.g = 0;   t.b = 0;   return t; } // black, dark magic
+		case MI_129_SNOW_BOLT:                { LightTint t; t.r = 200; t.g = 220; t.b = 250; return t; } // light blue
+		case MI_137_RANCID_BOLT:              { LightTint t; t.r = 173; t.g = 255; t.b = 47;  return t; } // 0 light radius so tint doesn't apply
+		case MI_138_FREEZING_BALL:            { LightTint t; t.r = 205; t.g = 225; t.b = 255; return t; } // light blue
+		case MI_144_HYDRAMANCER_CHARGED_BOLT: { LightTint t; t.r = 153; t.g = 255; t.b = 255; return t; } // light cyan
+		// (th4) 2026-09-08: completed the table. Light radius verified per
+		// missile in the Cast*/Act* code: CastMagicArrow = 5, CastFirebolt /
+		// CastMagmaBall / CastFireblast / CastArcaneStar / CastElemental /
+		// CastHolyBolt / CastBallLightning / CastBoneSpirit / runes /
+		// CastSpell88FireBall / CastFireNovaSegment / CastExplosiveRuneExplode /
+		// CastExploder / CastFlaskThrow / CastTrapThrow = 8,
+		// Cast_Lightning_Segment = 4, CastHydra / CastIncinerateSegment /
+		// CastTrapperTrap = 1, ActMagicExplosion / ActWeaponElementalDamage = 9,
+		// ActFireWallSegment / ActSpell70LightningWallSegment = 2,
+		// ActTownPortal / ActRedPortal = 1. Missiles with NO light radius
+		// (LightIndex stays -1 or CastAcidMissile-style -1) are NOT added.
+		// (th4) wall segments get their light in the Act function
+		case MI_5_FIRE_WALL_SEGMENT:          { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_8_LIGHTING_SEGMENT:           { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_9_MAGMA_BALL_EX:              { LightTint t; t.r = 255; t.g = 140; t.b = 50;  return t; } // magma explosion, orange
+		case MI_16_NULL_SPELL_1:              { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning damage type, blue ball sprite
+		case MI_21_MAGMA_BALL:                { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_23_MONSTER_LIGHTING_SEGMENT:  { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_25_ARCANE_STAR_EX: { // Arcane Star explosion color must match main missile color
+			LightTint t;
+			t.r = 255; t.g = 0; t.b = 127; // default: Flare, pink
+			if (missile.CasterType == CT_0_PLAYER || missile.CasterIndex <= 0) {
+				return t;
+			}
+			const Monster& caster = Monsters[missile.CasterIndex];
+			const int baseMonsterIndex = caster.SpritePtr->baseMonsterIndex;
+			if (not(baseMonsterIndex, BM_103_BLOOD_WITCH, BM_104_DARK_WITCH, BM_284_SIN_SPAWN) && ownerIceAge && !Dungeon->isQuest) {
+				if (IsThisBoss(missile.CasterIndex, UM_85_Lustbrood_the_Carnal)) { // No Ice Age check???
+					t.r = 150; t.g = 40; t.b = 40; // Scubmisd, dark red
+				}
+//				else if (IsThisBoss(missile.CasterIndex, UM_529_Sybil)) { // No Ice Age check???  No recolor anyway...
+//				}
+			}
+			switch (baseMonsterIndex) {
+//				case BM_101_DARK_MISTRESS: t.r = 220; t.g = 20; t.b = 60; break; // crimson?
+				case BM_102_SUCCUBUS: t.r = 100; t.g = 160; t.b = 255; break; // level colors explode
+				case BM_103_BLOOD_WITCH or BM_C_323_HELL_SPAWN: t.r = 150; t.g = 40; t.b = 40; break; // red explode 
+				case BM_104_DARK_WITCH or BM_C_324_SOUL_BURNER: t.r = 255; t.g = 255; t.b = 25; break; // yellow explode
+				case BM_C_322_SNOW_WITCH: t.r = 200; t.g = 220; t.b = 250; break; // cold blue
+				default: break;
+			}
+			return t;
+		}
+		case MI_27_FIRE_ARROW:                { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_56_LIGHTING_ARROW:            { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_64_WEAPON_ELEMENTAL_DAMAGE: {
+			// (th4) the element that detonates is runtime state: value[1] is set
+			// by CastWeaponElementalDamage and ActWeaponElementalDamage swaps
+			// bm.DamageType to it before the hit — tint from that element.
+			LightTint t;
+			switch (missile.value[1]) {
+				case ET_1_FIRE:      t.r = 250; t.g = 150; t.b = 50;  break; // orange
+				case ET_2_LIGHTNING: t.r = 255; t.g = 255; t.b = 100; break; // yellow
+				case ET_3_ARCAN:     t.r = 255; t.g = 0;   t.b = 127; break; // pink
+				case ET_4_ACID:      t.r = 173; t.g = 255; t.b = 47;  break; // green
+				case ET_5_HOLY:      t.r = 150; t.g = 200; t.b = 255; break; // light blue
+				case ET_6_COLD:      t.r = 200; t.g = 220; t.b = 250; break; // cyan
+				default:             t.r = 160; t.g = 160; t.b = 160; break; // physical, grey
+			}
+			// (th4) half-way to white: a melee hit fires several times a second, and the pure
+			// element colours read as flashing the whole screen. Tune WEAPON_HIT_TINT_PCT (share of
+			// the element colour kept; 100 = the colours above, 0 = white).
+			const int WEAPON_HIT_TINT_PCT = 50;
+			t.r = (uchar)( 255 - ( 255 - t.r ) * WEAPON_HIT_TINT_PCT / 100 );
+			t.g = (uchar)( 255 - ( 255 - t.g ) * WEAPON_HIT_TINT_PCT / 100 );
+			t.b = (uchar)( 255 - ( 255 - t.b ) * WEAPON_HIT_TINT_PCT / 100 );
+			return t;
+		}
+		case MI_65_RED_PORTAL:                { LightTint t; t.r = 255; t.g = 80;  t.b = 60;  return t; } // red portal art, red orange
+		case MI_70_LIGHTNING_WALL_SEGMENT:    { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_74_FIREBOLT_ARROW:            { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_76_CHARGED_BOLT_ARROW:        { LightTint t; t.r = 255; t.g = 255; t.b = 0;   return t; } // lightning, yellow
+		case MI_77_HOLY_BOLT_ARROW:           { LightTint t; t.r = 150; t.g = 200; t.b = 255; return t; } // holy, light blue
+		case MI_88_FIREBALL:                  { LightTint t; t.r = 255; t.g = 155; t.b = 55;  return t; } // fire, orange red
+		case MI_89_RUNE_OF_FIRE:              { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_90_RUNE_OF_LIGHTNING:         { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_91_RUNE_OF_GREAT_LIGHTNING:   { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_92_RUNE_OF_IMMOLATION:        { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_93_RUNE_OF_STONE:             { LightTint t; t.r = 160; t.g = 160; t.b = 160; return t; } // stone, grey
+		case MI_94_BIG_FIRE_EX:               { LightTint t; t.r = 255; t.g = 155; t.b = 55;  return t; } // fire explosion, orange red
+		case MI_98_LICH_ORA_BLAST:            { LightTint t; t.r = 255; t.g = 140; t.b = 0;   return t; } // ora blast art, orange
+		case MI_99_BLUE_BLAST:                { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue blast art, blue
+		case MI_100_RED_BLAST:                { LightTint t; t.r = 255; t.g = 60;  t.b = 60;  return t; } // red blast art, red
+		case MI_101_YELOW_BLAST:              { LightTint t; t.r = 255; t.g = 225; t.b = 0;   return t; } // yellow blast art, yellow
+		case MI_102_BLUE_BLAST_2:             { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue blast art, blue
+		case MI_103_YEL_EX:                   { LightTint t; t.r = 255; t.g = 225; t.b = 0;   return t; } // yellow explosion, yellow
+		case MI_104_RED_EX:                   { LightTint t; t.r = 255; t.g = 60;  t.b = 60;  return t; } // red explosion, red
+		case MI_105_BLU_EX:                   { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue explosion, blue
+		case MI_106_BLU_EX:                   { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue explosion, blue
+		case MI_107_LICH_ORA_EX:              { LightTint t; t.r = 255; t.g = 140; t.b = 0;   return t; } // ora explosion, orange
+		case MI_108_ARCANE_ARROW:             { LightTint t; t.r = 255; t.g = 0;   t.b = 127; return t; } // arcane, pink
+		case MI_109_ACID_ARROW:               { LightTint t; t.r = 173; t.g = 255; t.b = 47;  return t; } // acid, green
+		case MI_110_FLASK_OF_FIRE:            { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_111_FLASK_OF_LIGHTNING:       { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_112_FLASK_OF_ACID:            { LightTint t; t.r = 173; t.g = 255; t.b = 47;  return t; } // acid, green
+		case MI_113_FLASK_OF_FIREBOMB:        { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire, orange red
+		case MI_114_FLASK_OF_LIGHTNINGBOMB:   { LightTint t; t.r = 125; t.g = 150; t.b = 225; return t; } // lightning, light blue
+		case MI_115_FLASK_OF_ACIDBOMB:        { LightTint t; t.r = 173; t.g = 255; t.b = 47;  return t; } // acid, green
+		case MI_116_FLASK_FIRE_EX:            { LightTint t; t.r = 255; t.g = 155; t.b = 55;  return t; } // fire explosion, orange red
+		case MI_117_FLASK_ACID_EX:            { LightTint t; t.r = 173; t.g = 255; t.b = 47;  return t; } // acid explosion, green
+//		case MI_119_TRAP_OF_ARROWS:           { LightTint t; t.r = 160; t.g = 160; t.b = 160; return t; } // physical, grey, tiny radius not worth it
+//		case MI_120_TRAPPER_GUN:              { LightTint t; t.r = 160; t.g = 160; t.b = 160; return t; } // physical, grey, tiny radius not worth it
+		case MI_126_COLD_ARROW:               { LightTint t; t.r = 200; t.g = 220; t.b = 250; return t; } // cold, cyan
+		case MI_127_HABIBI:                   { LightTint t; t.r = 200; t.g = 220; t.b = 250; return t; } // cold, cyan
+		case MI_128_HABIBI_EX:                { LightTint t; t.r = 200; t.g = 220; t.b = 250; return t; } // cold explosion, cyan
+		case MI_130_SNOW_EXPL:                { LightTint t; t.r = 200; t.g = 220; t.b = 250; return t; } // cold explosion, cyan
+		case MI_131_ARCANE_STAR_BLUE:         { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue arcane star art, blue
+		case MI_132_ARCANE_STAR_EXP_BLUE:     { LightTint t; t.r = 60;  t.g = 150; t.b = 255; return t; } // blue arcane star explosion, blue
+		case MI_140_EXPLODER:                 { LightTint t; t.r = 150; t.g = 0;   t.b = 0;   return t; } // physical, grey -> dark red
+		// (th4) doubtful cases — line kept but commented out:
+		// - MI_29_FIRE_TRAP: ActFireWallSegment only lights it when
+		//   missile.direction != 0 (CastSpell29 never sets direction).
+		// - MI_118_FLASK_OF_ARCANEBOMB: arcane damage (pink/purple) but the
+		//   flask sprite MIS_71_FLASK_CRIMSON is red.
+		// - MI_139/141/143 (knife/mallet/bullet): light only when elemental
+		//   arrow effects route CastArrow through CastMagicArrow (value[7]).
+		//   The energy gun rounds do get their own light (see CastArrow),
+		//   but the plain bullet stays physical and unlit.
+		// - MI_149_GRENADE: physical damage (grey by the rule) but the blast
+		//   art is the fireball explosion (orange red).
+		case MI_29_FIRE_TRAP:                 { LightTint t; t.r = 250; t.g = 150; t.b = 50;  return t; } // fire trap head, orange (light only when direction != 0)
+		case MI_118_FLASK_OF_ARCANEBOMB:      { LightTint t; t.r = 255; t.g = 0;   t.b = 160; return t; } // arcane, pink/purple (crimson flask art)
+//		case MI_139_THROWING_KNIFE:           { LightTint t; t.r = 160; t.g = 160; t.b = 160; return t; } // physical, grey (light only via elemental reroute)
+//		case MI_141_THROWING_MALLET:          { LightTint t; t.r = 160; t.g = 160; t.b = 160; return t; } // physical, grey (light only via elemental reroute)
+		case MI_149_GRENADE:                  { LightTint t; t.r = 255; t.g = 140; t.b = 50;  return t; } // fireball explosion art, orange
+		default:                              { LightTint t; t.r = 255; t.g = 255; t.b = 255; return t; }
+	}
+}
+
+// (th4) Stage 3: keep this missile's light tinted per the table above.
+// Guarded on the light being alive: a light-off slot may be recycled by
+// ProcessLightList for a DIFFERENT light (AddLight resets the tint to white
+// on reuse), so a dead light's slot must never be recolored here.
+// (th4) const Missile& — this function only READS the missile (the write
+// goes to the LightTintList side table), so const expresses the contract.
+static void ApplyMissileLightTint(const Missile& missile)
+{
+	// (th4) Rev 2.27: colored tints exist only in ultra mode. Outside it the
+	// side table must stay all-white so the pre-branch V2 fill, cache key and
+	// identity tools never observe a non-white tint (byte-identity gate).
+	// Maybe add guard ((Players && (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < PlayersMax_4))
+	if (!g_ARGBLighting) return;
+	// (th4) F-class hardening: mirror ApplyObjectLightTint's bound check.
+	// Missiles restored by a save keep the RAW LightIndex byte (LoadMissile is
+	// a memcpy), so a corrupt value >= Lights_128_Count would index
+	// LightList / LightTintList out of bounds — here, in the load-time pass and
+	// in the per-tick caller alike.
+	if (missile.LightIndex < 0 || missile.LightIndex >= Lights_128_Count) return; // no light (FullLighting / no slot)
+	if (LightList[missile.LightIndex].off) return;           // dead light — slot not owned
+	LightTintList[missile.LightIndex] = GetMissileLightTint(missile);
+}
+
+// (th4) Stage 3 load fix: apply every live missile's light tint ONCE right
+// after a load / level change finished. The tint is normally asserted only by
+// the per-tick call above inside ProcessMissiles, but a load can hand the
+// player a tinted light AFTER the last tick of the outgoing frame — the worst
+// case is SyncPortals() re-casting the visited level's warp missiles and their
+// radius-15 lights (town portal, and the red portal) at the very end of
+// LoadGameLevel. The frames drawn between then and the next logic tick (logic
+// runs at ENGINE_FPS = 20 Hz, drawing up to MAX_FPS) showed that pool with the
+// default WHITE tint and g_LightTintActive still off — the "portal flashes
+// untinted for a split second, then colors on" report. Same rule and same
+// guards as the per-tick call — just applied before the first frame; zero
+// per-frame cost. Callers: LoadGameLevel (after its final SyncPortals) and
+// LoadGame (after the restored missile list is final).
+void ReassertAllMissileLightTints()
+{
+	// (th4) Rev 2.27 gate, hoisted from ApplyMissileLightTint: outside ultra the
+	// tint side table is never non-white (the per-tick apply is gated too), so
+	// skip the whole walk instead of relying on the per-missile early-out.
+	if (!g_ARGBLighting) return;
+	for( int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++ ){
+		const int missileIndex = MissileIndexes[spellIndexIndex];
+		ApplyMissileLightTint(Missiles[missileIndex]);
+	}
+}
+
 void ProcessMissiles()
 {
 	BattleTransSlowMissile = !BattleTransSlowMissile;
@@ -9489,12 +11063,12 @@ void ProcessMissiles()
 		}
 		int row = missile.Row;
 		int col = missile.Col;
-		if( ! In112(row, col) ){// очищаем вышедшие за карту спелы
+		if( ! In112(row, col) ){// (rt) clear spells that left the map
 			missile.IsDeleted = 1;
 		}
 	}
 	for( auto& f: flat(FlagMap) ) f &= ~CF_1_SPELL_CAST;
-	memset( MissilesMap, 0, sizeof(MissilesMap) ); // очищаем информацию о спелах на карте
+	memset( MissilesMap, 0, sizeof(MissilesMap) ); // (rt) clear the information about spells on the map
 
 	int spellIndexIndex = 0;
 	while( spellIndexIndex < missileArraySize ){
@@ -9518,6 +11092,10 @@ void ProcessMissiles()
 		Missile& missile = Missiles[missileIndex];
 		//if( missileIndex == 123 ) __debugbreak();
 		BaseMissiles[missile.BaseMissileIndex].actFunc(missileIndex);
+		// (th4) Stage 3: re-apply the per-missile-type light tint every frame
+		// (table lookup + up to 3 byte stores, only when the missile owns a
+		// live light) — this single call site covers all 36 AddLight paths.
+		ApplyMissileLightTint(missile);
 		if( ! (missile.spriteFileFlags & MFF_STATIC) ){// playAnimation
 			missile.AnimationDelayIndex++;
 			if( missile.AnimationDelayIndex >= missile.animationDelayFrameCount ){ // TODO: change to > and fix the MissileSprites animDelay data
@@ -9537,6 +11115,9 @@ void ProcessMissiles()
 		}
 		missileArraySize = MissileAmount;
 	}
+	#if TH4_PORTAL_DEBUG
+	PortalDbg_Tick();	// (th4) debug: town portal duplicates, see TH4_PORTAL_DEBUG
+	#endif
 
 	if( ManaShieldActed ){
 		for( int spellIndexIndex = 0; spellIndexIndex < MissileAmount; spellIndexIndex++ ){
@@ -9552,7 +11133,7 @@ void ProcessMissiles()
 	spellIndexIndex = 0;
 	while( spellIndexIndex < missileArraySize ){
 		int spellIndex = MissileIndexes[spellIndexIndex];
-		if( Missiles[spellIndex].IsDeleted /*== 1*/ ){ // в th1 проверка именно на int 1 // уже заменил на лету на !0
+		if( Missiles[spellIndex].IsDeleted /*== 1*/ ){ // (rt) th1 checks for exactly int 1 // already replaced on the fly with !0
 			RemoveMissile(spellIndex, spellIndexIndex);
 			missileArraySize = MissileAmount;
 			spellIndexIndex = 0;
@@ -9568,7 +11149,7 @@ void SetupMissilesAnimationsAfterLoading()
 	for( int missileIndexIndex = 0; missileIndexIndex < MissileAmount; missileIndexIndex++ ){
 		int missileIndex = MissileIndexes[missileIndexIndex];
 		Missile& missile = Missiles[missileIndex];
-		// для заклинаний без графики(spriteIndex == -1) получали выход за границу
+		// (rt) spells without graphics (spriteIndex == -1) went out of bounds
 		MissileSprite& missileSprite = MissileSprites[ missile.spriteIndex < MIS_count ? missile.spriteIndex : 0 ];
 		int direction = missile.direction;
 		missile.curAnimationPtr = missileSprite.anim[direction];
@@ -9824,7 +11405,7 @@ void __fastcall ActFlaskThrow( int missileIndex)//, int playerIndex )
                 if( monsterNumber ){
                     int monsterIndex = abs(monsterNumber) - 1;
                     const Monster& monster = Monsters[monsterIndex];
-                    if( monsterIndex >= SummonMonsters_Count && !IsMonsterImmuneToMissile( monsterIndex, damageType, missile.CasterIndex ) ){
+                    if( IsPlayerAutoTarget( monsterIndex ) && !IsMonsterImmuneToMissile( monsterIndex, damageType, missile.CasterIndex ) ){
                         KnockbackMonster( monsterIndex, OrientationToTarget( monster.Row, monster.Col, missile.CasterRow, missile.CasterCol ), GameMode == GM_HARD ? 1 : 2 );
                     }
                 }
@@ -10079,7 +11660,7 @@ void __fastcall CastTrapperTrap(int missileIndex, int damageMin, int damageMax, 
 			int row = targetRow + CircleAndWallSegmentDeltas[1 + circleOffset + coordinateIndex*2];
 			int col = targetCol + CircleAndWallSegmentDeltas[1 + circleOffset + coordinateIndex*2 + 1];
 
-			if( To112(row, col) // было +-15 в th2, сделал как в th1 с 1 до 111
+			if( To112(row, col) // (rt) was +-15 in th2, made it like th1, from 1 to 111
 			 && CheckCastInSight(targetRow, targetCol, row, col)
 			 && !MonsterMap[ row ][ col ] 
 			 && !TileBlockMissle[FineMap[ row ][ col ]] 
@@ -10125,7 +11706,7 @@ int __fastcall AttackCellByTrapperTrap( int missileIndex, int row, int col )
 		if( monsterNumber > 0 ){
 			int monsterIndex = monsterNumber - 1;
 			Monster& monster = Monsters[monsterIndex];
-			if( !IsMonsterImmuneToMissile(monsterIndex, ET_0_PHYSICAL, missile.CasterIndex) && monsterIndex >= SummonMonsters_Count ){ // не голем
+			if( !IsMonsterImmuneToMissile(monsterIndex, ET_0_PHYSICAL, missile.CasterIndex) && IsPlayerAutoTarget( monsterIndex ) ){ // (rt) not a golem
 				int orientation = OrientationToTarget(missile.Row, missile.Col, row, col);
 				int damage = RngFromRange( missile.CasterRow, missile.CasterCol);
 				const TrapInfo& trapInfo = TrapsInfo[missile.SpellLevel];
@@ -10150,13 +11731,13 @@ void __fastcall ActTrapperTrap(int missileIndex)
 		int prevRowDelta = 0;
 		int prevColDelta = 0;
 
-		for( int radius = 0, radiuse = trapInfo.TargetDetectRadius; radius < radiuse; ++radius ){ // в оригинале радиус 5, в th1 1.216 радиус 20 (переполнение, на лету исправлено)
+		for( int radius = 0, radiuse = trapInfo.TargetDetectRadius; radius < radiuse; ++radius ){ // (rt) radius 5 in the original, 20 in th1 1.216 (overflow, fixed on the fly)
 			for( auto& NovaCircleDelta : NovaCircleDeltas )
 			{
 				int rowDelta = NovaCircleDelta[ radius * 2 ];
 				int colDelta = NovaCircleDelta[ radius * 2 + 1 ];
-				if( !rowDelta && !colDelta ) break; // оба нулевых сдвига - out of radius
-				if( prevRowDelta != rowDelta || prevColDelta != colDelta ){ // два раза не проверять одну и ту же клетку на близких расстояниях
+				if( !rowDelta && !colDelta ) break; // (rt) both zero offsets - out of radius
+				if( prevRowDelta != rowDelta || prevColDelta != colDelta ){ // (rt) don't check the same cell twice at close distances
 					if( AttackCellByTrapperTrap(missileIndex, missile.Row + rowDelta, missile.Col + colDelta) == -1
 					 || AttackCellByTrapperTrap(missileIndex, missile.Row - rowDelta, missile.Col - colDelta) == -1
 					 || AttackCellByTrapperTrap(missileIndex, missile.Row + rowDelta, missile.Col - colDelta) == -1

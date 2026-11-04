@@ -49,6 +49,128 @@ int __fastcall PCXConvertRow( unsigned char* sourcePixels, unsigned char* destBu
 HANDLE __fastcall CreateScreenShot( char (&pOutputFilename)[MAX_PATH]	);//	Screenshot		
 int __fastcall MakeScreenRedWhileSavingScreenshot( PALETTEENTRY* screenPalette	);//	Screenshot		
 uint __fastcall DecodeFile( uchar* data, uint size, char* key	);//	CodeSave		
+void Perspective_ScreenToWorld( int& x, int& y );
+void Perspective_WorldToScreen( int& x, int& y );
+// (th4) DYNAMIC ZOOM (DynamicZoom.cpp): mouse-wheel zoom of the world, smooth, about the hero
+float DynZoom_Max();
+bool DynZoom_Allowed();
+bool DynZoom_Active();
+void DynZoom_Reset();
+bool DynZoom_OnWheel( int wheelDelta );
+void DynZoom_Tick();
+void DynZoom_SnapshotWorld();
+void DynZoom_OnRedScreen( const uchar* xlat, int minIndex );
+bool DynZoom_PresentReady();
+void DynZoom_Params( float& z, float& cx, float& cy );
+void DynZoom_EndFrame( bool shown );
+uchar* DynZoom_BeginSnapshotUpload( uchar* src );
+void DynZoom_EndSnapshotUpload();
+void DynZoom_BuildUiMask( uchar* dst, int pitch, const int (*rects)[4], int rectN );
+int DynZoom_SeeThroughBoxes( int* x0, int* y0, int* x1, int* y1 );//	DynamicZoom (th4) SEE-THROUGH BOXES of this frame (their bounding box), for the SNOW GROUND
+void DynZoom_NoteSeeThrough( int x0, int y0, int x1, int y1 );//	DynamicZoom (th4) SEE-THROUGH BOXES: PlayerTrade.cpp DrawDialogBox's checkerboard, world through it while zoomed
+void DynZoom_ScreenToWorld( int& x, int& y );
+void DynZoom_WorldToScreen( int& x, int& y );
+bool DynZoom_OnScreen();
+void DynZoom_View( float& z, float& sx, float& sy );
+bool DynZoom_RedScreen();
+const uchar* DynZoom_WorldRows();
+bool DynZoom_RemapFull( const uchar* src, int srcPitch, uchar* dst, int dstPitch, uchar uiValue );
+bool DynZoom_RemapHalf( const uchar* src, int w2, int h2, uchar* dst, uchar uiValue );
+bool DynZoom_ShownBox( int& x0, int& y0, int& x1, int& y1 );
+const uchar* DynZoom_FrameCopy();
+void Perspective_GetParams( float& a, float& b );//	Draw (th4) warp coefficients, 0/0 when off//	Draw (th4) inverse of the above
+void Shockwave_Add( int row, int col, int ox = 0, int oy = 0 );//	dx_utility (th4) optional explosion ring, called from CastMissile
+bool PostFx_LevelHasWater();//	dx_utility (th4) cave quest maps whose palette 1..31 is water, and the town river (TownWater.cpp)//	Draw (th4) screen pixel -> world pixel under Perspective mode
+void HeatHaze_SnapshotWorld();
+int DayNight_LightNightQ8();//	palette (th4) 0..256 town night-ness for the light buffer (0 when the palette shows it)
+int DayNight_LightNightMaxL();//	palette (th4) light-buffer darkness at full night, gamma-matched to the palette night//	dx_utility (th4) call right after DrawIsoLand, before any UI
+bool HeatHaze_LevelHasLava();//	dx_utility (th4) cave levels whose palette 1..31 is burning lava
+// (th4) TownWater.cpp -- town river ripples + hero reflections; the per-frame call order is in its header
+void TownWater_OnTownLoaded( const TileSquare* tiles, int tileCount );//	TownWater (th4) TownMap.cpp LoadTownMap, while Town.TIL is loaded
+bool BloodNight_Active();//	Fireflies (th4) blood moon night in the normal town (Weather.cpp WEATHER_BLOOD)
+bool GlowNight_Active();//	Fireflies (th4) bioluminescent night in the normal town (Weather.cpp WEATHER_GLOW)
+void BioGlow_BeginFrame();//	dx_utility (th4) Draw.cpp DrawIsoLand start: clear the glow map
+void BioGlow_SetWater( int x, int y, int v );//	dx_utility (th4) TownWater.cpp GlowRiver: this pixel is glowing water of brightness v (1..255), 0 = not
+void BioGlow_AddLeaf( int rx, int ry, int z, int code, int amount );//	dx_utility (th4) TownWater.cpp GlowLeaves: one leaf's z x z BioGlow_SetWater block + its BioGlow_Add, in one call
+void BioGlow_Add( int x, int y, int amount );//	dx_utility (th4) a glowing pixel at screen x, y (post-zoom game px, relative to the screen area)
+bool Fireflies_Active();//	Fireflies (th4) normal town, clear nights: the one place that decides
+void Fireflies_Render( int zoomFactor );//	Fireflies (th4) Draw.cpp right after DrawIsoLand (post-zoom)
+bool Embers_Active();//	Embers (th4) caves with lava (+ the lava quest maps): the one place that decides
+void Embers_Render( int zoomFactor );//	Embers (th4) Draw.cpp right after DrawIsoLand (post-zoom)
+bool DustMotes_Active();//	DustMotes (th4) church / catacomb tilesets: the one place that decides the levels
+void DustMotes_BeginFrame();//	DustMotes (th4) Draw.cpp DrawIsoLand start: mark the object-light cells
+void DustMotes_NoteCell( int row, int col, int x, int y );//	DustMotes (th4) Draw.cpp DrawSceneDungeonTop, each drawn cell
+void DustMotes_Render( int zoomFactor );//	DustMotes (th4) Draw.cpp right after DrawIsoLand (post-zoom)
+void Flames_BeginFrame();//	Flames (th4) Draw.cpp DrawIsoLand start: forget last frame's notes
+void Flames_NoteObject( int objectIndex, int x, int y );//	Flames (th4) Draw.cpp DrawObjectSprite: an object drawn at x, y (pre-zoom, sprite bottom-left)
+void Flames_Render( int zoomFactor );//	Flames (th4) Draw.cpp right after DrawIsoLand (post-zoom): sparks + the halo list
+int Flames_Halos( float* pos, float* col, int maxHalos );//	Flames (th4) dx_utility.cpp FlameGlow_Present: the halos of the last drawn frame
+// (th4) NpcMark.cpp -- NPC MARKS: the Diablo II-style "!" bubble over an NPC with something to say (config NpcSign)
+void NpcMark_BeginFrame();//	NpcMark (th4) Draw.cpp DrawIsoLand start: forget last frame's notes
+void NpcMark_Note( int x, int y );//	NpcMark (th4) TownMap.cpp / Draw.cpp: a mark centred here (pre-zoom WorkingSurface px: tile x + 32, tile y - 103)
+void NpcMark_Flush();//	NpcMark (th4) Draw.cpp DrawIsoLand after the tile loop: the old 8-bit mark where no shader runs, and in Classic
+void NpcMark_SnapshotWorld();//	NpcMark (th4) Draw.cpp right after HeatHaze_SnapshotWorld: positions + the world pixels of the cover boxes
+void NpcMark_OnRedScreen( const uchar* xlat, int minIndex );//	NpcMark (th4) Panel.cpp DrawRedScreen: the same remap on the cover copies
+int NpcMark_List( float (*pos)[2], int (*box)[4], int maxMarks, float* reach, float& scale, bool& red, float* redLens, float* redInk );//	NpcMark (th4) dx_utility.cpp NpcMark_Present
+void NpcMark_Cover( int i, uchar* dst, int pitch, const int (*rects)[4], int rectN );//	NpcMark (th4) dx_utility.cpp NpcMark_Present: what the UI drew over mark i
+void NpcMark_GpuFailed();//	NpcMark (th4) dx_utility.cpp: NpcMark.hlsl failed to create, the 8-bit mark from now on
+void LevelUpFx_Start();//	dx_utility (th4) config LevelUpGlow: start the golden glow (Player.cpp NextPlayerLevel)
+bool TreeSway_Active();//	dx_utility (th4) config TreeSway: the wind blows now (TownWater.cpp records the tree pixels)
+void HeatMask_AddUiRect( const DisplayObject& r );//	dx_utility (th4) UI RECTS: this panel's rectangle is UI for the world-only effects (Draw.cpp panel block)
+bool SunRays_Active();//	dx_utility (th4) config SunRays: sun rays through the trees now (TownWater.cpp records the tree pixels too)
+bool TownWater_SwayLayers( const uint*& l1, const uchar*& l2, int& w, int& h, int* box );//	TownWater (th4) TREE SWAY layers for dx_utility.cpp TreeSway_Present
+bool TownWater_SunGround( const uchar*& g, int& w, int& h );//	TownWater (th4) SUN GROUND: pre-zoom layer, 255 = ground the sun rays may light
+bool TownWater_SnowGround( const uchar*& g, int& w, int& h );//	TownWater (th4) SNOW GROUND: pre-zoom layer, the art's entry of each visible open-ground pixel (0 = none)
+bool SnowGround_Active();//	dx_utility (th4) SNOW GROUND: Ice Age town ground under bright snow (SnowGround.hlsl)
+bool Grass_Active();//	dx_utility (th4) config GrassBlades: blades of grass in the town / Ravenholm now (TownWater.cpp records the ground for them)
+bool TownWater_GrassLayer( const uchar*& lay, const uchar*& idx, int& w, int& h, const uchar*& blk, int& bw, int& bh, int* box, int* c00, int& block );//	TownWater (th4) GRASS: layer + block map for dx_utility.cpp Grass_Present
+const uchar* TownWater_GrassCells( uint& gen );//	TownWater (th4) GRASS: grass share of the 112 x 112 map cells, [row][col]; gen changes with it
+void TreeSway_Tick();//	dx_utility (th4) config TreeSway: the wind's clock, once per drawn frame (TownWater_Render)
+bool Snowfall_Active();//	Snowfall (th4) Ice Age + town / Ravenholm: the one place that decides it snows
+int Snowfall_NightQ8();//	Snowfall (th4) ICE AGE NIGHT: 0 day .. 256 night where it snows (Ravenholm always 256): flakes + snow ground night colours
+float Snowfall_Storm();//	Snowfall (th4) 0 calm snowfall .. 1 storm, eased like the snow (THE SPELLS); the ICE RIVER's sky follows it
+double Snowfall_WindTravel();//	Snowfall (th4) DRIFTING SNOW: the wind's travel so far, px at the mean wind (dx_utility.cpp SnowDrift_Present)
+bool IceRiver_Active();//	dx_utility (th4) ICE RIVER: the Ice Age town river mirrors a winter sky by day (IceRiver.hlsl)
+bool IceRiver_Shows();//	dx_utility (th4) ICE RIVER: ... and it is on screen now (day / dusk): TownWater.cpp makes its mask solid only then
+const uchar* TownWater_MirrorRows( const uchar*& cls );//	TownWater (th4) ICE RIVER: the river mask (+ its classes) for dx_utility.cpp IceRiver_BuildMask; screen origin, pitch WorkingWidth, 0 = none
+uchar* TownWater_MirrorSurface();//	TownWater (th4) ICE RIVER: Draw.cpp Perspective_WarpWorld; 0 when there is nothing to warp
+bool IceTrees_Active();//	TownWater (th4) Ice Age town / Ravenholm: snow-covered trees (SNOW ON THE TREES) + frosted leaves (BioGlow ICE_*)
+void Snowfall_Render( int zoomFactor );//	Snowfall (th4) Draw.cpp right after DrawIsoLand / TownWater_Render, before Perspective_WarpWorld
+bool Snowfall_GpuWanted();//	Snowfall (th4) SNOWFALL ON THE GPU: this frame's flakes are drawn by dx_utility.cpp Snowfall_Present (Snowfall_Render draws none)
+void Snowfall_GpuFailed();//	Snowfall (th4) SNOWFALL ON THE GPU: the GPU pass cannot run -- the 8-bit flakes for the rest of the session
+int Snowfall_GpuFlakes( int winW, int winH, const float*& data, uint& gen );//	Snowfall (th4) SNOWFALL ON THE GPU: the flakes (8 floats each) for this window; gen changes when they do
+bool Snowfall_GpuConsts( int winW, int winH, float* c, int& n );//	Snowfall (th4) SNOWFALL ON THE GPU: this frame's SnowFlakesVS.hlsl constants (n float4s)
+int SnowDepthSlope( int dir );//	Snowfall (th4) SNOW DEPTH: the cut's 2 : 1 slant for a hero's facing
+void SnowDepth_Begin( int x, int y, int w, bool onIce, int slope, bool shadow );//	Snowfall (th4) SNOW DEPTH: TownMap.cpp DrawDynamicObjectsTown, before a character's draw
+void SnowDepth_End( const char* anim = 0, int frame = 0 );//	Snowfall (th4) SNOW DEPTH: right after it (Ravenholm passes anim / frame: the Enriched Light replay)
+void SnowDepth_Measure();//	Snowfall (th4) SNOW DEPTH: Draw.cpp QueueOverheadHpBar, before a bar is drawn inside the wrap
+void SnowDepth_FrameStart();//	Snowfall (th4) SNOW DEPTH: Draw.cpp DrawIsoLand, with the replay lists
+void SnowDepth_ReplayBegin( int x, int y, const char* anim, int frame );//	Snowfall (th4) SNOW DEPTH: around an Enriched Light replay draw
+void SnowDepth_ReplayEnd();//	Snowfall (th4) SNOW DEPTH
+bool TownWater_FeetBare( int row, int col, int dx, int dy );//	TownWater (th4) SNOW DEPTH: feet on the frozen river or on bare ground -- legs show
+void TownWater_CellBegin( int piece, int x, int y, int row = -1, int col = -1 );//	TownWater (th4) TownMap.cpp: leaf calibration log (TH4_TREELEAF_DEBUG)
+void TownWater_CellEnd();//	TownWater (th4) TownMap.cpp: leaf calibration log
+void TownWater_TileRedrawn( int row, int col, int x, int y, int upMin = 0, int upMax = 256 );//	TownWater (th4) ROCK SNOW: TownMap.cpp DrawMostTopTile / Draw.cpp DrawMapCell (Ravenholm) redrew a cell's column -- paint a rock's snow again
+void TownWater_BeginFrame();//	TownWater (th4) Draw.cpp DrawIsoLand start
+void TownWater_NoteCell( int piece, int x, int y, ushort floorL, ushort floorR );//	TownWater (th4) TownMap.cpp DrawSceneTownTop, each drawn cell
+void TownWater_NotePlayer( int playerIndex, int x, int y, char* cl2, int frame, int width );//	TownWater (th4) TownMap.cpp DrawDynamicObjectsTown, after each hero CL2_Draw
+void TownWater_Render( int zoomFactor );//	TownWater (th4) Draw.cpp right after DrawIsoLand, before Perspective_WarpWorld
+uchar* TownWater_Surface();//	TownWater (th4) Draw.cpp Perspective_WarpWorld; 0 when there is nothing to warp
+bool TownWater_RiverRipples();//	TownWater (th4) dx_utility.cpp PostFx_LevelHasWater; false under Ice Age (frozen river)
+const uchar* TownWater_MaskRows();//	TownWater (th4) dx_utility.cpp HeatHaze_BuildMask; screen origin, pitch WorkingWidth, 0 = none
+bool TownWater_RiverFlow( const uint*& texels, uint& gen, int* c00, float& wavePeriod );//	TownWater (th4) RUNNING RIVER: the flow map + the map anchor + the stream phase period for dx_utility.cpp River_Present
+const int* TownWater_ReflectionPixels( int& n );//	TownWater (th4) RUNNING RIVER: river reflection pixels (y << 16 | x) for HeatHaze_BuildMask's class 5
+void TownWater_FloorDrawn( int row, int col, int x, int y );//	TownWater (th4) PUDDLES / SUN GROUND / GRASS: TownMap.cpp DrawSceneTownTop (Ravenholm: Draw.cpp DrawSceneDungeonTop), right after a cell's floor layer
+uchar* TownWater_PuddleSurface();//	TownWater (th4) PUDDLES: Draw.cpp Perspective_WarpWorld; 0 when there is nothing to warp
+const uchar* TownWater_PuddleRows();//	TownWater (th4) PUDDLES: dx_utility.cpp Wet_BuildMask; screen origin, pitch WorkingWidth, 0 = none
+// (th4) Breath.cpp -- COLD BREATH: sprites noted while drawn, puffs handed to dx_utility.cpp Breath_Present
+bool Breath_Active();//	Breath (th4) config ColdBreath + a cold place, or the fungi's toxic fumes on screen: the one place that decides
+void Breath_BeginFrame();//	Breath (th4) Draw.cpp DrawIsoLand start: forget last frame's notes
+void Breath_NotePlayer( int playerIndex, int x, int y, const char* cl2, int frame, int width );//	Breath (th4) a hero drawn this frame (CL2_Draw's x, y, sprite, frame, width)
+void Breath_NoteMonster( int monsterIndex, int x, int y, const char* cl2, int frame, int width );//	Breath (th4) a monster drawn this frame (CL2_Draw's x, y, sprite, frame, width)
+void Breath_NoteTowner( int townerIndex, int x, int y );//	Breath (th4) a towner / cow drawn this frame (CEL_Draw's x, y)
+int Breath_Update( float now, int zoom, float anchorX, float anchorY, float wind, float* puffs, int maxPuffs );//	Breath (th4) dx_utility.cpp Breath_Present: spawn / age the puffs, return them for Breath.hlsl
+void SharpScale_Release( int slot );//	dx_utility (th4) slot 0 = main device, 1 = second window; call wherever VideoSurface is released
 void __fastcall InitializeKeys( bool encrypt, char* key	);//	CodeSave		
 void __fastcall EncodeFile( uchar* data, uint sizeSrc, uint sizeDst, char* password	);//	CodeSave		
 void __fastcall DrawSpellIcon( int surfaceX, int surfaceY, char* iconCel, int iconIndex, int size, int spellType = 0	);//	Panel		
@@ -61,6 +183,7 @@ void __fastcall AssignNewSpellToKeyExpanded( int key );//	Panel
 void __fastcall SelectSpellByHotKey( int a1	);//	Panel		
 int __fastcall SelectSpellByHotKeyExpanded( int keyOffset );//	Panel		
 void __fastcall DrawLetter( int aSurfaceOffset, int letterID, char fontColor, bool outline = false	);//	Panel		
+void DrawLetterOutline( uchar* dst, char mask, int colorIndex );//	Panel (th) the small font's outline of one font pixel: black on its 4 neighbours (DrawLetter, Speeches.cpp DrawLetterInSpeech)
 void __fastcall InfoPanel_AddLine( const char *str, int centered, const char* str2 = 0	);//	Panel		
 void  InfoPanel_ClearBody( );//	Panel		
 int __fastcall CopyFromMainPanelToWorkingSurface( int SrcX, int SrcY, int Width, int Height, int DstX, int DstY	);//	Panel		
@@ -109,7 +232,7 @@ int __fastcall GoldSplitHandle( char Key	);//	Panel
 void __fastcall GoldSplit( int playerIndex, int cellIndex	);//	Panel		
 void __fastcall SetGoldViewOnCursor( int playerIndex	);//	Panel		
 void  DrawTalkPanel( );//	Panel		
-int __fastcall DrawTalkText( int a1, int a2, int a3, int *a4, char aFontSize	);//	Panel		
+char* DrawTalkText( const char* pszStr, int x, int y, long* plOffset, char fontColor );//	Panel		
 bool  TalkPanel_CheckMouseClick( );//	Panel		
 void  TalkPanel_LButtonUp( );//	Panel		
 void  OpenTalkPanel( );//	Panel		
@@ -247,6 +370,7 @@ void  CataTilesVariationsChange( );//	GenerateMap
 void  ApplyStrangeCataPatterns( );//	GenerateMap		
 void  SomeCataWallAndFroorConvert( );//	GenerateMap		
 bool  MakePrimaryCataMap( );//	GenerateMap		
+bool  IsCataLevelFullyConnected( );//	GenerateMap	(new by th4)	
 void __fastcall RecursiveCataHallsGeneration( int startRow2, int startCol2, int endRow2, int endCol2, int motherCataHallIndex, int orientation, int needQuestPatternRoom, int questPatternRoomRowSize, int questPatternRoomColSize	);//	GenerateMap		
 void __fastcall ConstructCataHall( int startRow, int startCol, int endRow, int endCol, int isFixedHall	);//	GenerateMap		
 void __fastcall SaveCataPassageParamsToQueue( int firstDoorRow, int firstDoorCol, int secondDoorRow, int secondDoorCol, int startOrientation	);//	GenerateMap		
@@ -330,9 +454,9 @@ void  HellSetAdditionalWallsTransparency( );//	GenerateMap
 void  SomeHellBeyondTilesConvert( );//	GenerateMap		
 void  SetupDeltaCriticalSection( );//	thread		
 void __fastcall DeltaRemovePlayer( int a1 );//	thread
-void __fastcall DThreadSendPLayerInfoChunk( int playerIndex, char cmd, void* src, size_t size);//	thread
+void __fastcall DThreadSendPlayerInfoChunk( int playerIndex, uchar cmd, void* src, size_t size);//	thread
 void  DeltaThreadStart( );//	thread		
-unsigned int __stdcall DeltaThread( void*	);//	thread		отдельный сетевой поток
+unsigned int __stdcall DeltaThread( void*	);//	(rt) thread		separate network thread
 void  DeltaThreadStop();//	thread
 void  SetupDDSurfaceCriticalSection( );//	thread		
 int __fastcall SetupScreenResolution( HWND ahWnd	);//	dx		
@@ -341,7 +465,7 @@ HRESULT  CreateScreenSurface( );//	dx
 HRESULT __fastcall CallDirectDrawCreate( GUID *guid, LPDIRECTDRAW *ddraw, IUnknown* iid	);//	dx		
 void  LockSrcSurface( );//	dx		
 void  UnlockSrcSurface( );//	dx		
-void  ReleaseDDSurface( );//	dx		ее можно было бы пометить как сверяемую, поскольку тут были вылеты в TH 2
+void  ReleaseDDSurface( );//	(rt) dx		it could be marked as compared, since there were crashes here in TH 2
 void  ReturnToDDSurface( );//	dx
 void SwitchVirtualShader(); // DX
 int __fastcall SoundIsPlaying( int soundIndex	);//	Engine, Sound		
@@ -375,8 +499,9 @@ void __fastcall Surface_DrawCelTo( uchar* dst, char* cel, int frame, int width	)
 void __fastcall CEL_DrawTo(uchar* to, char* celBuf, uint frameNum, int drawWidth, int offsetStart, int offsetEnd, int flag = R_DIRECT, int outlineColor =-1);
 void __fastcall CEL_Draw( int x, int y, char* celBuf, uint frameNum, int drawWidth, int offsetStart, int offsetEnd, int flag = R_DIRECT, int outlineColor =-1   );//	Engine, Draw?		
 void __fastcall WriteTileToSurface( void* dst, char* src, int frameNumber, int width, int a5, int sizeOffset	);//	Engine, Draw?		
-void __fastcall Font_DrawChar( int aXpos, int aYpos, char* aFontPtr, unsigned char aCharIndex, int aFontSize	);//	Engine, Draw?		
+void __fastcall Font_DrawChar( int aXpos, int aYpos, char* aFontPtr, int aCharIndex, int aFontSize, int outlineColor = -1	);//	Engine, Draw?		
 void __fastcall DrawItemOnMap( int offsetX, int offsetY, char* celFile, int celIndex, int celWidth, int upHalfCel, int screenCellRow, int outlineColor = -1	);//	Engine, Draw?		
+void __fastcall DrawItemOutlineOnMap( int offsetX, int offsetY, char* celFile, int celIndex, int celWidth, int upHalfCel, int screenCellRow, int outlineColor, bool onlyOverWalls = false );//	Engine	(th4) ring only, no body
 void __fastcall CEL_DrawShadow( uchar* dst, char* celBuf, int frameNum, int drawWidth, int offsetStart, int offsetEnd, int flag = 0	);//	Engine, Draw?		
 void __fastcall ParseCELFile( uchar* aDestPtr, int aDstStartX, int aDstStartY, int aDstMaxX, char* aCELFilePtr, int aFrameNumber, int aSrcMaxX	);//	Engine, Draw?		
 void __fastcall AutomapDrawPoint1( int xPos, int yPos, uchar color	);//	Engine, Draw?		
@@ -396,12 +521,14 @@ void  InitLocking( );//	Engine, Lock
 void __fastcall ActNullSpell( int spellCastIndex	);//	Engine, Memory		
 char* __fastcall SoundNameDup(const char* str);
 void* __fastcall AllocMem( uint a1	);//	Engine, Memory		
-void __fastcall FreeMem( void* a1	);//	Engine, Memory		отдельный сетевой поток
+void __fastcall FreeMem( void* a1	);//	(rt) Engine, Memory		separate network thread
 void* __fastcall LoadFile( const char* fileName, int* byteReaded = 0	);//	Engine, Memory		
 int __fastcall LoadFileWithMem( char* arglist, void* a2	);//	Engine, Memory		
 void __fastcall ColorSpriteAnimation( char* anim, uchar* colorTable, int frameCount	);//	Engine, Draw?		
-void __fastcall Rle2Draw(uchar* dst, char* src, int size, int width);// Draw CL2 (Player animation)		
+void __fastcall Rle2Draw(uchar* dst, char* src, int size, int width, uchar lightFill = 0);// Draw CL2 (Player animation)		
 void __fastcall CL2_DrawOutline( uchar color, int x, int y, char* celBuf, uint frameNum, int celWidth, int offsetStart, int offsetEnd	);//	Engine, Draw?		
+void __fastcall Rle2DrawLightOutline( uchar* dst, char* src, int size, int width, uchar outlineColor	);//	Engine, Draw? (th4)
+void __fastcall CL2_DrawLightOutline( uchar color, int x, int y, char* cl2Buf, uint frameNum, int celWidth, int offsetStart, int offsetEnd	);//	Engine, Draw? (th4)
 void __fastcall CL2_DrawDark( int x, int y, char* cl2Buf, uint frameNum, int pitch, int offsetStart, int offsetEnd, char lightType	);//	Engine, Draw?		
 void __fastcall Rle2DrawPal( uchar* surf, char* sprite, int size, int pitch, uchar* palette	);//	Engine, Draw?		
 void __fastcall CL2_Draw( int x, int y, char* curAnim, uint frameNum, int pitch, int shiftY, int tileInCellIndex, bool darken = false	);//	Engine, Draw?		
@@ -628,7 +755,7 @@ void __fastcall RecalcPlayer( int playerIndex, int canLoadAnimFlag, bool forceIt
 void __fastcall SetPlayerHandItem( Item& item, int baseItemIndex	);//	Item		
 void __fastcall SetItemGrade(Item& item);
 void __fastcall Item_MakeNonCollisionSeed( int playerIndex, Item& item	);//	Item		
-void __fastcall SetGraphicToGold( Item& gold	);//	Item		в th2 переиспользуемая функция
+void __fastcall SetGraphicToGold( Item& gold	);//	(rt) Item		reused function in th2
 void __fastcall CreateInitialItems( int playerIndex	);//	Item		
 bool __fastcall ItemSpaceOkIntoWall( int row, int col, int playerIndex = -1	);//	Item		
 bool __fastcall ItemSpaceOk( int row, int col, int playerIndex = -1	);//	Item		
@@ -725,11 +852,21 @@ void InitRare( int itemIndex, int minQuality, int maxQuality, int uniqueChance, 
 
 void __fastcall RotateOffset( int& x, int& y, int& rx, int& ry, int& ox, int& oy, int& ax, int& ay	);//	Lights		
 void __fastcall DoLighting( int row, int col, int radius, int lightIndex	);//	Lights		
+// (th4) Rev 2.46 Option C + Rev 2.50: colored static bake (see Lights.cpp).
+// SINGLE winner rule: first `==` match in ObjectActive order against the
+// FINAL StaticLightMap — run after fresh generation and on every load path
+// (RebuildStaticTintMap), so fresh == reload byte-identically. Returns true
+// when at least one tile was colored — callers latch g_StaticTintActive on
+// that so a light that wins nothing never keeps the idle gate on by itself.
+bool __fastcall DoLightingTintEquals( int row, int col, int radius, uchar tintR, uchar tintG, uchar tintB	);//	Lights
 void __fastcall DoUnLight( int row, int col, int radius	);//	Lights		
 void __fastcall DoUnVision( int row, int col, int lightRadius	);//	Lights		
 void __fastcall DoVision( int row, int col, int lightRadius, int someFlag1, int someFlag2	);//	Lights		
 void __fastcall LovecraftDoVision( int row, int col, int lightRadius, int someFlag1, int someFlag2 );//	Lights (Gribnik)
 void  MakeLightTable( );//	Lights		
+#ifdef _DEBUG
+void  RunA8L8LightBrightLutSelfCheck( );//	Lights	Phase 1 A8L8 LUT self-check (-lightlutcheck)
+#endif
 void  InitLightMax( );//	Lights		
 void  InitLighting( );//	Lights		
 int __fastcall AddLight( int casterRow, int casterCol, int radius	);//	Lights		
@@ -745,7 +882,7 @@ int __fastcall AddVision( unsigned int row, int col, int lightRadius, int isCurr
 void __fastcall ChangeVisionRadius( unsigned int playerIdentificator, unsigned int lightRadius	);//	Lights		
 void __fastcall ChangeVision( uint _field_A0, uint row, uint col	);//	Lights		
 void  ProcessVisionList( );//	Lights		
-void  AnimateHellPalette( );//	Lights		jmp-call, учесть при сверке
+void  AnimateHellPalette( );//	(rt) Lights		jmp-call, account for it in the comparison
 void __fastcall LoadGame( int loadFromMainMenu	);//	Saving		
 char  GetNextByte( );//	Saving
 ushort GetNextWord();
@@ -799,7 +936,7 @@ int __fastcall PlayerSpellLevel( uint playerIndex, uint spellIndex, int spellOri
 void __fastcall RemoveMissile( int castIndex, int castIndexIndex	);//	Missile		
 int __fastcall MvM_Ranged( int defenderIndex, int attackerIndex, int minDamage, int maxDamage, int distance, int spellEffect, char isInternalHp, bool reflected = false	);//	Missile
 int __fastcall PvM_Ranged( int playerIndex, int monsterIndex, int minDamage, int maxDamage, int distance, int baseMissileIndex, char isInternalHP, int missileIndex, int overTime = 0 );//	Missile		
-int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int castLevel, int minDamage, int maxDamage, int effectIndex, char isInternalHP, int isLightningOrFirewall, uchar* attackBlockedPtr, uchar* missileReflected = 0 );//	Missile		
+int __fastcall MvP_Ranged( int playerIndex, int monsterIndex, int castLevel, int minDamage, int maxDamage, int effectIndex, char isInternalHP, int isLightningOrFirewall, uchar* attackBlockedPtr, uchar* missileReflected = 0, char isPierce = 0 );//	Missile		
 void __fastcall SetMissileDirection( int missileIndex, int direction	);//	Missile		
 void __fastcall SetMissileSprite( int castIndex, uint spriteIndex	);//	Missile		
 void __fastcall LoadMissileSprite( uint spriteIndex	);//	Missile		
@@ -827,6 +964,7 @@ void __fastcall CastManaTrap( int spellCastIndex, int casterRow, int casterCol, 
 void __fastcall CastMagicArrow( int spellCastIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile		
 int __fastcall SelectMissileDirectionFrom16( int a1, int a2, int a3, int a4	);//	Missile		
 void __fastcall CastArrow( int spellCastIndex, int casterX, int casterY, int targetX, int targetY, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile
+void __fastcall CastBlessedHammer( int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile (th4)
 void __fastcall CastSpecialArrowSpell( int spellCastIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile		
 void __fastcall FoundFreeCellForTeleportPlayer( int a1, int a2, int a3	);//	Missile		
 void __fastcall CastPhasing( int spellCastIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile		
@@ -919,6 +1057,11 @@ void __fastcall ActGolem( int	);//	Missile
 void __fastcall ActManaShield( int	);//	Missile		
 void __fastcall ActMagicArrow( int	);//	Missile		
 void __fastcall ActArrow( int castIndex	);//	Missile		
+void __fastcall ActBlessedHammer( int missileIndex	);//	Missile (th4)
+void __fastcall BlessedHammer_Update( int playerIndex	);//	Missile (th4)
+void __fastcall CastTownArcaneStar( int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage );//	Missile (th4)
+void __fastcall ActTownArcaneStar( int missileIndex );//	Missile (th4)
+void TownArcaneStars_Update();//	Missile (th4) called from ProcessTowners (TownMap.cpp)
 void __fastcall ActFireArcanBolt( int	);//	Missile		
 void __fastcall ActLightningNovaSegment( int	);//	Missile		
 void __fastcall ActSpell70LightningWallSegment( int	);//	Missile		
@@ -944,7 +1087,7 @@ void __fastcall ManaShieldAction( int a1	);//	Missile
 void __fastcall ActEthereal( int	);//	Missile		
 void __fastcall ActForcewaveSegment( int	);//	Missile		
 void __fastcall ActHydra( int	);//	Missile		
-void __fastcall ActChainLightning( int	);//	Missile		отключена в 1.150 
+void __fastcall ActChainLightning( int	);//	(rt) Missile		disabled in 1.150 
 void __fastcall ActSpecialEffect( int	);//	Missile		
 void __fastcall ActWeaponElementalDamage( int	);//	Missile		
 void __fastcall ActAuraElementalGFX(int);//     Missile
@@ -978,6 +1121,7 @@ void __fastcall ActRedPortal( int	);//	Missile
 void __fastcall CastFlaskThrow( int missileIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage );
 void __fastcall ActFlaskThrow(int missileIndex);// , int playerIndex );
 void  ProcessMissiles( );//	Missile		
+void  ReassertAllMissileLightTints( );//	Missile		(th4) Stage 3: one-shot tint re-assert after load
 void  SetupMissilesAnimationsAfterLoading( );//	Missile		
 void __fastcall ClearMissileCell( int castIndex	);//	Missile		
 void  InitMonsterSlots( );//	Monster		
@@ -989,11 +1133,196 @@ void __fastcall CreateMonster( int monsterIndex, int direction, int monsterSprit
 void  ClearMonsters( );//	Monster		
 void __fastcall ClearMonsterWalkCounters( int a1	);//	Monster		
 bool __fastcall IsCellFreeForMonster( int a1, int a2	);//	Monster		
+void MoveMonstersOffBlockingObjects();//	Monster (th4) Main.cpp LoadGameLevel, right after InitObjects: nobody stands inside a door
 void  OpenWeakUber( );//	Monster		
 void  AddMonstersToPandemonium( );//	Monster		
 void  InitMonsters( );//	Monster		
+void  InitLocalization();// Config (th4)
+const char* LocalizedMonsterName( const struct BaseMonster* bm );// Config (th4)
+const char* LocalizedUniqueMonsterName( const struct UniqueMonster* um );// Localization (th4)
+const char* LocalizedIceAgeName( const char* en );// Localization (th4)
+const char* L( const char* en );// Localization (th4) UI-string translation
+const char* LocalizedTraitName   ( TraitId id );//	Localization (th4) RU atlas-encoded, moved from Traits.cpp
+const char* LocalizedTraitBenefit( TraitId id );//	Localization
+const char* LocalizedTraitPenalty( TraitId id );//	Localization
+const char* ID_TraitName( TraitId id );//	LocalizationID
+const char* ID_TraitBenefit( TraitId id );//	LocalizationID
+const char* ID_TraitPenalty( TraitId id );//	LocalizationID
+const char* PT_TraitName( TraitId id );//	LocalizationPT
+const char* PT_TraitBenefit( TraitId id );//	LocalizationPT
+const char* PT_TraitPenalty( TraitId id );//	LocalizationPT
+const char* ES_TraitName( TraitId id );//	LocalizationES
+const char* ES_TraitBenefit( TraitId id );//	LocalizationES
+const char* ES_TraitPenalty( TraitId id );//	LocalizationES
+const char* IT_TraitName( TraitId id );//	LocalizationIT
+const char* IT_TraitBenefit( TraitId id );//	LocalizationIT
+const char* IT_TraitPenalty( TraitId id );//	LocalizationIT
+const char* FR_TraitName( TraitId id );//	LocalizationFR
+const char* FR_TraitBenefit( TraitId id );//	LocalizationFR
+const char* FR_TraitPenalty( TraitId id );//	LocalizationFR
+const char* DE_TraitName( TraitId id );//	LocalizationDE
+int  DarkCampaignEscortCountInLevel();//	Monster		(th4) DC mission 10 escort: succubi present in this level
+bool DarkCampaignEscortAwayAtLazarus();// (th4) DC m13: succubi absent from the hub
+int  DarkCampaignLazarusIndex();// (th4) DC m13: living Lazarus on this level, or -1
+bool DarkCampaignLazarusLairClear();// (th4) DC m13: every hero dead
+int  DarkCampaignHephastoIndex();// (th4) DC m15: living Hephasto on this level, or -1
+bool DarkCampaignHephastoShielded( int monsterIndex );// (th4) DC m15, Doom+: this monster is Hephasto -- 80 % less damage in MvM_Melee / MvM_Ranged
+bool DarkCampaignHellforgeClear();// (th4) DC m15: every hero dead
+bool DarkCampaignHephastoAtForge();// (th4) DC m15: standing at his anvil
+void DarkCampaignResetHephastoWalkHome();// (th4) DC m15: clear the walk-home timer
+void SpawnAnvilOfFuryReward( int playerIndex, int row, int col );//	TownMap	(th4) shared by Griswold and DC Hephasto
+void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg);//	Monster	(th4) boss set drops
+bool IsPlayerSideMonster( int monsterIndex );//	Monster		(th4) summon or DC escort -- never a click target
+bool DarkCampaignIsEscortBoss( int bossId );//	Monster
+int  DarkCampaignButcherIndex();//	Monster		(th4) DC m25: the caged Butcher on this level, or -1
+bool DarkCampaignButcherIsFreed();//	Monster		(th4) DC m25: saved in Quests[Q_6].status2
+void DarkCampaignSetButcherFreed();//	Monster
+bool DarkCampaignButcherEscorting();//	Monster	(th4) DC m25: freed, so he follows
+bool DarkCampaignButcherJoined();//	Monster		(th4) DC m25: with the player for the rest of the campaign
+int  DarkCampaignButcherAnywhereIndex();//	Monster	(th4) DC m25: living Butcher on this level, any level
+void DarkCampaignFixupAppendedMonster();//	Monster	(th4) relist a boss created mid-level
+bool DarkCampaignEndIsPending();//	Monster			(th4) DC m26: saved in Quests[Q_36].status4
+void DarkCampaignEndSetPending( bool on );//	Monster
+void DarkCampaignRefreshEndLordTrn();//	Monster		(th4) DC m26: his LightTable row, lost on reload
+int  DarkCampaignEndLordIndex();//	Monster			(th4) DC m26: the Dark Lord in the ruins, or -1
+void DarkCampaignEndSpawnLord( int row, int col );//	Monster	(th4) DC m26: he steps through the portal
+bool DarkCampaignButcherFollowsHere();//	Monster		(th4) DC: levels the freed Butcher comes to
+void DarkCampaignSpawnButcherIfMissing();//	Monster	(th4) DC m25: after LoadLevel(), which drops him
+void DarkCampaignRefreshButcherTrn();//	Monster		(th4) DC m25: his LightTable row, lost on reload
+void DarkCampaignCollapseDuplicateButchers();//	Monster		(th4) DC m25: one Butcher, not two
+bool DarkCampaignEscortActive();//	Monster
+const char* DE_TraitBenefit( TraitId id );//	LocalizationDE
+const char* DE_TraitPenalty( TraitId id );//	LocalizationDE
+const char* PL_TraitName( TraitId id );//	LocalizationPL
+const char* PL_TraitBenefit( TraitId id );//	LocalizationPL
+const char* PL_TraitPenalty( TraitId id );//	LocalizationPL
+const char* CHI_TraitName( TraitId id );//	LocalizationCHI
+const char* CHI_TraitBenefit( TraitId id );//	LocalizationCHI
+const char* CHI_TraitPenalty( TraitId id );//	LocalizationCHI
+const char* KO_TraitName( TraitId id );//	LocalizationKO
+const char* KO_TraitBenefit( TraitId id );//	LocalizationKO
+const char* KO_TraitPenalty( TraitId id );//	LocalizationKO
+const char* TR_TraitName( TraitId id );//	LocalizationTR
+const char* TR_TraitBenefit( TraitId id );//	LocalizationTR
+const char* TR_TraitPenalty( TraitId id );//	LocalizationTR
+const char* TR_GCInfoName( int gc );//	LocalizationTR
+const char* TR_GCInfoDesc( int gc );//	LocalizationTR
+const char* TR_MonsterName( int id );//	LocalizationTR
+const char* TR_UniqueMonsterName( int id );//	LocalizationTR
+const char* DA_TraitName( TraitId id );//	LocalizationDA (th4)
+const char* DA_TraitBenefit( TraitId id );//	LocalizationDA (th4)
+const char* DA_TraitPenalty( TraitId id );//	LocalizationDA (th4)
+const char* DA_GCInfoName( int gc );//	LocalizationDA (th4)
+const char* DA_GCInfoDesc( int gc );//	LocalizationDA (th4)
+const char* DA_MonsterName( int id );//	LocalizationDA (th4)
+const char* DA_UniqueMonsterName( int id );//	LocalizationDA (th4)
+const char* BG_TraitName( TraitId id );//	LocalizationBG (th4)
+const char* BG_TraitBenefit( TraitId id );//	LocalizationBG (th4)
+const char* BG_TraitPenalty( TraitId id );//	LocalizationBG (th4)
+const char* BG_GCInfoName( int gc );//	LocalizationBG (th4)
+const char* BG_GCInfoDesc( int gc );//	LocalizationBG (th4)
+const char* BG_MonsterName( int id );//	LocalizationBG (th4)
+const char* BG_UniqueMonsterName( int id );//	LocalizationBG (th4)
+const char* UK_TraitName( TraitId id );//	LocalizationUK (th4)
+const char* UK_TraitBenefit( TraitId id );//	LocalizationUK (th4)
+const char* UK_TraitPenalty( TraitId id );//	LocalizationUK (th4)
+const char* UK_GCInfoName( int gc );//	LocalizationUK (th4)
+const char* UK_GCInfoDesc( int gc );//	LocalizationUK (th4)
+const char* JA_MonsterName( int id );//	LocalizationJA (th4)
+const char* JA_UniqueMonsterName( int id );//	LocalizationJA (th4)
+const char* JA_TraitName( TraitId id );//	LocalizationJA (th4)
+const char* JA_TraitBenefit( TraitId id );//	LocalizationJA (th4)
+const char* JA_TraitPenalty( TraitId id );//	LocalizationJA (th4)
+const char* JA_GCInfoName( int gc );//	LocalizationJA (th4)
+const char* JA_GCInfoDesc( int gc );//	LocalizationJA (th4)
+const char* AR_MonsterName( int id );//	LocalizationAR (th4)
+const char* AR_UniqueMonsterName( int id );//	LocalizationAR (th4)
+const char* AR_TraitName( TraitId id );//	LocalizationAR (th4)
+const char* AR_TraitBenefit( TraitId id );//	LocalizationAR (th4)
+const char* AR_TraitPenalty( TraitId id );//	LocalizationAR (th4)
+const char* AR_GCInfoName( int gc );//	LocalizationAR (th4)
+const char* AR_GCInfoDesc( int gc );//	LocalizationAR (th4)
+const char* HIN_MonsterName( int id );//	LocalizationHIN (th4)
+const char* HIN_UniqueMonsterName( int id );//	LocalizationHIN (th4)
+const char* HIN_TraitName( TraitId id );//	LocalizationHIN (th4)
+const char* HIN_TraitBenefit( TraitId id );//	LocalizationHIN (th4)
+const char* HIN_TraitPenalty( TraitId id );//	LocalizationHIN (th4)
+const char* HIN_GCInfoName( int gc );//	LocalizationHIN (th4)
+const char* HIN_GCInfoDesc( int gc );//	LocalizationHIN (th4)
+const char* SW_MonsterName( int id );//	LocalizationSW (th4)
+const char* SW_UniqueMonsterName( int id );//	LocalizationSW (th4)
+const char* SW_TraitName( TraitId id );//	LocalizationSW (th4)
+const char* SW_TraitBenefit( TraitId id );//	LocalizationSW (th4)
+const char* SW_TraitPenalty( TraitId id );//	LocalizationSW (th4)
+const char* SW_GCInfoName( int gc );//	LocalizationSW (th4)
+const char* SW_GCInfoDesc( int gc );//	LocalizationSW (th4)
+const char* CS_MonsterName( int id );//	LocalizationCS (th4)
+const char* CS_UniqueMonsterName( int id );//	LocalizationCS (th4)
+const char* CS_TraitName( TraitId id );//	LocalizationCS (th4)
+const char* CS_TraitBenefit( TraitId id );//	LocalizationCS (th4)
+const char* CS_TraitPenalty( TraitId id );//	LocalizationCS (th4)
+const char* CS_GCInfoName( int gc );//	LocalizationCS (th4)
+const char* CS_GCInfoDesc( int gc );//	LocalizationCS (th4)
+const char* HR_MonsterName( int id );//	LocalizationHR (th4)
+const char* HR_UniqueMonsterName( int id );//	LocalizationHR (th4)
+const char* HR_TraitName( TraitId id );//	LocalizationHR (th4)
+const char* HR_TraitBenefit( TraitId id );//	LocalizationHR (th4)
+const char* HR_TraitPenalty( TraitId id );//	LocalizationHR (th4)
+const char* HR_GCInfoName( int gc );//	LocalizationHR (th4)
+const char* HR_GCInfoDesc( int gc );//	LocalizationHR (th4)
+
+// (th4) Arabic shaping + restricted bidi, ArabicText.cpp. AR_Shape turns a LOGICAL
+// byte string into display forms; AR_Reorder puts them in visual order. Both run at
+// DRAW time, after %i substitution and after wrapping, which is the whole point.
+struct AR_Glyph { unsigned short cell; unsigned char raw; unsigned char isForm; };
+int  AR_Shape( const unsigned char* src, int len, AR_Glyph* out, int maxOut );//	ArabicText (th4)
+void AR_Reorder( AR_Glyph* g, int n );//	ArabicText (th4)
+int  AR_Layout( const char* text, AR_Glyph* out, int maxOut );//	ArabicText (th4)
+int  AR_Advance( int cell, int size );//	ArabicText (th4) 0=small 1=mid 2=big
+int  HIN_Advance( int cell, int size );//	HindiText (th4) 0=small 1=mid 2=big
+unsigned char AR_MaxAdvanceForPair( unsigned char lead, unsigned char trail, int size );//	ArabicText (th4) widest form of one base letter, for the speech wrapper
+const char* UK_MonsterName( int id );//	LocalizationUK (th4)
+const char* UK_UniqueMonsterName( int id );//	LocalizationUK (th4)
+const char* NL_TraitName( TraitId id );//	LocalizationNL (th4)
+const char* NL_TraitBenefit( TraitId id );//	LocalizationNL (th4)
+const char* NL_TraitPenalty( TraitId id );//	LocalizationNL (th4)
+const char* NL_GCInfoName( int gc );//	LocalizationNL (th4)
+const char* NL_GCInfoDesc( int gc );//	LocalizationNL (th4)
+const char* NL_MonsterName( int id );//	LocalizationNL (th4)
+const char* NL_UniqueMonsterName( int id );//	LocalizationNL (th4)
+const char* LMenu( const char* en );
+bool LMenuHas( const char* en );   // (th4) true if the current language really has this Menu row
+// (th4) menu/dialog translation (DiabloFont atlas, -0x40)
+void RingNameFixup( Item& item );// (th4) RU: ring base noun Кольцо -> Перстень (all rings)
+const char* LocalizedUniqueItemName( const char* en );// Localization (th4)
+void DarkCampaignRenameSmith( char* name, int nameSize );//	Localization	(th4) DC m15: Griswold -> Hephasto
+const char* LocalizedAffixPrefix( const char* en );// Localization (th4)
+const char* LocalizedAffixSuffix( const char* en );// Localization (th4)
+const char* LocalizedWarpName( const char* en );// Localization (th4)
+const char* LocalizedWarpNameAccusative( const char* en );// Localization (th4) RU accusative for "To %s"
+const char* LocalizedBaseItemName( const char* en );// Localization (th4)
+const char* LocalizedBaseName2( const char* en );// Localization (th4)
+const char* LocalizedElement( const char* en );// Localization (th4)
+const char* LocalizedSpicies( const char* en );// Localization (th4)
+const char* LocalizedSpell( const char* en );// Localization (th4)
+const char* LocalizedSpellNominative( const char* en );// Localization (th4)
+char* LocalizedSpeech( int index, char* en );// Localization (th4)
+bool IsChiLead( unsigned char b );// Localization (th4)
+bool IsChiTrail( unsigned char b );// Localization (th4)
+int ChiLetterID( unsigned char lead, unsigned char trail );// Localization (th4)
+int ChiNextSmall( const unsigned char* s, int* letterID, int* pixW );// Localization (th4)
+int ChiNextMid( const unsigned char* s, int* letterID, int* pixW );// Localization (th4)
+int ChiNextBig( const unsigned char* s, int* letterID, int* pixW );// Localization (th4)
+char* LocalizedOnScreenMessage( int index, char* en );// Localization (th4)
+char* LocalizedQuestName( int index, char* en );// Localization (th4)
+const char* LocalizedPerkName( const char* en );// Localization (th4)
+const char* LocalizedPerkDesc( const char* en );// Localization (th4)
+const char* LocalizedGCInfoName( int gc );// Localization (th4) in-game GC panel
+const char* LocalizedGCInfoDesc( int gc );// Localization (th4) in-game GC panel
+const char* LocalizedGCInfoHeader( const char* en );// Localization (th4) in-game GC panel
 void  LoadBossesOnLevel( );//	Monster		
 void __fastcall CreateBoss( int uniqMonsterIndex, int bossPackSpriteIndex, int packCount, int packFlag = 0	);//	Monster		
+void AuditMonsterMap(const char* when);// (th4) MonsterMap ghost detector, compiled only when TH4_MONSTERMAP_DEBUG=1 in Monster.cpp
 void __fastcall CreateBossBaseMonster( int monsterIndex, int spriteIndex, int row, int col	);//	Monster		
 void  PlaceQuestMonsters( );//	Monster		
 void __fastcall CreateMonstersPack( int spriteIndex, int count, int flag, int monsterBossIndex	);//	Monster		
@@ -1019,6 +1348,7 @@ int __fastcall RollMonsterStunThreshold(const Monster& monster);//	MonsterStunTh
 int __fastcall MonsterOrientationToTarget( int monsterIndex	);//	Monster		
 void __fastcall KillMonsterByPlayer( uint monsterIndex, int playerIndex	);//	Monster		
 void __fastcall KillPlayerByPlayerEffect(int victimIndex, int killerIndex);
+void __fastcall CreditMonsterKill(int playerIndex);//	Monster	(th4) lifetime kill count
 void __fastcall MonsterKilledByPlayer(int monsterIndex, int playerIndex, bool sendMsg);//	Monster		
 void __fastcall KillDiabloEffect( int monsterIndex, int a1	);//	Monster		
 void __fastcall MonsterKillEffect( int monsterIndex, bool sendMsg	);//	Monster		
@@ -1035,6 +1365,7 @@ void __fastcall DamageMonsterByMonster( int monsterIndex, int casterIndex, int d
 void __fastcall KillMonsterByMonster( int attackerIndex, int targetIndex	);//	Monster
 int __fastcall MonsterMeleeAttack( int a1	);//	Monster		
 void __fastcall MvP_Melee( int monsterIndex, int playerIndex, int toHit, int minDamage, int maxDamage	);//	Monster		
+int __fastcall CalcMvP_MeleeHitChance( int monsterIndex, int playerIndex	);//	Monster	(th4) display-only
 int __fastcall MonsterRangedAttack( uint monsterIndex	);//	Monster		
 int __fastcall MonsterSecondRangedAttack( uint monsterIndex	);//	Monster		
 int __fastcall MonsterSecondMeleeAttack( int a1	);//	Monster		
@@ -1060,7 +1391,7 @@ void __fastcall InterruptStoneState( int monsterIndex	);//	Monster		void __userc
 int __fastcall MonsterWalksTowardsTarget( int monsterIndex, int orientation	);//	Monster		
 int __fastcall MakeMonsterPath( uint monsterIndex	);//	Monster		
 int __fastcall MoveInOrientOrAbove( int monsterIndex, int orientation	);//	Monster		
-bool __fastcall MoveToDirectionIfMay( int monsterIndex, int orientation	);//	Monster		
+bool __fastcall Move_in_the_Direction_If_allowed( int monsterIndex, int orientation	);//	Monster		
 int __fastcall MonsterCircleTarget( int monsterIndex, int orientationToTarget, int& curOrientation	);//	Monster		
 void __fastcall Ai_0_Zombie( uint monsterIndex	);//	Monster		
 void __fastcall StartMonsterMeleeAttack(int monsterIndex, int dir = -1 );//	Monster	
@@ -1069,9 +1400,9 @@ void __fastcall MonsterStartDelay( int monsterIndex, int delay	);//	Monster
 int __fastcall MonsterChangeTarget( int monsterIndex	);//	Monster		
 void __fastcall Ai_24_Viper( uint monsterIndex	);//	Monster		
 void __fastcall Ai_11_Bat( uint monsterIndex	);//	Monster		
-void __fastcall Ai_3_ArcherRarelyRetreats( uint monsterIndex	);//	Monster		
+void __fastcall Ai_3_Skeleton_Archer( uint monsterIndex	);//	Monster		
 int __fastcall StartMonsterRangedAttack( int monsterIndex, int spellEffect, int damage	);//	Monster		
-void __fastcall Ai_1_MeleeRandomSecondAttackSwing( uint monsterIndex	);//	Monster		
+void __fastcall Ai_1_Overlord( uint monsterIndex	);//	Monster		
 void __fastcall StartMonsterSecondMeleeAttack( int monsterIndex	);//	Monster		
 void __fastcall Ai_15_Hidden( uint monsterIndex	);//	Monster		
 void __fastcall Monster_Fade_In( int a1, int a2, int a3	);//	Monster		
@@ -1084,16 +1415,17 @@ void __fastcall Ai_53_Exploder(uint monsterIndex);//	Monster
 void __fastcall AttackTypeMelee( int ecx0, int edx0	);//	Monster		
 void __fastcall Ai_6_Goat_Melee( uint monsterIndex	);//	Monster		
 void __fastcall RangerRetreatsOften( int a1, int a2, int a3	);//	Monster		
+bool IsShooterAi(int ai);//	Monster
 int __fastcall StartMonsterSecondRangedAttack( int monsterIndex, int spellEffect, int damage	);//	Monster		
 void __fastcall Ai_7_Goat_Archer( uint monsterIndex	);//	Monster		
 void __fastcall Ai_41_RangerRetreatsOften_ColdSnakes( uint monsterIndex	);//	Monster		
-void __fastcall Ai_14_RangerRetreatsOften_ArcaneStar( uint monsterIndex	);//	Monster		
+void __fastcall Ai_14_Succubus( uint monsterIndex	);//	Monster		
 void __fastcall Ai_46_RangerRetreatsOften_ArcaneStarBlue( uint monsterIndex	);//	Monster		
 void __fastcall Ai_35_RangerRetreatsOften_LichOrangeBlast( uint monsterIndex	);//	Monster		
 void __fastcall Ai_36_RangerRetreatsOften_YelowBlast( uint monsterIndex	);//	Monster		
 void __fastcall Ai_37_RangerRetreatsOften_FireArrow( uint monsterIndex	);//	Monster		fire arrows!
 void __fastcall Ai_38_RangerRetreatsOften_RedBlast( uint monsterIndex	);//	Monster		
-void __fastcall Ai_20_RangerRetreatsOften_AcidMissile( uint monsterIndex	);//	Monster		
+void __fastcall Ai_20_Acid_Beast_Ranger( uint monsterIndex	);//	Monster		
 void __fastcall Ai_32_RangerRetreatsOften_Firebolt( uint monsterIndex	);//	Monster		
 void __fastcall Ai_33_RangerRetreatsOften_LightningArrow(uint monsterIndex);//	Monster		
 void __fastcall Ai_49_RangerRetreatsOften_Fireblast(uint monsterIndex);//	Monster		
@@ -1105,37 +1437,38 @@ void __fastcall Ai_56_Rammer(uint monsterIndex);
 void __fastcall StartMonsterStoneMode( uint monsterIndex	);//	Monster		
 void __fastcall Universal_RangeSecondAttack( uint monsterIndex, int spellEffect, int canInteractWithObjects, int damage, int agility	);//	Monster		
 void __fastcall Universal_OnlyRangeSecondAttack(uint monsterIndex, int spellEffect, int canInteractWithObjects, int damage, int agility);
-void __fastcall Ai_9_Universal_RangeSecondAttack_MagmaBall( uint monsterIndex	);//	Monster		
-void __fastcall Ai_16_Universal_RangeSecondAttack_Lightning( uint monsterIndex	);//	Monster		
-void __fastcall Ai_39_Universal_RangeSecondAttack_Physical_Blue_Blast( uint monsterIndex	);//	Monster		
-void __fastcall Ai_40_Universal_RangeSecondAttack_ColdBlast( uint monsterIndex	);//	Monster		cold serpents
-void __fastcall Ai_42_Universal_RangeSecondAttack_Firebolt( uint monsterIndex	);//	Monster		
+void __fastcall Ai_9_Magma( uint monsterIndex	);//	Monster		
+void __fastcall Ai_16_Lightning_Demon( uint monsterIndex	);//	Monster		
+void __fastcall Ai_39_Hybrid_Physical_Blue_Blast( uint monsterIndex	);//	Monster		
+void __fastcall Ai_40_Hybrid_ColdBlast( uint monsterIndex	);//	Monster		cold serpents
+void __fastcall Ai_42_Hybrid_Firebolt( uint monsterIndex	);//	Monster		
 void __fastcall Ai_43_RangerRetreatsOften_Acid_Arrow( uint monsterIndex	);//	Monster		
 void __fastcall Ai_44_RangerRetreatsOften_Cold_Arrow( uint monsterIndex	);//	Monster		
 void __fastcall Ai_45_RangerRetreatsOften_Arcane_Arrow( uint monsterIndex	);//	Monster		
-void __fastcall Ai_47_Universal_RangeSecondAttack_Bluestar(uint monsterIndex);//	Monster		orange star
-void __fastcall Ai_48_Universal_RangeSecondAttack_Yellowstar(uint monsterIndex);//	Monster		
-void __fastcall Ai_50_Universal_RangeSecondAttack_Fireblast(uint monsterIndex);//	Monster		
-void __fastcall Ai_51_Universal_RangeSecondAttack_Arcanestar(uint monsterIndex);//	Monster		
-void __fastcall Ai_58_Universal_RangeSecondAttack_Psychic(uint monsterIndex);//	Monster		
+void __fastcall Ai_47_Hybrid_Bluestar(uint monsterIndex);//	Monster		orange star
+void __fastcall Ai_48_Hybrid_Yellowstar(uint monsterIndex);//	Monster		
+void __fastcall Ai_50_Hybrid_Fireblast(uint monsterIndex);//	Monster		
+void __fastcall Ai_51_Hybrid_Arcanestar(uint monsterIndex);//	Monster		
+void __fastcall Ai_58_Hybrid_Psychic(uint monsterIndex);//	Monster		
 void __fastcall Ai_57_Hybrid_ArcaneStar(uint monsterIndex);
-void __fastcall Ai_52_Universal_RangeSecondAttack_SnowBolt(uint monsterIndex);//	Monster		
-void __fastcall Ai_54_Universal_RangeSecondAttack_Charged_Bolt(uint monsterIndex);//	Monster		
-void __fastcall Ai_19_Universal_RangeSecondAttack_AcidMissile( uint monsterIndex	);//	Monster		
-void __fastcall Ai_27_Universal_RangeSecondAttack_Apoc( uint monsterIndex	);//	Monster		
+void __fastcall Ai_52_Hybrid_SnowBolt(uint monsterIndex);//	Monster		
+void __fastcall Ai_54_Hybrid_Charged_Bolt(uint monsterIndex);//	Monster		
+void __fastcall Ai_19_Acid_Beast( uint monsterIndex	);//	Monster		
+void __fastcall Ai_27_Diablo( uint monsterIndex	);//	Monster		
 void __fastcall Ai_59_Tentaclist(uint monsterIndex);
+void __fastcall Ai_60_Invisible_Stalker(uint monsterIndex); // th4
 void __fastcall Universal_ShortRangeSecondAttack( uint monsterIndex, int spellEffect, int damage	);//	Monster		
-void __fastcall Ai_26_Universal_ShortRangeSecondAttack_Incinerate( uint monsterIndex	);//	Monster		
+void __fastcall Ai_26_Balrog( uint monsterIndex	);//	Monster		
 void __fastcall Ai_21_Golem( uint monsterIndex	);//	Monster		
 void __fastcall Ai_10_SkeletonKing( uint monsterIndex	);//	Monster		
-void __fastcall Ai_5_ChargeAttack( uint monsterIndex	);//	Monster		
+void __fastcall Ai_5_Charger( uint monsterIndex	);//	Monster		
 void __fastcall Ai_34_HorkDemon( uint monsterIndex	);//	Monster		
 void __fastcall Ai_25_Mage( uint monsterIndex	);//	Monster		
 void __fastcall Ai_18_Garbud( uint monsterIndex	);//	Monster		
 void __fastcall Ai_22_Zhar( uint monsterIndex	);//	Monster		
 void __fastcall Ai_23_Snotspill( uint monsterIndex	);//	Monster		
 void __fastcall Ai_28_Lazarus( uint monsterIndex	);//	Monster		
-void __fastcall Ai_29_Lazarus_s_Slut( uint monsterIndex	);//	Monster		
+void __fastcall Ai_29_Redvex_Blackjade( uint monsterIndex	);//	Monster		
 void __fastcall Ai_30_Lachdanan( uint monsterIndex	);//	Monster		
 void __fastcall Ai_31_Warlord( uint monsterIndex	);//	Monster		
 void  RemoveKilledMonsters( );//	Monster		
@@ -1165,10 +1498,25 @@ void __fastcall PutAmbushMonsterAndStartAttack( int monsterIndex, int row, int c
 int __fastcall ActivateAmbushMonster( int monsterIndex, int row, int col	);//	Monster		
 int  AddAmbushMonster( );//	Monster		
 void __fastcall TalkWithMonster( uint monsterIndex	);//	Monster
+void __fastcall DarkCampaignTalk( uint monsterIndex	);//	Monster		(th4) Dark Campaign hub
+int  DarkCampaignCurrentMission( );//	Monster		(th4) lowest not-yet-complete mission, -1 if none
+void OpenDarkCampaignPortal( int mission );//	Monster		(th4) hub outbound mission portal
 void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spellIndex	);//	Monster
 void __fastcall AwakeSummon( uint summonIndex, int row, int col, int currentLife, const DSummonStr& params, bool restoring );
+bool CarriedSummonsEnabled();//	Monster		(th4) summons follow the player between levels: SP, not Classic
+bool CarriedManaShieldEnabled();//	Missile		(th4) same rule for the mana shield
+void ClearCarriedManaShield();//	Missile		(th4)
+void CaptureCarriedManaShield( int playerIndex );//	Missile	(th4) before RemovePlayerMissiles wipes it
+void RestoreCarriedManaShield();//	Missile		(th4) after the destination level has settled
+bool CarriedReflectEnabled();//	Missile		(th4) reflect survives a level change too
+void ClearCarriedReflect();//	Missile		(th4)
+void CaptureCarriedReflect( int playerIndex );//	Missile	(th4) InitMissiles zeroes the charges; grab them first
+void RestoreCarriedReflect();//	Missile		(th4) put the charges and the missile back
+void ClearCarriedSummons();//	Monster
+void CaptureCarriedSummons();//	Monster
+void RestoreCarriedSummons();//	Monster
 bool __fastcall MonsterTalking( uint monsterIndex	);//	Monster		
-int __fastcall CheckMonsterPhaseOrBlock( uint monsterIndex, int* isMonsterHit	);//	Monster		
+int __fastcall CheckMonsterPhaseOrBlock( uint monsterIndex, int* isMonsterHit, int attackerPlayerIndex = -1	);//	Monster		
 int __fastcall encode_enemy( int a1 );//	Monster
 void __fastcall decode_enemy( int monsterIndex, int targetIndex );//	Monster
 void __fastcall PlayVideo( char *Str, int a2	);//	Monster		
@@ -1202,12 +1550,12 @@ bool  WriteBlockTable( );//	MpqSave
 bool  WriteHashTable( );//	MpqSave		
 bool  MpqSetEOF( );//	MpqSave
 void  SetupTimingCritSection( );//	Net		
-void __fastcall nthread_terminate_game( char* errorText );//	Net		отдельный сетевой поток
-uint __fastcall NThreadFillSyncQueue( uint netTurnCount, int turnsDelta );//	Net		отдельный сетевой поток
-int __fastcall NThreadMsgCheck( int* a1 );//	Net		отдельный сетевой поток
+void __fastcall nthread_terminate_game( char* errorText );//	(rt) Net		separate network thread
+uint __fastcall NThreadFillSyncQueue( uint netTurnCount, int turnsDelta );//	(rt) Net		separate network thread
+int __fastcall NThreadMsgCheck( int* a1 );//	(rt) Net		separate network thread
 void  NThreadSetDeltaRequest( );//	Net		
 void __fastcall NetThreadStart( int ecx0	);//	Net		
-uint __stdcall NetSyncThread( void* arg1	);//	Net		отдельный сетевой поток
+uint __stdcall NetSyncThread( void* arg1	);//	(rt) Net		separate network thread
 void  NetThreadStop();//	Net
 void __fastcall ResetFrameSyncCritSection( int leave	);//	Net		
 bool  NThreadRunGameLoop(bool reloop);//	Net		
@@ -1263,7 +1611,8 @@ void __fastcall AddSarcofagusOnMap( int objectIndex	);//	Object
 void __fastcall AddFlameOnMap( int objectIndex	);//	Object		
 void __fastcall AddLever2OnMap( int objectIndex	);//	Object		
 void __fastcall AddTrapHoleOnMap( int objectIndex	);//	Object		
-void __fastcall PutSomeLightSorce( int objectIndex, int lightLevel	);//	Object		
+void __fastcall PutSomeLightSorce( int objectIndex, int lightLevel	);//	Object
+void __fastcall RebuildStaticTintMap( );//	Object (th4) Rev 2.46 Option C: rebuild the colored static bake map at load		
 void __fastcall AddBarrelOnMap( int objectIndex	);//	Object		
 void __fastcall AddShrineOnMap( int objectIndex	);//	Object		
 void __fastcall AddBookCaseOnMap( int objectIndex	);//	Object		
@@ -1314,13 +1663,14 @@ void __fastcall ActivateChest( int playerIndex, int objectIndex, int isCurrentIn
 void __fastcall OperateChest(int playerIndex, int objectIndex, int isCurrentIndex, int telekines);//	Object	
 void __fastcall ActivateMushroomPatch( int playerIndex, int objectIndex	);//	Object		
 void __fastcall ActivateLargeOgdenQuestChest( int playerIndex, int objectIndex	);//	Object		
-void __fastcall ActivateSlainHero( int playerIndex, int objectIndex	);//	Object		заменено на 0x00706CE0 ActivateSlainHero_TH
+void __fastcall ActivateSlainHero( int playerIndex, int objectIndex	);//	(rt) Object		replaced with 0x00706CE0 ActivateSlainHero_TH
 int  GetUniqMonsterSound( int monsterIndex	);//	Monster		int __usercall GetUniqMonsterSound@<ecx>(int monsterIndex@<esi>)
 void __fastcall ActivateLever2( int objectIndex	);//	Object		
 void __fastcall ActivateSarcofagus( int playerIndex, int objectIndex, unsigned __int8 a3, int telekines = 0	);//	Object		
 void __fastcall ActivateCatacombDoor( int playerIndex, int objectIndex, char isCurrentPlayer	);//	Object		
 void __fastcall ActivateCaveDoor( int playerIndex, int objectIndex, char isCurrentPlayer	);//	Object		
 void __fastcall ActivatePedestalOfBlood( int playerIndex, int objectIndex	);//	Object		
+bool IsValorVaultOpen();//	Object
 void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIndex	);//	Object		
 void __fastcall ActivateLibraryBook( int playerIndex, int objectIndex, uchar isCurrentPlayer	);//	Object		
 void __fastcall ActivateBookcase( int playerIndex, int objectIndex, uchar isCurrentPlayer	);//	Object		
@@ -1381,9 +1731,27 @@ void  BlackPalette( );//	Palette
 void __fastcall SetFadeLevel( int brightness	);//	Palette		
 void* __fastcall PaletteFadeIn( int delta	);//	Palette		
 void __fastcall PaletteFadeOut( int delta	);//	Palette		
-void  AnimateCavePalette( );//	Palette		jmp-call, учесть при сверке
-void  AnimateCryptPalette( );//	Palette		jmp-call, учесть при сверке
-void  AnimateAbyssPalette( );//	Palette		jmp-call, учесть при сверке
+void  AnimateCavePalette( );//	(rt) Palette		jmp-call, account for it in the comparison
+void  AnimateCryptPalette( );//	(rt) Palette		jmp-call, account for it in the comparison
+void  AnimateAbyssPalette( );//	(rt) Palette		jmp-call, account for it in the comparison
+void  AnimateTownPalette( );//	Palette		town day/night cycle (TH4)
+void  AnimateGrottoHallucination( );//	Palette		Mossy Grotto hallucination (TH4)
+void  Grotto_Invalidate( );//	Palette		rebuild grotto snapshot after pal reload
+void  DayNight_BuildSnapshots( );//	Palette		build day/night snapshots for current town pal
+void  DayNight_Invalidate( );//	Palette		force snapshot rebuild after town pal reload
+bool  DayNight_IsNight( );//	Palette		town ambience: true past dusk midpoint (TH4)
+int   DayNight_TownSpriteDark( );//	palette		
+int   DayNight_NightPosQ8( );//	palette (th4) position inside the night 0..255 (128 = middle of the dark), -1 by day
+int   DayNight_NightQ8( );//	palette (th4) 0..256 town night strength (same eased phase as the terrain blend)
+int   DayNight_NightIndex( );//	palette (th4) number of the current day/night cycle (= which night), for Weather.cpp
+int   DayNight_DayPosQ8( );//	palette (th4) position inside the day plateau 0..255, -1 at dusk / night / dawn (Weather_WetQ8)
+WEATHER Weather_Tonight( );//	Weather (th4) clear / mist / storm for this night in the normal town (synced by the level seeds)
+int   Weather_WetQ8( );//	Weather (th4) how wet Tristram is 0..256: wets during a storm night, dries over the next day (WET GROUND)
+int   Weather_FlashQ8( );//	Weather (th4) lightning flash 0..256 (palette.cpp scales the town night by it)
+int   Weather_SunQ8( );//	Weather (th4) SUNNY DAYS: sun in the normal town now 0..256, one spell per sunny day (dx_utility.cpp SUN RAYS)
+bool  Weather_SunnyDay( );//	Weather (th4) SUNNY DAYS: is today sunny at all (dx_utility.cpp Clouds_Active: no clouds all day)
+void  Weather_Render( int zoomFactor );//	Weather (th4) Draw.cpp after Snowfall_Render: storm clock, strikes, thunder (draws nothing)
+float Weather_ClockSec( );//	Weather (th4) storm clock in s, frozen on pause -- time for Rain.hlsl
 void __fastcall ApplyAnimFilePalette( int animPalReserve	);//	Palette		
 int __fastcall FindPath( int ( __fastcall *stepFunc )( int, int, int ), int monsterIndex, int startRow, int startCol, int targetRow, int targetCol, char* steps	);//	Path		
 int __fastcall GetPerimeter( int aDestX, int aDestY, int X, int Y	);//	Path		
@@ -1435,6 +1803,7 @@ void __fastcall WriteSaveFile( char* fileName, uchar* data, uint realSaveSize, i
 void* __fastcall ReadSaveFile( char *decodeKey, uint *loadedSize, int loadSwapWeapon	);//	CharSlots		
 void __fastcall SplitAnimationPointerToDirections( char* animPtr, char** dirAnimPtr	);//	Player		
 void __fastcall LoadPlayerGFX( uint playerIndex, int loadingMask	);//	Player		
+bool TwoTowersGfxStale( int playerIndex );//	Player (th4) TWO TOWERS: the second shield went on or off since the files were loaded -- Item.cpp CalcCharParams reloads
 void __fastcall InitPlayerGFX( uint playerIndex	);//	Player		
 void __fastcall InitPlrGFXMem( uint playerIndex	);//	Player		
 uint __fastcall SelectPlrAnimation( char* anim	);//	Player		
@@ -1466,6 +1835,8 @@ void __fastcall StartWalkUp( int playerIndex, int xVel, int yVel, int changeRow,
 void __fastcall StartWalkDown( int playerIndex, int xVel, int yVel, int xOfs, int yOfs, int changeRow, int changeCol, int direction, int scrollDir	);//	Player		
 void __fastcall StartWalkHorizontal( int playerIndex, int xVel, int yVel, int xOfs, int yOfs, int changeRow, int changeCol, int changeRow2, int changeCol2, int direction, int scrollDir	);//	Player		
 void __fastcall StartAttack( int arglist, int orientationToTarget	);//	Player		
+bool UsesTownAnimations( );//	Player		(th4) town-style stay/walk/cast: town + Dark Campaign hub
+bool ForcesAngryAnimations( const Player& player );//	Player		(th4) drawn from angry cels despite a town-animation level
 void __fastcall StartRangeAttack( int arglist, int a2, int a3, int a4	);//	Player		
 void __fastcall StartPlayerBlock( uint playerIndex, int orientation	);//	Player		
 void __fastcall StartSpell( int arglist, int a2, int a3, int a4	);//	Player		
@@ -1572,6 +1943,8 @@ void  QuestPanel_ShiftUp( );//	Quest
 void  QuestPanel_ShiftDown( );//	Quest		
 void  QuestPanel_StartSpeech( );//	Quest		
 void  QuestPanel_CheckLButtonClick( );//	Quest		
+bool  QuestPanel_CheckArrowClick();//	Quest (th4) quest log scroll arrows; true if an arrow took the click
+void  QuestPanel_ScrollBy( int delta );//	Quest (th4)
 void __fastcall UpdateQuestStatus( int questIndex, QUEST_STATUS status, int talkToFlag, int status2, int status3, int status4, int status5	);//	Quest		
 void __fastcall DrawTransparentWall( int a1, int a2	);//	Draw		
 void __fastcall DrawTransparentCorner( int a1, int a2	);//	Draw		
@@ -1579,7 +1952,7 @@ void __fastcall DrawDunCelTrans( uchar* surfacePtr	);//	Draw
 void __fastcall DrawTransparency( uchar* dst	);//	Draw		
 void  ZeroCursorImageWidth( );//	Draw		
 void __fastcall DrawMissileInTile( int row, int col, int playerOffsetX, int playerOffsetY, int shiftY, int tileInCellIndex, int mayBeIsExploding	);//	Draw		
-void __fastcall DrawDiedPlayer( int row, int col, int arg0, int a4, int a9, int a10, int zero	);//	Draw		
+void __fastcall Draw_Dying_Player( int row, int col, int arg0, int a4, int a9, int a10, int zero	);//	Draw		
 void __fastcall DrawPlayer( int playerIndex, int row, int col, int rowOffset, int colOffset, char* currentAnimationPointer, int currentAnimationFrame, int a8, int a9, int screenCellRow	);//	Draw		
 void __fastcall DrawIsoLand( int cameraX, int cameraY, bool dun, bool zoom );//	Draw		
 void __fastcall DrawSceneDungeonTop( int row, int col, int offsetX, int offsetY, int areaWidth, int screenCellRow, int a7	);//	Draw		
@@ -1613,6 +1986,20 @@ void __fastcall PlaySound( Sound& sound, int range, int angle	);//	SoundBuffer
 IDirectSoundBuffer* __fastcall SoundDuplicate( Sound& sound	);//	SoundBuffer		
 bool __fastcall RestoreSoundBuffer( Sound& sound, IDirectSoundBuffer* buffer	);//	SoundBuffer		
 void __fastcall LoadSound_Wav( Sound& sound	);//	SoundBuffer		
+void LoadSound_Ogg( Sound& sound	);//	vorbis	(th4)	
+// (th4) streaming Ogg player, parallel to Storm DDA -- OggStream.cpp
+// channel ids (must match OggStream.cpp): 0 = music, 1 = ambient
+#define OGGCH_MUSIC   0
+#define OGGCH_AMBIENT 1
+bool OggStream_IsOgg( const char* name	);
+bool OggStream_Play( int ch, char* name, bool loop, int volume, int fadeInMs = 0	);	// (th4) fadeInMs: start silent, fade in (MUSIC CROSSFADES)
+void OggStream_Stop( int ch	);
+void OggStream_FadeOut( int ch, int fadeMs	);	// (th4) music: fade the playing track out on its own slot, free the channel
+void OggStream_SetVolume( int ch, int volume	);
+bool OggStream_Active( int ch	);
+void LoadSound( Sound& sound	);//	vorbis	(th4) extension dispatcher (.wav/.ogg)
+int  ToLowerExtension( int extension	);//	vorbis	(th4)	
+char* __fastcall CreateFilePlayCTX_Ogg( HANDLE handle, WAVEFORMATEX* waveFormat, uint* bufSize	);//	vorbis	(th4)	
 bool __fastcall CreateDirectSoundBuffer( Sound& sound	);//	SoundBuffer		
 void __fastcall FreeSoundData( Sound& sound	);//	SoundBuffer		
 bool __fastcall AllocateDirectSound( HWND aHWND	);//	SoundBuffer		
@@ -1621,9 +2008,10 @@ void __fastcall SetDirectSoundBufferFormat( HANDLE aSoundFilePtr	);//	SoundBuffe
 HRESULT __fastcall CallDirectSoundCreate( LPGUID guid, IDirectSound** ppDS, IUnknown* pUnkOuter	);//	SoundBuffer		
 void  ReleaseDirectSound( );//	SoundBuffer		
 int __fastcall SaveVolume( char* valueName, int value	);//	SoundBuffer		
-void  StopMusic( );//	SoundBuffer		
+int   Music_GraphType( );//	SoundBuffer	(th4) level type the music was last picked for, -1 none (Main.cpp LoadGameLevel: a loaded save into another type = no crossfade)
+void  StopMusic( bool fade = false );//	SoundBuffer	(th4) fade: MUSIC_FADE_MS fade-out (MUSIC CROSSFADES, OggStream.cpp)		
 void  StopAmbient( );//	SoundBuffer		
-void __fastcall PlayMusic( char* musicName = 0	);//	SoundBuffer		
+void __fastcall PlayMusic( char* musicName = 0, bool fade = false	);//	SoundBuffer	(th4) fade: crossfade from the old track		
 void __fastcall PlayAmbient( char* ambientName = 0	);//	SoundBuffer		
 void __fastcall PauseMusic( bool aPause	);//	SoundBuffer		
 void __fastcall PauseAmbient( bool aPause	);//	SoundBuffer		
@@ -1682,7 +2070,7 @@ void __fastcall DrawBuyItemsFromPepin( int firstItem	);//	PlayerTrade
 void  HealerPepinShop( );//	PlayerTrade		
 void  TownElderMainMenu( );//	PlayerTrade		
 bool __fastcall ItemNeedIdentify( const Item* itemPtr	);//	PlayerTrade
-void __fastcall AddItemToIdentifyList( char itemInventoryIndex, int edx_unused, const Item& item	);//	PlayerTrade		Оптимизированы вызовы для каждого нательного слота в цикл. 
+void __fastcall AddItemToIdentifyList( char itemInventoryIndex, int edx_unused, const Item& item	);//	(rt) PlayerTrade		Calls for each body slot were optimized into a loop. 
 void  IdentifyMenu( );//	PlayerTrade		
 void  ItemIdentifiedMenu( );//	PlayerTrade		
 void  TalkToMenu( );//	PlayerTrade		
@@ -1849,16 +2237,16 @@ int  WasteBits( TDcmpStruct* pWork, unsigned long nBits	);//	pklib
 void  GenDecodeTabs( long count, unsigned char* bits, unsigned char* pCode, unsigned char* buffer2	);//	pklib		
 void  GenAscTabs( TDcmpStruct *pWork	);//	pklib		unused_BigArg
 int  ModifyBarrelExplodeDamage( );//	Object		int __usercall ModifyBarrelExplodeDamage@<edx>()
-bool __fastcall ActTrash16SpellEffect( int missileOffset	);//	Missile		bool __usercall ActTrash16SpellEffect@<zf>(int missileOffset@<esi>) отключенная магия, в таблице кастов не должно быть этого адреса так как сигнатура не совпадает
+bool __fastcall ActTrash16SpellEffect( int missileOffset	);//	(rt) Missile		bool __usercall ActTrash16SpellEffect@<zf>(int missileOffset@<esi>) disabled spell; this address must not be in the cast table, since the signature doesn't match
 int __fastcall ChooseHolyBoltTypeExSpriteIndex( int missileOffset	);//	Missile		int __usercall ChoiseHolyBoltTypeExSpriteIndex@<edx>(int missileOffset@<esi>)
 void __fastcall SetHolyBoltExSpriteHack( int missileIndex, int spriteIndex, int missileOffset	);//	Missile		void __usercall SetHolyBoltExSpriteHack(int missileIndex@<ecx>, int spriteIndex@<edx>, int missileOffset@<esi>)
-void __fastcall CastBallLightning( int spellCastIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	Missile		Пересечение с CastFireBall, переразбирать пока не буду, оставлю до сверки
+void __fastcall CastBallLightning( int spellCastIndex, int casterRow, int casterCol, int targetRow, int targetCol, int casterDirection, int casterType, int casterIndex, int damage	);//	(rt) Missile		Overlaps with CastFireBall; not re-analysing for now, left until the comparison
 int __fastcall LimitSlvlParamForFireWallTimeliveCalc( int missileIndex	);//	Missile		int __usercall LimitSlvlParamForFireWallTimeliveCalc@<eax>(int missileOffset@<esi>)
 int __fastcall DoesMissileKnockback( int playerIndex, int effectIndex	);//	Missile		bool __usercall IsMissleMayKnockback@<al>(int a1@<eax>, int a2@<ebp>)
 bool __fastcall IsValidBaseForGriswoldBasicalItems( int baseItemIndex	);//	Item		
 int  CheckUberCoord( );//	Monster		POINT __usercall __spoils<zf> CheckUberCoord@<ebx:eax>()
-void __fastcall ActivateSlainHero_TH( int playerIndex, int objectIndex	);//	Quest		 раненый герой у церкви замена для 0x0045121C ActivateSlainHero
-void  AutomapDrawPlayers( );//	Monster ?		0043F0AB было
+void __fastcall ActivateSlainHero_TH( int playerIndex, int objectIndex	);//	(rt) Quest		 wounded hero by the church, replacement for 0x0045121C ActivateSlainHero
+void  AutomapDrawPlayers( );//	(rt) Monster ?		was 0043F0AB
 int  GetGoldModificator( );//	Item		
 int __fastcall CountDestructible( Item* item, int flag	);//	Object		int __usercall HiddenShrineFix@<edx>(int item@<ecx>, int flag@<edx>)
 bool  Belt5_8Fix( );//	Item		
@@ -1869,7 +2257,7 @@ bool PlayerKnockbackResistFail( int monsterIndex, uint playerIndex, bool charge 
 int __fastcall VariatePotionsByDifficulty( int randAdd, int addFromMax	);//			POINT __usercall VariatePotionsByDifficulty@<eax:edi>(int a1@<eax>, int a2@<edi>, int a3@<esi>)
 int  CannotIncreaseStat( int playerIndex );//	Player		
 int __fastcall CalcCharBaseStatSum( Player& player	);//	Player		
-void __fastcall SetPlayerHitPointsOnRestart( int playerIndex, int hitPoints	);//	Player		переделаная SetPlayerHitPoints 0045E9AC
+void __fastcall SetPlayerHitPointsOnRestart( int playerIndex, int hitPoints	);//	(rt) Player		reworked SetPlayerHitPoints 0045E9AC
 void __fastcall MpRestartAvailability( Menu* menuItem, int isActivated	);//	Menu		
 void __fastcall DisarmTrapFix( int playerIndex, int objectIndex	);//	Object		
 int  SpellLevelCap( );//	Player		
@@ -1895,8 +2283,8 @@ bool  ShowDungeonEntryDescriptions_InfestedCellar( );//	Warp
 int __fastcall CreatePepinRing( int row, int col, int itemQlvl, int a4, int a5	);//
 void __fastcall DropLairQuestAward( int row, int col	);//	TownMap			
 void __fastcall Drop_DITT_QuestAward(int row, int col);//	TownMap		
-void __fastcall LoadQuestDungeonAltMapHell( char* dunNamePtr, int playerRow, int playerCol	);//	GenerateMap		копия LoadQuestDungeonAltMapCave 00414BC7 с изменениями 
-void __fastcall LoadQuestDungeonMainMapHell( char* dunFileName, int playerRowPos, int playerColPos	);//	GenerateMap		копия LoadQuestDungeonMainMapChurch 0040BAFD с изменениями
+void __fastcall LoadQuestDungeonAltMapHell( char* dunNamePtr, int playerRow, int playerCol	);//	(rt) GenerateMap		copy of LoadQuestDungeonAltMapCave 00414BC7 with changes 
+void __fastcall LoadQuestDungeonMainMapHell( char* dunFileName, int playerRowPos, int playerColPos	);//	(rt) GenerateMap		copy of LoadQuestDungeonMainMapChurch 0040BAFD with changes
 void  AddWarpFromHallsOfAnguish( );//	Warp		
 bool  ShowDungeonEntryDescriptions_AndarielHalls( );//	Warp		
 bool  ShowDungeonEntryDescriptions_AndarielThrone( );//	Warp		
@@ -1908,7 +2296,7 @@ void  RandomizeQuests( );//	Quest
 void __fastcall LoadSPTownMap( TileSquare* townTiles	);//	TownMap		
 void __fastcall SetWarpToHorazonQuestFloor( int questIndex, int row, int col	);//	Quest		
 bool __fastcall IsValidWarpNearCursor( int gameMessage	);//	Warp		
-void __fastcall CannotEnterBeforeClearing( int flags, int messageIndex	);//	Warp		меняет ecx
+void __fastcall CannotEnterBeforeClearing( int flags, int messageIndex	);//	(rt) Warp		changes ecx
 void AddWarpFrom_BloodHive();// Warp
 void  QuestVideoOnEnter( );//			
 void __fastcall InitHorazonQuestBook( int objectIndex, int bookNumber	);//	GenerateQuestFloor		
@@ -2009,6 +2397,7 @@ void PlayAltWeaponPairSound();
 void DoPostAltWeaponPairSwapActions();
 void ChangeAltWeaponPairTo( int which );
 void ChangeAltWeaponPairToNext( bool skipEmpty );
+bool SwapToWeaponSetWith(char wantedItemCode);
 void __fastcall WriteWeaponSwapInfoToSave( LastItemInfo* swapItems	);//	Item		
 int __fastcall ReadWeaponSwapInfoFromSave( HANDLE save, LastItemInfo* swapItems	);//	Item		
 int __fastcall IsCursorInInvPanelRect( RECT* rect	);//	Item		
@@ -2037,7 +2426,26 @@ char** enum_split( char* names, size_t count );//
 uint GetCooperativeLevel();//   
 unsigned char* __fastcall GetCurrentLightTable( int y, int x );// Draw  
 void GetUserParameters();//   
-void __fastcall linecpyPerPixel( void* dst, void* src, int size, int h, unsigned mask, void* tbl );// Draw  
+void __fastcall linecpyPerPixel( void* dst, void* src, int size, int h, unsigned mask, int xStart );// Draw  
+void PPL_NoteRemapAndMask( bool remapIsIdentity );// Draw (th4) -- MakeLightTable reports g_PPLAnimRemap / g_PPLBrightnessMask (A8L8 fast path)
+void BuildScreenPaletteRGBLUT( uint* out );// (th4) shared per-frame palette->RGB table (rgbLUT)
+// (th4) Stage 4 item 6 (Option A): MT row-parallel palette->RGB resolve over the
+// shared PPL worker pool. Each row is a pure function of its own inputs, so any
+// thread assignment is byte-identical. The caller holds the s0 texture lock for
+// the whole dispatch and unlocks after it returns.
+struct ResolveMTContext {
+	uint* dst32;           // locked s0 texture, row 0
+	int   dstPitch32;      // locked pitch in uint elements
+	const uchar* src;      // WorkingSurface, visible-origin row 0 (post-zoom)
+	int   srcPitch;        // WorkingWidth (gameplay) or ScreenWidth (menus)
+	const uchar* srcAlpha; // AlphaSurface row 0, or null (alpha feature off)
+	uchar* flag;           // IndexFlagSurface row 0, or null (FullscreenFX != 1)
+	int   width, height;
+};
+int PPLResolveDispatch( const ResolveMTContext& ctx );// Draw — MT dispatch; 0 = MT unavailable (caller runs ST rows)
+int PPLCheckEpoch( int epoch );// Draw — nonzero while 'epoch' is the pool's current dispatch id
+int ResolveRowMT( int row, const ResolveMTContext& ctx, int epoch );// dx_utility — one resolve row; epoch < 0 = no epoch checks
+void SetUltraTintWhiteState( bool secondWindow );// dx_utility — force a window's tint white-tracking back to white after a device reset re-white-filled s3
 void LoadDragonMenuPalette();//   
 void LoadMainMenuPalette();//   
 void LoadQuestDungeonMainMapAbyss( char* dunNamePtr, int a2 );//   
@@ -2054,6 +2462,50 @@ void MotionInterpolationEnd();
 void ChangeScreenRes();
 void SetScreenDesc(DDSURFACEDESC& screenDesc);
 void CreateMiniDump( EXCEPTION_POINTERS* pep );
+// (th4) 2026-09-10 diagnostics for the d3d9 callback-crash investigation:
+// raw = always written (crash lines); gated variant writes only while
+// "d3d_diag_on.flag" exists in the working directory (same pattern as
+// overlay_dump_on.flag); D3dDiagAddr formats "module+0xoffset".
+void D3dDiagLogRaw( const char* line );
+void D3dDiagLog( const char* fmt, ... );
+void D3dDiagAddr( char* out, size_t outSize, void* addr );
+// (th4) 2026-09-10: COMPILE-TIME master switch for all verbose diagnostics
+// added during the d3d9 crash investigation. While TH4_D3D_DIAG_ENABLED is
+// defined, D3DDIAG()/D3DDIAGADDR() call into the runtime-gated loggers above
+// (writing only while "d3d_diag_on.flag" exists in the working directory).
+// Comment the #define out and every call compiles to nothing: zero runtime
+// cost, no flag-file checks, no string literals.
+// NEVER gated by this switch (real code, not verbose logging):
+//   - the reentrancy fixes (g_D3dInReset set in D3dReset/SecondReset and the
+//     ConvertPaletteSurfaceToTrueColor early-out).
+// The crash-capture kit used to be exempt here too; it now has its own switch
+// below, because it wrote files into the player's game folder in release builds.
+// DEFAULT: OFF. Uncomment the next line (and rebuild) to re-enable all
+// verbose diagnostics for a crash hunt; they additionally require
+// "d3d_diag_on.flag" in the working directory.
+//#define TH4_D3D_DIAG_ENABLED 1
+
+// (th4) SEPARATE switch for the CRASH-CAPTURE kit, which the one above deliberately
+// does NOT gate. With this commented out (release default) the vectored exception
+// handler is never installed and nothing writes "th4_d3d_diag.log", so a player
+// never finds unexplained files in the game folder.
+// WHAT THIS DOES NOT TOUCH:
+//   - CreateMiniDump and WinMain's __except. Those PRE-DATE the ultra-lighting
+//     merge -- Th4CrashDump.dmp on a hard crash is long-standing TH4 behaviour and
+//     stays exactly as it was.
+//   - the reentrancy fixes (g_D3dInReset and the ConvertPaletteSurfaceToTrueColor
+//     early-out). Those are real bug fixes, not diagnostics, and must always ship.
+// Uncomment for a crash hunt: the VEH catches faults that WinMain's __except cannot
+// see (first-chance, and anything on another thread).
+//#define TH4_CRASH_CAPTURE_ENABLED 1
+
+#ifdef TH4_D3D_DIAG_ENABLED
+#define D3DDIAG(...)     D3dDiagLog(__VA_ARGS__)
+#define D3DDIAGADDR(...) D3dDiagAddr(__VA_ARGS__)
+#else
+#define D3DDIAG(...)     ((void)0)
+#define D3DDIAGADDR(...) ((void)0)
+#endif
 
 void VisualStashGotoPrevPage();
 void VisualStashGotoNextPage();
@@ -2074,6 +2526,7 @@ int __fastcall GetTextWidthBig( const char* s );
 void HighlightItemsNameOnMap();
 
 void DrawCombatTextAbovePlayer();
+void DrawReflectCount();
 void DrawFloatingHealthAndMana();
 int MaxAcidDPS(int monsterIndex, int playerIndex);
 void DamageMonstersByAuras();
@@ -2087,6 +2540,8 @@ bool IsIronmanObject(Object& obj);
 void IronmanLevelCleared();
 int GetSuperGameMode(char* name = 0);
 const char* getGameModeName( GAME_MODE gameMode, GAME_CHANGER GameChanger = GC_0_CONTINUE);
+const char* getGameModeNameEnglish( GAME_MODE gameMode, GAME_CHANGER GameChanger = GC_0_CONTINUE);// (th4) untranslated, tilde status line
+const char* getGameModeNameInGame( GAME_MODE gameMode, GAME_CHANGER GameChanger = GC_0_CONTINUE );// GameModes (th4) CEL-font text
 void UpdateScaleResist(int playerIndex);
 void CalcResistPercentMelee(int playerIndex);
 void CalcResistPercentArrow(int playerIndex);
@@ -2095,6 +2550,7 @@ int GetPlayerKnockbackResistChance( uint playerIndex );
 void DrawPerksPanel();
 void PerksPanel_MouseMove();
 int PerkValue(PERKS perk,int playerIndex, int effectIndex = 0);
+int PerkPoints(int perk, int playerIndex);// Perks (th4: exposed for Blessed Hammer)
 bool checkRequirementsForPerk(int p, int l);
 void addUnlimitedXpToPlayer(i64 xpGain, int index);
 i64 getPassiveXpFormula();
@@ -2135,6 +2591,7 @@ void ToggleSynergyPanel();
 void ToggleInfoWindow();
 
 const char* getSpellName( int spell );
+const char* getSpellNameNominative( int spell );
 int getSpellIcon( int spell );
 
 uint GetRequiredClassMask( const Item* item );
@@ -2164,10 +2621,11 @@ void __fastcall CastTrapperTrapArrow( int missileIndex, int casterRow, int caste
 void __fastcall ActTrapperTrapArrow( int missileIndex );
 void __fastcall ClearOneOldestPlayerTrap(int playerIndex);
 
-int CalculateLesserSummonsMaxAmount( int slvl );
+int CalculateLesserSummonsMaxAmount( int slvl, int playerindex);
 int CalculateCommonSummonsMaxAmount( int slvl );
 int CalculateSummonsMaxAmount( int summonType, int slvl, int playerindex );
 void GetSummonsTypeOffsets( int summonType, int* summonsStartIndex, int* summonsSlotsAmount, int playerindex );
+bool IsSummonAlive( int monsterIndex );
 void KillExtraSummons( int ownerIndex, int summonType, int slvl );
 void RecalcSummonOrder( int ownerIndex, int summonType );
 
@@ -2198,6 +2656,9 @@ Item* __fastcall StashPanel_GetItemBySlotId( int slotId );
 char* GetItemSprites( int& spriteId );
 
 bool IsQuestItem( int baseItemIndex );
+enum { STACKABLE_MAX = 20 };//	Easy-mode consumable stack cap (TH4)
+bool __fastcall IsStackable( const Item& item );//	Item	Easy-mode consumable stacking (TH4)
+int  __fastcall StackCount( const Item& item );//	Item	current stack size (>=1)
 bool IsObsoleteItem( int baseItemIndex );
 bool IsValueStoneItem( int baseItemIndex );
 bool IsItemForbiddenToStore( int baseItemIndex );
@@ -2266,10 +2727,19 @@ int VisualTrade_GetGriswoldUpgradePrice();
 uint8_t __fastcall GetItemBackgroundColorType(const Item& item);
 
 void __fastcall Tooltip_Draw();
+// (th4) Tooltip lift list -- the animated orbs are composited after the 8-bit frame,
+// so a tooltip overlapping a globe is painted over. Each Tooltip_Draw* publishes its
+// rect here and AnimOrbs re-blits the overlap. Reset once per frame before the draws.
+#define TOOLTIP_LIFT_MAX 3
+extern int TooltipLiftCount;
+extern int TooltipLiftRect[ TOOLTIP_LIFT_MAX ][ 4 ];
+void Tooltip_ResetLiftRects( );//	Tooltip
+
 void __fastcall Tooltip_Draw_2();
 void __fastcall Tooltip_Draw_3();
 void __fastcall Tooltip_Clear();
 void __fastcall Tooltip_AddLine( const char* text, int color = C_0_White );
+void __fastcall Tooltip_AddWrapped( const char* text, int color, int maxWidth );   // (th4) wraps to maxWidth px, one Tooltip_AddLine per line
 void __fastcall Tooltip_AddLine_2( const char* text, int color = C_0_White );
 void __fastcall Tooltip_AddLine_3(const char* text, int color = C_0_White);
 void __fastcall Tooltip_ShowItemInfo( int slot );
@@ -2302,6 +2772,7 @@ const char* GetTraitDescription( TraitId id );
 int GetTraitSpellIcon( TraitId id );
 template<typename... T> __forceinline bool HasTrait(uint playerIndex, T&&... val){ return playerIndex > 3 ? false : has(Players[playerIndex].traits, val...); }
 template<typename... T> __forceinline bool CurTrait(T&&... val){ return has(Players[CurrentPlayerIndex].traits, val...); }
+template<typename... T> __forceinline bool HasTrait(const Player& player, T&&... val) { return has(player.traits, val...); }
 
 bool IsMonsterImmuneToMissile(int monsterIndex, int damageType, int playerIndex);
 
@@ -2330,6 +2801,7 @@ void __fastcall Craft_MouseMove();
 void __fastcall Craft_MouseClick();
 void __fastcall Craft_LButtonDown();
 bool __fastcall Craft_IsCraftSlot( int slotId );
+bool Craft_Gems_AutoPutCursorItem();//	Crafting (th4) shift-click a gem from the inventory into the gem combiner
 Item* __fastcall Craft_GetItemBySlotId( int slotId );
 void PrintGemEffectToStringBuffer( GemEffect& effect, bool twoHandedWeapon = false );
 void __fastcall TryToDropGem(int row, int col);
@@ -2348,6 +2820,7 @@ void SetupCraftPanel();
 void __fastcall Enchant_Draw();
 void __fastcall Enchant_Open();
 void __fastcall Enchant_Close();
+void __fastcall Powerups_Close();
 void Enchant_LButtonDown();
 void Enchant_DrawItem(const DisplayObject& rect, const Item& item);
 void Enchant_RetrieveAllItems();
@@ -2388,6 +2861,7 @@ void __fastcall DrawRegularCelViaTRN(int Xpos, int Ypos, const char* image, int 
 
 void InfoWindow_Init();
 void InfoWindow_Free();
+void __fastcall DrawBackground_LUT(int xPosition, int yPosition, int width, int height);
 void __fastcall InfoWindow_Draw();
 void __fastcall InfoWindow_MouseMove();
 void __fastcall InfoWindow_MouseDown();
@@ -2396,6 +2870,16 @@ void InfoWindow_Close();
 void __fastcall InfoWindow_MouseUp();
 void InfoWindow_Prev();
 void InfoWindow_Next();
+
+// ChatHistory — Multiplayer Chat History Overlay
+void ChatHistory_Clear();
+void ChatHistory_AddPlayerMessage(int playerIndex, const char* formattedStr);
+void ChatHistory_AddSystemMessage(const char* formattedStr);
+void ChatHistory_Toggle();
+void ChatHistory_ScrollUp();
+void ChatHistory_ScrollDown();
+void __fastcall ChatHistory_Draw();
+
 void PlayWalkSFX(int monsterIndex);
 void Open_the_Gates_Sacristy();
 void Open_the_Gates_Cellar();
@@ -2410,6 +2894,7 @@ void Open_the_Gates_Fetid_Cavern();
 void Open_the_Gates_Springs();
 void Open_the_Gates_Mossy_Grotto();
 void Open_the_Gates_Blood_Hive();
+void Open_the_Gates_Black_Chapel();
 
 void TimeReset();
 void TimeChange( double shift );
@@ -2443,6 +2928,7 @@ int __fastcall InitButtonListText(HWND hdlg, int* elemList, int fontIndex, int l
 void __fastcall InitSelectionAndLoadPentagram(char* pentagramName);
 void __cdecl DeletePentagram();
 void __fastcall InitScroll(HWND hDlg, int nIDDlgItem);
+int __cdecl GetCurFontHeight();   // (th4) height of the font SetCurFont selected; 0 if none loaded
 void __fastcall DeleteScroll(HWND hDlg, int nIDDlgItem);
 void __fastcall DeleteElementListData(HWND hDlg, int* elementList);
 void __fastcall WriteAndDrawDialogTitle(HWND hdlg, char* text);
@@ -2456,6 +2942,8 @@ void __fastcall InitButtonListProc(HWND hwnd, int* elemList);
 LPARAM IsMultiplayer();
 Portrait getHeroPortrait(CharSaveInfo *saveInfo, CLASS_SELECTION_MODE mode = CSM_SPECIALIZATION );
 const char* GetFullClassName( int playerIndex );
+const char* DarkCampaignClassName( PLAYER_FULL_CLASS fullClass );// (th4) DC roster rename, CharPanel.cpp
+const char* DarkCampaignClassGroupName( PLAYER_CLASS_GROUPS group );// (th4) DC class-group rename, CharPanel.cpp
 void __fastcall DrawPlusCEL(int x, int y, int pic);
 bool IsNoNeedToDropItemUsingCtrl();
 void XinputVirtualKeyboard();
@@ -2469,6 +2957,7 @@ __forceinline bool IsController(){ return XinputEnabled && curXboxController.IsC
 void DrawXinputGuide();
 bool XinputNotInUse(bool isTooltip = false);
 void RestrictMouseToWindow(HWND wWindow);
+void RestrictMouseToMenu(HWND mWindow, const RECT& menuRect);// Main (th4) ClipCursor to the meta menu
 void ModifyAuraDamageForCoop(int& damage);
 int GetNumberOfRelicWithCurrentSpell(int currentSpellNumber);
 void BackupSaveIfNeed( int slotIndex );
@@ -2486,9 +2975,20 @@ Affix* CurAffixesMagic();
 uint grand();
 void ReverseNumber(int& revNumber);//mor: gets a number and returns the reversed number, for instance: 1675 -> 5761
 int NewHeroTitle();
+const char* NewHeroTitleText();   // (th4) localized text for whatever NewHeroTitle() is; 0 if unknown
+const char* CharSelectTitleText();// (th4) same, for CharSelectTitle()
 int CharSelectTitle();
 char* SaveFolderName();
 char* SaveFileStash();
 int PlayerMaxLevel();
 i64 LevelUp(uint charLevel);
 int SpellLevelBookMax();
+void __fastcall Powerups_Open();
+void __fastcall Powerups_Draw();
+void SetupPowerupPanel();
+void __fastcall Powerup_MouseClick();
+void __fastcall Powerups_LButtonDown();
+void __fastcall Powerup_MouseMove();
+void TryToDropSigil(int row, int col);
+void Outbreak_Script();
+

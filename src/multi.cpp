@@ -45,7 +45,18 @@ void NetSendLoPri( uchar* src, uchar size )
 //----- (0044A3B8) --------------------------------------------------------
 void multi_copy_packet( TBuffer* buf, void* packet, uchar size )
 {
-    if( buf->dwNextWriteOffset + size + 2 <= 0x1000 ){
+    // size == 0 would write a zero sentinel byte, causing multi_recv_packet to stop
+    // reading early and silently discard all remaining buffered packets for that frame.
+	#ifdef _DEBUG
+	if (!buf || !packet || size <= 0) {
+		__debugbreak();
+	}
+	#endif
+    if( !packet || size == 0 ) return; // release-build safety: should never happen
+    // 0x2000 = 8192 bytes: sized to hold one full transit window without dropping.
+    // Formula: gdwNormalMsgSize(~488) * sgbNetUpdateRate(8 frames/turn) * gdwTurnsInTransit(2) = ~7808, rounded up to 8192.
+    // Original 0x1000 (4096) was half the transit window and silently dropped packets under burst traffic (e.g. acid dot spam).
+    if( buf->dwNextWriteOffset + size + 2 <= 0x2000 ){
         uchar* p = &buf->bData[buf->dwNextWriteOffset];
         buf->dwNextWriteOffset += size + 1;
         *p = size;
@@ -64,6 +75,21 @@ void multi_send_packet( void* packet, uchar size )
     memcpy( pkt.body, packet, size );
     if( !SNetSendMessage( CurrentPlayerIndex, &pkt.hdr, pkt.hdr.wLen ) ){
         nthread_terminate_game( "SNetSendMessage0" );
+    }
+}
+
+// Sends a packet directly to all other players via SNetSendMessage, bypassing TBuffer entirely.
+// Use for critical packets (e.g. MONSTDEATH) that must never be silently dropped by a full TBuffer.
+void NetSendDirect( uchar* msg, uchar size )
+{
+    if( !msg || !size ) return;
+    multi_send_packet( msg, size );  // local loopback
+    TPkt pkt;
+    build_pkt_hdr( &pkt );
+    pkt.hdr.wLen = size + sizeof( pkt.hdr );
+    memcpy( pkt.body, msg, size );
+    if( !SNetSendMessage( SNPLAYER_OTHERS, &pkt.hdr, pkt.hdr.wLen ) ){
+        nthread_terminate_game( "SNetSendMessage3" );
     }
 }
 
@@ -258,7 +284,7 @@ void multi_player_left_msg( int playerIndex, bool verbose )
 void multi_net_ping()
 {
     sgbTimeout = true;
-    sglTimeoutStart = GetTickCountTh(); // сетевая игра, перехватываем вызов
+    sglTimeoutStart = GetTickCountTh(); // (rt) network game, intercept the call
 }
 
 //----- (0044A8C5) --------------------------------------------------------
@@ -292,7 +318,7 @@ bool NetEndSendCycle()
             gbShouldValidatePackage = false;
         }
     }
-#ifdef MONSTER_NET_RANDOMIZE // отключена дополнительную рандомизацию монстров
+#ifdef MONSTER_NET_RANDOMIZE // (rt) additional monster randomization disabled
     multi_mon_seeds();
 #endif
     return true;
@@ -521,6 +547,7 @@ void NetClose()
         tmsg_cleanup();
         RegisterEventHandler( false );
         SNetLeaveGame( 3 );
+        ChatHistory_Clear();
         if( MaxCountOfPlayersInGame > 1 ){
             SleepTh( 1000 ); // give storm enough time to send leave pkt // original 2000
         }
@@ -602,15 +629,15 @@ bool NetInit( bool singleGame, bool* exitProgram )
         sgGameInitInfo.difficulty = Difficulty;
         
         memset( &clientInfo, 0, sizeof( client_info ) );
-        // вылетало при выборе второй сложности из-за порчи памяти в hell.dll при загрузке по не своему адресу
-        // срабатывало через раз запрет на выбор второй сложности там же
-        // проверить почему не реагирует на нажатия кнопок при проигрывании видео
-        clientInfo.Size = sizeof( client_info ); // пробую с оригинальным размером 44, в th1 сейчас 60 (client_info2)
+        // (rt) crashed when selecting the second difficulty because of memory corruption in hell.dll when loading at a foreign address
+        // (rt) the ban on selecting the second difficulty worked only every other time there
+        // (rt) check why button presses are ignored while a video plays
+        clientInfo.Size = sizeof( client_info ); // (rt) trying the original size 44; th1 currently uses 60 (client_info2)
         clientInfo.Name = GameClientName;
         clientInfo.Version = GameVersionString;
         // clientInfo.Product = 'HRTL'; // Hellfire Retail (original hellfire)
         clientInfo.Product = (('4H' + charInfo.GameMode) << 16) | TH4_REVISION; //th2 ? TH2_REVISION : TH1_REVISION; // 1216 - The Hell version
-        clientInfo.Verbyte = 42; // 43 // раньше было 34
+        clientInfo.Verbyte = 42; // (rt) 43 // used to be 34
         clientInfo.gameCriteriaData = 0;
         clientInfo.MaxPlayers = 4;
         clientInfo.gameTemplate = &sgGameInitInfo;
@@ -618,7 +645,7 @@ bool NetInit( bool singleGame, bool* exitProgram )
         clientInfo.Unk9 = 0;
         clientInfo.Unk10 = 15;
         
-        memset( &userInfo, 0, sizeof( user_info ) ); // этого вызова нет в оригинальном коде
+        memset( &userInfo, 0, sizeof( user_info ) ); // (rt) this call is not in the original code
         userInfo.Size = sizeof( user_info ); // 12
         userInfo.PlayerName = HeroName;
         userInfo.playerDescription = playerDescription;
@@ -659,6 +686,7 @@ bool NetInit( bool singleGame, bool* exitProgram )
         sgbNetInited = 1;
         delta_init();
         ClearPlayerStatusMessages();
+        ChatHistory_Clear();
         buffer_init( &sgHiPriBuf );
         buffer_init( &sgLoPriBuf );
         gbShouldValidatePackage = 0;
@@ -673,7 +701,8 @@ bool NetInit( bool singleGame, bool* exitProgram )
         LoadCurrentPlayerInfo();
         NThreadFillSyncQueue( 0, 0 );
         SetupLocalCoords();
-        multi_send_pinfo( -2, CMD_54_SEND_PLRINFO );
+        //multi_send_pinfo( -2, CMD_54_SEND_PLRINFO ); // -2 == SNPLAYER_OTHERS
+        multi_send_pinfo( SNPLAYER_OTHERS, CMD_54_SEND_PLRINFO );
         Players[CurrentPlayerIndex].IsExists = 1;
         NetPlayerCount = 1;
         if( !sgbPlayerTurnBitTbl[CurrentPlayerIndex] ){
@@ -757,26 +786,29 @@ void buffer_init( TBuffer* buffer )
 }
 
 //----- (0044B4F5) --------------------------------------------------------
-void multi_send_pinfo( int playerIndex, char netCmdIndex )
+void multi_send_pinfo( int playerIndex, uchar netCmdIndex )
 {
     LastPlayerInfo playerInfo;
     SavePlayerInfo( &playerInfo, CurrentPlayerIndex );
-    DThreadSendPLayerInfoChunk( playerIndex, netCmdIndex, &playerInfo, sizeof( playerInfo ) );
+    DThreadSendPlayerInfoChunk( playerIndex, netCmdIndex, &playerInfo, sizeof( playerInfo ) );
 }
 
 //----- (0044B580) --------------------------------------------------------
 void SetupLocalCoords()
 {
+    // (th4): Dark Campaign is single player and starts in the Dark Lord's Hideout.
+    bool darkCampaign = GameMode == GM_DARK_CAMPAIGN;
+
     // do not reset dungeon in debug single mode
     if( !DungeonDebug || MaxCountOfPlayersInGame > 1 ){
-        Dungeon = DUN_0_TOWN;
+        Dungeon = darkCampaign ? DUN_117_DARKLORD_HIDEOUT : DUN_0_TOWN;
     }
     Player& player = Players[CurrentPlayerIndex];
 
     // adjust character position for character number
     // so everyone doesn't start on the same location
-    int row = PlrXoff[CurrentPlayerIndex] + 75;
-    int col = PlrYoff[CurrentPlayerIndex] + 68;
+    int row = darkCampaign ? 20 : PlrXoff[CurrentPlayerIndex] + 75;
+    int col = darkCampaign ? 46 : PlrYoff[CurrentPlayerIndex] + 68;
     player.Row = row;
     player.Col = col;
     player.NextRow = row;
@@ -829,14 +861,14 @@ void recv_plrinfo( int playerIndex, const TCmdPlrInfoHdr* p, bool recv )
     sgwPackPlrOffsetTbl[playerIndex] += p->wBytes;
     
     if( sgwPackPlrOffsetTbl[playerIndex] != sizeof( LastPlayerInfo ) ){
-        return;// Если не вся информация пришла, ждём ещё
+        return;// (rt) If not all information has arrived, keep waiting
     }
-    sgwPackPlrOffsetTbl[playerIndex] = 0;// зачем то обнуляем значение количества загруженной информации
+    sgwPackPlrOffsetTbl[playerIndex] = 0;// (rt) the loaded information count is reset for some reason
     multi_player_left_msg( playerIndex, false );
     Players[playerIndex].LoadPlayerAnimationMask = PAF_0_NO;
     LoadPlayerInfo( &netplr[playerIndex], playerIndex, true );
     if( !recv ){
-        // Если код команды не 2 выходим
+        // (rt) If the command code is not 2, exit
         return;
     }
     Player& player = Players[playerIndex];
