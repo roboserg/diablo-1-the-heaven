@@ -10,7 +10,7 @@
 
 ## About
 
-A quality-of-life mod built on The Hell 4. Retains the challenge and depth of TH4 while cutting the tedious grind.
+A quality-of-life mod built on The Hell 4 **v0.208** (March 2026). Retains the challenge and depth of TH4 while cutting the tedious grind.
 
 ### Balance Adjustment Examples:
 * **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
@@ -72,4 +72,4 @@ See [BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ## Credits
 
-Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 source files that were publicly released by [The Hell team](https://www.patreon.com/thmod).
+Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 v0.208 source files (dated March 3, 2026) that were publicly released by [The Hell team](https://www.patreon.com/thmod).
