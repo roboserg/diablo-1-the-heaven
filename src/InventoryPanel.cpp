@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 DisplayObject MainPanelRect;
 DisplayObject InventoryPanelRect;
@@ -6,16 +7,16 @@ DisplayObject GoldSplitPanelRect;
 int HowMuchGoldYouWantToRemove;// 004D1108
 bool IsGoldSplitPanelVisible;// 004D0E44
 
-// добавляем таблицу координат слотов
-// таблица базовых слотов (типы и координаты )
+// (rt) add the slot coordinate table
+// (rt) table of base slots (types and coordinates)
 BaseSlot BaseSlots[IS_count] = {
 	{ IS_Head,       133,   2,  2, 2, SL_ARMOR,  EL_4_HEAD       },
 	{ IS_LeftRing,    90, 150,  1, 1, SL_ARMOR,  EL_5_FINGER     },
 	{ IS_RightRing,  203, 150,  1, 1, SL_ARMOR,  EL_5_FINGER     },
 	{ IS_Neck,       205,  32,  1, 1, SL_ARMOR,  EL_6_NECK       },
-	{ IS_LeftHand,    18,  32,  2, 4, SL_WEAPON, EL_1_ONE_HANDED },
-	{ IS_RightHand,  249,  32,  2, 4, SL_WEAPON, EL_1_ONE_HANDED },
-	{ IS_Torso,      132,  76,  2, 3, SL_ARMOR,  EL_3_TORSO      },
+	{ IS_LeftHand,    18,  33,  2, 4, SL_WEAPON, EL_1_ONE_HANDED },
+	{ IS_RightHand,  249,  33,  2, 4, SL_WEAPON, EL_1_ONE_HANDED },
+	{ IS_Torso,      133,  76,  2, 3, SL_ARMOR,  EL_3_TORSO      },
 	{ IS_Waist,      133, 166,  2, 1, SL_ARMOR,  EL_9_WAIST      },
 	{ IS_Hands,       18, 148,  2, 2, SL_ARMOR,  EL_10_HANDS     },
 	{ IS_Feet,       249, 148,  2, 2, SL_ARMOR,  EL_11_FEET      },
@@ -32,20 +33,23 @@ BaseSlot BaseSlots[IS_count] = {
   //{ IS_RightHand3, 249,  32,  2, 4, SL_WEAPON, EL_1_ONE_HANDED },
 	{ IS_Inventory,   17, 222, 10, 7, SL_INV,    EL_7_INVENTORY  },
 	{ IS_Belt,       205,  20,  8, 1, SL_INV,    EL_8_BELT,      MainPanelRect },
-	{ IS_Talisman,    17, 222, 10, 7, SL_INV,    EL_7_INVENTORY  }, // сигилы можно класть в обычный но работать будут только в дополнительном ?
+	{ IS_Talisman,    17, 222, 10, 7, SL_INV,    EL_7_INVENTORY  }, // (rt) sigils can go into the normal one, but will only work in the additional one?
 };
-// перед расширением структур в th2 необоходимо добавить версионирование данных
+// (rt) data versioning must be added before extending the structs in th2
 // Player -> Player2, PlayerInfo -> PlayerInfo2
-// если применить наследование, но тогда новые слоты не встанут в массивы OnBodySlots[]
+// (rt) if inheritance is used, the new slots won't fit into the OnBodySlots[] arrays
 
 ITEM_SLOT LastInvSlotPicked = IS_Head;
-vector<Slot> Slots; // слоты
-vector<ItemCell> ItemCells; // клетки слотов (Координаты левого верхнего угла)
-Slot* LeftHand, *RightHand, *Inv, *Belt;
+vector<Slot> Slots; // (rt) slots
+vector<ItemCell> ItemCells; // (rt) slot cells (coordinates of the top-left corner)
+Slot* LeftHand, *RightHand, *Inv, *TalismanInv, *Belt;
 
 // ---- th3 -------------------------------------------------------------------------------
 void SetupInvPanel(int playerIndex)
 {
+	// a guard, idk if needed. didn't seem to fix anything
+	//if (playerIndex < 0 || playerIndex >= 4) return;
+
 	Slots.reserve(IS_count);
 	Slots.clear();
 	ItemCells.reserve(194);
@@ -61,26 +65,60 @@ void SetupInvPanel(int playerIndex)
 			case IS_LeftHand   : base.x =  18; base.y =  78; base.c = 2; base.r = 3; break;
 			case IS_RightHand  : base.x = 249; base.y =  78; base.c = 2; base.r = 3; break;
 			case IS_Torso      : base.x = 132; base.y =  76; base.c = 2; base.r = 3; break;
+			case IS_Waist:
+			case IS_Hands:
+			case IS_Feet:		continue; break;
 			}
 		}
-		if( Players ){
+		
+		//---------------------------------
+		if (Players && playerIndex >= 0 && playerIndex < PlayersMax_4) {// was just "Players" check up to v0.387
 			Player& player = Players[playerIndex];
-			switch( base.id ){
-			case IS_Inventory: if(   player.activeInv ) continue; break;
-			case IS_Talisman : if( ! player.activeInv ) continue; break;
+
+			if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+				switch (base.id) {
+				case IS_LeftHand:  base.x =  12; base.y = 76; base.c = 4; base.r = 2; break;
+				case IS_RightHand: base.x = 198; base.y = 76; base.c = 4; base.r = 2; break;
+				}
+			}
+			else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				switch (base.id) {
+				case IS_LeftHand:	base.x =  11; base.y = 75; base.c = 3; base.r = 2; break;
+				case IS_RightHand:	base.x = 223; base.y = 75; base.c = 3; base.r = 2; break;
+				case IS_Torso:		base.x = 104; base.y =  8; base.c = 4; base.r = 7; break;
+				case IS_Neck:		base.x = 228; base.y = 32; base.c = 1; base.r = 1; break;
+					// left side rings
+				case IS_LeftRing:	base.x = 64; base.y = 178; base.c = 1; base.r = 1; break;
+				case IS_LeftRing2:	base.x = 28; base.y = 178; base.c = 1; base.r = 1; break;
+				case IS_LeftRing3:	base.x = 64; base.y = 141; base.c = 1; base.r = 1; break;
+				case IS_LeftRing4:	base.x = 28; base.y = 141; base.c = 1; base.r = 1; break;
+					// right side rings
+				case IS_RightRing:	base.x = 229; base.y = 178; base.c = 1; base.r = 1; break;
+				case IS_RightRing2:	base.x = 265; base.y = 178; base.c = 1; base.r = 1; break;
+				case IS_RightRing3:	base.x = 229; base.y = 141; base.c = 1; base.r = 1; break;
+				case IS_RightRing4:	base.x = 265; base.y = 141; base.c = 1; base.r = 1; break;
+				case IS_Head:
+				case IS_Waist:
+				case IS_Hands:
+				case IS_Feet:
+					//case IS_Belt:
+					continue; break;// skip these slots entirely for ES
+				}
+			}
+			switch (base.id) {
 			case IS_LeftRing2 or IS_LeftRing3 or IS_LeftRing4 or IS_RightRing2 or IS_RightRing3 or IS_RightRing4:
-				if( ! HasTrait(playerIndex, TraitId::LordOfTheRings) ) continue; break;
+				if (!HasTrait(playerIndex, TraitId::LordOfTheRings) && !(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))) continue; break;
 			case IS_Neck2: continue; break;
 			}
 		}
 		// TODO: check this out
-		short w = CELL_SIZE + (base.equipLoc >= EL_7_INVENTORY); // Слоты 28px в ширину, инвентарь и пояс 29px
-		short h = CELL_SIZE + (base.equipLoc == EL_7_INVENTORY); // 28 px Ячейки инвентаря имеют высоту в 29px
+		short w = CELL_SIZE + (base.equipLoc >= EL_7_INVENTORY); // (rt) Slots are 28px wide, inventory and belt 29px
+		short h = CELL_SIZE + (base.equipLoc == EL_7_INVENTORY); // (rt) 28 px Inventory cells are 29px high
 
 		DisplayObject rect;
 		rect.Left   = base.x + base.panel.Left + Screen_LeftBorder;
 		rect.Top    = base.y + base.panel.Top  + Screen_TopBorder;
-		rect.Width  = w * base.c; // Ячейки инвентаря размером 29 x 29px
+		rect.Width  = w * base.c; // (rt) Inventory cells are 29 x 29px
 		rect.Heigth = h * base.r;
 		rect.Right  = rect.Left + rect.Width;
 		rect.Down   = rect.Top  + rect.Heigth;
@@ -93,13 +131,13 @@ void SetupInvPanel(int playerIndex)
 		}
 	}
 
-	LeftHand = RightHand = Inv = Belt = 0;
+	LeftHand = RightHand = Inv = TalismanInv = Belt = 0;
 	for( Slot& slot: Slots ){
 		switch( slot.id ){
 		case IS_LeftHand : LeftHand  = &slot; break;
 		case IS_RightHand: RightHand = &slot; break;
-		case IS_Inventory:
-		case IS_Talisman : Inv  = &slot; break;
+		case IS_Inventory: Inv = &slot; break;
+		case IS_Talisman : TalismanInv = &slot; break;
 		case IS_Belt     : Belt = &slot; break;
 		}
 	}
@@ -112,28 +150,68 @@ bool RightSwapAllowed(int playerIndex, Item& item)
 	return item.ItemCode == IC_12_RING || OneHandSpecial(playerIndex, item);
 }
 
+int SigilButtonFrame = 1;  // Current frame for sigil button animation
+bool SigilButtonPressed = false;  // Optional: if you need pressed state
+bool IsSigilInventoryOpen = false;  // Tracks if sigil inventory is open
 //----- (0042118B) --------------------------------------------------------
 void Inventory_LButtonClick()
 {
+	// --- Sigil button click check ---
+	if (SigilButtonCEL)
+	{
+		// Disable for Classic and Coliseum modes
+		if (GameMode == GM_CLASSIC 
+			|| GameMode == GM_COLISEUM 
+			|| Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)
+			|| Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)
+			) {
+			//return; // Just ignore clicks in these modes
+		}
+		else {
+			int panelRight = InventoryPanelRect.Right;
+			int panelBottom = InventoryPanelRect.Down;
+
+			int btnX = panelRight - 40 - 9;
+			int btnY = panelBottom - 32 - 4;  // Removed +32
+
+			if (CursorX >= btnX && CursorX <= btnX + 40 &&
+				CursorY >= btnY && CursorY <= btnY + 32)
+			{
+				PlayGlobalSound(S_75_I_TITLEMOV);
+
+				// Toggle state
+				IsSigilInventoryOpen = !IsSigilInventoryOpen;
+
+				// Set frame based on state
+				SigilButtonFrame = IsSigilInventoryOpen ? 6 : 1;
+
+				return;
+			}
+		}
+	}
+
+
+	// rest of the function
 	int playerIndex = CurrentPlayerIndex;
 	Player& player = Players[playerIndex];
-    if( Cur.GraphicsID < CM_12_ITEMS_PICS_START ){
-        for( int i = 0; i < 3; ++i ){
-            if( IsCursorInInvPanelRect( &WpnSwapBtnsRects[ i ] ) || IsCursorInInvPanelRect( &WpnSwapBtnsRects[ i + 3 ] ) ){
-                ChangeAltWeaponPairTo( i );
-                return;
-            }
-        }
+	if (Cur.GraphicsID < CM_12_ITEMS_PICS_START) {
+		for (int i = 0; i < 3; ++i) {
+			if (IsCursorInInvPanelRect(&WpnSwapBtnsRects[i]) || IsCursorInInvPanelRect(&WpnSwapBtnsRects[i + 3])) {
+				ChangeAltWeaponPairTo(i);
+				return;
+			}
+		}
 		bool gearSwapping = FastInventoryItemSwap && (IsShiftPressed || (IsAltPressed && FastSwapRightOnAlt));
 		int takenCell = TakeInvItemToCursor(playerIndex, CursorX, CursorY, gearSwapping);
-		if( gearSwapping && ! IsShiftPressed && ! RightSwapAllowed(playerIndex, player.ItemOnCursor) ){
+		if (gearSwapping && !IsShiftPressed && !RightSwapAllowed(playerIndex, player.ItemOnCursor)) {
 			gearSwapping = false;
 		}
-		if( gearSwapping && Cur.GraphicsID >= CM_12_ITEMS_PICS_START // fix shift-click gear swap item disapear
-		 && player.ItemOnCursor.IsReqMet && not(player.ItemOnCursor.EquippedLocation, EL_7_INVENTORY, EL_8_BELT)){
+		if (gearSwapping && Cur.GraphicsID >= CM_12_ITEMS_PICS_START
+			&& player.ItemOnCursor.IsReqMet && not(player.ItemOnCursor.EquippedLocation, EL_7_INVENTORY, EL_8_BELT)) {
 			HandleGearSwap(takenCell);
 		}
-    }else{
+	}
+	else {
 		PutCursorItemToInv(playerIndex, CursorX, CursorY);
 	}
 }
@@ -158,6 +236,33 @@ void HandleGearSwap(int takenCell)
 	SetCursorGraphics(CM_1_NORMAL_HAND);
 }
 
+static bool CursorPointsAtCell(int mX, int mY, const ItemCell& cell) {
+	BaseSlot& slot = BaseSlots[cell.slot.id];
+	int x = cell.x + slot.panel.Left;
+	int y = cell.y + slot.panel.Top;
+
+	// Check if the cursor is within the bounds of the cell
+	if (!(mX >= x && mX < x + cell.w && mY >= y && mY < y + cell.h))
+		return false;
+
+	// Two cells share the same area, but only one of them is active depending on the sigil inventory state
+	// This check ensures that we interact with the correct cell based on whether the sigil inventory is open or not
+	if (cell.slot.id == IS_Inventory && IsSigilInventoryOpen || cell.slot.id == IS_Talisman && !IsSigilInventoryOpen)
+		return false;
+	
+	return true;
+}
+
+static ItemCell * GetCellUnderCursor(int mX, int mY) {
+	ItemCell* foundCell = nullptr;
+	for (ItemCell& cell : ItemCells) {
+		if (CursorPointsAtCell(mX, mY, cell)) {
+			foundCell = &cell;
+		}
+	}
+	return foundCell;
+}
+
 //----- (004209A6) --------------------------------------------------------
 int __fastcall TakeInvItemToCursor( int playerIndex, int mX, int mY, bool gearSwapping )
 {
@@ -165,19 +270,13 @@ int __fastcall TakeInvItemToCursor( int playerIndex, int mX, int mY, bool gearSw
 	Item& cursorItem = player.ItemOnCursor;
 	if( player.CurAction > PCA_3_WALK_HORISONTAL ) return -1;
 
-	bool isHasGotToTheSlot = false;
-	int cellIndex = 0;
-	for( ItemCell& cell: ItemCells ){
-		BaseSlot& slot = BaseSlots[cell.slot.id];
-		int x = cell.x + slot.panel.Left;
-		int y = cell.y + slot.panel.Top;
-		if( mX >= x && mX < x + cell.w && mY >= y && mY < y + cell.h ){ isHasGotToTheSlot = true; break; }
-		cellIndex++;
-	}
-	if( ! isHasGotToTheSlot ) return -1;
+	ItemCell* cellUnderCursor = GetCellUnderCursor(mX, mY);
+	if (!cellUnderCursor) return -1;
 
-	ItemCell& cell = ItemCells[cellIndex];
+	ItemCell& cell = *cellUnderCursor;
 	BaseSlot& slot = BaseSlots[cell.slot.id];
+
+	//---------------------------------------------------
 
 	if( slot.slotType == SL_ARMOR && player.gameChanger & BIT(GC_2_BT_STRIP) && IsSomeMonstersActivated() ){
 		return -1; //No items change during battle
@@ -196,28 +295,50 @@ int __fastcall TakeInvItemToCursor( int playerIndex, int mX, int mY, bool gearSw
 			cursorItem = item;
 			item.ItemCode = IC_M1_NONE;
 		}
-	}else if( slot.id == IS_Inventory ){ // TODO: add IS_Talisman if ?
-		if( int itemNumber = abs(player.InvUsedAlt[cell.r][cell.c]) ){
+	}else if( slot.id == IS_Inventory || slot.id == IS_Talisman ){
+		auto* currentUsedAlt = IsSigilInventoryOpen ? player.TalUsedAlt : player.InvUsedAlt;
+		if( int itemNumber = abs(currentUsedAlt[cell.r][cell.c]) ){
 			for( int r = 0; r < InvRows; ++r ) for( int c = 0; c < InvCols; ++c ){
-				if( abs(player.InvUsedAlt[r][c]) == itemNumber ){
+				if( abs(currentUsedAlt[r][c]) == itemNumber ){
 					if( invIndex == -1 ) invIndex = r * InvCols + c;
-					player.InvUsedAlt[r][c] = 0;
+					currentUsedAlt[r][c] = 0;
 				}
 			}
 			int itemIndex = itemNumber - 1;
-			int lastItemIndex = player.InvItemCount - 1; // было --player.InvItemCount, не оригинально
+			// Use correct slots array and count for whichever inventory is currently open
+			Item* currentSlots = IsSigilInventoryOpen ? player.TalismanSlots : player.InventorySlots;
+			int& currentItemCount = IsSigilInventoryOpen ? player.TalItemCount : player.InvItemCount;
+			// (th4) A grid cell may name a slot that does not exist: both grids are char[70]
+			// holding "slot index + 1", and a damaged save (or any future writer that gets it
+			// wrong) can leave a number above the count or above the array. Taking it would
+			// index past InventorySlots/TalismanSlots -- the next field in Player is the count
+			// itself, then the grid, then the belt (structs.h ~688) -- and would decrement the
+			// count below zero. CalcCharParams then calls reserve() with that negative count as
+			// size_t and std::length_error kills the process (crash dump 2026-09-20, a sigil
+			// grid holding 108 with TalItemCount 0). The cells were already cleared above, so
+			// just drop the click: the phantom item disappears and the panel is consistent.
+			// SaveInfo.cpp CheckInvalidInvItems repairs this at load time; this is the guard
+			// for anything that slips past it in a running game.
+			if( itemIndex < 0 || itemIndex >= IS_70_40_Inv_Count || itemIndex >= currentItemCount ){
+				cursorItem.ItemCode = IC_M1_NONE;
+				if( currentItemCount < 0 ) currentItemCount = 0;
+				return invIndex;
+			}
+			int lastItemIndex = currentItemCount - 1;
 			int lastItemNumber = lastItemIndex + 1;
 
-			Item& underItem = player.InventorySlots[itemIndex];
-			Item& lastItem = player.InventorySlots[lastItemIndex];
+			Item& underItem = currentSlots[itemIndex];
+			Item& lastItem = currentSlots[lastItemIndex];
 
 			cursorItem = underItem;
-			--player.InvItemCount;
+			--currentItemCount;
 
-			if( player.InvItemCount > 0 && player.InvItemCount != itemIndex ){
+			// After decrement, currentItemCount now holds the new count.
+			// If the removed item was not the last one, swap the last item into its slot and update the grid.
+			if( currentItemCount > 0 && currentItemCount != itemIndex ){
 				underItem = lastItem;
 				for( int r = 0; r < InvRows; ++r ) for( int c = 0; c < InvCols; ++c ){
-					auto& curItemNumber = player.InvUsedAlt[r][c];
+					auto& curItemNumber = currentUsedAlt[r][c];
 					if( curItemNumber == lastItemNumber ){
 						curItemNumber = itemNumber;
 					}else if( curItemNumber == -lastItemNumber ){
@@ -260,22 +381,10 @@ int __fastcall TakeInvItemToCursor( int playerIndex, int mX, int mY, bool gearSw
 		}
 	}
 
-	if (IsShiftPressed 
-		&& IsCraftPanelVisible 
-		&& CurrentCraftPage == CraftPage::CP_Gems
-		&& FindGemInfoByBaseItemIndex(cursorItem.baseItemIndex)
-		){
-		int slot = -1;
-		for (int i = 0; i < 3; i++)
-		{
-			if (GemCombineItems[i].ItemCode == IC_M1_NONE) {
-				slot = i;
-				break;
-			}
-		}
-		if (slot != -1) {
-			memcpy(&GemCombineItems[slot], &cursorItem, sizeof(Item));
-			PlayGlobalSound(S_56_I_INVGRAB);
+	// (th4) shift-click a gem into the gem combiner: Crafting.cpp Craft_Gems_AutoPutCursorItem
+	// (it also refreshes the combine preview, which is what enables the Combine button)
+	if( IsShiftPressed && IsCraftPanelVisible && CurrentCraftPage == CraftPage::CP_Gems && slot.id >= IS_Inventory ){
+		if( Craft_Gems_AutoPutCursorItem() ){
 			return invIndex;
 		}
 	}
@@ -342,8 +451,7 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 	Item& cursorItem = player.ItemOnCursor;
 	SetupItemSizes(cursorItem.GraphicValue + CM_12_ITEMS_PICS_START);
 
-	bool isHasGotToTheSlot = false;
-	int cellIndex = 0;
+	ItemCell* foundCell = nullptr;
 	for( ItemCell& cell: ItemCells ){
 		BaseSlot& slot = BaseSlots[cell.slot.id];
 		int x = cell.x + slot.panel.Left;
@@ -358,13 +466,19 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 		if( slot.equipLoc == EL_8_BELT ){
 			if( ! (ItemWidthCells  & 1) ) xPos -= CELL_SIZE / 2; // even
 		}
-		if( xPos >= x && xPos < x + cell.w && yPos >= y && yPos < y + cell.h ){ isHasGotToTheSlot = true; break; }
-		cellIndex++;
+		if( xPos >= x && xPos < x + cell.w && yPos >= y && yPos < y + cell.h ){
+			if (cell.slot.id == IS_Inventory && IsSigilInventoryOpen || cell.slot.id == IS_Talisman && !IsSigilInventoryOpen)
+				continue;
+			foundCell = &cell;
+			break; 
+		}
 	}
-	if( ! isHasGotToTheSlot ) return;
+	if( ! foundCell ) return;
 
-	ItemCell& cell = ItemCells[cellIndex];
+	ItemCell& cell = *foundCell;
 	BaseSlot& slot = BaseSlots[cell.slot.id];
+
+	//---------------------
 	if( slot.slotType == SL_ARMOR && player.gameChanger & BIT(GC_2_BT_STRIP) && IsSomeMonstersActivated() ){
 		return; //No items change during battle
 	}
@@ -391,12 +505,22 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 	int startC = std::max(cell.c - (ItemWidthCells  - 1) / 2, 0), endC = startC + ItemWidthCells;
 	int startR = std::max(cell.r - (ItemHeightCells - 1) / 2, 0), endR = startR + ItemHeightCells;
 
+	// Hoist invUsedAlt here so it is available throughout the whole function
+	// (collision check, gold path, placement, etc.)
+	auto* invUsedAlt = IsSigilInventoryOpen ? player.TalUsedAlt : player.InvUsedAlt;
+
+	// Only sigils may be placed in the sigil inventory grid; body/belt slots are always allowed
+	auto isSigil = [](const Item& item){ return item.baseItemIndex >= BI_2504_SIGIL_FIRST && item.baseItemIndex <= BI_2508_SIGIL_LAST; };
+	if( IsSigilInventoryOpen && equipLoc == EL_7_INVENTORY && !isSigil(cursorItem) ) return;
+
 	int itemForReplaceNumber;
 	if( equipLoc == EL_7_INVENTORY ){
 		itemForReplaceNumber = 0;
 		allowPut = true;
 		if( cursorItem.ItemCode == IC_11_GOLD ){
 			if( cell.c >= player.invCols ) return;
+			// Gold can only go in the normal inventory, always use InvUsedAlt regardless of which view is open
+			if( IsSigilInventoryOpen ) return; // can't place gold in sigil inventory
 			if( int underItemNumber = player.InvUsedAlt[cell.r][cell.c] ){
 				if( underItemNumber < 0 ){
 					itemForReplaceNumber = -underItemNumber;
@@ -407,11 +531,11 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 		}else{
 			if( endC > player.invCols || endR > InvRows ) return;
 
-			// проверка на возможность положить предмет в инвентарь
-			// можно положить только если под местом куда собираемся положить ничего нет
-			// или если есть только один предмет, который мы и заменим на устанавливаемый
+			// (rt) check whether the item can be put into the inventory
+			// (rt) it can be placed only if there is nothing under the target place
+			// (rt) or if there is exactly one item, which we will replace with the one being placed
 			for( int y = startR; y < endR; ++y ) for( int x = startC; x < endC; ++x ){
-				int invItemCode = std::abs(player.InvUsedAlt[y][x]);
+				int invItemCode = std::abs(invUsedAlt[y][x]);
 				if( invItemCode ){
 					if( !itemForReplaceNumber ){
 						itemForReplaceNumber = invItemCode;
@@ -452,6 +576,9 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 		player.CurrentSpellIndex = cursorItem.SpellIndex;
 		player.SpellType = SO_3_EQUIPED_ITEM;
 	}
+
+	// invUsedAlt already declared above - no re-declaration needed
+
 	switch( equipLoc ){
 	case EL_4_HEAD or EL_5_FINGER or EL_6_NECK or EL_3_TORSO or EL_9_WAIST or EL_10_HANDS or EL_11_FEET: // th2+ only
         NetSendCmdChItem( false, slot.id );
@@ -579,9 +706,10 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 	case EL_7_INVENTORY:
 		if( !itemForReplaceNumber ){
 			if( cursorItem.ItemCode == IC_11_GOLD ){
+				// Gold always lives in the normal inventory - use InvUsedAlt/InventorySlots directly
 				int underItemNumber = player.InvUsedAlt[cell.r][cell.c];
-				if( underItemNumber <= 0 ){// возможна только ситуация == 0. если бы было отрицательное, значит было бы itemForReplace != 0
-					// пустая клетка
+				if( underItemNumber <= 0 ){// (rt) only == 0 is possible. If it were negative, itemForReplace would be != 0
+					// (rt) empty cell
 					int placedItemIndex = player.InvItemCount++;
 					int placedItemNumber = placedItemIndex + 1;
 					Item& invItem = player.InventorySlots[placedItemIndex];
@@ -589,48 +717,72 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 					player.InvUsedAlt[cell.r][cell.c] = placedItemNumber;
 					player.TotalGold += cursorItem.amount;
 
-					SetGraphicToGold(invItem);// оптимизация
+					SetGraphicToGold(invItem);// (rt) optimization
 					if( invItem.amount > MaxGoldInCell ){
 						invItem.GraphicValue = Gold_6_BigPic;
 					}
 					break;
 				}else{
-					// клетка с золотом
+					// (rt) cell with gold
 					int underItemIndex = underItemNumber - 1;
 					Item& invItem = player.InventorySlots[underItemIndex];
 					int goldSumm = invItem.amount + cursorItem.amount;
 					if( goldSumm <= MaxGoldInCell ){
 						invItem.amount = goldSumm;
 						player.TotalGold += cursorItem.amount;
-						SetGraphicToGold(invItem);// оптимизация
+						SetGraphicToGold(invItem);// (rt) optimization
 					}else{
 						int goldToPut = MaxGoldInCell - invItem.amount;
 						player.TotalGold += MaxGoldInCell - goldToPut;
 						cursorItem.amount -= goldToPut;
 						invItem.amount = MaxGoldInCell;
-						SetGraphicToGold(invItem);// оптимизация
-						SetGraphicToGold(cursorItem);// оптимизация
+						SetGraphicToGold(invItem);// (rt) optimization
+						SetGraphicToGold(cursorItem);// (rt) optimization
 						cursorGraphics = cursorItem.GraphicValue + CM_12_ITEMS_PICS_START;
 					}
 				}
 				break;
 			}else{
-				memcpy(&player.InventorySlots[player.InvItemCount++], &cursorItem, sizeof(Item));
-				itemForReplaceNumber = player.InvItemCount;
+				// (th4) CAPACITY GUARD. Both inventories are a 70-slot array plus a 70-cell grid
+				// (structs.h ~688: InventorySlots/InvItemCount/InvUsed, then TalismanSlots/
+				// TalItemCount/TalUsed). Every item occupies at least one cell, so a healthy count
+				// never reaches IS_70_40_Inv_Count and this never fires in normal play.
+				// It fires only when the count is ALREADY wrong, and that case used to write a
+				// whole Item (512 bytes) past the end of the array -- straight over the count and
+				// the grid that follow it, which is how a sigil grid ends up holding slot numbers
+				// like 71 and 108 (crash dump 2026-09-20). A negative count is just as bad: it
+				// writes BEFORE the array. Refusing leaves the item on the cursor, exactly as a
+				// full inventory does; nothing is deleted.
+				// The repair in SaveInfo.cpp CheckInvalidInvItems fixes such a count at load;
+				// this stops one from doing damage inside a running game.
+				int& currentCount = IsSigilInventoryOpen ? player.TalItemCount : player.InvItemCount;
+				if( currentCount < 0 ) currentCount = 0;
+				if( currentCount >= IS_70_40_Inv_Count ) return;
+				if (IsSigilInventoryOpen) {
+					int newIndex = player.TalItemCount++;
+					memcpy(&player.TalismanSlots[newIndex], &cursorItem, sizeof(Item));
+					itemForReplaceNumber = newIndex + 1;
+				} else {
+					int newIndex = player.InvItemCount++;
+					memcpy(&player.InventorySlots[newIndex], &cursorItem, sizeof(Item));
+					itemForReplaceNumber = newIndex + 1;
+				}
 			}
 		}else{
 			if( cursorItem.ItemCode == IC_11_GOLD ){
 				player.TotalGold += cursorItem.amount;
 			}
 			int itemForReplaceIndex = itemForReplaceNumber - 1;
-			cursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&player.InventorySlots[itemForReplaceIndex], &cursorItem);
+			// Use correct slots depending on which inventory is currently open
+			Item* currentInvSlots = IsSigilInventoryOpen ? player.TalismanSlots : player.InventorySlots;
+			cursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&currentInvSlots[itemForReplaceIndex], &cursorItem);
 			if( cursorItem.ItemCode == IC_11_GOLD ){
 				player.TotalGold = CalcTotalGold(playerIndex);
 			}
 			for( int y = 0, ye = InvRows; y < ye; ++y ){
 				for( int x = 0, xe = player.invCols; x < xe; ++x ){
-					if( abs(player.InvUsedAlt[y][x]) == itemForReplaceNumber ){
-						player.InvUsedAlt[y][x] = 0;
+					if( abs(invUsedAlt[y][x]) == itemForReplaceNumber ){
+						invUsedAlt[y][x] = 0;
 					}
 				}
 			}
@@ -641,9 +793,9 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 		for( int y = startR, ye = endR; y < ye; ++y ){
 			for( int x = startC, xe = endC; x < xe; ++x ){
 				if( y == endR - 1 && x == startC ){
-					player.InvUsedAlt[y][x] = itemForReplaceNumber;
+					invUsedAlt[y][x] = itemForReplaceNumber;
 				}else{
-					player.InvUsedAlt[y][x] = -itemForReplaceNumber;
+					invUsedAlt[y][x] = -itemForReplaceNumber;
 				}
 			}
 		}
@@ -658,8 +810,8 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 					player.TotalGold = CalcTotalGold(playerIndex);
 				}
 			}
-		// остальные ветки нужны только для отображения текущего состояния кода. 
-		// Никогда не выполняются потому что на пояс нельзя класть золото
+		// (rt) the remaining branches only show the current state of the code. 
+		// (rt) They never run, because gold can't be put on the belt
 		}else if( beltItem.ItemCode == IC_M1_NONE ){
 			memcpy(&beltItem, &cursorItem, sizeof(Item));
 			player.TotalGold += cursorItem.amount;
@@ -671,14 +823,14 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 			if( goldSumm <= MaxGoldInCell ){
 				beltItem.amount = goldSumm;
 				player.TotalGold += cursorItem.amount;
-				SetGraphicToGold(beltItem);// оптимизация
+				SetGraphicToGold(beltItem);// (rt) optimization
 			}else{
 				int goldToPut = MaxGoldInCell - beltItem.amount;
 				player.TotalGold += goldToPut;
 				cursorItem.amount -= goldToPut;
 				beltItem.amount = MaxGoldInCell;
-				SetGraphicToGold(beltItem);// оптимизация
-				SetGraphicToGold(cursorItem);// оптимизация
+				SetGraphicToGold(beltItem);// (rt) optimization
+				SetGraphicToGold(cursorItem);// (rt) optimization
 				cursorGraphics = cursorItem.GraphicValue + CM_12_ITEMS_PICS_START;
 			}
 		}
@@ -697,23 +849,19 @@ void __fastcall PutCursorItemToInv( int playerIndex, int mX, int mY )
 //----- (004228F5) --------------------------------------------------------
 int GetSlotMouseAbove_Inv()
 {
+	
+
+	// rest of the function
 	int playerIndex = CurrentPlayerIndex, mX = CursorX, mY = CursorY;
 	Player& player = Players[playerIndex];
 
-	bool isHasGotToTheSlot = 0;
-	int cellIndex = 0;
-	for( ItemCell& cell: ItemCells ){
-		BaseSlot& slot = BaseSlots[cell.slot.id];
-		int x = cell.x + slot.panel.Left;
-		int y = cell.y + slot.panel.Top;
-		if( mX >= x && mX < x + cell.w && mY >= y && mY < y + cell.h ){ isHasGotToTheSlot = true; break; }
-		cellIndex++;
-	}
-	if( ! isHasGotToTheSlot ) return -1;
+	ItemCell* cellUnderCursor = GetCellUnderCursor(mX, mY);
+	if (!cellUnderCursor) return -1;
 
-	ItemCell& cell = ItemCells[cellIndex];
+	ItemCell& cell = *cellUnderCursor;
 	BaseSlot& slot = BaseSlots[cell.slot.id];
 
+	//-------------------------------
 	Item* item = 0;
 	CurFontColor = 0;
 	InfoPanel_ClearBody();
@@ -726,15 +874,17 @@ int GetSlotMouseAbove_Inv()
 		 || player.fullClassId == PFC_SAVAGE && HasTrait(playerIndex, TraitId::MonkeyGrip) && is(player.OnBodySlots[IS_LeftHand].ItemCode, IC_1_SWORD, IC_4_MACE))){
 			invIndex = IS_LeftHand;
 		}
-	}else if( slot.id == IS_Inventory ){ // TODO: add IS_Talisman if ?
-		int itemNumber = abs( player.InvUsed[cell.r * slot.c + cell.c] );
+	}else if( slot.id == IS_Inventory || slot.id == IS_Talisman ){
+		auto* currentUsedAlt = IsSigilInventoryOpen ? player.TalUsedAlt : player.InvUsedAlt;
+		Item* currentSlots = IsSigilInventoryOpen ? player.TalismanSlots : player.InventorySlots;
+		int itemNumber = abs( currentUsedAlt[cell.r][cell.c] );
 		if( ! itemNumber ){
 			return -1;
 		}
 		int itemIndex = itemNumber - 1;
 		invIndex = (uchar)itemIndex + IS_Inventory;
-		item = &player.InventorySlots[itemIndex];
-		// Добавляем квадрат нахождения вещи.
+		item = &currentSlots[itemIndex];
+		// (rt) Add the item's bounding square.
 	}else{ // belt
 		item = &player.BeltInventory[cell.c];
 		if( player.BeltInventory[cell.c].ItemCode == IC_M1_NONE ){
@@ -752,7 +902,7 @@ int GetSlotMouseAbove_Inv()
 	}
 	if( item->ItemCode == IC_11_GOLD ){
 		char* currency = formatGoldAmount(item->amount);
-		sprintf(InfoPanelHeader, "%i gold %s", item->amount, currency);
+		sprintf(InfoPanelHeader, L("%i gold %s"), item->amount, currency);
 		return invIndex;
 	}
 	CurFontColor = ItemColor(*item);
@@ -797,9 +947,9 @@ pair<EQUIPPED_LOCATION, EQUIPPED_LOCATION> GetEquippedLocation[IS_Inventory] = {
 //----- (0041E64B) --------------------------------------------------------
 void DrawINVPanel()
 {
-	// вместо захардкоденых констант поставлены предвычесленные с учетом разрешения координаты
+	// (rt) precomputed, resolution-dependent coordinates are used instead of hard-coded constants
 
-	Surface_DrawCEL(InventoryPanelRect.Left + Screen_LeftBorder, InventoryPanelRect.Down + Screen_TopBorder, InvPanelCEL, 1, InventoryPanelRect.Width);// Тут рисуется сама картинка инвентаря
+	Surface_DrawCEL(InventoryPanelRect.Left + Screen_LeftBorder, InventoryPanelRect.Down + Screen_TopBorder, InvPanelCEL, 1, InventoryPanelRect.Width);// (rt) The inventory picture itself is drawn here
 
 	Player& player = Players[CurrentPlayerIndex];
 
@@ -810,7 +960,7 @@ void DrawINVPanel()
 	Surface_DrawCEL(leftWpnSwapImageLeft + Screen_LeftBorder, swapImagesTop + Screen_TopBorder, WpnSwapBtnImg, player.altWeaponIndex + 1, swapImagesWidth);
 	Surface_DrawCEL(rightWpnSwapImageLeft + Screen_LeftBorder, swapImagesTop + Screen_TopBorder, WpnSwapBtnImg, player.altWeaponIndex + 1, swapImagesWidth);
 
-	// Условная подсветка предметов в инвентаре
+	// (rt) Conditional highlighting of inventory items
 	int curScrX = CursorX + Screen_LeftBorder;
 	int curScrY = CursorY + Screen_TopBorder;
 	int itemWidth  = Cur.ItemWidth  / 2 + (Cur.ItemWidth  & 1);
@@ -826,10 +976,10 @@ void DrawINVPanel()
 		if( slot.base.slotType == SL_INV ) break;
 		Item& bodyItem = player.OnBodySlots[slot.id];
 		
-		// ниже блок кода для покраски фона инвентаря под предметами
+		// (rt) below is the block that colours the inventory background under items
 		Item& curItem = player.ItemOnCursor;
 
-		shadowColor = blColor.overcells; // цвет фона слотов инвентаря, доступных для взятого курсором предмета
+		shadowColor = blColor.overcells; // (rt) background colour of inventory slots available for the item held on the cursor
 		useRecolor = true;
 
 		if (Cur.GraphicsID >= CM_12_ITEMS_PICS_START && curItem.ItemCode != IC_M1_NONE) {
@@ -840,14 +990,14 @@ void DrawINVPanel()
 				 && curScrY >= slot.rect.Top - itemHeight
 				 && curScrY <= slot.rect.Down - itemHeight )
 				{
-					// устанавливаем цвет фона слота, если курсор с предметом НАД доступным ему слотом
+					// (rt) set the slot's background colour if the cursor holds an item OVER a slot it can go into
 					if (curItem.IsReqMet)
 						shadowColor = blColor.overslot;
 					else
 						shadowColor = blColor.notavailable;
 				}
-				else if (slot.id == IS_RightHand) { // Коррекция "правой руки"
-					// Не отображаем подсветку на правом слоте для орудий дальнего боя взятых курсором
+				else if (slot.id == IS_RightHand) { // (rt) "Right hand" correction
+					// (rt) No highlight on the right slot for ranged weapons held on the cursor
 					if (player.fullClassId == PFC_ROGUE || player.fullClassId == PFC_DIMACHAERUS
 						|| (player.fullClassId == PFC_SAVAGE && HasTrait(CurrentPlayerIndex, TraitId::MonkeyGrip))) {
 						if(is(curItem.ItemCode, IC_3_BOW, IC_18_FLASK, IC_19_TRAP, IC_21_KNIFE, IC_22_MALLET, IC_23_PISTOL))
@@ -856,8 +1006,8 @@ void DrawINVPanel()
 					else if (is(curItem.ItemCode, IC_1_SWORD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_20_CLAW, IC_10_STAFF, IC_18_FLASK, IC_19_TRAP, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET, IC_23_PISTOL))
 						shadowColor = -1;
 				}
-				else if (slot.id == IS_LeftHand) { // Коррекция "левой руки"
-					// Не отображаем подсветку на левом слоте для щитов (и подобным им предметам) взятых курсором
+				else if (slot.id == IS_LeftHand) { // (rt) "Left hand" correction
+					// (rt) No highlight on the left slot for shields (and similar items) held on the cursor
 					if(curItem.ItemCode == IC_5_SHIELD
 						// && player.OnBodySlots[IS_4_LeftHand].ItemCode != IC_5_SHIELD
 						&& !has(player.traits, TraitId::TwoTowers))
@@ -868,18 +1018,18 @@ void DrawINVPanel()
 					useRecolor = false;
 				}
 			}
-			// useRecolor = false;  // разкоментить, если надо отключать обычный фон у предметов в слотах инвентаря
+			// (rt) useRecolor = false;  // uncomment to disable the normal background of items in inventory slots
 		}
 
-		// Если предмета в слоте нет, переходим к следующему слоту
+		// (rt) If there is no item in the slot, go to the next slot
 		if (bodyItem.ItemCode == IC_M1_NONE) {
 			continue; 
 		}
 
 		colorMark = InventoryBackgroundOldStyle ? 0 : GetItemBackgroundColorType(bodyItem);
 
-		// стандартная окраска фона инвентаря за предметами
-		if (useRecolor) { // пропускаем перекраску, если уже покрашена выше по коду
+		// (rt) standard colouring of the inventory background behind items
+		if (useRecolor) { // (rt) skip recolouring if it was already coloured further up
 			ShadowItemSlot(slot.rect.Left, slot.rect.Down, slot.rect.Width, slot.rect.Heigth, colorMark);
 		}
 		int graphicValue = bodyItem.GraphicValue + CM_12_ITEMS_PICS_START;
@@ -889,7 +1039,7 @@ void DrawINVPanel()
 		char* itemsCELArray;
 
 		//if( slotIndex == IS_4_LeftHand ) __debugbreak();
-		// поправка для центрирования вещей в слоте
+		// (rt) correction for centring items in the slot
 		int x = slot.rect.Left + (slot.rect.Width - itemWidth) / 2;
 		int y = slot.rect.Down - (slot.rect.Heigth - itemHeight) / 2;
 		if( itemHeight >= CELL_SIZE * 4 ){
@@ -897,11 +1047,12 @@ void DrawINVPanel()
 		}else if( itemHeight >= CELL_SIZE * 3 ){
 			y -= 1;
 		}
+		const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
 		itemsCELArray = GetItemSprites( graphicValue );
 
 		int colorOfBorder = -1;
-		if( Cur.InventoryCellID == slot.id ){// Если курсор над этим слотом
-			colorOfBorder = 197;// Выбираем цвет обводки
+		if( Cur.InventoryCellID == slot.id ){// (rt) If the cursor is over this slot
+			colorOfBorder = 197;// (rt) Pick the outline colour
 			if( bodyItem.MagicLevel ){
 				colorOfBorder = 181;
 			}
@@ -909,16 +1060,17 @@ void DrawINVPanel()
 				colorOfBorder = 229;
 			}
 		}
-		CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!(bodyItem.IsReqMet || InventoryTurnOffRedColorItems /*|| Cur.InventoryCellID == slotIndex*/) | bodyItem.mirrorImage << 1, colorOfBorder);
+		ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!(bodyItem.IsReqMet || InventoryTurnOffRedColorItems /*|| Cur.InventoryCellID == slotIndex*/) | bodyItem.mirrorImage << 1, colorOfBorder);
+		ItemOverlay_Queue(overlayGfx, x, y, itemWidth, itemHeight, bodyItem.mirrorImage != 0, colorOfBorder, (int)!(bodyItem.IsReqMet || InventoryTurnOffRedColorItems /*|| Cur.InventoryCellID == slotIndex*/) | bodyItem.mirrorImage << 1);	// (th4)
 		
 		if( slot.id == IS_LeftHand && bodyItem.EquippedLocation == EL_2_TWO_HANDED
 		 && ( player.fullClassId != PFC_SAVAGE || ! HasTrait(CurrentPlayerIndex, TraitId::MonkeyGrip) || not(bodyItem.ItemCode, IC_1_SWORD, IC_4_MACE) ) ){
-			// Если это двуручное оружие в 4м слоте то бишь в левой руке, то рисуем его полупрозрачную копию в 5й слот то бишь в правой руке
+			// (rt) If this is a two-handed weapon in slot 4, i.e. the left hand, draw its semi-transparent copy in slot 5, i.e. the right hand
 			DisplayObject& rightHandSlotRect = RightHand->rect;
 			ShadowItemSlot(rightHandSlotRect.Left, rightHandSlotRect.Down, rightHandSlotRect.Width, rightHandSlotRect.Heigth, colorMark);
 			DarkLevel = 0;
 			TransparentMode = 1;
-			// поправка для центрирования оружия и щита
+			// (rt) correction for centring weapons and shields
 			int x = rightHandSlotRect.Left + (rightHandSlotRect.Width - itemWidth) / 2;
 			int y = rightHandSlotRect.Down - (rightHandSlotRect.Heigth - itemHeight) / 2;
 			if( itemHeight >= CELL_SIZE * 4 ){
@@ -926,50 +1078,84 @@ void DrawINVPanel()
 			}else if( itemHeight >= CELL_SIZE * 3 ){
 				y -= 1;
 			}
-			uchar* surfaceDest = WorkingSurface + YOffsetHashTable[y] + x;// + (itemWidth == CELL_SIZE ? CELL_SIZE/2 : 0); // вроде этот кусок больше не нужен
-			CEL_DrawShadow(surfaceDest, itemsCELArray, graphicValue, itemWidth, 0, 8, bodyItem.mirrorImage << 1);
+			if( ItemOverlay_HasArt( overlayGfx ) ){	// (th4) replacement art: ghost the PNG, not the old CEL
+				ItemOverlay_QueueGhost( overlayGfx, x, y, itemWidth, itemHeight, bodyItem.mirrorImage != 0 );
+			}else{
+				uchar* surfaceDest = WorkingSurface + YOffsetHashTable[y] + x;// (rt) + (itemWidth == CELL_SIZE ? CELL_SIZE/2 : 0); // this part seems no longer needed
+				CEL_DrawShadow(surfaceDest, itemsCELArray, graphicValue, itemWidth, 0, 8, bodyItem.mirrorImage << 1);
+			}
 			TransparentMode = 0;
 		}
 	}
 
 	// 0041EF6A
-	// в качестве оптимизации вместо координат из массива ItemCellPos
-	// используются предвычисленный на основе разрешения прямоугольник инвентаря
-	// а координаты вычисляются на основе индекса клетки
+	// (rt) as an optimization, instead of coordinates from the ItemCellPos array
+	// (rt) a precomputed, resolution-based inventory rectangle is used
+	// (rt) and the coordinates are computed from the cell index
 
-	// перемещение "тени" предмета по рюкзаку
+	// Use separate storage arrays depending on which inventory view is open
+	auto isSigil = [](const Item& item){ return item.baseItemIndex >= BI_2504_SIGIL_FIRST && item.baseItemIndex <= BI_2508_SIGIL_LAST; };
+	Item* currentSlots = IsSigilInventoryOpen ? player.TalismanSlots : player.InventorySlots;
+	auto* currentUsedAlt = IsSigilInventoryOpen ? player.TalUsedAlt : player.InvUsedAlt;
+
+	// --- Draw sigil grid overlay BEFORE items so items render on top ---
+	if (IsSigilInventoryOpen && SigilGridCEL)
+	{
+		int gridX = InventoryPanelRect.Left + Screen_LeftBorder + 1;
+		int gridY = InventoryPanelRect.Top + Screen_TopBorder + 426;
+		Surface_DrawCEL(gridX, gridY, SigilGridCEL, 1, 319);
+	}
+
+	// (rt) moving the item's "shadow" across the backpack
 	if (Cur.GraphicsID >= CM_12_ITEMS_PICS_START) {
 		ChangeItemBacklight(Inv->rect.Left, Inv->rect.Top, player.invCols, InvRows, 0, 0, 2);
 	}
 
-	// Проходим по всем клеткам и если используемые, отмечаем определённым цветом
+	// (rt) Go through all cells and mark the used ones with a certain colour
 	for( int row = 0; row < InvRows; ++row ) for( int col = 0; col < InvCols; ++col ){
 		if( col >= player.invCols ){
 			ShadowItemSlot(Inv->rect.Left + col * (CELL_SIZE + 1), Inv->rect.Down - (InvRows - 1 - row) * (CELL_SIZE + 1), CELL_SIZE, CELL_SIZE);
-		}else if( player.InvUsedAlt[row][col] ){
+		}else if(currentUsedAlt[row][col] ){
 			if (InventoryBackgroundOldStyle) {
 				//ShadowItemSlot(ItemCellPos[25 + i].X + InventoryIndentX, ItemCellPos[25 + i].Y + InventoryIndentY, cellSize, cellSize);
 				ShadowItemSlot(Inv->rect.Left + col * (CELL_SIZE + 1), Inv->rect.Down - (InvRows - 1 - row) * (CELL_SIZE + 1), CELL_SIZE, CELL_SIZE);
 			}
 			else {
-				const char curItemIndex = abs(player.InvUsedAlt[row][col]) - 1;
+				const char curItemIndex = abs(currentUsedAlt[row][col]) - 1;
 				if (curItemIndex >= 0 && curItemIndex < IS_70_40_Inv_Count) {
-					const Item& curItem = player.InventorySlots[curItemIndex];
+					const Item& curItem = currentSlots[curItemIndex];
 					colorMark = GetItemBackgroundColorType(curItem);
 					ShadowItemSlot(Inv->rect.Left + col * (CELL_SIZE + 1), Inv->rect.Down - (InvRows - 1 - row) * (CELL_SIZE + 1), CELL_SIZE, CELL_SIZE, colorMark);
-
 				}
 			}
 		}
 	}
 
-	// рисуем на клетках, обозначенных как имеющие картинку нашу картинку
+	// --- Lithe Build: cover the sealed-off right columns of the inventory ---
+	// The trait restricts usable columns to player.invCols (the right columns are
+	// unusable); draw the padlock cover CEL over that region. Same grid is used for
+	// the normal inventory and the sigil "veil", so this one draw covers both.
+	if (HasTrait(CurrentPlayerIndex, TraitId::LitheBuild) && LitheBuildCoverCEL) {
+		const int litheCoverWidth = 151; // CEL pixel width
+		// Surface_DrawCEL is BOTTOM-anchored: y is the bottom scanline and the CEL is
+		// drawn upward (same as the inventory panel background draw). So anchor to the
+		// bottom-left of the sealed region: grid bottom (Inv->rect.Down), and the left
+		// edge of the first sealed column. Inv->rect already includes the screen borders.
+		// Tweak litheCoverNudgeX/Y if it needs a few px of adjustment.
+		const int litheCoverNudgeX = -2;
+		const int litheCoverNudgeY = 3;
+		int litheCoverX = Inv->rect.Left + player.invCols * (CELL_SIZE + 1) + litheCoverNudgeX;
+		int litheCoverY = Inv->rect.Down + litheCoverNudgeY;
+		Surface_DrawCEL(litheCoverX, litheCoverY, LitheBuildCoverCEL, 1, litheCoverWidth);
+	}
+
+	// (rt) draw our picture on the cells marked as having a picture
 	for( int row = 0; row < InvRows; ++row ) for( int col = 0; col < InvCols; ++col ){
-		int invItemNumber = player.InvUsedAlt[row][col];
-		if( invItemNumber <= 0 ){// Если этот слот не обозначен как имеющий картинку
+		int invItemNumber = currentUsedAlt[row][col];
+		if( invItemNumber <= 0 ){// (rt) If this slot is not marked as having a picture
 			continue;
 		}
-		Item& inventorySlot = player.InventorySlots[invItemNumber - 1];
+		Item& inventorySlot = currentSlots[invItemNumber - 1];
 		int graphicValue = inventorySlot.GraphicValue + CM_12_ITEMS_PICS_START;
 		char itemWidthTable = ItemWidthTable[graphicValue];
 		char* itemsCELArray;
@@ -978,12 +1164,13 @@ void DrawINVPanel()
 		if( ItemHeightTable[graphicValue] >= CELL_SIZE * 3 ) y -= 3;
 		else if( ItemHeightTable[graphicValue] >= CELL_SIZE * 2 ) y -= 1;
 
-		// далее аналогично рисованию вещей на теле
+		// (rt) then the same as drawing items on the body
+		const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
 		itemsCELArray = GetItemSprites( graphicValue );
 
 		bool itemUnderRegularCursor = Cur.InventoryCellID == invItemNumber - 1 + IS_Inventory && Cur.GraphicsID < CM_12_ITEMS_PICS_START;
 
-		// Выбираем цвет обводки предмета под курсором
+		// (rt) Pick the outline colour of the item under the cursor
 		int colorOfBorder = -1;
 		if( itemUnderRegularCursor ){
 			colorOfBorder = 197;
@@ -994,14 +1181,47 @@ void DrawINVPanel()
 				colorOfBorder = 229;
 			}
 		}
-		CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /* || itemUnderRegularCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+		ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /* || itemUnderRegularCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+		ItemOverlay_Queue(overlayGfx, x, y, itemWidthTable, ItemHeightTable[overlayGfx], inventorySlot.mirrorImage != 0, colorOfBorder, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /* || itemUnderRegularCursor*/) | inventorySlot.mirrorImage << 1);	// (th4)
 	}
 	
 	// Total gold text
 	char dest[32];
     int gold = Players[CurrentPlayerIndex].TotalGold;
-    sprintf(dest, "gold: %i", gold);
+    sprintf(dest, L("gold: %i"), gold); // (th4) localizable
     DrawLevelInfoText(InventoryPanelRect.Right - 300, InventoryPanelRect.Top + 448, dest, 3);
+	// (rt) --- Sigil button ---
+	if (SigilButtonCEL && GameMode != GM_CLASSIC 
+		&& GameMode != GM_COLISEUM 
+		&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR))
+		&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))
+		)
+	{
+		int panelRight = InventoryPanelRect.Right;
+		int panelBottom = InventoryPanelRect.Down;
+
+		int absX = panelRight + Screen_LeftBorder;
+		int absY = panelBottom + Screen_TopBorder;
+
+		int btnX = absX - 40 - 9;
+		int btnY = absY - 32 - 4 + 32;
+
+		Surface_DrawCEL(btnX, btnY, SigilButtonCEL, SigilButtonFrame, 40);
+		if (CursorX >= InventoryPanelRect.Right - 40 - 9 &&
+			CursorX <= InventoryPanelRect.Right - 40 - 9 + 40 &&
+			CursorY >= InventoryPanelRect.Down - 32 - 4 &&
+			CursorY <= InventoryPanelRect.Down - 32 - 4 + 32)
+		{
+			Tooltip_SetOffsetLeft();
+
+			if (IsSigilInventoryOpen){
+				Tooltip_AddLine(L("switch to main inventory"), C_0_White);
+			}
+			else{
+				Tooltip_AddLine(L("switch to sigil inventory"), C_0_White);
+			}
+		}
+	}
 }
 
 // This might be the function handling splitting gold piles. (drawing the window)
@@ -1017,11 +1237,18 @@ void __fastcall SplitGoldPile(int currentAmount)
 	
 	int textLeft = xOffset + 17;
 	int textRight = xOffset + 251;
-	sprintf(InfoPanelHeader, "You have %u gold", GoldYouHave);
-	DrawText(textLeft, yOffset + 44, textRight, InfoPanelHeader, 3);
-	sprintf(InfoPanelHeader, "%s.  How many do", formatGoldAmount(GoldYouHave));
-	DrawText(textLeft, yOffset + 60, textRight, InfoPanelHeader, 3);
-	DrawText(textLeft, yOffset + 78, textRight, "you want to remove?", 3);
+	if( GameLanguage != LANG_EN ){
+		sprintf(InfoPanelHeader, L("You have %u gold"), GoldYouHave);
+		DrawText(textLeft, yOffset + 44, textRight, InfoPanelHeader, 3);
+		DrawText(textLeft, yOffset + 60, textRight, L("How many coins"), 3);
+		DrawText(textLeft, yOffset + 78, textRight, L("do you want to take?"), 3);
+	}else{
+		sprintf(InfoPanelHeader, "You have %u gold", GoldYouHave);
+		DrawText(textLeft, yOffset + 44, textRight, InfoPanelHeader, 3);
+		sprintf(InfoPanelHeader, "%s.  How many do", formatGoldAmount(GoldYouHave));
+		DrawText(textLeft, yOffset + 60, textRight, InfoPanelHeader, 3);
+		DrawText(textLeft, yOffset + 78, textRight, "you want to remove?", 3);
+	}
 	sprintf(InfoPanelHeader, "%u", currentAmount);
 	DrawLevelInfoText(xOffset + 39, yOffset + 97, InfoPanelHeader, 0);
 	
@@ -1030,8 +1257,10 @@ void __fastcall SplitGoldPile(int currentAmount)
 		pentOffset += 50;
 	}else{
 		pentOffset += 39;
-		while( InfoPanelHeader[i] ){
-			pentOffset += 1 + FontWidthSmall[FontIndexSmall[Codepage[InfoPanelHeader[i++]]]];
+		while( InfoPanelHeader[i] ){ // (th4) CHI: step by character, not byte
+			int lid, w;
+			i += ChiNextSmall( (const uchar*)InfoPanelHeader + i, &lid, &w );
+			pentOffset += 1 + w;
 		}
 	}
 	Surface_DrawCEL(pentOffset + Screen_LeftBorder, yOffset + 257, PentSpn2CELPtr, PentSpnCurrentPicNumber, 12);
@@ -1137,6 +1366,7 @@ void OpenInventoryPanel()
 	IsSpellBookVisible = false;
 	IsPerksPanelVisible = false;
 	IsInfoWindowVisible = false;
+	IsChatHistoryVisible = false;
 	IsGoldSplitPanelVisible = false;
 	IsINVPanelVisible = true;
 }
@@ -1152,4 +1382,5 @@ void CloseInventoryPanel()
 	Enchant_Close();
 	Quench_Close();
 	Transmute_Close();
+	Powerups_Close();
 }

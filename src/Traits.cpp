@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "MenuPortrait.h"
 
 int TraitIndexToSelect = 0;
 TraitId SelectedTraitId = TraitId::NoTrait;
@@ -87,7 +88,13 @@ enum TRAIT_GROUP_MASK : uint64_t
     TGM_ABNEG               = BIT(51),
     TGM_FAST_MET            = BIT(52),
     TGM_GIANT               = BIT(53),
-    TGM_PAL                 = BIT(54)
+    TGM_PAL                 = BIT(54),
+    TGM_BESTIARIUS          = BIT(55),
+    TGM_SCISSOR             = BIT(56),
+    TGM_CAPITAL             = BIT(57),
+    TGM_DEVAS               = BIT(58),
+    TGM_WARLORD             = BIT(59),
+    TGM_RAWPOWER            = BIT(60)
 
 };
 bit_enum( TRAIT_GROUP_MASK );
@@ -149,15 +156,59 @@ std::vector TraitsExcludedCombinations = {
     TGM_GIANT            | TGM_BRUISER,
     TGM_GIANT            | TGM_MORE_MAX_STATS,
     TGM_GIANT            | TGM_STATS_MORE,
-    TGM_GIANT            | TGM_LITHE
+    TGM_GIANT            | TGM_LITHE,
+    TGM_SCISSOR          | TGM_BESTIARIUS,
+    TGM_CAPITAL          | TGM_LESS_XP,
+    TGM_RABID            | TGM_SPELLS_ON,
+    TGM_DEVAS            | TGM_WARLORD,
+    TGM_RAWPOWER         | TGM_SYNS_DOWN,
+    TGM_RAWPOWER         | TGM_SYNS_UP,
+    TGM_RAWPOWER         | TGM_PERK_POINTS_UP,
+    TGM_RAWPOWER         | TGM_PERK_POINTS_DOWN
 
 };
 
 std::vector<TraitId> TraitsAvailableList;
 
 //----- (th2) ------------------------------------------------------------
+//----- (th4) ----- Russian trait localization (uppercase -0x40 atlas) -----
+
+// (th4) Indonesian trait text (defined in TraitsID.cpp)
+extern const char* ID_TraitName( TraitId id );
+extern const char* ID_TraitBenefit( TraitId id );
+extern const char* ID_TraitPenalty( TraitId id );
+extern const char* PT_TraitName( TraitId id );     // (th4) Portuguese
+extern const char* PT_TraitBenefit( TraitId id );
+extern const char* PT_TraitPenalty( TraitId id );
+extern const char* ES_TraitName( TraitId id );     // (th4) Spanish
+extern const char* ES_TraitBenefit( TraitId id );
+extern const char* ES_TraitPenalty( TraitId id );
+extern const char* IT_TraitName( TraitId id );     // (th4) Italian
+extern const char* IT_TraitBenefit( TraitId id );
+extern const char* IT_TraitPenalty( TraitId id );
+extern const char* FR_TraitName( TraitId id );     // (th4) French
+extern const char* FR_TraitBenefit( TraitId id );
+extern const char* FR_TraitPenalty( TraitId id );
+extern const char* DE_TraitName( TraitId id );     // (th4) German
+extern const char* DE_TraitBenefit( TraitId id );
+extern const char* DE_TraitPenalty( TraitId id );
+extern const char* PL_TraitName( TraitId id );     // (th4) Polish
+extern const char* PL_TraitBenefit( TraitId id );
+extern const char* PL_TraitPenalty( TraitId id );
+extern const char* CHI_TraitName( TraitId id );     // (th4) Chinese
+extern const char* CHI_TraitBenefit( TraitId id );
+extern const char* CHI_TraitPenalty( TraitId id );
+extern const char* TR_TraitName( TraitId id );      // (th4) Turkish
+extern const char* TR_TraitBenefit( TraitId id );   // (th4) Turkish
+extern const char* TR_TraitPenalty( TraitId id );   // (th4) Turkish
+
+// (th4) The Russian trait localization (LocalizedTraitName/Benefit/Penalty, uppercase
+// -0x40 atlas encoding) was MOVED to Localization.cpp -- translated strings live in the
+// dedicated localization files now, same as every other language. Per Mordor.
+
 const char* GetTraitName( TraitId id )
 {
+    if( const char* t = LocalizedTraitName( id ) ) return t;
     switch( id )
     {
         default:
@@ -266,19 +317,27 @@ const char* GetTraitName( TraitId id )
         case TraitId::Abnegation:       return "Abnegation";
         case TraitId::Giant:            return "Giant";
         case TraitId::Feral:            return "Feral";
+        case TraitId::Scissor:          return "Scissor";
+        case TraitId::Capitalist:       return "Capitalist";
+        case TraitId::Frenzied:         return "Frenzied";
+        case TraitId::Late_Bloomer:     return "Late Bloomer";
+        case TraitId::Warlord:          return "Warlord";
+        case TraitId::RawPower:  		return "Raw Power";
+        case TraitId::Thief:  		    return "Thief";
     }
 }
 
 //----- (th2) ------------------------------------------------------------
 const char* GetTraitBenefitDescription( TraitId id )
 {
+    if( const char* t = LocalizedTraitBenefit( id ) ) return t;
     switch( id )
     {
     default:
     case TraitId::NoTrait:			return  "";
     case TraitId::Gifted:			return  "+5 to base stats and +25 to maximum stats"; //unlocks: 
     case TraitId::Kamikaze:			return  "+CLVL to accuracy"; //done
-    case TraitId::HeavyHanded:		return  "+(80%CLVL) to physical melee damage"; //done
+    case TraitId::HeavyHanded:		return  "+(1+80%CLVL) to physical melee damage"; //done
     case TraitId::Skilled:			return  "+CLVL+(CLVL^2/150) to all current stats"; //done
     case TraitId::Barbarism:		return  "magical damage resistance cap increased to 90%"; //done
     case TraitId::Finesse:			return  "critical strike chance increased by (CLVL/27+10)%"; //done
@@ -329,7 +388,7 @@ const char* GetTraitBenefitDescription( TraitId id )
 	case TraitId::PuncturingStab:	return  "(CLVL/5)% chance to bypass melee damage resistance and DFE of the target"; //done
 	case TraitId::BloodAndSand:		return  "DFE can reduce incoming melee damage by 75% (standard limit of absorption: 50%)"; //done
 	case TraitId::BloodForBlood:	return  "total melee damage is increased by 30% when life drops below 40%"; //done
-	case TraitId::BigFrame:			return  "get 3 life per level, and 3 life per Vitality point"; //done
+	case TraitId::BigFrame:			return  "get 2,5 life per level, and 3 life per Vitality point"; //done
 	case TraitId::CrossbowTraining:	return  "150% of Dexterity added to base damage when using crossbows"; //done
 	case TraitId::BlisteredSkin:	return  "base life regeneration depends on maximum life: +1 regeneration for 25 life"; //done
 	case TraitId::Cleric:			return  "damage of Holy spell types increased by 50%"; //done
@@ -380,12 +439,20 @@ const char* GetTraitBenefitDescription( TraitId id )
     case TraitId::Abnegation:       return  "extra -2 DFE, +(CLVL/3) to MDR / ADR / all resistance";
     case TraitId::Giant:            return  "you get +1 life per base VIT, max VIT increased by 100";
     case TraitId::Feral:            return  "you have no summoner-specific offensive spell cooldowns";
+    case TraitId::Scissor:          return  "you wield scissored weapon as offhand";
+    case TraitId::Capitalist:       return  "your XP gains are increased by (1-4)% of your total gold";
+    case TraitId::Frenzied:			return  "total damage increased by 75%";
+    case TraitId::Late_Bloomer:		return  "+50% total XP after CLVL 60";
+    case TraitId::Warlord:		    return  "summon Mercenaries to fight by your side";
+    case TraitId::RawPower:  		return  "Sigils have 10x power";
+    case TraitId::Thief:  		    return  "hides in darkness, increased damage vs unaware monsters, chain activation radius reduced by 1";
     }
 }
 
 //----- (th2) ------------------------------------------------------------
 const char* GetTraitPenaltyDescription( TraitId id )
 {
+    if( const char* t = LocalizedTraitPenalty( id ) ) return t;
     switch( id )
     {
     default:
@@ -423,7 +490,7 @@ const char* GetTraitPenaltyDescription( TraitId id )
 	case TraitId::Pyromaniac:		return  "dexterity doesn't increase armor class"; //done
 	case TraitId::AvatarOfCold:		return  "-25% to damage of fire spells and to fire resistance"; //done
 	case TraitId::BestDefense:		return  "-(25+CLVL/15)% to total hit points of summoned minions"; //done
-	case TraitId::GrimDeal:			return  "AC, %life, %mana, HP regen, DFE, stun threshold: weakened by 40%CLVL"; //done
+	case TraitId::GrimDeal:			return  "AC, %life, %mana, HP regen, DFE, stun threshold: weakened by 40%CLVL. For Archer, Sharpshooter & Scout: base damage additionally reduced by (CLVL/3)%. Offensive spell damage also reduced by (CLVL/3)%"; //done
 	case TraitId::HolyAura:			return  "-20% to experience points earned"; //done
 	case TraitId::Strafer:			return  "attacking takes 1 frame longer"; //done
 	case TraitId::PiercingShot:		return  "-(2*CLVL) to accuracy"; //done
@@ -483,7 +550,7 @@ const char* GetTraitPenaltyDescription( TraitId id )
     case TraitId::NastyDisposition: return  "vendor prices are tripled";
     case TraitId::CrowdSeeker:      return  "monster chain activation radius increased: +2";
     case TraitId::Stoneform:        return  "vitality doesn't give natural resistances";
-    case TraitId::LitheBuild:       return  "inventory size is halved";
+    case TraitId::LitheBuild:       return  "inventory size is halved (including sigils)";
     case TraitId::BloodOath:        return  "DFE increased by (1+CLVL/16)";
     case TraitId::ManaFlux:         return  "maximum mana decreased by 20%";
     case TraitId::Coinbound:        return  "All stats decreased by CLVL/5";
@@ -494,17 +561,45 @@ const char* GetTraitPenaltyDescription( TraitId id )
     case TraitId::Abnegation:       return  "-40%CLVL to life & mana regeneration";
     case TraitId::Giant:            return  "potions are only half effective";
     case TraitId::Feral:            return  "cannot learn Teleport spell, half natural mana regen";
+    case TraitId::Scissor:          return  "does not have shield for blocking";
+    case TraitId::Capitalist:       return  "initial Goldfind decreased by 33%";
+    case TraitId::Frenzied:			return  "-40% to maximum chance of hitting target";
+    case TraitId::Late_Bloomer:		return  "-33% total XP before CLVL 60";
+    case TraitId::Warlord:  		return  "making Mercenaries stronger costs perk points";
+    case TraitId::RawPower:  		return  "Perks and Synergies are unavailable";
+    case TraitId::Thief:  		    return  "basic combat powers reduced: base damage is halved, increased autohit, melee/arrow damage resistance caps reduced by 15";
     }
 }
 
 //----- (th2) ------------------------------------------------------------
+// (th4) The trait description used to be sprintf'd into InfoPanelBuffer[256] -- the
+// same 255-byte ceiling MENU_TEXT_CAP just lifted. It gets its own buffer at the
+// new capacity, bounded, so a long Hindi benefit + penalty pair cannot overrun.
+static char TraitDescBuf[ MENU_TEXT_CAP ];
+
 const char* GetTraitDescription( TraitId id )
 {
     if( id == TraitId::NoTrait ){
-        return "None Selected";
+        // (th4) BG uses the same atlas scheme as RU here; see the meta note in Hell.cpp.
+        if( GameLanguage == LANG_RU ) return "\x8D\x88\x97\x85\x83\x8E \x8D\x85 \x82\x9B\x81\x90\x80\x8D\x8E";
+        if( GameLanguage == LANG_BG ) return "\x8d\x88\x99\x8e \x8d\x85 \x85 \x88\x87\x81\x90\x80\x8d\x8e";
+        if( GameLanguage == LANG_UK ) return "\x8DI\x97\x8E\x83\x8E \x8D\x85 \x8E\x81\x90\x80\x8D\x8E";  // (th4) Ukrainian, same atlas scheme
+        // (th4) Japanese needs NO arm here or in the sprintf chain below: its dialog
+        // fonts have grid sheets, so LMenu("None Selected") and
+        // LMenu("Benefit: %s\n\nPenalty: %s") resolve straight out of JA_Menu.
+        return LMenu("None Selected");
     }else{
-        sprintf(InfoPanelBuffer, "Benefit: %s\n\nPenalty: %s", GetTraitBenefitDescription(id), GetTraitPenaltyDescription(id) );
-        return InfoPanelBuffer;
+        if( GameLanguage == LANG_RU )
+            snprintf(TraitDescBuf, sizeof(TraitDescBuf), "\x8F\x8B\x9E\x91: %s\n\n\x8C\x88\x8D\x93\x91: %s", GetTraitBenefitDescription(id), GetTraitPenaltyDescription(id) );
+        else if( GameLanguage == LANG_BG )
+            snprintf(TraitDescBuf, sizeof(TraitDescBuf), "\x8f\x8e\x8b\x87\x80: %s\n\n\x96\x85\x8d\x80: %s", GetTraitBenefitDescription(id), GetTraitPenaltyDescription(id) );
+        else if( GameLanguage == LANG_UK )
+            snprintf(TraitDescBuf, sizeof(TraitDescBuf), "\x8F\x8B\x9E\x91: %s\n\n\x8CI\x8D\x93\x91: %s", GetTraitBenefitDescription(id), GetTraitPenaltyDescription(id) );
+        else
+            // (th4) route the label format through LMenu so ID/PT translate "Benefit:"/"Penalty:".
+            // English build returns the input unchanged. %s/\n preserved by the overlay value.
+            snprintf(TraitDescBuf, sizeof(TraitDescBuf), LMenu("Benefit: %s\n\nPenalty: %s"), GetTraitBenefitDescription(id), GetTraitPenaltyDescription(id) );
+        return TraitDescBuf;
     }
 }
 
@@ -619,6 +714,13 @@ int GetTraitSpellIcon( TraitId id )
         case TraitId::Abnegation:       return 254;
         case TraitId::Giant:            return 206;
         case TraitId::Feral:            return 176;
+        case TraitId::Scissor:          return 172;
+        case TraitId::Capitalist:       return 162;
+        case TraitId::Frenzied:			return 139;
+        case TraitId::Late_Bloomer:		return 115;
+        case TraitId::Warlord:  		return 239;
+        case TraitId::RawPower:  		return 248;
+        case TraitId::Thief:  		    return 99;
     }
 }
 
@@ -635,7 +737,7 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 										     | IPCM_ANY_SAVAGE;
         case TraitId::HeavyHanded:		return IPCM_ANY_WARRIOR
 											 | IPCM_ANY_MONK
-											 | IPCM_ANY_SAVAGE;
+											 | IPCM_ANY_SAVAGE | IPCM_GLADIATRIX;
         case TraitId::Skilled:			return IPCM_ALL_CLASSES;
         case TraitId::Barbarism:		return IPCM_ALL_CLASSES;
         case TraitId::Finesse:			return IPCM_ANY_WARRIOR
@@ -643,7 +745,7 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 										     | IPCM_SHARPSHOOTER
 										     | IPCM_ANY_MONK
 										     | IPCM_ROGUE
-										     | IPCM_ASSASSIN
+										     | IPCM_ASSASSIN | IPCM_GLADIATRIX
 										     | IPCM_BERSERKER
 											 | IPCM_EXECUTIONER
 											 | IPCM_MURMILLO
@@ -665,13 +767,13 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 											 | IPCM_ANY_MONK
 											 | IPCM_ANY_ROGUE;
         case TraitId::Leper:			return IPCM_EXECUTIONER;
-        case TraitId::Rudiarius:		return IPCM_ANY_GLADIATOR;
+        case TraitId::Rudiarius:		return IPCM_ANY_GLADIATOR | IPCM_GLADIATRIX;
         case TraitId::Scrounger:		return IPCM_ALL_CLASSES;
         case TraitId::Adventurer:		return IPCM_ALL_CLASSES;
         case TraitId::ThickSkinned:		return IPCM_ANY_WARRIOR
 											 | IPCM_ARCHER
 											 | IPCM_SCOUT
-											 | IPCM_ANY_MONK
+											 | IPCM_ANY_MONK | IPCM_GLADIATRIX
 											 | IPCM_ANY_SAVAGE;
         case TraitId::RatelHide:		return IPCM_ANY_WARRIOR
 											 | IPCM_ANY_MONK
@@ -695,7 +797,7 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 		case TraitId::Bouncer:			return IPCM_SAVAGE;
 		case TraitId::Sandman:			return IPCM_ANY_WARRIOR
 											 | IPCM_ANY_MONK
-											 | IPCM_IRON_MAIDEN
+											 | IPCM_IRON_MAIDEN | IPCM_GLADIATRIX
 											 | IPCM_ANY_SAVAGE;
 		case TraitId::ARoseWithThorns:	return IPCM_IRON_MAIDEN;
 		case TraitId::Pyromaniac:		return IPCM_BOMBARDIER;
@@ -716,11 +818,11 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 		case TraitId::HolyAura:			return IPCM_TEMPLAR;
 		case TraitId::Strafer:			return IPCM_SCOUT;
 		case TraitId::PiercingShot:		return IPCM_SHARPSHOOTER;
-		case TraitId::Destroyer:		return IPCM_SAVAGE;
+		case TraitId::Destroyer:		return IPCM_SAVAGE | IPCM_GLADIATRIX;
 		case TraitId::ChromaticSkin:	return IPCM_GUARDIAN 
 											 | IPCM_TEMPLAR 
 											 | IPCM_SHUGOKI 
-											 | IPCM_ASSASSIN | IPCM_DRUID;
+											 | IPCM_ASSASSIN | IPCM_GLADIATRIX | IPCM_DRUID;
 		case TraitId::Tormentor:		return IPCM_INQUISITOR;
 		case TraitId::Armadillo:		return IPCM_BERSERKER;
 		case TraitId::BloodyMess:		return IPCM_DIMACHAERUS;
@@ -755,7 +857,7 @@ uint GetRequiredClassMaskForTrait( TraitId id )
 											 | IPCM_SCOUT 
 											 | IPCM_ANY_MONK
 											 | IPCM_ROGUE
-											 | IPCM_ASSASSIN
+											 | IPCM_ASSASSIN | IPCM_GLADIATRIX
 											 | IPCM_BERSERKER
 											 | IPCM_EXECUTIONER
 											 | IPCM_THRAEX
@@ -783,7 +885,7 @@ uint GetRequiredClassMaskForTrait( TraitId id )
                                              | IPCM_KENSEI
                                              | IPCM_SHUGOKI
                                              | IPCM_ROGUE
-                                             | IPCM_IRON_MAIDEN
+                                             | IPCM_IRON_MAIDEN | IPCM_GLADIATRIX
                                              | IPCM_SAVAGE
                                              | IPCM_BERSERKER
                                              | IPCM_DIMACHAERUS;
@@ -792,35 +894,35 @@ uint GetRequiredClassMaskForTrait( TraitId id )
                                              | IPCM_ANY_ARCHER
                                              | IPCM_ANY_MAGE
                                              | IPCM_MONK | IPCM_KENSEI | IPCM_SHINOBI
-                                             | IPCM_ASSASSIN | IPCM_BOMBARDIER
+                                             | IPCM_ASSASSIN | IPCM_BOMBARDIER | IPCM_GLADIATRIX
                                              | IPCM_SECUTOR | IPCM_DRUID;
         case TraitId::BlueBlood:		return IPCM_ALL_CLASSES & ~IPCM_ANY_SAVAGE;
-        case TraitId::Juggernaut:		return IPCM_ANY_WARRIOR | IPCM_ANY_MONK | IPCM_ANY_SAVAGE & ~IPCM_SAVAGE;
+        case TraitId::Juggernaut:		return IPCM_ANY_WARRIOR | IPCM_ANY_MONK | IPCM_GLADIATRIX | IPCM_ANY_SAVAGE & ~IPCM_SAVAGE;
         case TraitId::Prodigy:		    return IPCM_ALL_CLASSES;
         case TraitId::Insensitive:		return IPCM_ALL_CLASSES & ~IPCM_ANY_MAGE;
         case TraitId::Hydramancer:      return IPCM_WARLOCK;
         case TraitId::IronFisted:       return IPCM_WARRIOR | IPCM_TEMPLAR | IPCM_ARCHER | IPCM_ANY_MONK 
-                                             | IPCM_ROGUE | IPCM_IRON_MAIDEN | IPCM_BERSERKER | IPCM_EXECUTIONER | IPCM_ANY_GLADIATOR;
+                                             | IPCM_ROGUE | IPCM_IRON_MAIDEN | IPCM_GLADIATRIX | IPCM_BERSERKER | IPCM_EXECUTIONER | IPCM_ANY_GLADIATOR;
         case TraitId::Paladin:          return IPCM_TEMPLAR;
         case TraitId::Unshakable:		return IPCM_ALL_CLASSES;
         case TraitId::ResoluteGuard:	return IPCM_WARRIOR | IPCM_INQUISITOR
                                                | IPCM_ANY_ARCHER
                                                | IPCM_ANY_MAGE
                                                | IPCM_MONK | IPCM_KENSEI | IPCM_SHINOBI
-                                               | IPCM_ROGUE | IPCM_IRON_MAIDEN | IPCM_BOMBARDIER
+                                               | IPCM_ROGUE | IPCM_IRON_MAIDEN | IPCM_BOMBARDIER | IPCM_GLADIATRIX
                                                | IPCM_ANY_SAVAGE;
         case TraitId::Ranger:		        return IPCM_WARRIOR;
         case TraitId::Mamluk:		        return IPCM_ELEMENTALIST;
         case TraitId::Vigorous:		        return IPCM_ANY_WARRIOR
                                                | IPCM_ARCHER | IPCM_TRAPPER
                                                | IPCM_SHUGOKI
-                                               | IPCM_ASSASSIN /* | IPCM_IRON_MAIDEN*/
+                                               | IPCM_ASSASSIN | IPCM_GLADIATRIX
                                                | IPCM_BERSERKER/* | IPCM_EXECUTIONER*/
                                                | IPCM_THRAEX | IPCM_SECUTOR | IPCM_DRUID;
         case TraitId::Pistoleer:            return IPCM_GUARDIAN;
         case TraitId::FearTheReaper:        return IPCM_INQUISITOR|IPCM_GUARDIAN|IPCM_ANY_MONK
                                                | IPCM_BERSERKER | IPCM_ANY_GLADIATOR | IPCM_DRUID;
-        case TraitId::NastyDisposition:     return IPCM_WARRIOR|IPCM_GUARDIAN|IPCM_ARCHER|IPCM_SHARPSHOOTER|IPCM_TRAPPER|IPCM_ANY_MONK|IPCM_ANY_SAVAGE;
+        case TraitId::NastyDisposition:     return IPCM_WARRIOR|IPCM_GUARDIAN|IPCM_ARCHER|IPCM_SHARPSHOOTER|IPCM_TRAPPER|IPCM_ANY_MONK | IPCM_GLADIATRIX |IPCM_ANY_SAVAGE;
         case TraitId::CrowdSeeker:          return IPCM_ALL_CLASSES;
         case TraitId::Stoneform:            return IPCM_ANY_WARRIOR | IPCM_ANY_ARCHER | IPCM_ANY_MONK 
                                                 | IPCM_ASSASSIN | IPCM_IRON_MAIDEN | IPCM_ANY_SAVAGE & ~IPCM_SAVAGE;
@@ -831,14 +933,22 @@ uint GetRequiredClassMaskForTrait( TraitId id )
         case TraitId::Coinbound:            return IPCM_ANY_WARRIOR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE | IPCM_ANY_ROGUE & ~IPCM_ROGUE | IPCM_ANY_MONK
                                                 | IPCM_SAVAGE | IPCM_EXECUTIONER | IPCM_BERSERKER;
         case TraitId::Doomwhorl:            return IPCM_ANY_WARRIOR & ~IPCM_WARRIOR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE 
-                                                | IPCM_ANY_MONK | IPCM_ANY_SAVAGE | IPCM_BOMBARDIER | IPCM_ASSASSIN | IPCM_DRUID;
+                                                | IPCM_ANY_MONK | IPCM_ANY_SAVAGE | IPCM_BOMBARDIER | IPCM_ASSASSIN | IPCM_GLADIATRIX | IPCM_DRUID;
         case TraitId::LordOfTheRings:       return IPCM_MONK;
         case TraitId::Crupellarius:         return IPCM_MURMILLO;
         case TraitId::Fatality:             return IPCM_ANY_WARRIOR & ~IPCM_INQUISITOR | IPCM_ANY_ARCHER & ~IPCM_SCOUT 
-                                                | IPCM_ANY_MONK & ~IPCM_MONK | IPCM_ROGUE | IPCM_ASSASSIN | IPCM_ANY_SAVAGE;
+                                                | IPCM_ANY_MONK & ~IPCM_MONK | IPCM_ROGUE | IPCM_ASSASSIN | IPCM_GLADIATRIX | IPCM_ANY_SAVAGE;
         case TraitId::Abnegation:           return IPCM_TEMPLAR;
         case TraitId::Giant:                return IPCM_ANY_WARRIOR | IPCM_ANY_ARCHER | IPCM_ANY_MONK & ~IPCM_SHINOBI | IPCM_ANY_ROGUE & ~IPCM_ROGUE | IPCM_ANY_SAVAGE;
         case TraitId::Feral:                return IPCM_BEASTMASTER;
+        case TraitId::Scissor:              return IPCM_SECUTOR;
+        case TraitId::Capitalist:           return IPCM_ANY_WARRIOR | IPCM_ANY_ARCHER | IPCM_ANY_MAGE | IPCM_ANY_MONK | IPCM_ANY_ROGUE & ~IPCM_ROGUE;
+        case TraitId::Frenzied:             return IPCM_GUARDIAN | IPCM_ARCHER | IPCM_SHARPSHOOTER | IPCM_ANY_MONK | IPCM_GLADIATRIX
+                                                | IPCM_BERSERKER | IPCM_ANY_GLADIATOR | IPCM_DRUID;
+        case TraitId::Late_Bloomer:		    return IPCM_ALL_CLASSES;
+        case TraitId::Warlord:  		    return IPCM_INQUISITOR;
+        case TraitId::RawPower:  		    return IPCM_GLADIATRIX;
+        case TraitId::Thief:  		        return IPCM_SHARPSHOOTER; // (th4) based on Sharpshooter only
     }
 }
 
@@ -891,7 +1001,7 @@ TRAIT_GROUP_MASK GetTraitGroups( TraitId id )
 		case TraitId::Tormentor:		return TGM_CRIT_DOWN;
 		case TraitId::Armadillo:		return TGM_DMG_DOWN;
 		case TraitId::BloodyMess:		return TGM_NONE;
-		case TraitId::Bestiarius:		return TGM_NONE;
+		case TraitId::Bestiarius:		return TGM_BESTIARIUS;
 		case TraitId::Petrifier:		return TGM_NONE;
 		case TraitId::DarkPact:			return TGM_NONE;
 		case TraitId::Toxic_at_Heart:	return TGM_NONE;
@@ -921,7 +1031,7 @@ TRAIT_GROUP_MASK GetTraitGroups( TraitId id )
 		case TraitId::BendTheRules:		return TGM_MANUAL_MAX_STATS;
         case TraitId::Barbarian:		return TGM_BARBARIAN;
         case TraitId::Psion:		    return TGM_PSION;
-        case TraitId::Devastator:	    return TGM_NONE;
+        case TraitId::Devastator:	    return TGM_DEVAS;
         case TraitId::Thrill_Seeker:    return TGM_NONE;
         case TraitId::Psychotic:        return TGM_NONE;
         case TraitId::SmallFrame:       return TGM_SMALL_FRAME;
@@ -953,16 +1063,23 @@ TRAIT_GROUP_MASK GetTraitGroups( TraitId id )
         case TraitId::Abnegation:       return TGM_ABNEG;
         case TraitId::Giant:            return TGM_GIANT;
         case TraitId::Feral:            return TGM_NONE;
+        case TraitId::Scissor:          return TGM_SCISSOR;
+        case TraitId::Capitalist:       return TGM_CAPITAL;
+        case TraitId::Late_Bloomer:     return TGM_MORE_XP;
+        case TraitId::Warlord:          return TGM_WARLORD;
+        case TraitId::RawPower:         return TGM_RAWPOWER;
+        case TraitId::Thief:            return TGM_NONE;
     }
 }
 
 //----- (th2) ------------------------------------------------------------
 Portrait GetTraitPicId( TraitId id )
 {
+
     if( id == TraitId::NoTrait ){
-        return PcxHeros[50];
+        return PcxTraits[50];
     }else{
-        return PcxHeros[81 + (int)id - 1];
+        return PcxTraits[81 + (int)id - 1];
     }
 }
 
@@ -982,8 +1099,44 @@ std::vector<TraitId> CalcAvailableTraitList( PLAYER_FULL_CLASS fullClass, declty
 
 		// Conditions for specific traits
 		switch( traitId ){
+            case TraitId::Warlord:
             case TraitId::Fatality:
+		    case TraitId::Thief:       // (th4) SP only, per design -- stealth has no place in co-op
 		    case TraitId::CrowdSeeker: if( IsMultiplayer() ) return true;
+		}
+
+		// (th4) DARK CAMPAIGN exclusions. Traits listed here are unavailable in DC; add or
+		// remove cases to tune the list. Kept as its own switch so it reads as a plain list
+		// and does not tangle with the multiplayer conditions above.
+		if( GameMode == GM_DARK_CAMPAIGN ){
+			switch( traitId ){
+			case TraitId::Leper:
+            case TraitId::RatelHide:
+            case TraitId::OldHabit:
+            case TraitId::BestDefense:
+            case TraitId::HolyAura:
+            case TraitId::Bestiarius:
+            case TraitId::Cleric:
+            case TraitId::Bloodless:
+            case TraitId::Adrenaline:
+            case TraitId::Sisyphean:
+            case TraitId::Barbarian:
+            case TraitId::Psion:
+            case TraitId::Devastator:
+            case TraitId::Juggernaut:
+            case TraitId::Hydramancer:
+            case TraitId::Paladin:
+            case TraitId::Ranger:
+            case TraitId::Mamluk:
+            case TraitId::Pistoleer:
+            case TraitId::Fatality:
+            case TraitId::Warlord:
+            case TraitId::Fechtmeister:
+            case TraitId::Tormentor:
+            case TraitId::CrossbowTraining:
+
+				return true;
+			}
 		}
 
         // Exclude trait if it is from groups that conflicted with other trait groups !! Need to dig deeper here. Much more easier way to exclude trait from trait list after picking up first one
@@ -1010,14 +1163,86 @@ std::vector<TraitId> CalcAvailableTraitList( PLAYER_FULL_CLASS fullClass, declty
     return result;
 }
 
+// (th4) SCROLLABLE TRAIT DESCRIPTION -----------------------------------------------------
+//
+// The description field (ID_CLASS_DESCRIPTION on the parent SELHERO dialog) is a fixed
+// 70-unit box; anything past it was silently cut. It now scrolls, with the same arrow
+// scrollbar the trait list uses, sitting on its right (ID_DESC_SCROLL). The control is
+// placed on the CHILD trait dialogs, not the parent, because the child is modal and is
+// the one receiving the mouse -- both dialogs are 256x203 at the same origin, so it
+// lines up with the parent's field.
+//
+// Mechanism: DrawFontString lays the text out exactly as before but skips the first
+// g_MenuTextSkipLines wrapped lines and reports the total in g_MenuTextLineCount. The
+// scrollbar's "line count" is the number of scroll POSITIONS (total - visible + 1) and
+// its "selected index" is the top line, which is how SetScrollOnElem sizes the thumb.
+static int g_TraitDescTop  = 0;                  // first visible wrapped line
+static int g_TraitDescMax  = 0;                  // last legal top (0 when it all fits)
+static int g_TraitDescPage = 1;                  // lines visible at once
+
+// The scroll follows the text, so it resets when the text changes and survives a redraw
+// of the same text. Keyed on (trait, button): the summary dialog shows different traits
+// under different buttons with traitId == NoTrait.
+// (th4) Reset the scroll only when the DESCRIPTION TEXT actually changes.
+//
+// This used to compare an id instead, and that was wrong: SetTraitInfoText is also called
+// from the BN_SETFOCUS arm of the dialog proc, so simply moving the mouse over the list
+// re-runs the whole info draw. On that path the id is re-derived from the freshly
+// focused button and can differ for an instant from the one the scroll belongs to, which
+// snapped the text back to the top BETWEEN clicks. A debug log of real clicks showed it
+// plainly: "ScrollBy: top 1 -> 2" followed by an unprompted "UpdateScroll: top=0" with
+// the same totalLines, so every second click appeared to do nothing.
+// Comparing the rendered text is immune to that -- it cannot be fooled by an id that is
+// recomputed to a different value for the same description, and it still resets properly
+// when the player really does move to another entry.
+static char g_TraitDescShownText[ 512 ] = { 0 };
+static void TraitDescNoteShown( const char* description )
+{
+    const char* d = description ? description : "";
+    if( strncmp( d, g_TraitDescShownText, sizeof( g_TraitDescShownText ) - 1 ) != 0 ){
+        strncpy( g_TraitDescShownText, d, sizeof( g_TraitDescShownText ) - 1 );
+        g_TraitDescShownText[ sizeof( g_TraitDescShownText ) - 1 ] = 0;
+        g_TraitDescTop = 0;
+    }
+}
+
+// Size and show/hide the scrollbar after a draw. Mirrors the trait list, which hides
+// its own scrollbar when there are six traits or fewer.
+static void TraitDescUpdateScroll( HWND scrollDlg, TextWin* field, int totalLines )
+{
+    if( !scrollDlg || !field ) return;
+    const int fontH = GetCurFontHeight() > 0 ? GetCurFontHeight() : 1;
+    g_TraitDescPage = field->size.cy / fontH;
+    if( g_TraitDescPage < 1 ) g_TraitDescPage = 1;
+    g_TraitDescMax = totalLines - g_TraitDescPage;
+    if( g_TraitDescMax < 0 ) g_TraitDescMax = 0;
+    if( g_TraitDescTop > g_TraitDescMax ) g_TraitDescTop = g_TraitDescMax;
+    if( g_TraitDescTop < 0 ) g_TraitDescTop = 0;
+    const HWND scroll = GetDlgItem( scrollDlg, ID_DESC_SCROLL );
+    if( !scroll ) return;
+    SetScrollOnElem( scrollDlg, ID_DESC_SCROLL, g_TraitDescMax + 1, g_TraitDescTop );
+    const bool want = g_TraitDescMax > 0;
+    if( want != ( IsWindowVisible( scroll ) != 0 ) ){
+        ShowWindow( scroll, want ? SW_SHOW : SW_HIDE );
+        // (th4) These dialogs are painted onto a surface, not by Windows: hiding a
+        // control does NOT clear its pixels, so the bar lingered until something else
+        // repainted -- which is why it seemed to lag a click behind. The child is
+        // WS_EX_TRANSPARENT, so the parent has to repaint underneath it too. Same
+        // pair the trait list uses on focus change ("removes menu freezes").
+        const HWND parent = GetParent( scrollDlg );
+        if( parent ){ InvalidateRect( parent, NULL, FALSE ); UpdateWindow( parent ); }
+        InvalidateRect( scrollDlg, NULL, FALSE ); UpdateWindow( scrollDlg );
+    }
+}
+
 //----- (th2) ------------------------------------------------------------
-void __fastcall SetTraitInfoText( HWND parent, CharSaveInfo* saveInfo, TraitId traitId, int buttonId )
+void __fastcall SetTraitInfoText( HWND parent, CharSaveInfo* saveInfo, TraitId traitId, int buttonId, HWND scrollDlg = nullptr )
 {
     ShowWindowList( parent, CharParamNameList, SW_HIDE );
     ShowWindowList( parent, CharParamValueList, SW_HIDE );
     ShowWindowList( parent, ClassDescriptionList, SW_SHOW );
     
-    Portrait portrait = PcxHeros[5];
+    Portrait portrait = PcxTraits[5];
     const char* description = "";
     
     // Now we use just hero image
@@ -1025,7 +1250,7 @@ void __fastcall SetTraitInfoText( HWND parent, CharSaveInfo* saveInfo, TraitId t
     
     switch(buttonId){
 	case ID_TRAITS_CONTINUE:
-		description = "Choose up to 4 Traits. This is optional. Traits stay with your character forever. Traits can activate or deactivate some gamechangers, perks and synergies.";
+		description = LMenu("Choose up to 4 Traits. This is optional. Traits stay with your character forever. Traits can activate or deactivate some gamechangers, perks and synergies.");
 		break;
     case ID_SELECT_TRAIT_1 or ID_SELECT_TRAIT_2 or ID_SELECT_TRAIT_3 or ID_SELECT_TRAIT_4:
 		description = GetTraitDescription( saveInfo->Traits[buttonId - ID_SELECT_TRAIT_1] );
@@ -1043,8 +1268,19 @@ void __fastcall SetTraitInfoText( HWND parent, CharSaveInfo* saveInfo, TraitId t
 	//description = buffer;
 
     SetWindowTextA( GetDlgItem( parent, ID_CLASS_DESCRIPTION ), description );
+    TraitDescNoteShown( description );   // (th4) reset the scroll only on a real change
 
-    DrawTextToElemList( parent, ClassDescriptionList, 1 );
+    // RU: font16s (fontIndex 1) has no Cyrillic; font16g (fontIndex 0) does.
+    // (th4) The draw is told how many wrapped lines to skip and reports how many the
+    // text has in all; the scrollbar is sized from that. Skip is reset straight after
+    // so no other menu text inherits it.
+    g_MenuTextSkipLines = g_TraitDescTop;
+    DrawTextToElemList( parent, ClassDescriptionList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+    g_MenuTextSkipLines = 0;
+    {
+        const HWND field = GetDlgItem( parent, ID_CLASS_DESCRIPTION );
+        TraitDescUpdateScroll( scrollDlg, field ? (TextWin*) GetWindowLongA( field, GWL_USERDATA ) : nullptr, g_MenuTextLineCount );
+    }
     
     HWND portraitWin = GetDlgItem( parent, ID_PLAYER_PORTRAIT );
     RECT rect;
@@ -1052,6 +1288,54 @@ void __fastcall SetTraitInfoText( HWND parent, CharSaveInfo* saveInfo, TraitId t
     GetClientRect( portraitWin, &rect );
     AdjustScrollRect( &rect, 0, rect.bottom * portrait.id );
 	SDlgSetBitmap( portraitWin, 0, "Static", -1, 1, portrait.pcx->data, &rect, portrait.pcx->size.cx, portrait.pcx->size.cy, -1 );
+	// (th4) Every paint of ID_PLAYER_PORTRAIT must report, including the sheets that
+	// have no true-colour strip: all five sites share ONE control, so a site that
+	// stays silent leaves the previous sheet on screen over its own art.
+	MenuPortrait_Set( portrait.pcx ? portrait.pcx->name : 0, portrait.id, portraitWin, portrait.pcx ? portrait.pcx->data : 0, portrait.pcx ? (int) portrait.pcx->size.cx : 0 );
+}
+
+// (th4) Scroll the description by `delta` wrapped lines and redraw it for whatever the
+// dialog currently shows. `traitId` is what the last SetTraitInfoText was given.
+static void TraitDescScrollBy( HWND hdlg, int delta, TraitId traitId, int buttonId )
+{
+    int top = g_TraitDescTop + delta;
+    if( top > g_TraitDescMax ) top = g_TraitDescMax;
+    if( top < 0 ) top = 0;
+    if( top == g_TraitDescTop ) return;       // at an end: no move, no sound -- same as the list
+    g_TraitDescTop = top;
+    PlaySoundTitleMove();                     // (th4) S_75_I_TITLEMOV, what the list scroll plays
+    SetTraitInfoText( GetParent( hdlg ), &NewSaveInfo, traitId, buttonId, hdlg );
+    // (th4) Force the repaint the list scrollbar gets for free.
+    // These dialogs are painted onto a surface, not by Windows. SetScrollOnElem (via
+    // SetTraitInfoText below) writes the new thumb position into the scrollbar's surface,
+    // but nothing puts that surface on screen. The LIST scrollbar never noticed because
+    // every list scroll calls SetFocus, and the BN_SETFOCUS arm of the dialog proc does
+    // exactly this InvalidateRect/UpdateWindow pair ("removes menu freezes"). Scrolling
+    // TEXT changes no focus, so nothing repainted and the bar only caught up on the next
+    // click -- it looked like it reacted to every other click.
+    // Parent first: the child is WS_EX_TRANSPARENT and shows what is underneath it.
+    {
+        const HWND parentDlg = GetParent( hdlg );
+        if( parentDlg ){ InvalidateRect( parentDlg, NULL, FALSE ); UpdateWindow( parentDlg ); }
+        InvalidateRect( hdlg, NULL, FALSE ); UpdateWindow( hdlg );
+    }
+}
+
+// Shared WM_LBUTTONDOWN arm for the description scrollbar. Action codes are the ones
+// GetScrollAction hands the trait list: 1 up-arrow, 2 down-arrow, 3 page up, 4 page down.
+static bool TraitDescHandleScrollClick( HWND hdlg, int cursorX, int cursorY, TraitId traitId, int buttonId )
+{
+    const HWND scroll = GetDlgItem( hdlg, ID_DESC_SCROLL );
+    if( !scroll || !IsWindowVisible( scroll ) ) return false;
+    if( !CheckCursorOnButton( hdlg, scroll, cursorX, cursorY ) ) return false;
+    switch( GetScrollAction( scroll, cursorX, cursorY ) ){
+        case 1: TraitDescScrollBy( hdlg, -1, traitId, buttonId ); break;
+        case 2: TraitDescScrollBy( hdlg, +1, traitId, buttonId ); break;
+        case 3: TraitDescScrollBy( hdlg, -g_TraitDescPage, traitId, buttonId ); break;
+        case 4: TraitDescScrollBy( hdlg, +g_TraitDescPage, traitId, buttonId ); break;
+        default: break;
+    }
+    return true;
 }
 
 //----- (th2) ------------------------------------------------------------
@@ -1113,7 +1397,7 @@ void TraitRefreshCurrentTraitInfo( HWND hdlg, int button )
         if( const auto traitWin = (TraitWin *)GetWindowLongA( activeElem, GWL_USERDATA ); traitWin ){
             const auto buttonId = GetWindowLongA( activeElem, GWL_ID );
             SelectedTraitId = TraitsAvailableList[(int)traitWin->traitIndex];
-            SetTraitInfoText( GetParent( hdlg ), &NewSaveInfo, SelectedTraitId, buttonId );
+            SetTraitInfoText( GetParent( hdlg ), &NewSaveInfo, SelectedTraitId, buttonId, hdlg );
         }
     }
 }
@@ -1326,6 +1610,18 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
             }
 		    char tempBuf[32];
 			LoadStringA( HInstance, NewHeroTitle(), tempBuf, 31 );
+			// title/caption/buttons via LMenu (English build returns input unchanged).
+			// (th4) Widened from LANG_RU to all non-English: LMenu resolves per-language,
+			// so ID/PT get their overlay translations too. ID_TRAITS_CONTINUE is only set
+			// here, so RU-only gating left "Continue" untranslated for ID and PT.
+			if( GameLanguage != LANG_EN ){
+				// (th4) All six titles, Dark Campaign and the mode variants included.
+				if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );
+				SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu("Choose Traits") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_TRAITS_CONTINUE ), LMenu("Continue") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+			}
 			WriteAndDrawDialogTitle( GetParent( hdlg ), tempBuf );
 			SetWindowLongA( hdlg, GWL_USERDATA, (LONG)GetWindowLongA( GetParent( hdlg ), GWL_USERDATA ) );
 			InitButtonListProc( hdlg, buttons );
@@ -1333,6 +1629,8 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
 			InitButtonListText( hdlg, classElementList, 4, 0 );
 			InitButtonListText( hdlg, buttons, 2, 1 );
 			InitSelectionAndLoadPentagram( "ui_art\\focus16.pcx" );
+			InitScroll( hdlg, ID_DESC_SCROLL );                         // (th4) description scrollbar
+			ShowWindow( GetDlgItem( hdlg, ID_DESC_SCROLL ), SW_HIDE );  // shown by the first draw if needed
             
             for(uint i = 0; i < size(NewSaveInfo.Traits); ++i) TraitSelectButtonRefresh( hdlg, ID_SELECT_TRAIT_1 + i, NewSaveInfo.Traits[i] );
 			ResetButtonText( hdlg, buttons, 2, 1 );
@@ -1343,6 +1641,7 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
 			break;
 		}
 		case WM_DESTROY:
+			DeleteScroll( hdlg, ID_DESC_SCROLL );                       // (th4)
 			DeletePentagram();
 			DeleteElementListData( hdlg, buttons );
 			DeleteElementListData( hdlg, classElementList );
@@ -1358,7 +1657,7 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
 				SelectButton( (HWND) lParam );
 				AnimateSelectionPentagram( hdlg, (HWND) lParam );
     
-				SetTraitInfoText( GetParent( hdlg ), &NewSaveInfo, TraitId::NoTrait, (unsigned __int16) wParam );
+				SetTraitInfoText( GetParent( hdlg ), &NewSaveInfo, TraitId::NoTrait, (unsigned __int16) wParam, hdlg );
 				
 			}else if( HIWORD_IDA(wParam) == BN_DOUBLECLICKED || (ushort)wParam == 1 ){
 				PlaySoundTitleSelect();
@@ -1371,7 +1670,11 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
 			}
 			
 			break;
+		// (th4) BOTH messages -- see the trait LIST dialog below, which already pairs
+		// them. With CS_DBLCLKS set, every second click at a normal pace arrives as
+		// WM_LBUTTONDBLCLK; handling only WM_LBUTTONDOWN drops half of them.
 		case WM_LBUTTONDOWN:
+		case WM_LBUTTONDBLCLK:
 			if( CheckCursorOnButton( hdlg, GetDlgItem( hdlg, ID_OK_BUTTON ), (unsigned __int16) lParam, (unsigned int) lParam >> 16u ) ){
 				PlaySoundTitleSelect();
 				SDlgKillTimer( hdlg, 1 );
@@ -1380,6 +1683,15 @@ int __stdcall DialogSelectTraits( HWND hdlg, unsigned int Msg, WPARAM wParam, LP
 				PlaySoundTitleSelect();
 				SDlgKillTimer( hdlg, 1 );
 				SDlgEndDialog( hdlg,  2 );
+			}else{
+				// (th4) description scrollbar; the text shown is the focused button's
+				TraitDescHandleScrollClick( hdlg, (unsigned __int16) lParam, (unsigned int) lParam >> 16u,
+				                            TraitId::NoTrait, GetWindowLongA( GetFocus(), GWL_ID ) );
+			}
+			break;
+		case WM_LBUTTONUP:
+			if( CheckScrollPressAndRelease( GetDlgItem( hdlg, ID_DESC_SCROLL ) ) ){   // (th4) let go of an arrow: repaint it
+				SetScrollOnElem( hdlg, ID_DESC_SCROLL, g_TraitDescMax + 1, g_TraitDescTop );
 			}
 			break;
 		case WM_TIMER:
@@ -1429,6 +1741,46 @@ int __stdcall DialogSelectTrait( HWND hdlg, unsigned int Msg, WPARAM wParam, LPA
             
             char tempBuf[32];
 			LoadStringA( HInstance, NewHeroTitle(), tempBuf, 31 );
+			// (th4) Localize ALL six titles (Dark Campaign and the mode variants included).
+			// The per-language blocks below only ever handled single-player, so DC fell
+			// through to the English resource text here even though the row exists.
+			if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );
+            // RU: title + caption + OK/Cancel (atlas byte = CP1251-0x40, uppercase).
+            if( GameLanguage == LANG_RU ){
+                if( NewHeroTitle() == STR_31_New_hero_single )
+                    strcpy( tempBuf, "\x8D\x8E\x82\x9B\x89 \x83\x85\x90\x8E\x89 - \x8E\x84\x88\x8D \x88\x83\x90\x8E\x8A" ); // NOVYJ GEROJ - ODIN IGROK
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), "\x82\x9B\x81\x8E\x90 \x92\x90\x85\x89\x92\x8E\x82" ); // VYBOR CHERTY
+                SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), "OK" );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), "\x8E\x92\x8C\x85\x8D\x80" ); // OTMENA
+            }
+            // (th4) Bulgarian, cloned from the Russian block above. These menu strings are
+            // hardcoded here rather than in LocalizationBG.cpp and use the META atlas
+            // (0x80-0x9F, caps-only), not CP1251. Without this block BG fell through to the
+            // English fallback -- which the meta atlas CAN render, so the menu showed English.
+            if( GameLanguage == LANG_BG ){
+                if( NewHeroTitle() == STR_31_New_hero_single )
+                    strcpy( tempBuf, "\x8d\x8e\x82 \x83\x85\x90\x8e\x89 - \x85\x84\x88\x8d \x88\x83\x90\x80\x97" ); // NOVYJ GEROJ - ODIN IGROK
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), "\x88\x87\x81\x8e\x90 \x8d\x80 \x97\x85\x90\x92\x88" ); // VYBOR CHERTY
+                SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), "OK" );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), "\x8e\x92\x8a\x80\x87" ); // OTMENA
+            }
+            // (th4) Ukrainian, same META atlas scheme as the RU/BG blocks above.
+            if( GameLanguage == LANG_UK ){
+                if( NewHeroTitle() == STR_31_New_hero_single )
+                    strcpy( tempBuf, "\x8D\x8E\x82\x88\x89 \x83\x85\x90\x8E\x89 - \x8E\x84\x88\x8D \x83\x90\x80\x82\x85\x96\x9C" );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), "\x82\x88\x81I\x90 \x92\x90\x85\x89\x92\x80" );
+                SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), "OK" );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), "\x91\x8A\x80\x91\x93\x82\x80\x92\x88" );
+            }
+            // (th4) ID/PT: caption/buttons via LMenu (per-language overlay). This dialog's
+            // caption is "Select Trait" (singular), distinct from the plural "Choose Traits".
+            else if( GameLanguage != LANG_EN ){
+                // (th4) All six titles, Dark Campaign and the mode variants included.
+                if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu("Select Trait") );
+                SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+            }
 			WriteAndDrawDialogTitle( GetParent( hdlg ), tempBuf );
             SetWindowLongA( hdlg, GWL_USERDATA, GetWindowLongA( GetParent( hdlg ), GWL_USERDATA ) );
             InitTextElemList( hdlg, TraitTitleList, 5 );
@@ -1441,12 +1793,15 @@ int __stdcall DialogSelectTrait( HWND hdlg, unsigned int Msg, WPARAM wParam, LPA
             if( GetAvailableTraitCount() <= 6 ){
                 ShowWindow( GetDlgItem( hdlg, ID_SCROLL ), 0 );
             }
+            InitScroll( hdlg, ID_DESC_SCROLL );                         // (th4) description scrollbar
+            ShowWindow( GetDlgItem( hdlg, ID_DESC_SCROLL ), SW_HIDE );  // shown by the first draw if needed
             needToCallDefDialogProc = false;
             result = 0;
             break;
         }
         case WM_DESTROY:
         {
+            DeleteScroll( hdlg, ID_DESC_SCROLL );                       // (th4)
             DeleteScroll( hdlg, ID_SCROLL );
             DeletePentagram();
             DeleteElementListData( hdlg, TraitButtonList );
@@ -1507,6 +1862,9 @@ int __stdcall DialogSelectTrait( HWND hdlg, unsigned int Msg, WPARAM wParam, LPA
                     default:
                         break;
                 }
+            }else{
+                // (th4) description scrollbar; the text shown is the focused trait's
+                TraitDescHandleScrollClick( hdlg, cursorX, cursorY, SelectedTraitId, GetWindowLongA( GetFocus(), GWL_ID ) );
             }
             break;
         }
@@ -1514,6 +1872,9 @@ int __stdcall DialogSelectTrait( HWND hdlg, unsigned int Msg, WPARAM wParam, LPA
         {
             if( CheckScrollPressAndRelease( GetDlgItem( hdlg, ID_SCROLL ) ) ){
                 TraitRefreshScrollState( hdlg );
+            }
+            if( CheckScrollPressAndRelease( GetDlgItem( hdlg, ID_DESC_SCROLL ) ) ){   // (th4)
+                SetScrollOnElem( hdlg, ID_DESC_SCROLL, g_TraitDescMax + 1, g_TraitDescTop );
             }
             break;
         }

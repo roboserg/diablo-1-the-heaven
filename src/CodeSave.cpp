@@ -9,7 +9,7 @@ uint __fastcall DecodeFile( uchar* data, uint size, char* password )
 	// make sure the length is correct
 	if( size <= sizeof(AppendRec) ) return 0;
 	size -= sizeof(AppendRec);
-	if( size & (SHA1_BLOCK_SIZE - 1) ) return 0; // не кратно SHA1_BLOCK_SIZE
+	if( size & (SHA1_BLOCK_SIZE - 1) ) return 0; // (rt) not a multiple of SHA1_BLOCK_SIZE
 
 	// DECRYPT THE FILE BLOCK BY BLOCK
 	uchar buffer[2][SHA1_BLOCK_SIZE];

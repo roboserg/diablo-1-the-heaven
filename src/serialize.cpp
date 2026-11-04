@@ -1,6 +1,6 @@
 ﻿#include "stdafx.h"
 
-// разделение строки на массив строк (в том числе для парсина списка имен элементов enum)
+// (rt) splitting a string into an array of strings (including for parsing the list of enum element names)
 //----- (th2) -------------------------------------------------------------
 char** enum_split( char* names, size_t count /*=2048*/ )
 {
@@ -9,8 +9,8 @@ char** enum_split( char* names, size_t count /*=2048*/ )
 	size_t i = 0;
 	while( *names ){
 		switch( *names ){
-		case ',': name_begin = true; // идем ниже, break не нужен
-		case ' ': *names = 0; break; // табы и переводы строк из списка убираются компилятором (проверено msvc)
+		case ',': name_begin = true; // (rt) fall through, no break needed
+		case ' ': *names = 0; break; // (rt) tabs and line breaks are removed from the list by the compiler (verified with msvc)
 		default: if( name_begin ){
 			name[ i++ ] = names; name_begin = false;
 		}

@@ -24,6 +24,8 @@ extern int Difficulty;
 extern int SelectedDifficulty;
 
 const char* DifName(int dif = -1);
+const char* DifNameEnglish(int dif = -1);// (th4) untranslated, tilde status line
+const char* DifNameInGame(int dif = -1);// (th4) re-encoded for the in-game CEL font
 int __stdcall DialogSelectDifficulty( HWND hDlg, unsigned int msg, WPARAM wParam, LPARAM lParam );
 int __fastcall SelectDifficultyDirectConnect( HWND hWnd );
 void UpdateAllowedDifficulty();

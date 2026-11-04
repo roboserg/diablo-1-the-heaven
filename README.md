@@ -10,7 +10,7 @@
 
 ## About
 
-A quality-of-life mod built on The Hell 4 **v0.208** (March 2026). Retains the challenge and depth of TH4 while cutting the tedious grind.
+A quality-of-life mod built on The Hell 4 **v0.774** (October 2026). Retains the challenge and depth of TH4 while cutting the tedious grind.
 
 ### Balance Adjustment Examples:
 * **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
@@ -35,7 +35,7 @@ For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.m
    - **Option A:** Use your existing Diablo 1 installation directory
    - **Option B:** Create a new "Diablo The Heaven" folder and copy `DIABDAT.MPQ` there
 
-2. **Download [The Hell 4](https://www.moddb.com/mods/diablo-the-hell-4/downloads/th4)** from ModDB, extract it, and copy `TH4data.mor` to your chosen directory
+2. **Download [The Hell 4](https://www.moddb.com/mods/diablo-the-hell-4/downloads/th4)** (v0.774) from ModDB, extract it, and copy `TH4data.mor` to your chosen directory
 
 3. **Download The Heaven mod** from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases) and extract all files to the same directory
 
@@ -72,4 +72,4 @@ See [BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ## Credits
 
-Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 v0.208 source files (dated March 3, 2026) that were publicly released by [The Hell team](https://www.patreon.com/thmod).
+Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 v0.774 source files (dated October 13, 2026) that were publicly released by [The Hell team](https://www.patreon.com/thmod).

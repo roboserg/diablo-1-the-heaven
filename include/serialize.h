@@ -5,28 +5,28 @@
 #error reinclude serialize.h
 #endif
 
-// модуль сериализации любых бинарных данных (типов, структур, классов )                          
-// сериализация это вывод бинарных данных в процессоро-независмомо текстовом виде                 
-// для переноса между программами и платформами                                                   
-// данные для сериализации получаются методом полуавтоматической рефлексии из объявления стуктуры 
-// с помощью макросов begin_, _, end_, reflect, reflect_enum                                      
-// вложенные структуры должны быть также предварительно объявлены этими макросами                 
-// пример объявления сериализуемой структуры:                                                     
+// (rt) serialization module for any binary data (types, structs, classes)                          
+// (rt) serialization is writing binary data out in a processor-independent text form                 
+// (rt) for moving between programs and platforms                                                   
+// (rt) the data to serialize is obtained by semi-automatic reflection from the struct declaration 
+// (rt) using the macros begin_, _, end_, reflect, reflect_enum                                      
+// (rt) nested structs must also be declared with these macros beforehand                 
+// (rt) example declaration of a serializable struct:                                                     
 // 
-// для вывода вложенных структур специализирована глобальная функция out_ для всех 
-// сериализуемых типов и задавется параметр формата вывода OutMode 
+// (rt) to output nested structs, the global function out_ is specialized for all 
+// (rt) serializable types, and the output format parameter OutMode is set 
 
 #include "reflect.h"
 
-// Форматы выгрузки 
+// (rt) Output formats 
 enum OutMode { OM_CPP, OM_TXT, OM_XLS, OM_XML };
 extern char* OutModes[4];
-extern int CurOutMode; // = OM_CPP; // текущий формат выгрузки данных 
-extern bool IgnoreEndMarker; // Флаг игнорирования конца списка для принудительной выгрузки заданного числа элементов
+extern int CurOutMode; // (rt) = OM_CPP; // current data output format 
+extern bool IgnoreEndMarker; // (rt) Flag to ignore the end-of-list marker, to force output of the given number of elements
 extern int MaxDifRecursion;
 extern bool OutElementAlwaysOnNewLine;
 
-// поиск значения enum по имени (надо переделать на рефлексию Enum)
+// (rt) look up an enum value by name (should be redone with Enum reflection)
 template< class En, class Arr, size_t size > bool SetKeyByEnum( En& enumVar, const char* name, Arr (&arr)[size] )
 {
 	for( En i = 0; i < size; ++i ){
@@ -38,15 +38,15 @@ template< class En, class Arr, size_t size > bool SetKeyByEnum( En& enumVar, con
 	return false;
 }
 
-// пробный вынос основного тела функции в модуль пока убран, Clang сходит с ума
-// вывод структуры, класса, объединения: T* var - адрес структуры, int inner - уровень вложенности структуры 
+// (rt) a trial move of the main function body into a module is removed for now; Clang fails on it
+// (rt) output a struct, class or union: T* var - struct address, int inner - struct nesting level 
 template<class T> __forceinline void out_class_union( T* var, int inner, int th )
 {
 	static const meta_* meta = members_<T>::meta<>();
 	if( inner > MaxDifRecursion ) return;
 	int count = members_count<T>;
 	switch( CurOutMode ){
-	// вывод структуры в формате С++ _{ field_1, field_2, ... }, 
+	// (rt) output a struct in C++ format _{ field_1, field_2, ... }, 
 	case OM_CPP: {
 		if( OutElementAlwaysOnNewLine || inner == 0 ){
 			cout << "\n\t{ "; // "{ "
@@ -62,7 +62,7 @@ template<class T> __forceinline void out_class_union( T* var, int inner, int th 
 		}
 		cout << " }";
 		break; }
-	// текстовый вывод структуры с указанием всех полей их типов и смещений для отладки 
+	// (rt) text output of a struct listing all fields, their types and offsets, for debugging 
 	case OM_TXT: {
 		cout << typeid(T).name() << " ( " << sizeof(T) << " bytes ):\n";
 		for( int m = 0; m < count; m++ ){
@@ -85,29 +85,29 @@ template<class T> __forceinline void out_class_union( T* var, int inner, int th 
 COMN_FUNC( T, is_class, void ) out_( T* var, int inner, int th ){ out_class_union(var, inner, th); }
 COMN_FUNC( T, is_union, void ) out_( T* var, int inner, int th ){ out_class_union(var, inner, th); }
 
-// вывод массива являющегося полем структуры
+// (rt) output an array that is a struct field
 COMN_FUNC( T, is_array, void ) out_( T* arr, int inner, int th )
 {
 	if( inner > MaxDifRecursion) return;
-	// не получилось вынести, т.к. для этого нужна функция возврата указателя на функцию вывода элемента
+	// (rt) couldn't move it out, since that needs a function returning a pointer to the element output function
 	switch( CurOutMode ){
-	case OM_CPP: // вывод массива в формате С++
-	case OM_TXT: { // текстовый вывод массива 
+	case OM_CPP: // (rt) output an array in C++ format
+	case OM_TXT: { // (rt) text output of an array 
 		int i = 0;
 		auto var = begin( *arr );
 		auto last = end( *arr ) - 1;
 		while( var < last ){
-			// добавлен вывод двумерного массива как двумерного
-			// структурные выводятся в один столбик, так как структура сама линия
+			// (rt) added output of a two-dimensional array as two-dimensional
+			// (rt) struct elements are output in one column, since a struct is itself a line
 			if( is_array<remove_extent_t<T>>::value
 			 || is_class<remove_extent_t<T>>::value
 			 || is_union<remove_extent_t<T>>::value ){
 				if( inner >= 0 ) cout << '\n'; for( int i = 0; i <= inner; ++i ) cout << '\t';
 				cout << "/*" << i++ << "*/\t";
-			//}else if( true /* CutArrayOut */ ){ // надо добавить опцию в конфиг для вывода длинных массивов
+			//(rt) }else if( true /* CutArrayOut */ ){ // need to add a config option for outputting long arrays
 			//	if( i++ % 128 == 0 ){
 			//		cout << '\n';
-			//		// вывод индексов одномерного массива
+			//		(rt) // output of one-dimensional array indices
 			//		cout << "/*" << i << "*/\t";
 			//	}
 			}
@@ -132,13 +132,13 @@ COMN_FUNC( T, is_array, void ) out_( T* arr, int inner, int th )
 	}
 }
 
-// вывод перечисления (enum) 
+// (rt) output an enumeration (enum) 
 COMN_FUNC( T, is_enum, void ) out_( T* var, int inner, int th )
 {
-	// проверка на наличии bit_enum operator|
+	// (rt) check for the presence of bit_enum operator|
 	#pragma warning(suppress: 4555)
 	if constexpr( is_same< decltype(T()|T()), T >::value ){
-		// добавляю вывод битовых перечислений
+		// (rt) adding output of bit enumerations
 		underlying_type<T>::type mask = 0, v = *var;
 		char** name = Enum<T>::get_name();
 		for( int i = 0; i < Enum<T>::count - 1; ++i ){
@@ -172,31 +172,31 @@ COMN_FUNC( T, is_enum, void ) out_( T* var, int inner, int th )
 } 
 
 
-// если есть маркер конца списка проверяем его 
-// специализация если есть маркер
+// (rt) if there is an end-of-list marker, check it 
+// (rt) specialization if there is a marker
 template<class T> __forceinline bool NotEndMarker( T* structArray, HasMember( T::EndMarker ) )
 {
 	return IgnoreEndMarker || structArray->EndMarker != -1;
 }
-// специализация если нет маркера 
+// (rt) specialization if there is no marker 
 __forceinline bool NotEndMarker( ... )
 {
 	return true;
 }
 
-// вывод корневого массива структур в заданном глобальной переменной OutMode формате 
-// T* structArray - адрес массива, int maxCount - максимальное количество элементов
+// (rt) output a root array of structs in the format set by the global variable OutMode 
+// (rt) T* structArray - array address, int maxCount - maximum number of elements
 COMN_FUNC( T, is_class, void ) out_array( T* struct_array, int maxCount = MAX_ARRAY_COUNT)
 {
-	// запрос метаинформации о полях структуры 
+	// (rt) query the metadata of the struct's fields 
 	static const meta_* meta = members_<T>::meta<>();
 	static const char* type_name = typeid(T).name();
-	// аналогично, для выноса нужен адрес out_<decltype(&structArray[0])>, не буду пока огород городить
+	// (rt) likewise, moving it out needs the address of out_<decltype(&structArray[0])>, not going to build that yet
 	switch( CurOutMode ){
-	// вывод массива структур в формате С++ - {{ field_1, field_2 }, {...} }
-	// вместе с шапкой структуры в комментарии и заголовком с модуля 
+	// (rt) output an array of structs in C++ format - {{ field_1, field_2 }, {...} }
+	// (rt) together with the struct header in a comment and the module header 
 	case OM_CPP: {
-		// шапка .cpp 
+		// (rt) .cpp header 
 		//cout << UTF8_BOM << "#include \"th1_stdafx.h\"\n\n";
 		cout << "// " << type_name << " array at 0x" << hex << struct_array << dec << " \n";
 		cout << type_name << ' ' << type_name;
@@ -204,7 +204,7 @@ COMN_FUNC( T, is_class, void ) out_array( T* struct_array, int maxCount = MAX_AR
 			cout << "e";
 		}
 		cout << "s[] = {\n";
-		// шапка структуры (перечисление имен полей) 
+		// (rt) struct header (list of field names) 
 		cout << "\t// " << meta[0].field_name;
 		//cout << " " << meta[0].offset;
 		//cout << " " << meta[0].field_type;
@@ -214,7 +214,7 @@ COMN_FUNC( T, is_class, void ) out_array( T* struct_array, int maxCount = MAX_AR
 			//cout << " " << meta[i].field_type;
 		}
 		cout << '\n';
-		// вывод данных структуры в цикле до EndMarker == -1 
+		// (rt) output the struct data in a loop until EndMarker == -1 
 		int i = 0; do{
 			cout << "/* " << i << "\t*/ "; //cout << "\t";
 			out_( &struct_array[i] );
@@ -222,7 +222,7 @@ COMN_FUNC( T, is_class, void ) out_array( T* struct_array, int maxCount = MAX_AR
 		}while( NotEndMarker( &struct_array[i++] ) && i < maxCount );
 		cout << "};\n";
 		break; }
-	// текстовый вывод массива структур с указанием всех полей их типов и смещений (адресов) для отладки 
+	// (rt) text output of an array of structs listing all fields, their types and offsets (addresses), for debugging 
 	case OM_TXT: {	
 		//cout.rdbuf
 		cout << type_name << " at 0x" << hex << struct_array << dec <<" :\n\n";
@@ -238,14 +238,14 @@ COMN_FUNC( T, is_class, void ) out_array( T* struct_array, int maxCount = MAX_AR
 	}
 }
 
-// вывод корневого массива plain типа в формате С++ - { element_1, element_2, ... }
-// вместе с шапкой структуры в комментарии и заголовком си модуля 
-// T* structArray - адрес массива 
+// (rt) output a root array of a plain type in C++ format - { element_1, element_2, ... }
+// (rt) together with the struct header in a comment and the C module header 
+// (rt) T* structArray - array address 
 COMN_FUNC( T, is_fundamental, void ) out_array(T* type_array, int maxCount = MAX_ARRAY_COUNT)
 {
-	// тоже адрес out_ для выноса нужен
+	// (rt) moving it out also needs the address of out_
 	static const char* type_name = typeid( *type_array ).name();
-	// шапка .cpp 
+	// (rt) .cpp header 
 	//cout << UTF8_BOM << "#include \"th1_stdafx.h\"\n\n";
 	cout << "// " << type_name << " array at 0x" << hex << (uint)type_array << dec << " \n";
 	cout << type_name << ' ' << type_name << "s[" << maxCount << "] = {\n";
@@ -259,14 +259,14 @@ COMN_FUNC( T, is_fundamental, void ) out_array(T* type_array, int maxCount = MAX
 	cout << "};\n";
 }
 
-// вывод корневого массива pointer типа в формате С++ - { element_1, // index ... }
-// вместе с шапкой структуры в комментарии и заголовком си модуля 
-// T* structArray - адрес массива 
+// (rt) output a root array of a pointer type in C++ format - { element_1, // index ... }
+// (rt) together with the struct header in a comment and the C module header 
+// (rt) T* structArray - array address 
 COMN_FUNC( T, is_pointer, void ) out_array( T* type_array, int maxCount = MAX_ARRAY_COUNT )
 {
-	// тоже адрес out_ для выноса нужен
+	// (rt) moving it out also needs the address of out_
 	static const char* type_name = typeid(*type_array).name();
-	// шапка .cpp 
+	// (rt) .cpp header 
 	//cout << UTF8_BOM << "#include \"th1_stdafx.h\"\n\n";
 	cout << "// " << type_name << " array at 0x" << hex << (uint) type_array << dec << " \n";
 	cout << type_name << ' ' << type_name << "s[" << maxCount << "] = {\n";
@@ -278,7 +278,7 @@ COMN_FUNC( T, is_pointer, void ) out_array( T* type_array, int maxCount = MAX_AR
 	cout << "};\n";
 }
 
-// специализация для вывода массивов типов по строковому имени
+// (rt) specialization for outputting arrays of types by string name
 reflect(char);
 reflect(uchar);
 reflect(char*);
@@ -287,13 +287,13 @@ reflect(uint);
 reflect(short);
 reflect(ushort);
 
-// поиск структуры по имени в списке сериализуемых типов (объявленных макросом struct_ или type_) и ее вывод 
-// !!! Эта функция должна быть шаблонной, иначе она скомпилируется до внешних спецификаций, с пустым списком структур 
-// в .cpp переносятся независимые от типа части, кроме этой (а export template вообще убран из стандарта c++)
+// (rt) find a struct by name in the list of serializable types (declared with the struct_ or type_ macro) and output it 
+// (rt) !!! This function must be a template, otherwise it compiles before the external specializations, with an empty list of structs 
+// (rt) the type-independent parts are moved into the .cpp, except this one (and export template was removed from the C++ standard altogether)
 template<class T> void OutArrayByName(char* type_name, void* address, T count = MAX_ARRAY_COUNT )
 {
-	// запрос метаинформации о серилизуемых типах производится внутри функции 
-	// что-бы к моменту запроса сериализация, где угодно объявленных типов, была инстанцирована 
+	// (rt) the metadata of serializable types is queried inside the function 
+	// (rt) so that by the time of the query, serialization of types declared anywhere has been instantiated 
 	static const meta_root* const serializedStructs = types_<>::meta();
 	for( int i = 0; i < MAX_REFLECT && serializedStructs[i].out_array; i++ ){
 		if( !strcmp( serializedStructs[i].type_name, type_name ) ){
@@ -304,7 +304,7 @@ template<class T> void OutArrayByName(char* type_name, void* address, T count = 
 	cout << "Type \"" << type_name << "\" not registered.\nCheck type name, not array name.\n";
 }
 
-// функции для доступа к таблицам функций и переменных
+// (rt) functions for accessing the function and variable tables
 FuncTable& func_table();
 VarTable& var_table();
 char* func_name( size_t adr, int th = 1 );
@@ -314,7 +314,7 @@ int var_index( void* adr, int th = 1 );
 SubInfo* func_info( char* name );
 VarInfo* var_info( char* name );
 
-// сравнение структуры
+// (rt) compare a struct
 COMN_FUNC( T, is_class, bool ) dif_( T* var1, T* var2 )
 {
 	static const meta_* meta = members_<T>::meta<>();
@@ -327,7 +327,7 @@ COMN_FUNC( T, is_class, bool ) dif_( T* var1, T* var2 )
 	return false;
 }
 
-// сравнение объединения
+// (rt) compare a union
 COMN_FUNC( T, is_union, bool ) dif_( T* var1, T* var2 )
 {
 	static const meta_* meta = members_<T>::meta<>();
@@ -340,17 +340,17 @@ COMN_FUNC( T, is_union, bool ) dif_( T* var1, T* var2 )
 	return false;
 }
 																		 
-// сравнение массива 
+// (rt) compare an array 
 COMN_FUNC( T, is_array, bool ) dif_( T* arr1, T* arr2 )
 {
 	if( is_fundamental<remove_all_extents_t<T>>::value ){
 		// int a[ 3 ][ 3 ];
 		// &a == a == *a == a[ 0 ] = &a[ 0 ] = &a[ 0 ][ 0 ]
-		// разыменование адреса массива влияет только на тип, физического косвенного обращения к памяти нет
+		// (rt) dereferencing the array address only affects the type; there is no physical indirect memory access
 		return memcmp( (void*) *arr1, (void*) *arr2, sizeof(T) ) != 0;
 	}else{
-		// проверил в отладке количество элементов и типы разыменования для двумерных массивов		
-		// countof получает только верхнее измерение, разыменование тоже
+		// (rt) checked in the debugger the element count and dereference types for two-dimensional arrays		
+		// (rt) countof gets only the top dimension, and so does dereferencing
 		for( size_t i = 0; i < countof( *arr1 ); ++i ){
 			if( dif_( &(*arr1)[i], &(*arr2)[i] ) ){
 				return true;
@@ -360,7 +360,7 @@ COMN_FUNC( T, is_array, bool ) dif_( T* arr1, T* arr2 )
 	}
 }
 
-// закомменченные функции не убирать, он помеченны как использованные при сверке и пока больше не используются
+// (rt) do not remove the commented-out functions; they are marked as used in the comparison and are not used any more for now
 COMN_FUNC( T, is_function, bool ) dif_val( T* var1, T* var2 ){ return var1 != var2; }
 COMN_OTHER_FUNC( T, is_function, bool ) dif_val( T* var1, T* var2 ){ return dif_( var1, var2 ); }
 SPEC_OTHER_FUNC( void, is_function, bool ) dif_val<void>( void* var1, void* var2 );
@@ -372,7 +372,7 @@ SPEC_OTHER_FUNC( IDirectSoundBuffer, is_function, bool ) dif_val<IDirectSoundBuf
 SPEC_OTHER_FUNC( IDirectSound, is_function, bool ) dif_val<IDirectSound>( IDirectSound* var1, IDirectSound* var2 );
 
 bool IsBadPtr( const void* p );
-// сравнение обычного указателя
+// (rt) compare a plain pointer
 COMN_FUNC( T, is_pointer, bool ) dif_( T* var1, T* var2 )
 {
 	//static int count = 0;
@@ -387,14 +387,14 @@ COMN_FUNC( T, is_pointer, bool ) dif_( T* var1, T* var2 )
 		return *var1 != *var2;
 	}else{
 		FuncTable& func = func_table();
-		int f = func_index( *var1 ); // предполагается что var1 это адрес th 1
+		int f = func_index( *var1 ); // (rt) var1 is assumed to be a th 1 address
 		if( f != -1 ){
 			//--count;
 			return *var2 != func[ f ].adrNew;
 		}
 		//#ifdef SEEK_VAR_TABLE_REFERENCE
 		VarTable& var = var_table();
-		int v = var_index( *var1 ); // предполагается что var1 это адрес th 1
+		int v = var_index( *var1 ); // (rt) var1 is assumed to be a th 1 address
 		if( v != -1 ){
 			//--count;
 			return *var2 != var[ v ].adrNew;
@@ -406,7 +406,7 @@ COMN_FUNC( T, is_pointer, bool ) dif_( T* var1, T* var2 )
 	}
 }
 
-// закомменченные функции не убирать, он помеченны как использованные при сверке и пока больше не используются
+// (rt) do not remove the commented-out functions; they are marked as used in the comparison and are not used any more for now
 COMN_FUNC( T, is_function, void ) out_val( T* var, int inner = 0, int th = 1 ){ cout << "0x"; if( inner >= -100 ) cout << var; }
 COMN_OTHER_FUNC( T, is_function, void ) out_val( T* var, int inner = 0, int th = 1 ){ out_( var, inner, th ); }
 SPEC_OTHER_FUNC( void, is_function, void) out_val<void>( void* var, int inner, int th );
@@ -420,15 +420,15 @@ SPEC_OTHER_FUNC( IDirectSound, is_function, void ) out_val<IDirectSound>( IDirec
 SPEC_OTHER_FUNC( IUnknown, is_function/*is_base_of*/, void ) out_val<IUnknown>( IUnknown* var, int inner, int th );
 SPEC_OTHER_FUNC( GUID, is_function, void ) out_val<GUID>( GUID* var, int inner, int th );
 
-SPEC_FUNC(FILE*, is_pointer, void) out_< FILE* >(FILE* *, int, int); // заглушка FILE*
-SPEC_FUNC(HINSTANCE__*, is_pointer, void) out_< HINSTANCE__* >(HINSTANCE__* *, int, int); // заглушка HINSTANCE__*
-SPEC_FUNC(HWND__*, is_pointer, void) out_< HWND__* >(HWND__* *, int, int); // заглушка HWND__*
-//SPEC_FUNC(MMRESULT*, is_pointer, void) out_< MMRESULT* >(MMRESULT* *, int, int); // заглушка MMRESULT*
+SPEC_FUNC(FILE*, is_pointer, void) out_< FILE* >(FILE* *, int, int); // (rt) stub FILE*
+SPEC_FUNC(HINSTANCE__*, is_pointer, void) out_< HINSTANCE__* >(HINSTANCE__* *, int, int); // (rt) stub HINSTANCE__*
+SPEC_FUNC(HWND__*, is_pointer, void) out_< HWND__* >(HWND__* *, int, int); // (rt) stub HWND__*
+//(rt) SPEC_FUNC(MMRESULT*, is_pointer, void) out_< MMRESULT* >(MMRESULT* *, int, int); // stub MMRESULT*
 
-// вывод указателя на:
-//	1)	фундаментальный тип (кроме char), структуру - выводится адрес переменной
-//		вероятно нужен флаг для вывода по значению
-//	2)	адрес функции/глобальной статической переменной - выводится имя функции/переменной
+// (rt) output a pointer to:
+//	(rt) 1)	a fundamental type (except char), a struct - the variable's address is output
+//		(rt) a flag for output by value is probably needed
+//	(rt) 2)	the address of a function / global static variable - the function / variable name is output
 COMN_FUNC( T, is_pointer, void ) out_( T* var, int inner /*= 0*/, int th /*= 1*/ )
 {
 	if( (int)*var == 0 ){
@@ -446,24 +446,24 @@ COMN_FUNC( T, is_pointer, void ) out_( T* var, int inner /*= 0*/, int th /*= 1*/
 			cout << name;
 			return;
 		}
-		// добавить поиск адреса среди статических переменных
-		// добавить регистрацию всей динамической памяти, аналогично статическим переменных в var_table
-		// добавить поиск адреса среди динамических переменных
+		// (rt) add address lookup among static variables
+		// (rt) add registration of all dynamic memory, like static variables in var_table
+		// (rt) add address lookup among dynamic variables
 		//cout << "0x" << *var; 
 		out_val( *var , inner, th );
 	}
 }
 
-// сделать шаблон функции-переходника в котором есть шаблонные параметры: количество аргументов и аргумент адрес
-// сделать спецификации этого шаблона для 1,2,3,4 аргументов и универсальный шаблон для 5 и больше
+// (rt) make an adapter function template with template parameters: argument count and address argument
+// (rt) make specializations of this template for 1, 2, 3, 4 arguments and a generic template for 5 and more
 // Watcom fastcall:                                 arg3 arg4 
-// первые 4 через регистры слева направо: EAX, EDX, EBX, ECX, arg5, arg6, arg7; остальные через стек справа налево (msvc fastcall тоже справа налево)
-// стек чистит вызываемая программа (msvc fastcall тоже вызываемая), возврат через регистр EAX (msvc тоже)
+// (rt) the first 4 in registers left to right: EAX, EDX, EBX, ECX, arg5, arg6, arg7; the rest on the stack right to left (msvc fastcall is also right to left)
+// (rt) the callee cleans the stack (msvc fastcall: also the callee), return via the EAX register (msvc too)
 
-// c++ не умеет частичную специализацию функций, все фукнции с одинаковым именем это перегруженные функции
-// msvc почему то не позволяет naked static member функций, хотя это и выглядит допустимым
-// по этим причинам остается два варианта, либо проверять реалтайм счетчик аргументов
-// либо выбирать функцию в условном выражении, но это возможно все равно приведет к генерации всех вариантов для каждой функции
+// (rt) C++ cannot partially specialize functions; all functions with the same name are overloads
+// (rt) for some reason msvc doesn't allow naked static member functions, although it looks permissible
+// (rt) for these reasons two options remain: either check a runtime argument counter
+// (rt) or pick the function in a conditional expression, but that will probably still generate all variants for each function
 template<size_t addr, size_t arg> __declspec(naked) void ms_fastcall_to_watcom()
 {
 	enum: size_t { adr = addr, args = arg, args4 = args * 4 };
@@ -474,53 +474,53 @@ template<size_t addr, size_t arg> __declspec(naked) void ms_fastcall_to_watcom()
 		jg _5_more
 		cmp eax, 2
 		jg _3
-	// 2 и 1 :
-		mov eax, ecx			// установили 1 аргумент
+	// (rt) 2 and 1 :
+		mov eax, ecx			// (rt) set argument 1
 		push adr
-		ret						// вызвали оригинал
+		ret						// (rt) called the original
 	_3 :
-		xchg ebx, [ esp ]		// в ebx ret и ebx сохранили для восстановления
-		xchg ebx, [ esp + 4 ]	// в ebx 3 аргумент и ret сохранили для возврата
+		xchg ebx, [ esp ]		// (rt) ret into ebx, and ebx saved for restoring
+		xchg ebx, [ esp + 4 ]	// (rt) argument 3 into ebx, and ret saved for returning
 		mov eax, ecx
 		jmp _call
 	_4 :
-		xchg ebx, [ esp + 4 ]	// 3 аргумент установили и ebx сохранили для восстановления
-		mov eax, [ esp ]		// адрес возврата
-		xchg eax, ecx			// 1 аргумент установили и в ecx адрес возврата
-		xchg ecx, [ esp + 8 ]	// 4 аргумент установили и адрес возврата поместили перед сохраненным ebx
-		add esp, 4				// убрали со стека оригинальный адрес возврата
+		xchg ebx, [ esp + 4 ]	// (rt) set argument 3, and ebx saved for restoring
+		mov eax, [ esp ]		// (rt) return address
+		xchg eax, ecx			// (rt) set argument 1, and the return address into ecx
+		xchg ecx, [ esp + 8 ]	// (rt) set argument 4, and put the return address before the saved ebx
+		add esp, 4				// (rt) removed the original return address from the stack
 		jmp _call
 	_5_more :
 		push ecx
 		push ebx
-		mov ebx, [ esp + 4 + 8 ] // arg 3 в ebx
-		mov ecx, [ esp + 8 + 8 ] // arg 4 в ecx
+		mov ebx, [ esp + 4 + 8 ] // (rt) arg 3 into ebx
+		mov ecx, [ esp + 8 + 8 ] // (rt) arg 4 into ecx
 
-		push edx			// edx (arg 2) сохраняем
+		push edx			// (rt) save edx (arg 2)
 		mov eax, 1
 	_shift:
-		mov edx, [ esp + eax * 4 + 8 + 12 ] // сдвиг списка аргументов начиная с 5
-		mov[ esp + eax * 4 + 12 ], edx		// на две позиции вниз
+		mov edx, [ esp + eax * 4 + 8 + 12 ] // (rt) shift the argument list starting from 5
+		mov[ esp + eax * 4 + 12 ], edx		// (rt) down by two positions
 		inc eax
 		cmp eax, args - 4
 		jle _shift
-		pop edx				// edx (arg 2) восстанавливаем
+		pop edx				// (rt) restore edx (arg 2)
 
 		pop eax				// ebx
-		mov[ esp + args4 - 12 + 4 ], eax // сохраняем ebx
-		mov eax, [ esp + 4 ]	// адрес возврата
-		mov[ esp + args4 - 8 + 4 ], eax // адрес возврата перед сохраненным ebx
-		pop eax				// 1 аргумент (из ecx)
-		add esp, 4			// убрали со стека оригинальный адрес возврата
+		mov[ esp + args4 - 12 + 4 ], eax // (rt) save ebx
+		mov eax, [ esp + 4 ]	// (rt) return address
+		mov[ esp + args4 - 8 + 4 ], eax // (rt) return address before the saved ebx
+		pop eax				// (rt) argument 1 (from ecx)
+		add esp, 4			// (rt) removed the original return address from the stack
 	_call:
-		call _store_eip		// сохранили eip
+		call _store_eip		// (rt) saved eip
 	_store_eip :
-		add dword ptr[ esp ], 10	// вычислили новый адрес возврата
+		add dword ptr[ esp ], 10	// (rt) computed the new return address
 		push adr
-		ret					// вызвали оригинал
-	// новый адрес возврата тут:
-		pop ebx				// восстановили ebx
-		ret					// вернулись на оригинальный адрес возврата
+		ret					// (rt) called the original
+	// (rt) the new return address is here:
+		pop ebx				// (rt) restored ebx
+		ret					// (rt) returned to the original return address
 	}
 }
 
@@ -533,56 +533,56 @@ template<typename F, F func, size_t arg> __declspec(naked) void watcom_fastcall_
 {
 	enum: size_t { args = arg };
 	__asm{
-		push eax				// сохранили 1 аргумент
+		push eax				// (rt) saved argument 1
 		mov eax, args
 		cmp eax, 4
 		jge _4_more
 		cmp eax, 2
 		jg _3
-	// 2 и 1 :
-		pop eax					// восстановили 1 аргумент
-		push ecx				// ecx сохранили для восстановления
+	// (rt) 2 and 1 :
+		pop eax					// (rt) restored argument 1
+		push ecx				// (rt) saved ecx for restoring
 		jmp _call
 	_3 :
-		pop eax					// восстановили 1 аргумент
-		xchg ebx, [ esp ]		// в ebx ret и установили 3 аргумент
-		push ebx				// ret сохранили для возврата
-		push ecx				// ecx сохранили для восстановления
+		pop eax					// (rt) restored argument 1
+		xchg ebx, [ esp ]		// (rt) ret into ebx and set argument 3
+		push ebx				// (rt) saved ret for returning
+		push ecx				// (rt) saved ecx for restoring
 		jmp _call
 	_4_more :
-		pop eax					// восстановили 1 аргумент
-		xchg ecx, [ esp ]		// в eсx ret и установили 4 аргумент
-		push ebx				// установили 3 аргумент
-		push ecx				// ret сохранили для возврата
+		pop eax					// (rt) restored argument 1
+		xchg ecx, [ esp ]		// (rt) ret into ecx and set argument 4
+		push ebx				// (rt) set argument 3
+		push ecx				// (rt) saved ret for returning
 	}
-		mov_ecx( func );		// в ecx адрес оригинала
+		mov_ecx( func );		// (rt) the original's address into ecx
 	__asm{
 		push ecx
-		mov ecx, eax			// установили 1 аргумент
-		ret						// вызвали оригинал
+		mov ecx, eax			// (rt) set argument 1
+		ret						// (rt) called the original
 	_call:
-		call _store_eip			// сохранили eip
+		call _store_eip			// (rt) saved eip
 	_store_eip :
-		add dword ptr[ esp ], 13// вычислили новый адрес возврата
+		add dword ptr[ esp ], 13// (rt) computed the new return address
 	}
-		mov_ecx( func );		// в ecx адрес оригинала
+		mov_ecx( func );		// (rt) the original's address into ecx
 	__asm{
 		push ecx
-		mov ecx, eax			// установили 1 аргумент
-		ret						// вызвали оригинал
-	// новый адрес возврата тут:
-		pop ecx					// восстановили ecx
-		ret						// вернулись на оригинальный адрес возврата
+		mov ecx, eax			// (rt) set argument 1
+		ret						// (rt) called the original
+	// (rt) the new return address is here:
+		pop ecx					// (rt) restored ecx
+		ret						// (rt) returned to the original return address
 	}
 }
 
-// Внимание!!! Для функций без аргументов следует применять макросы _EXE()
+// (rt) Attention!!! For functions without arguments use the _EXE() macros
 #define EXE_WC( name ) decltype(::name)* name = th_ == Th1id ? (decltype(::name)*)ms_fastcall_to_watcom<Exe::adr_##name,ArgsCount(::name)> : ::name;
 #define WC_TO_MS( name ) watcom_fastcall_to_ms< decltype(&name), &name, ArgsCount(name)>
 #define INS_JMP_WC(from, to ) INS_JMP( from, WC_TO_MS(to) )
 #define INS_CALL_WC( from, to ) INS_CALL( from, WC_TO_MS(to) )
 
-// кросс-макрос, автоматически подменяет ссылку на фунции и глобальные переменные в зависимости от потока выполнения TH 1 или TH 2
+// (rt) cross macro: automatically substitutes references to functions and global variables depending on the execution thread, TH 1 or TH 2
 #define EXE( name ) decltype(::name)* p_##name = th_ == Th1id ? &Exe::name : &::name; decltype(::name)& name = *p_##name;
 #define _EXE( name ) uint th_ = GetCurrentThreadId(); EXE( name )
 #define _EXE_WC( name ) uint th_ = GetCurrentThreadId(); EXE_WC( name )

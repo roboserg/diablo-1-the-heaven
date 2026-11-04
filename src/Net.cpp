@@ -71,7 +71,7 @@ int __fastcall NThreadMsgCheck( int* sendAsync )
 			// there should be a bunch of messages in the
 			// queue, we should never have to wait.
 			sgbGotPacketOK = 1;
-			MainFrameTimer = GetTickCountTh(); // перехватываем вызов
+			MainFrameTimer = GetTickCountTh(); // (rt) intercept the call
 		}
 		// reset sync countdown timer
 		sgbSyncCountdown = 4;

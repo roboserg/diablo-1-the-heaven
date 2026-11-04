@@ -5,8 +5,8 @@
 #endif
 
 #ifdef storm_cpp
-// в windows компилируется и работает без StormPort.h
-#include "../lib/StormPort.h" // для компиляции StormLib в Linux
+// (rt) compiles and works on Windows without StormPort.h
+#include "../lib/StormPort.h" // (rt) for compiling StormLib on Linux
 #include "../lib/StormLib.h"
 #include "../lib/pklib/pklib.h"
 
@@ -325,7 +325,7 @@ int __stdcall	InitStorm(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved);
 #define SNetSendTurn eSNetSendTurn
 #endif
 
-// функции используещиеся только в hell2.dll
+// (rt) functions used only in hell2.dll
 #define SBltROP3 eSBltROP3
 #define SBltROP3Tiled eSBltROP3Tiled
 #define SBmpLoadImage eSBmpLoadImage

@@ -49,7 +49,7 @@ void __fastcall CloseGameArchives(bool exitGame)
 		SFileCloseArchive(helldfMPQPtr);
 		helldfMPQPtr = NULL;
 	}
-	if( theheavenMPQPtr ){// закрытие мпкью
+	if( theheavenMPQPtr ){// (rt) closing the mpq
 		SFileCloseArchive(theheavenMPQPtr);
 		theheavenMPQPtr = NULL;
 	}
@@ -132,7 +132,7 @@ void CreateMainWindow()
 		}
 	}
 	int startX = 0; //-1920 for second monitor (doesn't work yet)
-	int startY = 0; // пока что окно созданное не в нуле неправильно позицинируется от десктопной мыши
+	int startY = 0; // (rt) for now a window created not at zero is positioned wrongly relative to the desktop mouse
 	int startX2 = 0;
 	int startY2 = 0;
 	if( IsSecondWin ){
@@ -152,7 +152,7 @@ void CreateMainWindow()
 	extern int PrevWinWidth,PrevWinHeight;
 	SystemWidth = GetSystemMetrics( SM_CXSCREEN );
 	SystemHeight = GetSystemMetrics( SM_CYSCREEN );
-	// восстанавливаем позицию окна
+	// (rt) restore the window position
 	if( !SRegLoadValue( "Hellfire", "Start Window W", 0, &PrevWinWidth )
 	 || !SRegLoadValue( "Hellfire", "Start Window H", 0, &PrevWinHeight ) ){
 		PrevWinWidth = 0;
@@ -215,7 +215,7 @@ void CreateMainWindow()
 	}
 	// wndmode.dll nevermore
 	ShowWindow( hWnd, SW_SHOWNORMAL );
-	UpdateWindow( hWnd ); // нет видимого эффекта, вероятно из-за отсутствия обработки WM_PAINT
+	UpdateWindow( hWnd ); // (rt) no visible effect, probably because WM_PAINT isn't handled
 	#ifndef USE_32BITCOLOR
 	WaitForOldWinExplorerClosed();
 	#endif
@@ -249,7 +249,7 @@ HWND FindingOldWinExplorer()
 			break;
 		}
 		GetClassNameA(foreground, className, 255);
-		// Возможно это имя класса окна exlorer.exe в Windows 95
+		// (rt) Possibly the window class name of explorer.exe in Windows 95
 		if( !_strcmpi(className, "MOM Parent") ){
 			break;
 		}
@@ -261,13 +261,13 @@ HWND FindingOldWinExplorer()
 //----- (0041D852) -------------------------------------------------------- game
 void WaitForOldWinExplorerClosed()
 {
-	i64 tick = GetTickCountTh(); // это таймер не влияет на гемплей, не перехватываем
+	i64 tick = GetTickCountTh(); // (rt) this timer doesn't affect gameplay, not intercepted
 	do{
 		if( !FindingOldWinExplorer() ){
 			break;
 		}
 		SleepTh( 250 );
-	}while( GetTickCountTh() - tick <= 4000_ms ); // это таймер не влияет на гемплей, не перехватываем
+	}while( GetTickCountTh() - tick <= 4000_ms ); // (rt) this timer doesn't affect gameplay, not intercepted
 }
 
 //----- (0041D880) -------------------------------------------------------- FileIO
@@ -282,7 +282,7 @@ void OpenGameArchives()
 	ModuleInfo.PatchArchive = MpqPath_3_Patch;
 	GetGameVersion();
 	while( 1 ){
-		// в оригинальном hellfire передавалась строка "DiabloCD"
+		// (rt) the original hellfire passed the string "DiabloCD"
 		diabdatMPQPtr = OpenMPQ(MpqPath_Main, "\\diabdat.mpq", GameCDKey, 1000, 1);
 		if( diabdatMPQPtr ){
 			break;
@@ -296,19 +296,161 @@ void OpenGameArchives()
 	if( !File_Open("ui_art\\title.pcx", &titlePcx, ONE_TRY) )
 		FileErrDlg((LPARAM)"Main program archive: diabdat.mpq");
 	File_Close(titlePcx);
-	// в оригинальном hellfire везде ниже передавалась строка "DiabloInstall"
+	// (rt) the original hellfire passed the string "DiabloInstall" everywhere below
 	thmusicMPQPtr	= OpenMPQ( MpqPath_2, "\\THmusic2.mor", InstallKey, 8200, 0 );
 	thmusi3MPQPtr   = OpenMPQ( MpqPath_a, "\\THmusic3.mor", InstallKey, 8300, 0 );
 	hellgfxMPQPtr	= OpenMPQ( MpqPath_7, "\\TH4data.mor",	InstallKey, 8500, 0 );
 	hellmfMPQPtr	= OpenMPQ( MpqPath_8, "\\THmusic.mor",	InstallKey, 8600, 0 );
 	th2devMPQPtr	= OpenMPQ( MpqPath_dev, "\\th2dev.mpq",	InstallKey, 8700, 0 );  // dev mpq
+	//----- (th4) ----- Russian localization audio pack: higher priority than
+	// TH4data.mor (8500) so its sfx override the originals when language == RU.
+	if( GameLanguage == LANG_RU )
+		thlocRusMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_rus.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Bulgarian localization datafile. Same Cyrillic font set as the
+	// Russian pack (Bulgarian's alphabet is a strict subset of Russian's, so the CEL
+	// frames already cover it) but with the SFX folder removed, so Bulgarian keeps the
+	// English voice/sfx instead of inheriting the Russian dub. Mounted at 8900 (above
+	// TH4data.mor 8500) ONLY when language == BG, so it can never affect any other
+	// language. Absent file => OpenMPQ no-ops and BG falls back to the English fonts,
+	// which have no Cyrillic glyphs -- so this mount is REQUIRED for readable Bulgarian,
+	// unlike the optional ID audio hook above.
+	// (th4) Ukrainian mounts this SAME pack, for the same reason and with the same
+	// benefit: it rides the Russian Cyrillic font path (see the LANG_UK case in
+	// InitLocalization) and needs those CEL/atlas glyphs, while the missing SFX folder
+	// keeps the ENGLISH voice/sfx instead of the Russian dub. Mounting TH4loc_rus.mor
+	// here instead would drag that dub in, so use the Bulgarian pack.
+	// (th4) NOTE: Japanese is deliberately NOT in this list. BG and UK borrow the
+	// Bulgarian pack because they ride the Russian Cyrillic CEL path; Japanese ships
+	// its own TH4loc_jpn.mor (mounted below) with all three CELs and the CJK grid
+	// sheets, so mounting the Bulgarian pack here would only shadow them.
+	if( GameLanguage == LANG_BG || GameLanguage == LANG_UK )
+		thlocBlgMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_blg.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Indonesian localization audio pack (OPTIONAL). Unlike RU,
+	// the Indonesian build does not ship a dedicated high-priority datafile: a
+	// fully translated retail DIABDAT.MPQ (dropped in the game folder) is picked
+	// up by the engine's normal archive path and needs no code here. This hook is
+	// only for the case where you later want to override select sfx/voice via a
+	// small pack -- drop "TH4loc_id.mor" in the game folder and it is mounted at
+	// 8900 (above TH4data.mor). Absent file => OpenMPQ no-ops, English/base audio.
+	if( GameLanguage == LANG_ID )
+		thlocIdMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_id.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Portuguese localization datafile. Ships override fonts
+	// (smaltext/medtexts/bigtgold.cel with added accented glyphs) under the stock
+	// English filenames, plus UI graphics. Mounted at 8900 (above TH4data.mor 8500)
+	// when language == PT or FR. French reuses the Portuguese font/codepage path
+	// (Codepage_Portuguese + FontIndex*_Portuguese) because those CEL fonts carry
+	// the Latin accent glyphs French needs; without this mount the MID/BIG fonts
+	// would lack accented glyphs in French. Never affects EN/RU/ID/ES.
+	if( GameLanguage == LANG_PT || GameLanguage == LANG_FR || GameLanguage == LANG_DE
+	 || GameLanguage == LANG_NL )	// (th4) German and Dutch reuse the PT/FR accent font pack
+		// (th4) Dutch needs this mount: it declares Codepage_Portuguese and
+		// FontIndex*_Portuguese in Localization.cpp, and those tables point MID/BIG at
+		// frames 67/69/73/86 for e-acute / e-diaeresis / i-diaeresis / u-diaeresis.
+		// Those frames only exist in TH4loc_prt.mor. Without the mount the tables index
+		// into the STOCK English CELs, where those frames are unpainted, so every
+		// "malienkolder", "reeel" and "een" would draw a blank mid-word.
+		thlocPrtMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_prt.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Turkish localization datafile. Ships the PT/FR CEL fonts with
+	// frames 74/87/88 repainted as G-breve / I-dot / S-cedilla, under the STOCK English
+	// filenames, so it shadows them via the archive and no font loader needed changing --
+	// same trick as TH4loc_pol.mor. Mounted at 8900 ONLY when language == TR. Absent file
+	// => OpenMPQ no-ops and the folded glyph tables keep the text readable.
+	// NOTE: take ONLY the three font CELs from the PT pack. Any UI art in TH4loc_prt.mor
+	// with Portuguese words baked in must NOT be copied here.
+	if( GameLanguage == LANG_TR )
+		thlocTurMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_tur.mor", InstallKey, 8900, 0 );
+
+	//----- (th4) ----- Spanish localization datafile. Mounted at 8900 (above
+	// TH4data.mor 8500) ONLY when language == ES, so its contents never affect
+	// EN/RU/ID/PT. Absent file => OpenMPQ no-ops. It holds the Spanish voice dub AND, since 2026-10-07, the
+	// Spanish accent fonts (ctrlpan\\smaltext.cel, data\\medtexts.cel, data\\bigtgold.cel, built with the
+	// FontIndex*_SpanishAccents tables by the loc toolkit, fonts/es_fonts.py). REQUIRED for Spanish text: the ES
+	// font tables point past the stock CELs.
+	if( GameLanguage == LANG_ES )
+		thlocEspMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_esp.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Polish localization datafile. Ships the FULL Polish font set
+	// under the STOCK English filenames (ctrlpan\smaltext.cel, data\medtexts.cel,
+	// data\bigtgold.cel, ui_art\font16/24/30/42 .bin + g/s/y .pcx), so it shadows
+	// them via the archive and NO font loader needed a language branch. Mounted at
+	// 8900 (above TH4data.mor 8500) ONLY when language == PL, so its contents can
+	// never affect EN/RU/ID/PT/ES/IT/FR. Absent file => OpenMPQ no-ops and Polish
+	// falls back to the English fonts (diacritics blank, everything else fine).
+	if( GameLanguage == LANG_PL )
+		thlocPolMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_pol.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Czech localization datafile, the Polish way: everything under the STOCK
+	// filenames. The in-game CEL fonts (ctrlpan\smaltext.cel, data\medtexts.cel,
+	// data\bigtgold.cel) carry the 15 Czech capitals; the meta-menu atlas (ui_art\font16/24/30/42
+	// .bin + g/s/y .pcx) carries the 18 caron/ring letters, upper and lower case, at their CP1250
+	// positions (the acute letters were already there, shared with CP1252). REQUIRED for Czech:
+	// the Czech font tables (dataseg.cpp) point at frames only these CELs have, and the menus
+	// would draw Western letters (e-grave for c-caron...) or blanks without the atlas.
+	// Mounted at 8900 ONLY when language == CS.
+	if( GameLanguage == LANG_CS )
+		thlocCzeMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_cze.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Croatian localization datafile: the same set of files as the Czech pack (in-game
+	// CEL fonts + meta atlas), with C-acute and D-stroke added. REQUIRED for Croatian. Mounted at 8900
+	// ONLY when language == HR.
+	if( GameLanguage == LANG_HR )
+		thlocHrvMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_hrv.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Chinese localization datafile. Ships the CJK fonts under the
+	// STOCK English filenames (ctrlpan\smaltext.cel, data\medtexts.cel,
+	// data\bigtgold.cel), so it shadows them via the archive and NO font loader
+	// needed a language branch. Each CEL keeps frames 0..255 = the original base
+	// font (Latin pixel-identical) and appends GB2312 CJK at frames 256..7023, so
+	// letterID = 257 + gbIndex. Mounted at 8900 (above TH4data.mor 8500) ONLY when
+	// language == CHI, so its contents can never affect EN/RU/ID/PT/ES/IT/FR/PL.
+	// Absent file => OpenMPQ no-ops and Chinese falls back to the English fonts.
+	if( GameLanguage == LANG_CHI )
+		thlocChiMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_chi.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Korean localization datafile. Same arrangement as the Chinese pack:
+	// the three in-game CELs ship under the STOCK English filenames (CtrlPan\SmalText.CEL,
+	// Data\MedTextS.CEL, Data\BigTGold.CEL) so they shadow TH4data.mor via the archive and NO
+	// font loader needed a language branch. Each CEL keeps frames 0..255 = the original base
+	// font (Latin pixel-identical) and appends EUC-KR Hangul from frame KOR_FIRST_ID, so
+	// letterID = 257 + korIndex. The META-menu sheets are the exception: they use NEW names
+	// (ui_art\font16k/24k/30k .pcx + .wid) because the 94-column grid needs LoadKorSheet(),
+	// exactly as the Chinese sheets need LoadChiSheet(). Mounted at 8900 (above TH4data.mor
+	// 8500) ONLY when language == KO, so its contents can never affect any other language.
+	// Absent file => OpenMPQ no-ops and Korean falls back to the English fonts.
+	if( GameLanguage == LANG_KO )
+		thlocKorMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_kor.mor", InstallKey, 8900, 0 );
+	//----- (th4) ----- Japanese localization datafile. Third member of the CJK family and
+	// arranged exactly like the Chinese and Korean packs: the three in-game CELs ship under
+	// the STOCK English filenames (CtrlPan\SmalText.CEL, Data\MedTextS.CEL, Data\BigTGold.CEL)
+	// so they shadow TH4data.mor and NO font loader needs a language branch. Frames 0..255 stay
+	// the base Latin font and EUC-JP kana/kanji are appended from JA_FIRST_ID, so
+	// letterID = 257 + jaIndex. Encoding is EUC-JP, NOT Shift-JIS -- Shift-JIS lead bytes
+	// 0x81..0x9F collide with the colour-control window 0x80..0x8B (see vars.h). Mounted at
+	// 8900 (above TH4data.mor 8500) ONLY when language == JA, so its contents can never affect
+	// any other language. Absent file => OpenMPQ no-ops and Japanese falls back to the English
+	// fonts, which is also what happens while the pack still carries only source art.
+	if( GameLanguage == LANG_JA )
+		thlocJpnMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_jpn.mor", InstallKey, 8900, 0 );
+
+	// (th4) Arabic. Same shape as Japanese: its own pack, mounted at 8900 only when the
+	// language is AR, so nothing else can ever see it. The pack carries the three stock-named
+	// CELs plus 94-column grid sheets for font16/24/30/42 in gold and silver, and a .wid per
+	// size -- the .wid matters more here than for CJK because Arabic is drawn PROPORTIONALLY:
+	// the cells are fixed width so the frames line up, but the advance comes from the real ink
+	// width or joined script reads as spaced-out capitals.
+	if( GameLanguage == LANG_AR )
+		thlocAraMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_ara.mor", InstallKey, 8900, 0 );
+
+	// (th4) Hindi. Same shape again, but the pack it carries is built differently: the
+	// text in LocalizationHIN.cpp is PRE-SHAPED (see vars.h), so what the sheets hold is
+	// one image per Devanagari CLUSTER, not per letter -- roughly 1200 cells across 20
+	// lead rows instead of Arabic's 188 across two. The .wid files matter for the same
+	// reason as Arabic: the advance is proportional, because a bare consonant and one
+	// carrying a left matra differ by about half a cell.
+	if( GameLanguage == LANG_HIN )
+		thlocHinMPQPtr = OpenMPQ( MpqPath_7, "\\TH4loc_hin.mor", InstallKey, 8900, 0 );
 	SFileEnableDirectAccess( 1 ); // allow loose files in game folder to override MPQ content
 }
 
-// потом в storm.dll перебираются все открытые mpq каждый раз по очереди
-// и во всех ищется каждый загружаемый файл
-// интересно переписана ли SFileOpenArchive в stormlib
-// по хорошему надо передалать в возврат MPQ* 
+// (rt) then storm.dll goes through all open mpqs in turn every time
+// (rt) and looks for every loaded file in all of them
+// (rt) check whether SFileOpenArchive was rewritten in stormlib
+// (rt) ideally this should be reworked to return MPQ* 
 //----- (0041DA2C) --------------------------------------------------------
 char* __fastcall OpenMPQ(char (&dest)[MAX_PATH], char* edx0, char* aRegistryKey, int mpqId, int a3)
 {
@@ -419,13 +561,13 @@ void GetGameVersion()
 	uint getExe = TRUE;
 	getExe = GetModuleFileNameA( HInstance, ThFilePath, 260 );
 	if( getExe ){
-		// тут рассинхронизация
-		// в TH2 возвращается размер 1500 байт на информацию о версии из th2-debug.dll
-		// в TH 1 AllocMem не вызывается
+		// (rt) desynchronization here
+		// (rt) in TH2 a size of 1500 bytes is returned for the version information from th2-debug.dll
+		// (rt) AllocMem is not called in TH 1
 		v0 = GetFileVersionInfoSizeA(ThFilePath, &dwHandle);
-		// в старых версиях TH хранилась информация о версии программы (The Hell, 1.0.0.0, Synergistic Software, 98.1.13.1, 2007)
-		// в последнем все версионные данные в стандартном разделе экзешника удалены
-		// теперь кнопка V дает в игре своп оружия а не отображение версии, это может быть связано
+		// (rt) old TH versions stored the program version information (The Hell, 1.0.0.0, Synergistic Software, 98.1.13.1, 2007)
+		// (rt) in the latest one all version data in the standard exe section was removed
+		// (rt) the V key now swaps weapons in game instead of showing the version; this may be related
 		v1 = v0;
 		if( v0 ){
 			v3 = AllocMem(v0);
@@ -505,9 +647,16 @@ void SetBackgroundFps()
 void __fastcall ActivateWindow(HWND hWnd, WPARAM wParam)
 {
 	IsMainWindowActive = wParam;
+	// (th4) 2026-09-10 Phase 0 diagnostics (MP "New Game" crash follow-up):
+	// correlate device-lost episodes with the window losing/regaining
+	// activation. Compiled out unless TH4_D3D_DIAG_ENABLED is defined; the
+	// runtime side additionally needs "d3d_diag_on.flag" (same gate as the
+	// other D3DDIAG lines in dx_utility.cpp / dx.cpp).
+	D3DDIAG("WM_ACTIVATEAPP: active=%d fg=%p main=%p minimized=%d",
+		(int)wParam, (void*)GetForegroundWindow(), (void*)ghMainWnd, (int)IsMainWindowMinimized);
 	SetBackgroundFps();
-	UiAppActivate(wParam); // в текущей версии th.dll/hell2.dll это пустая фукнция (ret)
-	//в оригинале отключалось системное меню у активного окна
+	UiAppActivate(wParam); // (rt) in the current th.dll/hell2.dll version this is an empty function (ret)
+	//(rt) the original disabled the active window's system menu
 	#ifdef NOSYSMENU
 	long style = GetWindowLongA(hWnd, GWL_STYLE);
 	#endif
@@ -569,7 +718,7 @@ int __stdcall CallHandler1IfExists(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 		PrevRestrictState = false;
 		return DefaultHandler( hWnd, msg, wParam, lParam );
 	}
-	if( msg == WM_EXITSIZEMOVE ){ // Запоминаем позицию окна
+	if( msg == WM_EXITSIZEMOVE ){ // (rt) Remember the window position
 		IsSizingWindow = false;
 		PrevRestrictState = false;
 		if( ! IsFullScreen ){
@@ -583,7 +732,7 @@ int __stdcall CallHandler1IfExists(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 		}
 		return DefaultHandler( hWnd, msg, wParam, lParam );
 	}
-	// отслеживание размера окна и возврат его 
+	// (rt) tracking the window size and restoring it 
 	if( msg == WM_SIZE ){
 		IsMainWindowMinimized = wParam == SIZE_MINIMIZED;
 		SetBackgroundFps();
@@ -610,7 +759,7 @@ int __stdcall CallHandler1IfExists(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 		PrevRestrictState = false;
 		return DefaultHandler( hWnd, msg, wParam, lParam );
 	}
-	// показа/убирание курсора для работы с окном
+	// (rt) showing/hiding the cursor for window interaction
 	if( IsInterface && !IsFullScreen && gbRunGame){
 		if( msg == WM_NCHITTEST ){
 			int hit = DefaultHandler( hWnd, msg, wParam, lParam );

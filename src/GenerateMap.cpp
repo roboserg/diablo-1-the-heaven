@@ -320,7 +320,7 @@ StrangeCataPattern StrangeCataPatterns[2] = {
 	{9, 3, 0, 3, CATA_WAFM_48, 0, CATA_WAFM_50}
 };
 
-char CataTilesVariationsTable[161] = {// может даже 160
+char CataTilesVariationsTable[161] = {// (rt) may even be 160
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,// 0 
 	0, 0, 0, 0, 0, 0, 0, 17, 18, 1, // 10
 	1, 2, 2, 1, 1, 1, 1, 1, 1, 2, // 20
@@ -335,7 +335,7 @@ char CataTilesVariationsTable[161] = {// может даже 160
 	0, 3, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-char SomeCataTilesTypes[161] = {// может даже 160
+char SomeCataTilesTypes[161] = {// (rt) may even be 160
 	0, 1, 2, 3, 0, 0, 6, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 	2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 6, 6, 6, 9,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0,
@@ -1439,9 +1439,9 @@ int SomeRowArray[5] = {0, 0, 1, 0,-1};
 int SomeColArray[5] = {0,-1, 0, 1, 0};
 //================================================================
 char CaveLinkedFloorCheckMap[ 40 ][ 40 ];
-int LinkedFloorTilesCount;// временная карта используемая для проверки связанности бинарного паттерна
+int LinkedFloorTilesCount;// (rt) temporary map used to check the connectivity of the binary pattern
 char MaybeHasLavaTiles;
-int MapSize;// только присваивается 112, но не используется
+int MapSize;// (rt) only ever assigned 112, never used
 
 uchar CaveOrientedWallsAndCorner[] = {
 	CAVE_WAFM_8_BEYOND, CAVE_WAFM_11_CORNER_IN_UP, CAVE_WAFM_3_CORNER_IN_RIGHT, CAVE_WAFM_10_SWALL_M_MIDLE, 
@@ -1766,7 +1766,7 @@ uchar PatMap1x1_48A66C_FLOOR_VARIATION_3[] = {1, 1, CAVE_WAFM_7_FLOOR, CAVE_WAFM
 uchar PatMap1x1_48A670_SWALL_UNM_MIDDLE_VARIATION[] = {1, 1, CAVE_WAFM_9_SWALL_UNM_MIDDLE, CAVE_WAFM_109_SWALL_UNM_MIDDLE_VARIATION	 };
 uchar PatMap1x1_48A674_SWALL_M_MIDLE_VARIATION[] = {1, 1, CAVE_WAFM_10_SWALL_M_MIDLE, CAVE_WAFM_110_SWALL_M_MIDLE_VARIATION	 };
 
-// дальше бездновые шаблоны
+// (rt) what follows are the non-abyss templates
 
 uchar PatMap1x1_48A76C_ABYSS[] = {1, 1, CAVE_WAFM_8_BEYOND, CAVE_WAFM_25_LAVA	 };
 uchar PatMap1x1_48A770_ABYSS[] = {1, 1, CAVE_WAFM_8_BEYOND, CAVE_WAFM_26_LAVA	 };
@@ -2157,13 +2157,13 @@ uchar HellTilesVariationsTable[] = {
 // ║                           jmp inline chunks                                 ║
 // ╚═════════════════════════════════════════════════════════════════════════════╝
 
-// новая функция для часто встречающейся проверки
+// (rt) new function for a frequently repeated check
 __forceinline bool IsWoodWall(uchar wafm)
 {
 	return InSegment(wafm, CAVE_WAFM_130_WOOD_WALL_CORNER_UNM_STONE_M_WOOD, CAVE_WAFM_152_WOOD_WALL);
 }
 
-// новая функция. Для небольшого снижения дублирования кода
+// (rt) new function, to reduce code duplication a little
 __forceinline bool IsMainDiagonalNearDoorTile(uchar wafm)
 {
 	return  wafm == CAVE_WAFM_130_WOOD_WALL_CORNER_UNM_STONE_M_WOOD
@@ -2175,7 +2175,7 @@ __forceinline bool IsMainDiagonalNearDoorTile(uchar wafm)
 		|| wafm == CAVE_WAFM_140_WOOD_WALL_BROKEN_WOOD_CORNER;
 }
 
-// новая функция. Для небольшого снижения дублирования кода
+// (rt) new function, to reduce code duplication a little
 __forceinline bool IsUnmainDiagonalNearDoorTile(uchar wafm)
 {
 	return  wafm == CAVE_WAFM_131_WOOD_WALL_CORNER_M_STONE_UNM_WOOD
@@ -2204,14 +2204,24 @@ void ClearAllMaps()
 	memzero(MissilesMap);
 	memzero(ArchGraphicsMap);
 	int darkLevel;
-	if( FullLighting ){         //  полностью освещаем уровень
+	if( FullLighting ){         //  (rt) fully light the level
 		darkLevel = 0;
-	}else if( Light4Levels ){ // нормальное освещение
+	}else if( Light4Levels ){ // (rt) normal lighting
 		darkLevel = 3;
-	}else{                      // полная темнота
+	}else{                      // (rt) complete darkness
 		darkLevel = 15;
 	}
 	memset( LightMap, darkLevel, sizeof( LightMap ) );
+	// (th4): seed StaticLightMap with the level's base darkness. SavePreLighting() existed
+	// for exactly this but had NO callers -- the call was evidently lost during lighting
+	// rework. Without it, StaticLightMap holds zeros (0 = FULLY LIT) or stale data from a
+	// previous level, and every DoUnLight() -- the "erase light from its old cell" step of
+	// ProcessLightList(), run for EVERY light that moves or goes off -- restores that
+	// garbage instead of darkness. That is the root of the misplaced/glitching light family
+	// (boss lights, warp light leftovers, etc). ClearAllMaps() is the single choke point
+	// every generation path goes through, so one call here covers all of them. On save
+	// load this seed is simply overwritten by the StaticLightMap stored in the save.
+	SavePreLighting();
 }
 
 //----- (0040BAFD) --------------------------------------------------------
@@ -2259,6 +2269,10 @@ void __fastcall LoadQuestDungeonMainMapChurch(char* dunFileName, int playerRowPo
 	}
 	AddQuestMonsters((ushort*)dunData, 0, 0);
 	SetMapObjects((int)dunData, 0, 0);
+	// Geometry-derived wall transparency for every church quest map (randomized layouts,
+	// expanded rooms). Replaces the need for per-map MapAreas* rectangles.
+	InitChurchWallsTransparency();
+	ChurchSetAdditionalWallsTransparency(); 
 	FreeMem(dunData);
 }
 
@@ -2283,7 +2297,7 @@ void InitLevelTiles( int beyondTileNum )
 	TileSquare* currentLevelTilesFile = (TileSquare*)CurrentLevelTilesFile;
 	TileSquare& beyondTile = currentLevelTilesFile[ beyondTileNum -1 ];
 
-	// заполняем всю карту тайлами бейонда
+	// (rt) fill the whole map with Beyond tiles
 	for( int col = 0; col < 112; col += 2 ){
 		for( int row = 0; row < 112; row += 2 ){
 			Cell fine(FineMap, row, col);
@@ -2294,7 +2308,7 @@ void InitLevelTiles( int beyondTileNum )
 		}
 	}
 
-	// проходим по всем клеткам и заполняем их значениями из загруженного TIL файла
+	// (rt) walk every cell and fill it with values from the loaded TIL file
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			uchar wafm = Map[ row ][ col ];
@@ -2385,7 +2399,7 @@ void __fastcall LoadQuestDungeonAltMapChurch( char* fileName, int a2, int a3 )
 
 	RandomizeChurchFloorTiles();
 
-	//комприлятор сам оптимизирует такое в memcpy( AltMap, Map, sizeof( Map ) )
+	//(rt) the compiler optimizes this into memcpy( AltMap, Map, sizeof( Map ) ) by itself
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			AltMap[ row ][ col ] = Map[ row ][ col ];
@@ -2399,7 +2413,7 @@ void __fastcall LoadQuestDungeonAltMapChurch( char* fileName, int a2, int a3 )
 void __fastcall CreateChurchTypeLabyrinth(int levelRandomSeed, int lvlDir) // CreateL5Dungeon
 {
 	SetRndSeed(levelRandomSeed);
-	// оптимизировать генерацию уровней можно всегда
+	// (rt) level generation can always be optimized
 	// TODO: check this WFT for possible endless loop and actual needing
 	if( true /*IsExeValidating*/ && StartLevelSeed[ DUN_0_TOWN ] == RandomSeed && MatchLevelSeed[ (DUNGEON)Dungeon ] ){
 		RandomSeed = MatchLevelSeed[ (DUNGEON)Dungeon ];
@@ -2496,7 +2510,8 @@ void LoadQuestPatterns() // PlaceQuestMonsters
 	if( IsPinkyOnLevel()                         ) QuestPatterns.emplace_back("Levels\\L2Data\\pinkyRoom.DUN",         0, 0, Q_NO);
 	if( IsCeromorthOnLevel()                     ) QuestPatterns.emplace_back("levels\\l2data\\Ceromorth.dun",         0, 0, Q_NO);
 	if( IsQuestOnLevel(Q_31_GOOD_DEAL)           ) QuestPatterns.emplace_back("Levels\\L2Data\\VaultKeepEntry.DUN",    0, 0, Q_31_GOOD_DEAL);
-
+	if( IsQuestOnLevel(Q_39_VALOR_MP)			 ) QuestPatterns.emplace_back("Levels\\L2Data\\blood_MP_Ntree.dun",	   0, 0, Q_39_VALOR_MP);
+	
 	// Hell
 	if( IsQuestOnLevel(Q_11_WARLORD_OF_BLOOD)    ) QuestPatterns.emplace_back(GameMode == GM_CLASSIC ? "Levels\\L4Data\\Warlord_CL.DUN" : "Levels\\L4Data\\Warlord.DUN",           0, 0, Q_11_WARLORD_OF_BLOOD);
 	if( IsQuestOnLevel(Q_21_THE_CURSED_BLADE)    ) QuestPatterns.emplace_back("levels\\l4data\\FDEntry.dun",           6, 5, Q_21_THE_CURSED_BLADE);
@@ -2512,7 +2527,9 @@ void LoadQuestPatterns() // PlaceQuestMonsters
 	if( IsQuestOnLevel(Q_20_SUNLESS_SEA)         ) QuestPatterns.emplace_back(IslandPattern,                           5, 5, Q_20_SUNLESS_SEA, QP_PORTAL);
 	if( IsQuestOnLevel(Q_29_IRON_FIGURINE)       ) QuestPatterns.emplace_back(SwampPattern,                            6, 5, Q_29_IRON_FIGURINE);
 	if( IsQuestOnLevel(Q_30_DEMON_PLAGUE)        ) QuestPatterns.emplace_back(GrottoPattern,                           6, 6, Q_30_DEMON_PLAGUE);
-	if( IsQuestOnLevel(Q_36_CLEAR_WATER)         ) QuestPatterns.emplace_back(SwampPattern,                            6, 5, Q_36_CLEAR_WATER, QP_NEW);
+	if( IsQuestOnLevel(Q_36_CLEAR_WATER)         ) QuestPatterns.emplace_back(SwampPattern,                            6, 5, Q_36_CLEAR_WATER, QP_NEW); 
+	if (IsQuestOnLevel(Q_40_SECRETS_OF_MAGIC)	 ) QuestPatterns.emplace_back(SwampPattern,							   6, 5, Q_40_SECRETS_OF_MAGIC, QP_NEW);
+
 
 	#if 0
 	if (Dungeon == DUN_2_CHURCH_2 && is(GameMode, GM_IRONMAN, GM_SPEEDRUN) && MaxCountOfPlayersInGame == 1) {
@@ -2546,9 +2563,9 @@ void InitHellfireArchs()
 	}
 }
 
-// новые массивы для оптимизации генерации уровня, их можно дополнительно сохранять в запись
-// тогда полная генерация будет выполняться только один раз и "подходящий" seed будет запоминаться
-// захардкоденные значения проверенны для тестовой записи вручную
+// (rt) new arrays to speed up level generation; they could also be stored in the save
+// (rt) then the full generation would run only once and the "good" seed would be remembered
+// (rt) the hard-coded values were checked by hand against a test save
 int StartLevelSeed[ DungeonCount ] = {
 	/*  0 */ 0, 
 	/*  1 */ 0, 
@@ -2604,32 +2621,63 @@ int MatchLevelSeed[ DungeonCount ] = {
 	/* 24 */ 0
 };
 
+// Outbreak timers
+int OutbreakState = 0;
+int OutbreakWave = 1;
+int OutbreakSpawned = 0;
+int OutbreakPauseTimer = 0;
+int OutbreakSpawnTimer = 0;
+
 //----- (0040C07F) --------------------------------------------------------
 void __fastcall ChurchLevelGeneration(int lvlDir) // DRLG_L5
 {
+	// (rt) Outbreak: load the arena instead of a normal level
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+		// (rt) Load the map (it adds the monsters from the DUN file)
+		LoadQuestDungeonMainMapChurch("Levels\\L1Data\\ob_01.DUN", 40, 40);
+
+		LoadPalette("Levels\\L1Data\\L1_1.pal");
+		AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
+		PlayerRowPos = 23;
+		PlayerColPos = 28;
+				
+		// (rt) Remove procedural monsters but keep the ones from the DUN file
+		// (rt) For that we need to know how many monsters the DUN file added.
+		// (rt) Simplest way: reload the monsters from the DUN file.
+
+		// (rt) Remember how many monsters there were BEFORE the procedural ones were added
+		// (rt) But the procedural ones are added AFTER this function returns.
+		// (rt) So procedural generation has to be prevented.
+
+		// (rt) Set a flag that the level is already fully loaded
+		// (rt) Main.cpp has a variable "levelGenerated" or similar
+
+		return;
+	}
+
 	int isGenerationEnd;
 	int maxLevelArea;
-	switch( (DUNGEON)Dungeon ){ //Площадь подземелья зависит от этажа
+	switch( (DUNGEON)Dungeon ){ //(rt) The dungeon's area depends on the floor
 	case DUN_1_CHURCH_1: maxLevelArea = 533; break; //(L5DUNX*L5DUNY)/3;
 	case DUN_2_CHURCH_2: maxLevelArea = 693; break; //((L5DUNX*L5DUNY)/3) + ((L5DUNX*L5DUNY)/10);
 	default:             maxLevelArea = 761; break; //((L5DUNX*L5DUNY)/3) + ((L5DUNX*L5DUNY)/7); and crypt levels
 	}
 	do{
 		ClearWarps();
-		//Обнуляет значения в HallMap и TransparentModes, а также устанавливает WallTransparentIndex = 1
+		//(rt) Clears HallMap and TransparentModes and sets WallTransparentIndex = 1
 		ClearWallsTransparency();
-		//Генерация бинарного паттерна подземелья (только стены(0) и пол(1))
-		//Выполняется пока не будет достигнута нужная площадь (площадь равна сумме клеток со значением 1 (пол))
+		//(rt) Generate the dungeon's binary pattern (walls only (0) and floor (1))
+		//(rt) Runs until the required area is reached (area = number of cells with value 1 (floor))
 		int levelSeed = 0;
 		do{
 			levelSeed = RandomSeed;
-			ClearGenerationMap(); //заполняем нулями карту
-			ConstructChurchRooms(); //строим бинарный паттерн
+			ClearGenerationMap(); //(rt) zero the map
+			ConstructChurchRooms(); //(rt) build the binary pattern
 		}while( AreaOfLevelRoomsChurch() < maxLevelArea );
 		if( ! MatchLevelSeed[ (DUNGEON)Dungeon ] && StartLevelSeed[ (DUNGEON)Dungeon ] ){
 			MatchLevelSeed[ (DUNGEON)Dungeon ] = levelSeed;
 		}
-		//Копирует бинарный паттерн 40х40 в массив 80х80 (1 клетка исходного массива заполняет 4 клетки в целевом)
+		//(rt) Copies the 40x40 binary pattern into the 80x80 array (1 source cell fills 4 target cells)
 		CopyChurchInitalRoomsScheme();
 		InitChurchWallAndFloorMapFromBynaryPattern();
 		SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall();
@@ -2651,21 +2699,21 @@ void __fastcall ChurchLevelGeneration(int lvlDir) // DRLG_L5
 		}
 		ClearWallFlagMapBit7();
 		InitChurchWallsTransparency();
-		//ниже GeneratePatternObject расставляет специфические тайлы или целые паттерны этих тайлов, которые являются объектами:
-		//лестницы между этажами, различные декорации вроде факелов и проломов в стенах и так далее.
+		//(rt) below, GeneratePatternObject places specific tiles or whole patterns of tiles that are objects:
+		//(rt) stairs between levels, various decorations such as torches and holes in walls, and so on.
 		isGenerationEnd = 1;
 		bool goFromUp = lvlDir == LVL_0_DOWN;
 		bool goFromDown = lvlDir == LVL_1_UP;
 		bool goFromTown = lvlDir >= LVL_2_SET; // TODO: check this out
-		//-------Квест об отравленном источнике-------------------------------------
+		//(rt) -------Poisoned Water Supply quest-------------------------------------
 		if( Dungeon == DUN_1_CHURCH_1 && MaxCountOfPlayersInGame == 1 && is(GameMode, GM_IRONMAN, /*GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_NIGHTMARE, */ GM_SURVIVAL)
 		 || IsQuestOnLevel(Q_13_POISONED_WATER_SUPPLY) ){
-			if( GenerateChurchPatternObject(PatMap6x6_WaterSupplyEnter, 1, 1, 0, 0, goFromUp, -1, 0) < 0 ){ // вход в отравленный источник
+			if( GenerateChurchPatternObject(PatMap6x6_WaterSupplyEnter, 1, 1, 0, 0, goFromUp, -1, 0) < 0 ){ // (rt) entrance to the poisoned water supply
 				isGenerationEnd = 0;
 			}
 			if( goFromUp ) --PlayerColPos;
 		}
-		//-------Квест об украденном знаке таверны Огдена-------------------------------------
+		//(rt) -------Ogden's stolen tavern sign quest-------------------------------------
 		if( IsQuestOnLevel(Q_7_OGDENS_SIGN) ){
 			MatchLevelSeed[ (DUNGEON)Dungeon ] = 0; // TODO: check WTF is this
 			if( GenerateChurchPatternObject(PatMap4x4_ChurchPassageUp, 1, 1, 0, 0, goFromUp, -1, 0) < 0 ){
@@ -2720,9 +2768,9 @@ void __fastcall ChurchLevelGeneration(int lvlDir) // DRLG_L5
 		}
 	}while( !isGenerationEnd ); // End of room map generation
 	IronManMemorialFlag = false;
-	// если клетка CHR_WAFM_64_CHURCH_LEDDER_TO_UP_2 то копируется принадлежность комнате на соседние клетки
-	// breakpoint для сверки после успешной генерации карты уровня
-	// точка сверки без оптимизации MatchLevelSeed - 10592019, c оптимизацией - 46909
+	// (rt) if the cell is CHR_WAFM_64_CHURCH_LEDDER_TO_UP_2, its room ownership is copied to the neighbouring cells
+	// (rt) breakpoint for comparison after a successful level map generation
+	// (rt) comparison point: without optimization MatchLevelSeed - 10592019, with optimization - 46909
 	for( int col40 = 0; col40 < Map_40; col40++ ){
 		for( int row40 = 0; row40 < Map_40; row40++ ){
 			if( Map[ row40 ][ col40 ] == CHR_WAFM_64_CHURCH_LEDDER_TO_UP_2 ){
@@ -2733,25 +2781,25 @@ void __fastcall ChurchLevelGeneration(int lvlDir) // DRLG_L5
 			}
 		}
 	}
-	//опять авто тайлинг продолжается
-	ChurchSetAdditionalWallsTransparency();// изменить принадлежность Beyond тайлов примыкающих к комнате на принадлежность к комнате
+	//(rt) auto-tiling continues again
+	ChurchSetAdditionalWallsTransparency();// (rt) change ownership of Beyond tiles adjoining a room to that room
 	SomeConvertChurchAndCryptWalls();
-	SomeMoreChurchWallsConvert(); // осталась не переписанной. За 20+ генераций не разу не выполнились все её условия. 
-	//А так как она ничего не меняет, её невозможно тестировать. 
+	SomeMoreChurchWallsConvert(); // (rt) left un-rewritten. In 20+ generations all of its conditions were never met at once. 
+	//(rt) And since it changes nothing, it cannot be tested. 
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
-			if( FixedMap[ row ][ col ] & FF_FIXED_MASK ){// проверить последние 7 бит
-				ChurchPlaceDoorTiles(row, col);// поставить тайлы с дверями
+			if( FixedMap[ row ][ col ] & FF_FIXED_MASK ){// (rt) check the last 7 bits
+				ChurchPlaceDoorTiles(row, col);// (rt) place door tiles
 			}
 		}
 	}
 	if( Dungeon < DUN_21_CRYPT_1 ){//Diablo Original
-		ChurchTilesVariationsChange();// у тех тайлов у которых есть несколько вариантов есть 25 на случайное изменение
-		InitChurchStaticShadows();// расставить статические тени
-		GenerateChurchPatternObject(PatMap2x2_ChurchOnFloorTorch, 5, 10, 0, 0, 0, -1, 4);// всё ясно и без комментария. Поставить от 5 до 10 лампочек
-		RandomizeChurchFloorTiles(); // все клетки которые всё ещё остались полом проходятся и каждой выбирается 1 из 3х вариаций
+		ChurchTilesVariationsChange();// (rt) tiles that have several variants get a 25% chance of a random change
+		InitChurchStaticShadows();// (rt) place static shadows
+		GenerateChurchPatternObject(PatMap2x2_ChurchOnFloorTorch, 5, 10, 0, 0, 0, -1, 4);// (rt) self-explanatory. Place 5 to 10 lamps
+		RandomizeChurchFloorTiles(); // (rt) every cell that is still floor is visited and gets 1 of 3 variations
 	}else{ //Hellfire
-		//расстановка объектов и декорация для уровней Хэлфайера
+		//(rt) placement of objects and decoration for Hellfire levels
 		if( Dungeon->graphType == DT_5_CRYPT ){ // crypt
 			PlaceSomeCryptPatterns_1(10);
 			PlaceCryptPatternOnMap(CryptArcLeft, 95);
@@ -3071,7 +3119,7 @@ LABEL_63:
 //----- (0040CA03) --------------------------------------------------------
 void InitChurchStaticShadows()
 {
-	// расстановка тайлов с нарисованными тенями. Алгоритм так и не понял
+	// (rt) placement of tiles with painted shadows. Never figured out the algorithm
 	for( int col = 0; col < Map_40 - 1; col++ ){
 		for( int row = 0; row < Map_40 - 1; row++ ){
 			Cell c(Map, row, col);
@@ -3109,7 +3157,7 @@ void InitChurchStaticShadows()
 		}
 	}
 
-	// правка теней для решётчатых стен
+	// (rt) shadow fix for lattice walls
 	for( int col = 0; col < Map_40 - 1; col++ ){
 		for( int row = 0; row < Map_40 - 1; row++ ){
 			Cell c(Map, row, col);
@@ -3149,7 +3197,7 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 	char* beforePattern = (char*)&patternPtr[2];
 	char* afterPattern = beforePattern + patternRowSize * patternColSize;
 
-	//здесь определяется сколько копий объекта понатыкать на карте
+	//(rt) this decides how many copies of the object to scatter over the map
 	int numberOfPatternsToPlace;
 	if( maxPatternsToPlace - minPatternsToPlace ){
 		numberOfPatternsToPlace = RNG(maxPatternsToPlace - minPatternsToPlace) + minPatternsToPlace;
@@ -3157,7 +3205,7 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 		numberOfPatternsToPlace = 1;
 	}
 
-	//уменьшаем зону поиска места для установки объекта учитывая его размеры (чтобы не выскочил за пределы массива)
+	//(rt) shrink the search area for placing the object by its size (so it doesn't go out of the array)
 	int mapRowsLimit = 40 - patternRowSize;
 	int mapColumnsLimit = 40 - patternColSize;
 
@@ -3178,17 +3226,17 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 				col++;
 				continueFlag = 0;
 			}
-			// проверка на соответствие паттерну
+			// (rt) pattern match check
 			for( int colOffset = 0; colOffset < patternColSize && continueFlag; colOffset++ ){
 				for( int rowOffset = 0; rowOffset < patternRowSize && continueFlag; rowOffset++ ){
 					uchar neededTile = beforePattern[colOffset*patternRowSize+rowOffset];
 					if( (neededTile && (Map[row+rowOffset][col+colOffset] != neededTile)) || FixedMap[row+rowOffset][col+colOffset] ){
-						continueFlag = 0; //бида бида, паттерн не соблюдается, надо искать другое место
+						continueFlag = 0; //(rt) the pattern does not match; try another position
 					}
 				}
 			}
 			if( continueFlag ){
-				//матерь божья, мы нашли подходящее место для установки объекта, копируем ка его паттерн быстренько на карту
+				//(rt) found a suitable place for the object, copy its pattern onto the map
 				for( int colOffset = 0; colOffset < patternColSize; colOffset++ ){
 					for( int rowOffset = 0; rowOffset < patternRowSize; rowOffset++ ){
 						uchar newTile = afterPattern[colOffset*patternRowSize+rowOffset];
@@ -3199,7 +3247,7 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 				}
 				isPatternPlaced = true;
 			}
-			// следующая клетка
+			// (rt) next cell
 			if( !isPatternPlaced ){
 				if( ++row == mapRowsLimit ){
 					row = 0;
@@ -3208,19 +3256,19 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 					}
 				}
 				tryesCounter++;
-				//после 4000 фэйлов в поиске подходящего места просто выходим, ну его нафиг
+				//(rt) give up after 4000 failed placement attempts
 				if( tryesCounter > 4000 ){
 					return -1;
 				}
 			}
 		}while( !isPatternPlaced);
 	}
-	// вход в отравленный колодец помечаем как принадлежащий комнате 0
+	// (rt) mark the poisoned well entrance as belonging to room 0
 	if( patternPtr == PatMap6x6_WaterSupplyEnter ){
-		int wallTransIndex = TransValue; //запоминаем
+		int wallTransIndex = TransValue; //(rt) remember
 		TransValue = 0;
 		SetAreaTransparencyByIndex_40(row, col + 2, row + 5, col + 4);
-		TransValue = wallTransIndex; //восстанавливаем
+		TransValue = wallTransIndex; //(rt) restore
 		Quests[Q_13_POISONED_WATER_SUPPLY].row = Convert40to112(row) + 5;
 		Quests[Q_13_POISONED_WATER_SUPPLY].col = Convert40to112(col) + 6;
 		if( ! IsQuestOnLevel(Q_13_POISONED_WATER_SUPPLY) ){
@@ -3228,7 +3276,7 @@ int __fastcall GenerateChurchPatternObject( uchar* patternPtr, int minPatternsTo
 			AddWarp(Convert40to112(row) + 5, Convert40to112(col) + 6, WM_1029_GOTO_QUEST_DUNGEON, DUN_60_HAUNTED_LABYRINTH);
 		}
 	}
-	//перемещаем стартовую точку игрока поближе к созданному объекту (как правило это делается для лестницы)
+	//(rt) move the player's start point closer to the created object (usually done for stairs)
 	if( resetPlayerPosition == 1 ){
 		PlayerRowPos = Convert40to112(row) + 3; // 2 * row + 19 
 		PlayerColPos = Convert40to112(col) + 4;	// 2 * col + 20 
@@ -3384,7 +3432,7 @@ void __fastcall RecursiveChurchRoomsConstruct( int startRow, int startCol, int r
 			int halfOfCurRectRows = curRectRows / 2;
 			int tryesCount = 0;
 			do{
-				leftRectRows = (RNG(5)+2) & ~BIT(1);// округление до меньшего четного
+				leftRectRows = (RNG(5)+2) & ~BIT(1);// (rt) round down to the nearest even number
 				leftRectCols = (RNG(5)+2) & ~BIT(1);
 				leftRectRow = halfOfCurRectRows + curRectRow - leftRectRows / 2;
 				leftRectCol = curRectCol - leftRectCols;
@@ -3621,10 +3669,10 @@ int __fastcall ChurchCountWallInColFrom( int row, int col )
 //----- (0040D6DC) --------------------------------------------------------
 void __fastcall ChurchSetVerticalWall(int startRow, int startCol, char startWallType, int wallsCount)
 {
-	char wallType = CHR_WAFM_2_SWALL_M_MIDLE;// сплошная стена
+	char wallType = CHR_WAFM_2_SWALL_M_MIDLE;// (rt) solid wall
 	switch( RNG(4) ){
 	case 2:
-		wallType = CHR_WAFM_12_M_ARCH_MIDDLE;// сплошная арка
+		wallType = CHR_WAFM_12_M_ARCH_MIDDLE;// (rt) solid arch
 		if( startWallType == CHR_WAFM_2_SWALL_M_MIDLE ){
 			startWallType = CHR_WAFM_12_M_ARCH_MIDDLE;
 		}
@@ -3633,7 +3681,7 @@ void __fastcall ChurchSetVerticalWall(int startRow, int startCol, char startWall
 		}
 		break;
 	case 3:
-		wallType = CHR_WAFM_36_BARS_M_MIDDLE;// решётчатая стена. простреливаемая но не проходимая
+		wallType = CHR_WAFM_36_BARS_M_MIDDLE;// (rt) lattice wall: can be shot through but not walked through
 		if( startWallType == CHR_WAFM_2_SWALL_M_MIDLE ){
 			startWallType = CHR_WAFM_36_BARS_M_MIDDLE;
 		}
@@ -3646,14 +3694,14 @@ void __fastcall ChurchSetVerticalWall(int startRow, int startCol, char startWall
 	for( int rowOffset = 1; rowOffset < wallsCount; rowOffset++ ){
 		Map[ startRow + rowOffset ][ startCol ] = wallType;
 	}
-	if( wallType == CHR_WAFM_12_M_ARCH_MIDDLE ){// у арочной стены дверь тоже арка
+	if( wallType == CHR_WAFM_12_M_ARCH_MIDDLE ){// (rt) an arched wall's door is an arch too
 		doorType = CHR_WAFM_12_M_ARCH_MIDDLE;
 	}
 	int doorCell = startCol + 40 * (startRow + RNG(wallsCount - 1) + 1);
 	if( doorType == CHR_WAFM_12_M_ARCH_MIDDLE ){
 		Map[ 0 ][ doorCell ] = doorType;
 	}else{
-		FixedMap[ 0 ][ doorCell ] |= FF_1_HDOOR;// потенциальная дверь?
+		FixedMap[ 0 ][ doorCell ] |= FF_1_HDOOR;// (rt) potential door?
 		Map[ 0 ][ doorCell ] = CHR_WAFM_2_SWALL_M_MIDLE;
 	}
 }
@@ -3661,10 +3709,10 @@ void __fastcall ChurchSetVerticalWall(int startRow, int startCol, char startWall
 //----- (0040D7C9) --------------------------------------------------------
 void __fastcall ChurchSetHorisontalWall(int startRow, int startCol, char startWallType, int wallsCount)
 {
-	char wallType = CHR_WAFM_1_SWALL_UNM_MIDDLE;// сплошная стена
+	char wallType = CHR_WAFM_1_SWALL_UNM_MIDDLE;// (rt) solid wall
 	switch( RNG(4) ){
 	case 2:
-		wallType = CHR_WAFM_11_UNM_ARCH_MIDDLE;// сплошная арка
+		wallType = CHR_WAFM_11_UNM_ARCH_MIDDLE;// (rt) solid arch
 		if( startWallType == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
 			startWallType = CHR_WAFM_11_UNM_ARCH_MIDDLE;
 		}
@@ -3673,7 +3721,7 @@ void __fastcall ChurchSetHorisontalWall(int startRow, int startCol, char startWa
 		}
 		break;
 	case 3:
-		wallType = CHR_WAFM_35_BARS_UNM_MIDDLE;// решётчатая стена. простреливаемая но не проходимая
+		wallType = CHR_WAFM_35_BARS_UNM_MIDDLE;// (rt) lattice wall: can be shot through but not walked through
 		if( startWallType == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
 			startWallType = CHR_WAFM_35_BARS_UNM_MIDDLE;
 		}
@@ -3693,7 +3741,7 @@ void __fastcall ChurchSetHorisontalWall(int startRow, int startCol, char startWa
 	if( doorType == CHR_WAFM_11_UNM_ARCH_MIDDLE ){
 		Map[ 0 ][ doorCell ] = CHR_WAFM_11_UNM_ARCH_MIDDLE;
 	}else{
-		FixedMap[ 0 ][ doorCell ] |= FF_2_VDOOR;// потенциальная дверь?
+		FixedMap[ 0 ][ doorCell ] |= FF_2_VDOOR;// (rt) potential door?
 		Map[ 0 ][ doorCell ] = CHR_WAFM_1_SWALL_UNM_MIDDLE;
 	}
 }
@@ -3701,11 +3749,11 @@ void __fastcall ChurchSetHorisontalWall(int startRow, int startCol, char startWa
 //----- (0040D8CF) --------------------------------------------------------
 void ConvertToChurchWalls()
 {
-	// опасно работает алгоритм. Никих проверок на выход за границу Map. 
-	// Может работать по разному в зависимости от фазы луны (смотря что прочтёт за пределами)
-	// А может изменять что то за своими пределами
+	// (rt) risky algorithm. No checks for going out of Map bounds. 
+	// (rt) The result may vary depending on what it reads out of bounds
+	// (rt) Or it may modify something outside its bounds
 
-	// расстановка тайлов BEYOND
+	// (rt) placement of BEYOND tiles
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			Cell c(Map, row, col);
@@ -3957,7 +4005,7 @@ void ChurchTilesVariationsChange()
 			auto& nextRowCellFlag = f(1, 0);
 			auto& prevColCellFlag = f(0,-1);
 
-			if( RNG(4) ){// 25 шанс выбора другого тайла
+			if( RNG(4) ){// (rt) 25% chance to pick another tile
 				continue;
 			}
 
@@ -3969,15 +4017,15 @@ void ChurchTilesVariationsChange()
 			int randCounter = RNG(16);
 			int newTileIndex = -1;
 			while( randCounter >= 0 ){
-				if( ++newTileIndex == CHR_WAFM_206_POISON_WELL_ENTER ){// последний тайл церкви
-					newTileIndex = CHR_WAFM_0;// проматываем назад
+				if( ++newTileIndex == CHR_WAFM_206_POISON_WELL_ENTER ){// (rt) last church tile
+					newTileIndex = CHR_WAFM_0;// (rt) rewind
 				}
-				if( ChurchTilesVariationsTable[newTileIndex] == tileGroupNumber ){// находим randCounter по счёту тайл того же типа
+				if( ChurchTilesVariationsTable[newTileIndex] == tileGroupNumber ){// (rt) find the randCounter-th tile of the same type
 					randCounter--;
 				}
 			}
 
-			if( newTileIndex == CHR_WAFM_89_HALL_OF_HEROS_11 ){// какие то особые случаи
+			if( newTileIndex == CHR_WAFM_89_HALL_OF_HEROS_11 ){// (rt) some special cases
 				if( ChurchTilesVariationsTable[*prevColWallAndFloorMap] != CHR_WAFM_79_HALL_OF_HEROS_1 || prevColCellFlag ){
 					newTileIndex = CHR_WAFM_79_HALL_OF_HEROS_1;
 				}else{
@@ -4001,7 +4049,7 @@ void ChurchTilesVariationsChange()
 //----- (0040DF9F) --------------------------------------------------------
 void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 {
-	// настройка залов на главной диагонали
+	// (rt) set up halls on the main diagonal
 	if( IsFirstBigChurchHallPlaced ){
 		SetupChurchHall(0, 14, 0, 0, 0, 1);
 	}
@@ -4012,7 +4060,7 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 		SetupChurchHall(28, 14, 0, 0, 1, 0);
 	}
 
-	// настройка корридоров на главной диагонали
+	// (rt) set up corridors on the main diagonal
 	if( IsFirstBigChurchHallPlaced ){
 		if( !IsSecondBigChurchHallPlaced ){
 			goto LABEL_24;
@@ -4027,7 +4075,7 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 		SetupChurchPassage( 12, 18, 28, 18 );
 	}
 
-	// настройка залов на побочной диагонали
+	// (rt) set up halls on the secondary diagonal
 	if( IsFirstBigChurchHallPlaced2 ){
 		SetupChurchHall(14, 0, 0, 1, 0, 0);
 	}
@@ -4038,7 +4086,7 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 		SetupChurchHall(14, 28, 1, 0, 0, 0);
 	}
 
-	// настройка корридоров на побочной диагонали
+	// (rt) set up corridors on the secondary diagonal
 	if( IsFirstBigChurchHallPlaced2 ){
 		if( !IsSecondBigChurchHallPlaced2 ){
 			goto LABEL_51;
@@ -4052,8 +4100,8 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 	if( IsFirstBigChurchHallPlaced2 && !IsSecondBigChurchHallPlaced2 && IsThirdBigChurchHallPlaced2 ){
 		SetupChurchPassage( 18, 12, 18, 28 );
 	}
-	#ifdef GENERATE_UBER // сейчас комната грузится из файла
-	// выбор зала для размещения коморки убера и размещение её
+	#ifdef GENERATE_UBER // (rt) the room is now loaded from a file
+	// (rt) pick a hall for Uber's chamber and place it
 	if( Dungeon == 24 ){
 		bool mayPlaceUberRoom = true;
 		int uberRoomRow = 0;
@@ -4114,7 +4162,7 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 		}
 	}
 	#endif
-	// выбор зала для комнаты камня мира и установка его
+	// (rt) pick a hall for the World Stone room and place it
 	if( Dungeon >= DUN_21_CRYPT_1 && Dungeon <= DUN_22_CRYPT_2 ){
 		bool mayPlaceCornerstoneRoom = true;
 		int cornerstoneRoomRow = 0;
@@ -4176,7 +4224,7 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 		}
 	}
 
-	// комната мясника, вход в гробницу леорика, вход в локу хоразона либо заблокированный проход вниз
+	// (rt) Butcher's room, entrance to Leoric's tomb, entrance to Horazon's area, or a blocked way down
 	for( QuestPattern& qp: QuestPatterns ) if( qp.sizeRow >= BigPatternSize ){
 		bool mayPlaceSomeRoom = true;
 		int someRoomRow = 0;
@@ -4247,8 +4295,8 @@ void SetupChurchHallsPassagesAndPlaceSpecialPatternsInRandomHall()
 //----- (0040E70D) --------------------------------------------------------
 void __fastcall SetupChurchHall( int row, int col, int hasCoridorInNE, int hasCoridorInSW, int hasCoridorInNW, int hasCoridorInSE )
 {
-	// настройка стен залов для красивого перехода в корридор с коллонами
-	// Напоминалка компас:
+	// (rt) set up hall walls for a nice transition into a colonnaded corridor
+	// (rt) Compass reminder:
 	//    N 
 	//   W E
 	//    S 
@@ -4297,7 +4345,7 @@ void __fastcall SetupChurchHall( int row, int col, int hasCoridorInNE, int hasCo
 		}
 	}
 
-	// зал заполняется полом
+	// (rt) the hall is filled with floor
 	for( int colOffset = 0; colOffset < 10; colOffset++ ){
 		for( int rowOffset = 0; rowOffset < 10; rowOffset++ ){
 			Cell cell(Map, row + 1 + rowOffset, col + 1 + colOffset);
@@ -4307,7 +4355,7 @@ void __fastcall SetupChurchHall( int row, int col, int hasCoridorInNE, int hasCo
 		}
 	}
 	
-	// посередине симметрично 4 колонны
+	// (rt) 4 columns placed symmetrically in the middle
 	c(4, 4)= CHR_WAFM_15_PILLAR;
 	c(7, 4)= CHR_WAFM_15_PILLAR;
 	c(4, 7)= CHR_WAFM_15_PILLAR;
@@ -4317,7 +4365,7 @@ void __fastcall SetupChurchHall( int row, int col, int hasCoridorInNE, int hasCo
 //----- (0040E858) --------------------------------------------------------
 void __fastcall SetupChurchPassage( int startRow, int startCol, int endRow, int endCol )
 {
-	// расстановка в 2 ряда связанных колонн в коридорах
+	// (rt) place 2 rows of linked columns in corridors
 	if( startCol == endCol ){
 		// main diagonal
 		for( int row = startRow; row < endRow; row++ ){
@@ -4348,7 +4396,7 @@ bool __fastcall FindPatternPlace(QuestPattern& qp)
 		int col = startCol; do{
 			int row = startRow; do{
 				for( int c = 0; c < sizeCol; c++ ) for( int r = 0; r < sizeRow; r++ ){
-					// проверка на пол
+					// (rt) floor check
 					if( Map[row + r][col + c] != floor || FixedMap[row + r][col + c] ) goto cont_dun;
 				}
 				qp.row = row;
@@ -4365,7 +4413,7 @@ bool __fastcall FindPatternPlace(QuestPattern& qp)
 			int row = startRow; do{
 				int next = 2;
 				for( int c = 0; c < sizeCol; c++ ) for( int r = 0; r < sizeRow; r++ ){
-					// проверка на соотвествие (в паттерн-массивах первая половина тайлов - соответствие паттерну)
+					// (rt) match check (in the pattern arrays the first half of the tiles is the pattern to match)
 					if( qp.tiles[next] && Map[row + r][col + c] != qp.tiles[next] || FixedMap[row + r][col + c] ) goto cont_tiles;
 					next++;
 				}
@@ -4600,12 +4648,66 @@ void __fastcall CopyCornerstoneRoomPatternToMap(int row, int col)
 	}
 }
 
+/*static inline bool IsChurchFloorForTrans(uchar t)
+{
+	return t == CHR_WAFM_13_FLOOR || t == CHR_WAFM_162_FLOOR_2 || t == CHR_WAFM_163_FLOOR_3;
+}*/
+
+static inline bool IsChurchFloorForTrans(uchar t)
+{
+	switch (t) {
+	case CHR_WAFM_13_FLOOR:                   // plain floor
+	case CHR_WAFM_162_FLOOR_2:                // floor variant 2  (from RandomizeChurchFloorTiles)
+	case CHR_WAFM_163_FLOOR_3:                // floor variant 3
+	case CHR_WAFM_104_FLOOR_WITH_BLOOD_1:     // blood floors
+	case CHR_WAFM_105_FLOOR_WITH_BLOOD_2:
+	case CHR_WAFM_106_FLOOR_WITH_BLOOD_3:
+	case CHR_WAFM_125_FLOOR_DAMAGED_1:        // damaged floor
+	case CHR_WAFM_133_FLOOR_WITH_CRUSHED_ROCK_1: // crushed-rock floors
+	case CHR_WAFM_134_FLOOR_WITH_CRUSHED_ROCK_2:
+	case CHR_WAFM_135_FLOOR_WITH_CRUSHED_ROCK_3:
+	case CHR_WAFM_136_FLOOR_WITH_CRUSHED_ROCK_4:
+	case CHR_WAFM_137_FLOOR_WITH_CRUSHED_ROCK_5:
+	case CHR_WAFM_138_FLOOR_WITH_CRUSHED_ROCK_6:
+		// --- TH4: shadowed-floor variants (floor cells next to walls get these from the
+		//     wall-shadow pass). Quest prefabs mark them FF_8_FIXED so RandomizeChurchFloorTiles
+		//     never normalizes them back to 13, and the flood-fill used to dead-end here,
+		//     leaving the bordering wall opaque (e.g. Leoric: wall-ring tile, wall right of player).
+	case CHR_WAFM_139_TILE_WITH_SHADOW_1:
+	case CHR_WAFM_140_TILE_WITH_SHADOW_2:
+	case CHR_WAFM_141_TILE_WITH_SHADOW_3:
+	case CHR_WAFM_142_TILE_WITH_SHADOW_4:
+	case CHR_WAFM_143_TILE_WITH_SHADOW_5:
+	case CHR_WAFM_144_TILE_WITH_SHADOW_6:
+	case CHR_WAFM_145_TILE_WITH_SHADOW_7:
+	case CHR_WAFM_146_TILE_WITH_SHADOW_8:
+	case CHR_WAFM_147_TILE_WITH_SHADOW_9:
+	case CHR_WAFM_148_TILE_WITH_SHADOW_10:
+	case CHR_WAFM_149_TILE_WITH_SHADOW_11:
+	case CHR_WAFM_150_TILE_WITH_SHADOW_12:
+	case CHR_WAFM_151_TILE_WITH_SHADOW_13:
+	case CHR_WAFM_152_TILE_WITH_SHADOW_14:
+	case CHR_WAFM_153_TILE_WITH_SHADOW_15:
+	case CHR_WAFM_154_TILE_WITH_SHADOW_16:
+	case CHR_WAFM_155_TILE_WITH_SHADOW_17:
+	case CHR_WAFM_156_TILE_WITH_SHADOW_18:
+	case CHR_WAFM_157_TILE_WITH_SHADOW_19:
+		// --- TH4: on-floor torch tiles are also walkable floor
+	case CHR_WAFM_128_ON_FLOOR_TORCH:
+	case CHR_WAFM_129_ON_FLOOR_TORCH_SHADOW_1:
+	case CHR_WAFM_130_ON_FLOOR_TORCH_SHADOW_2:
+		return true;
+	default:
+		return false;
+	}
+}
+
 //----- (0040EA67) --------------------------------------------------------
 void InitChurchWallsTransparency()
 {
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
-			if( Map[ row ][ col ] == CHR_WAFM_13_FLOOR && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // пол не отнесённый ни к одной из комнат относим к новой комнате
+			if (IsChurchFloorForTrans(Map[row][col]) && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // (rt) floor not belonging to any room is assigned to a new room
 				SetChurchCellTransparency(row, col, Convert40to112(row), Convert40to112(col), 0);
 				TransValue++;
 			}
@@ -4621,7 +4723,7 @@ void __fastcall SetChurchCellTransparency( int row40, int col40, int row112, int
 	int curCol112 = col112;
 	int curCol40 = col40;
 	int curRow40 = row40;
-	while( Map[ curRow40 ][ curCol40 ] == CHR_WAFM_13_FLOOR && !TransMap[curRow112][curCol112] ){
+	while(IsChurchFloorForTrans(Map[curRow40][curCol40]) && !TransMap[curRow112][curCol112] ){
 		TransMap[ curRow112 + 0 ][ curCol112 + 0 ] = wallTransparentIndex;
 		TransMap[ curRow112 + 1 ][ curCol112 + 0 ] = wallTransparentIndex;
 		TransMap[ curRow112 + 0 ][ curCol112 + 1 ] = wallTransparentIndex;
@@ -4786,34 +4888,34 @@ void SomeConvertChurchAndCryptWalls()
 //----- (0040EE13) --------------------------------------------------------
 void SomeMoreChurchWallsConvert()
 {
-	int v0;     // edi@1
-	uchar* result; // eax@2
-	uchar*  v2;     // ecx@2
-	int v3;     // ebx@2
-	int v4;     // esi@2
-	v0 = 1;
+	int j;     // edi@1              Hellfire: j (outer column loop)
+	uchar* cellPtr; // eax@2         Hellfire: dungeon[i][j] pointer
+	uchar*  nextColPtr;     // ecx@2 Hellfire: dungeon[i][j+1] pointer
+	int i;     // ebx@2              Hellfire: i (inner row countdown)
+	int flatIdx;     // esi@2        flat index into Map (i*40 + j)
+	j = 1;
 	do{
-		v2 = &Map[ 0 ][ v0 + 41 ]; // !*!*!***обнаружена абсолютная адресация***!*!*!
-		v4 = v0;
-		v3 = 38;
-		result = &Map[ 0 ][ v0 + 40 ]; // !*!*!***обнаружена абсолютная адресация***!*!*!
+		nextColPtr = &Map[ 0 ][ j + 41 ]; // (rt) absolute addressing detected
+		flatIdx = j;
+		i = 38;
+		cellPtr = &Map[ 0 ][ j + 40 ]; // (rt) absolute addressing detected
 		do{
-			if( !(FixedMap[ 0 ][ v4 + 40 ] & FF_8_FIXED) ){
-				if( *result == CHR_WAFM_17_WALL_RD_END && *(uchar*)(result - 40) == CHR_WAFM_13_FLOOR && *(result - 1) == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
-					FixedMap[ 0 ][ v4 + 39 ] &= FF_8_FIXED;
-					*result = CHR_WAFM_16_WALL_LD_END;
+			if( !(FixedMap[ 0 ][ flatIdx + 40 ] & FF_8_FIXED) ){
+				if( *cellPtr == CHR_WAFM_17_WALL_RD_END && *(uchar*)(cellPtr - 40) == CHR_WAFM_13_FLOOR && *(cellPtr - 1) == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
+					FixedMap[ 0 ][ flatIdx + 39 ] &= FF_8_FIXED;
+					*cellPtr = CHR_WAFM_16_WALL_LD_END;
 				}
 			}
-			if( *result == CHR_WAFM_202_BEYOND && Map[ 2 ][ v4 ] == CHR_WAFM_13_FLOOR && *v2 == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
-				*result = CHR_WAFM_8_ARCH_RU_END;
+			if( *cellPtr == CHR_WAFM_202_BEYOND && Map[ 2 ][ flatIdx ] == CHR_WAFM_13_FLOOR && *nextColPtr == CHR_WAFM_1_SWALL_UNM_MIDDLE ){
+				*cellPtr = CHR_WAFM_8_ARCH_RU_END;
 			}
-			v4 += 40;
-			v2 += 40;
-			result += 40;
-			--v3;
-		}while( v3 );
-		++v0;
-	}while( v0 < 39 );
+			flatIdx += 40;
+			nextColPtr += 40;
+			cellPtr += 40;
+			--i;
+		}while( i );
+		++j;
+	}while( j < 39 );
 }
 
 //----- (0040EE7A) --------------------------------------------------------
@@ -4991,7 +5093,7 @@ void AddAdditionalCataDoors()
 				continue;
 			}
 
-			// двигаемся по стене, ища двери и конец стены
+			// (rt) move along the wall, looking for doors and the end of the wall
 			bool isWallHasDoor = false;
 			while( true ){
 
@@ -5013,7 +5115,7 @@ void AddAdditionalCataDoors()
 				++row;
 			}
 
-			// если на протяжении всей стены не было ни одной двери, то ставим дверь на нижнюю клетку стены
+			// (rt) if there was no door along the whole wall, put a door on the wall's bottom cell
 			uchar& doorMap = Map[ row-1 ][ col+0 ];
 			if( !isWallHasDoor && !( doorMap & BIT(8) ) ){
 				doorMap = CATA_WAFM_5_RU_ODOOR;
@@ -5039,7 +5141,7 @@ void AddAdditionalCataDoors()
 				continue;
 			}
 
-			// двигаемся по стене, ища двери и конец стены
+			// (rt) move along the wall, looking for doors and the end of the wall
 			bool isWallHasDoor = false;
 			while( true ){
 
@@ -5062,7 +5164,7 @@ void AddAdditionalCataDoors()
 				++col;
 			}
 
-			// если на протяжении всей стены не было ни одной двери, то ставим дверь на нижнюю клетку стены
+			// (rt) if there was no door along the whole wall, put a door on the wall's bottom cell
 			uchar& doorMap = Map[ row+0 ][ col-1 ];
 			if( !isWallHasDoor && !( doorMap & BIT(8) ) ){
 				doorMap = CATA_WAFM_4_LU_ODOOR;
@@ -5091,249 +5193,332 @@ void ReplaceEnderCataDoorsWithEnderWalls()
 }
 
 //----- (0040F4B8) --------------------------------------------------------
-void __fastcall LoadQuestDungeonMapMainCatacomb( char* dun, int a2, int a3)
+void __fastcall LoadQuestDungeonMapMainCatacomb( char* dun, int playerRow, int playerCol)
 {
-	int v3;             // edx@1
-	char* v4;           // edi@1
-	int v5;             // eax@2
-	int v6;             // ecx@2
-	int v7;             // eax@5
-	int v8;             // ebx@5
-	int v9;             // edi@5
-	int* v10;           // esi@5
-	int v11;            // ecx@7
-	char v12;           // dl@8
-	int v13;            // ecx@13
-	unsigned char* v14; // eax@14
-	int v15;            // edx@14
-	int v16;            // ebx@19
-	char* v17;          // ecx@20
-	int v18;            // edi@20
-	int* v19;           // esi@20
-	char v20;           // al@21
-	int v21;            // edx@21
-	int v22;            // ecx@37
-	int* v23;           // edi@37
-	int* v25;           // edx@38
-	int v26;            // ebx@38
-	int v27;            // esi@39
-	char* v28;          // esi@1
-	char* v29;          // eax@1
-	int v30;            // eax@5
-	char v31;           // zf@11
-	int v32;            // [sp+Ch] [bp-Ch]@1
-	char* a1;           // [sp+10h] [bp-8h]@1
-	int* v34;           // [sp+14h] [bp-4h]@7
-	v32 = a2;
-	v28 = dun;
+	int col;                  // edx@1           Hellfire: j (init loop)
+	char* lm;                // edi@1           Hellfire: lm (level map data pointer)
+	int mapIdx;               // eax@2           flat index into Map/FixedMap
+	int rowCount;             // ecx@2           row counter (counts down from 40)
+	int dataPtr;              // eax@5           Hellfire: lm (advancing data pointer)
+	int tileCol;              // ebx@5           Hellfire: j (tile read outer loop)
+	int mapHeight;            // edi@5           Hellfire: rh
+	int* mapWidth;            // esi@5           Hellfire: rw (decompiler uses int* for int)
+	int tileIdx;              // ecx@7           flat index for tile placement
+	char tileValue;           // dl@8            Hellfire: *lm (tile from file)
+	int fillCol;              // ecx@13          column counter in fill loop
+	unsigned char* fillPtr;   // eax@14          pointer into Map for fill
+	int fillCount;            // edx@14          row counter in fill loop
+	int archCol;              // ebx@19          Hellfire: i (arch loop 1 column)
+	char* specialPtr;         // ecx@20          pointer into ArchGraphicsMap
+	int archRowCount;         // edi@20          Hellfire: j (arch loop 1 row counter)
+	int* piecePtr;            // esi@20          pointer into FineMap (dPiece)
+	char specialVal;          // al@21           Hellfire: top (special value)
+	int pieceId;              // edx@21          Hellfire: nPiece
+	int archCol2;             // ecx@37          Hellfire: i (arch loop 2 column)
+	int* piecePtr2;           // edi@37          FineMap pointer (arch loop 2)
+	int* innerPiecePtr;       // edx@38          inner FineMap pointer (arch loop 2)
+	int archRowCount2;        // ebx@38          row counter (arch loop 2)
+	int pieceId2;             // esi@39          Hellfire: nPiece (arch loop 2)
+	char* fileName;           // esi@1           stored copy of dun parameter
+	char* pLevelMap;          // eax@1           Hellfire: pLevelMap (loaded file data)
+	int heightOffset;         // eax@5           intermediate offset past width in file
+	char loopEnd;             // zf@11           zero flag for loop termination
+	int savedPlayerRow;       // [sp+Ch] [bp-Ch]@1   stored copy of playerRow
+	char* pLevelMapStore;     // [sp+10h] [bp-8h]@1  Hellfire: pLevelMap (for FreeMem)
+	int* widthCounter;        // [sp+14h] [bp-4h]@7  reused: rw countdown / FineMap col ptr
+	savedPlayerRow = playerRow;
+	fileName = dun;
 	InitCataMaps();
 	ClearWallsTransparency();
-	v29 = (char*)LoadFile(v28);
-	v4 = v29;
-	v3 = 0;
-	a1 = v29;
+	pLevelMap = (char*)LoadFile(fileName);
+	lm = pLevelMap;
+	col = 0;
+	pLevelMapStore = pLevelMap;
 	do{
-		v5 = v3;
-		v6 = 40;
+		mapIdx = col;
+		rowCount = 40;
 		do{
-			FixedMap[ 0 ][ v5 ] = FF_NO;
-			Map[ 0 ][ v5 ] = CATA_WAFM_12_BEYOND;
-			v5 += 40;
-			--v6;
-		}while( v6 );
-		++v3;
-	}while( v3 < 40 );
-	v10 = (int*)*v4;
-	v30 = (int)(v4 + 2);
-	v8 = 0;
-	v9 = *(v4 + 2);
-	v7 = v30 + 2;
-	if( v9 > 0 ){
+			FixedMap[ 0 ][ mapIdx ] = FF_NO;
+			Map[ 0 ][ mapIdx ] = CATA_WAFM_12_BEYOND;
+			mapIdx += 40;
+			--rowCount;
+		}while( rowCount );
+		++col;
+	}while( col < 40 );
+	mapWidth = (int*)*lm;
+	heightOffset = (int)(lm + 2);
+	tileCol = 0;
+	mapHeight = *(lm + 2);
+	dataPtr = heightOffset + 2;
+	if( mapHeight > 0 ){
 		do{
-			if( (int)v10 > 0 ){
-				v11 = v8;
-				v34 = v10;
+			if( (int)mapWidth > 0 ){
+				tileIdx = tileCol;
+				widthCounter = mapWidth;
 				do{
-					v12 = *(uchar*)v7;
-					if( *(uchar*)v7 ){
-						FixedMap[ 0 ][ v11 ] |= FF_8_FIXED;
-						Map[ 0 ][ v11 ] = v12;
+					tileValue = *(uchar*)dataPtr;
+					if( *(uchar*)dataPtr ){
+						FixedMap[ 0 ][ tileIdx ] |= FF_8_FIXED;
+						Map[ 0 ][ tileIdx ] = tileValue;
 					}else{
-						Map[ 0 ][ v11 ] = CATA_WAFM_3_FLOOR;
+						Map[ 0 ][ tileIdx ] = CATA_WAFM_3_FLOOR;
 					}
-					v11 += 40;
-					v7 += 2;
-					v31 = v34 == (int*)1; //проверить чего код делает на самом деле. TODO: V566 http://www.viva64.com/en/V566 The integer constant is converted to pointer. Possibly an error or a bad coding style: (int*) 1
-					v34 = (int*)((char*)v34 - 1);
-				}while( !v31 );
+					tileIdx += 40;
+					dataPtr += 2;
+					loopEnd = widthCounter == (int*)1; //(rt) check what the code actually does. TODO: V566 http://www.viva64.com/en/V566 The integer constant is converted to pointer. Possibly an error or a bad coding style: (int*) 1
+					widthCounter = (int*)((char*)widthCounter - 1);
+				}while( !loopEnd );
 			}
-			++v8;
-		}while( v8 < v9 );
+			++tileCol;
+		}while( tileCol < mapHeight );
 	}
-	v13 = 0;
+	fillCol = 0;
 	do{
-		v14 = &Map[ 0 ][ v13 ];
-		v15 = 40;
+		fillPtr = &Map[ 0 ][ fillCol ];
+		fillCount = 40;
 		do{
-			if( !*v14 )
-				*v14 = CATA_WAFM_12_BEYOND;
-			v14 += 40;
-			--v15;
-		}while( v15 );
-		++v13;
-	}while( v13 < 40 );
+			if( !*fillPtr )
+				*fillPtr = CATA_WAFM_12_BEYOND;
+			fillPtr += 40;
+			--fillCount;
+		}while( fillCount );
+		++fillCol;
+	}while( fillCol < 40 );
 	InitLevelTiles( CATA_WAFM_12_BEYOND );
 	ClearAllMaps();
-	v16 = 0;
-	v34 = FineMap[ 0 ];
+	archCol = 0;
+	widthCounter = FineMap[ 0 ];
 	do{
-		v19 = v34;
-		v17 = &ArchGraphicsMap[ 0 ][ v16 ];
-		v18 = 112;
+		piecePtr = widthCounter;
+		specialPtr = &ArchGraphicsMap[ 0 ][ archCol ];
+		archRowCount = 112;
 		do{
-			v21 = *v19;
-			v20 = 0;
-			if( *v19 == 541 )
-				v20 = 5;
-			if( v21 == 178 )
-				v20 = 5;
-			if( v21 == 551 )
-				v20 = 5;
-			if( v21 == 542 )
-				v20 = 6;
-			if( v21 == 553 )
-				v20 = 6;
-			if( v21 == 13 )
-				v20 = 5;
-			if( v21 == 17 )
-				v20 = 6;
-			*v17 = v20;
-			v19 += 112;
-			v17 += 112;
-			--v18;
-		}while( v18 );
-		++v34;
-		++v16;
-	}while( (int)v34 < (int)&FineMap[ 0 ][ 112 ] );
-	v22 = 0;
-	v23 = FineMap[ 0 ];
+			pieceId = *piecePtr;
+			specialVal = 0;
+			if( *piecePtr == 541 )
+				specialVal = 5;
+			if( pieceId == 178 )
+				specialVal = 5;
+			if( pieceId == 551 )
+				specialVal = 5;
+			if( pieceId == 542 )
+				specialVal = 6;
+			if( pieceId == 553 )
+				specialVal = 6;
+			if( pieceId == 13 )
+				specialVal = 5;
+			if( pieceId == 17 )
+				specialVal = 6;
+			*specialPtr = specialVal;
+			piecePtr += 112;
+			specialPtr += 112;
+			--archRowCount;
+		}while( archRowCount );
+		++widthCounter;
+		++archCol;
+	}while( (int)widthCounter < (int)&FineMap[ 0 ][ 112 ] );
+	archCol2 = 0;
+	piecePtr2 = FineMap[ 0 ];
 	do{
-		char* v24 = &ArchGraphicsMap[ 0 ][ v22 + 2 ]; // !*!*!***обнаружена абсолютная адресация***!*!*!
-		v25 = v23;
-		v26 = 112;
+		char* specialPtr2 = &ArchGraphicsMap[ 0 ][ archCol2 + 2 ]; // (rt) absolute addressing detected
+		innerPiecePtr = piecePtr2;
+		archRowCount2 = 112;
 		do{
-			v27 = *v25;
-			if( *v25 == 132 ){
-				*(uchar*)(v24 - 1) = 2;
-				*(uchar*)v24 = 1;
+			pieceId2 = *innerPiecePtr;
+			if( *innerPiecePtr == 132 ){
+				if( archCol2 < 110 ){// OOB fix: archCol2+2 must be < 112
+					*(uchar*)(specialPtr2 - 1) = 2;
+					*(uchar*)specialPtr2 = 1;
+				}
 			}else{
-				if( v27 == 135 || v27 == 139 ){
-					*(uchar*)(v24 + 110) = 3;
-					*(uchar*)(v24 + 222) = 4;
+				if( pieceId2 == 135 || pieceId2 == 139 ){
+					if( archRowCount2 > 2 ){// OOB fix: writes to row+1 and row+2, must stay within 112 rows
+						*(uchar*)(specialPtr2 + 110) = 3;
+						*(uchar*)(specialPtr2 + 222) = 4;
+					}
 				}
 			}
-			v25 += 112;
-			v24 += 112;
-			--v26;
-		}while( v26 );
-		++v23;
-		++v22;
-	}while( (int)v23 < (int)&FineMap[ 0 ][ 112 ] );
-	PlayerRowPos = v32;
-	PlayerColPos = a3;
-	AddQuestMonsters((ushort*)a1, 0, 0);
-	SetMapObjects((int)a1, 0, 0);
-	FreeMem(a1);
+			innerPiecePtr += 112;
+			specialPtr2 += 112;
+			--archRowCount2;
+		}while( archRowCount2 );
+		++piecePtr2;
+		++archCol2;
+	}while( (int)piecePtr2 < (int)&FineMap[ 0 ][ 112 ] );
+	PlayerRowPos = savedPlayerRow;
+	PlayerColPos = playerCol;
+	AddQuestMonsters((ushort*)pLevelMapStore, 0, 0);
+	SetMapObjects((int)pLevelMapStore, 0, 0);
+	// Geometry-derived wall transparency for every catacomb quest map
+	// (same gap as church: the quest loader otherwise never runs the fill).
+	InitCataWallsTransparency();
+	CataSetAdditionalWallsTransparency();
+	FreeMem(pLevelMapStore);
 }
 
 //----- (0040F76A) --------------------------------------------------------
 void __fastcall LoadQuestDungeonMapAltCatacomb( char* dun )
 {
-	char* v2;           // ebx@1
-	int v3;             // esi@1
-	int v4;             // eax@2
-	int v5;             // edx@2
-	int v6;             // eax@5
-	int i;              // edx@5
-	int v8;             // edi@5
-	int v9;             // esi@7
-	char v10;           // bl@8
-	int v11;            // eax@13
-	unsigned char* v12; // edx@14
-	int v13;            // esi@14
-	int v14;            // eax@19
-	int v15;            // edx@20
-	int v16;            // esi@20
-	char* v17;          // esi@1
-	char* v18;          // eax@1
-	char* a1;           // [sp+Ch] [bp-Ch]@1
-	int v21;            // [sp+14h] [bp-4h]@5
-	int v22;            // [sp+10h] [bp-8h]@7
-	v17 = dun;
+	char* lm;               // ebx@1           Hellfire: lm (level map data pointer)
+	int col;                // esi@1           Hellfire: j (init loop counter)
+	int rowCount;           // eax@2           row counter (counts down from 40)
+	int mapIdx;             // edx@2           flat index into Map/FixedMap
+	int mapHeight;          // eax@5           Hellfire: rh
+	int dataPtr;            // edx@5           Hellfire: lm (advancing data pointer)
+	int mapWidth;           // edi@5           Hellfire: rw
+	int tileIdx;            // esi@7           flat index for tile placement
+	char tileValue;         // bl@8            tile value from file
+	int fillCol;            // eax@13          Hellfire: j (fill loop)
+	unsigned char* fillPtr; // edx@14          pointer into Map for fill
+	int fillCount;          // esi@14          row counter in fill
+	int copyCol;            // eax@19          column counter in copy loop
+	int copyIdx;            // edx@20          flat index for AltMap copy
+	int copyCount;          // esi@20          row counter in copy loop
+	char* fileName;         // esi@1           stored copy of dun parameter
+	char* pLevelMap;        // eax@1           Hellfire: pLevelMap (loaded file data)
+	char* pLevelMapStore;   // [sp+Ch] [bp-Ch]@1  stored for FreeMem
+	int tileCol;            // [sp+14h] [bp-4h]@5  Hellfire: j (outer read loop)
+	int widthCounter;       // [sp+10h] [bp-8h]@7  Hellfire: rw countdown
+	fileName = dun;
 	InitCataMaps();
 	ClearWallsTransparency();
-	v18 = (char*)LoadFile(v17);
-	v2 = v18;
-	v3 = 0;
-	a1 = v18;
+	pLevelMap = (char*)LoadFile(fileName);
+	lm = pLevelMap;
+	col = 0;
+	pLevelMapStore = pLevelMap;
 	do{
-		v5 = v3;
-		v4 = 40;
+		mapIdx = col;
+		rowCount = 40;
 		do{
-			FixedMap[ 0 ][ v5 ] = FF_NO;
-			Map[ 0 ][ v5 ] = CATA_WAFM_12_BEYOND;
-			v5 += 40;
-			--v4;
-		}while( v4 );
-		++v3;
-	}while( v3 < 40 );
-	v6 = *(v2 + 2);
-	v21 = 0;
-	v8 = *v2;
-	for( i = (int)(v2 + 4); v21 < v6; ++v21 ){
-		if( v8 > 0 ){
-			v9 = v21;
-			v22 = v8;
+			FixedMap[ 0 ][ mapIdx ] = FF_NO;
+			Map[ 0 ][ mapIdx ] = CATA_WAFM_12_BEYOND;
+			mapIdx += 40;
+			--rowCount;
+		}while( rowCount );
+		++col;
+	}while( col < 40 );
+	mapHeight = *(lm + 2);
+	tileCol = 0;
+	mapWidth = *lm;
+	for( dataPtr = (int)(lm + 4); tileCol < mapHeight; ++tileCol ){
+		if( mapWidth > 0 ){
+			tileIdx = tileCol;
+			widthCounter = mapWidth;
 			do{
-				v10 = *(uchar*)i;
-				if( *(uchar*)i ){
-					FixedMap[ 0 ][ v9 ] |= FF_8_FIXED;
-					Map[ 0 ][ v9 ] = v10;
+				tileValue = *(uchar*)dataPtr;
+				if( *(uchar*)dataPtr ){
+					FixedMap[ 0 ][ tileIdx ] |= FF_8_FIXED;
+					Map[ 0 ][ tileIdx ] = tileValue;
 				}else{
-					Map[ 0 ][ v9 ] = CATA_WAFM_3_FLOOR;
+					Map[ 0 ][ tileIdx ] = CATA_WAFM_3_FLOOR;
 				}
-				v9 += 40;
-				i += 2;
-			}while( v22-- != 1 );
+				tileIdx += 40;
+				dataPtr += 2;
+			}while( widthCounter-- != 1 );
 		}
 	}
-	v11 = 0;
+	fillCol = 0;
 	do{
-		v12 = &Map[ 0 ][ v11 ];
-		v13 = 40;
+		fillPtr = &Map[ 0 ][ fillCol ];
+		fillCount = 40;
 		do{
-			if( !*v12 )
-				*v12 = CATA_WAFM_12_BEYOND;
-			v12 += 40;
-			--v13;
-		}while( v13 );
-		++v11;
-	}while( v11 < 40 );
-	v14 = 0;
+			if( !*fillPtr )
+				*fillPtr = CATA_WAFM_12_BEYOND;
+			fillPtr += 40;
+			--fillCount;
+		}while( fillCount );
+		++fillCol;
+	}while( fillCol < 40 );
+	copyCol = 0;
 	do{
-		v15 = v14;
-		v16 = 40;
+		copyIdx = copyCol;
+		copyCount = 40;
 		do{
-			AltMap[ 0 ][ v15 ] = Map[ 0 ][ v15 ];
-			v15 += 40;
-			--v16;
-		}while( v16 );
-		++v14;
-	}while( v14 < 40 );
-	FreeMem(a1);
+			AltMap[ 0 ][ copyIdx ] = Map[ 0 ][ copyIdx ];
+			copyIdx += 40;
+			--copyCount;
+		}while( copyCount );
+		++copyCol;
+	}while( copyCol < 40 );
+	FreeMem(pLevelMapStore);
 }
 
 //----- (0040F840) --------------------------------------------------------
+//----- (new by th4) ------------------------------------------------------
+// Ironman soft-lock guard: a catacomb map can occasionally come out with a room
+// that has no door or passage into it (player report: sealed room full of
+// monsters = level can never be cleared). Instead of patching one suspected
+// cause, assert the property that actually matters: every walkable cell of the
+// finished level must be reachable from every other one.
+// Runs on the fine (112) map right after InitLevelTiles(), so walkability comes
+// from the real per-piece SOL data instead of re-derived tile semantics. Door
+// pieces (13/17/541/542) are non-solid in the SOL -- the blocking is the door
+// OBJECT added later -- so the flood fill flows through doors naturally.
+bool IsCataLevelFullyConnected()
+{
+	FillSolidBlockTables(); // fills TileBlockWalking[] for this tileset; called again later in LoadGameLevel(), harmless
+	static uchar visited[ FineMap_112 ][ FineMap_112 ];
+	static ushort bfsQueue[ FineMap_112 * FineMap_112 ];
+	memzero(visited);
+
+	auto passable = []( int row, int col ) -> bool {
+		int piece = FineMap[ row ][ col ];
+		return piece > 0 && !TileBlockWalking[ piece ];
+	};
+
+	// flood from the first walkable cell (4-neighbour, matching walk rules)
+	int head = 0, tail = 0;
+	for( int row = 0; row < FineMap_112 && !tail; row++ ){
+		for( int col = 0; col < FineMap_112; col++ ){
+			if( passable(row, col) ){
+				visited[ row ][ col ] = 1;
+				bfsQueue[ tail++ ] = (ushort)( row * FineMap_112 + col );
+				break;
+			}
+		}
+	}
+	while( head < tail ){
+		int cell = bfsQueue[ head++ ];
+		int row = cell / FineMap_112;
+		int col = cell % FineMap_112;
+		static const int rowStep[4] = { -1, 1, 0, 0 };
+		static const int colStep[4] = { 0, 0, -1, 1 };
+		fori(4){
+			int nextRow = row + rowStep[i];
+			int nextCol = col + colStep[i];
+			if( In112(nextRow, nextCol) && !visited[ nextRow ][ nextCol ] && passable(nextRow, nextCol) ){
+				visited[ nextRow ][ nextCol ] = 1;
+				bfsQueue[ tail++ ] = (ushort)( nextRow * FineMap_112 + nextCol );
+			}
+		}
+	}
+
+	// Quest .DUN insertions (Valor dlvl 5, Chamber of Bone dlvl 6 / MP 7, Halls of the
+	// Blind dlvl 7, Good Deal dlvl 8) may legitimately contain sealed areas, so cells
+	// inside the placed pattern's rectangle are TOLERATED if unreached. They still
+	// conduct the flood fill, so an open pattern keeps connecting its surroundings.
+	int questStartRow = 0, questEndRow = -1, questStartCol = 0, questEndCol = -1;
+	if( CurPattern.sizeRow ){
+		questStartRow = Convert40to112(CurPattern.row);
+		questStartCol = Convert40to112(CurPattern.col);
+		questEndRow   = Convert40to112(CurPattern.row + CurPattern.sizeRow) + 1;
+		questEndCol   = Convert40to112(CurPattern.col + CurPattern.sizeCol) + 1;
+	}
+
+	// every walkable cell outside the quest pattern must have been reached
+	for( int row = 0; row < FineMap_112; row++ ){
+		for( int col = 0; col < FineMap_112; col++ ){
+			if( InSegment(row, questStartRow, questEndRow) && InSegment(col, questStartCol, questEndCol) ){
+				continue;
+			}
+			if( !visited[ row ][ col ] && passable(row, col) ){
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void __fastcall CreateCatacombTypeLabyrinth(int randomSeed, int lvlDir)
 {
 	if( MaxCountOfPlayersInGame == 1 ){
@@ -5356,10 +5541,19 @@ void __fastcall CreateCatacombTypeLabyrinth(int randomSeed, int lvlDir)
 	MapStartCol = 16;
 	MapEndRow = 96;
 	MapEndCol = 96;
-	ClearWallsTransparency();
-	ClearCurPattern();
-	CatacombLevelGeneration(lvlDir);
-	InitLevelTiles( CATA_WAFM_12_BEYOND );
+	// (th4): regenerate the level while any walkable area came out sealed (Ironman soft lock).
+	// Deterministic: retries consume the seeded RNG stream, so MP clients and level re-morphs
+	// reproduce the same final map. The attempt cap keeps a pathological seed/quest-pattern
+	// combination from hanging generation -- on exhaustion the map is accepted as before.
+	for( int attempt = 0; ; attempt++ ){
+		ClearWallsTransparency();
+		ClearCurPattern();
+		CatacombLevelGeneration(lvlDir);
+		InitLevelTiles( CATA_WAFM_12_BEYOND );
+		if( attempt >= 25 || IsCataLevelFullyConnected() ){
+			break;
+		}
+	}
 	InitCataArchs();
 	MarkPatternPositionOnMap();
 }
@@ -5370,7 +5564,7 @@ void __fastcall CatacombLevelGeneration(int lvlDir)
 	int generationEnd = 0;
 	do{
 		ClearWarps();
-		// попробовал добавить оптимизацию генерации катакомб, не получилось с первого раза
+		// (rt) tried to add a catacomb generation optimization, didn't work on the first try
 		//if( !MatchLevelSeed[ DungeonLevel ] && StartLevelSeed[ DungeonLevel ] ){
 		//	MatchLevelSeed[ DungeonLevel ] = levelSeed;
 		//}
@@ -5510,7 +5704,7 @@ void __fastcall CatacombLevelGeneration(int lvlDir)
 	PlaceCataPattern((uchar*)PatMap1x1_4, 10);
 	PlaceCataPattern((uchar*)PatMap1x1_5, 10);
 	PlaceCataPattern((uchar*)PatMap1x1_6, 50);
-	PlaceCataPattern((uchar*)PatMap5x3, 1); // расхождение
+	PlaceCataPattern((uchar*)PatMap5x3, 1); // (rt) mismatch
 	PlaceCataPattern((uchar*)PatMap5x3_0, 1);
 	PlaceCataPattern((uchar*)PatMap2x2_0, 3);
 	PlaceCataPattern((uchar*)PatMap2x2_1, 3);
@@ -5532,62 +5726,65 @@ void __fastcall CatacombLevelGeneration(int lvlDir)
 }
 
 //----- (00410045) --------------------------------------------------------
-int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPlace, int maxPatternsToPlace, int a4, int a5, int resetPlayerPosition, int a7)
+int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPlace, int maxPatternsToPlace, int cx, int cy, int resetPlayerPosition, int ldir)
 {
 	#ifndef REFUCKTOR
-	int v7; // ebx@1
-	int v8; // esi@1
-	int v9; // edi@1
-	int v10; // edx@1
+	int sh; // ebx@1              Hellfire: sh (pattern height = miniset[1])
+	int tmin; // esi@1            Hellfire: tmin (saved min patterns)
+	int sw; // edi@1              Hellfire: sw (pattern width = miniset[0])
+	int tRange; // edx@1          max - min range
 	int row; // esi@6
 	int col; // ebx@6
-	int v13; // edi@21
-	int i; // eax@21
-	int v15; // ecx@24
-	unsigned __int8 v16; // dl@26
-	int v17; // eax@39
-	int j; // ecx@39
-	int v19; // edi@40
-	unsigned __int8 *v20; // edx@41
-	unsigned __int8 v21; // bl@42
-	int result; // eax@49
-	unsigned __int8 *v23; // [sp+Ch] [bp-28h]@1
-	int v24; // [sp+10h] [bp-24h]@2
-	int v25; // [sp+14h] [bp-20h]@4
-	int v26; // [sp+18h] [bp-1Ch]@23
+	int yy; // edi@21               Hellfire: yy (column offset in pattern check)
+	int ii; // eax@21               Hellfire: ii (data index into miniset)
+	int mapIdx; // ecx@24           flat index into Map for check
+	unsigned __int8 patTile; // dl@26  tile from pattern to match
+	int yy2; // eax@39              Hellfire: yy (column offset in placement)
+	int ii2; // ecx@39              Hellfire: ii (data index for placement)
+	int xxCount; // edi@40          Hellfire: xx (row countdown in placement)
+	unsigned __int8 *mapPtr; // edx@41  pointer into Map for placement
+	unsigned __int8 newTile; // bl@42   tile from pattern to write
+	int success; // eax@49              Hellfire: return value (TRUE/FALSE)
+	unsigned __int8 *miniset; // [sp+Ch] [bp-28h]@1     Hellfire: miniset (stored pattern pointer)
+	int numt; // [sp+10h] [bp-24h]@2           Hellfire: numt (number of patterns to place)
+	int patternsPlaced; // [sp+14h] [bp-20h]@4  Hellfire: i (patterns placed counter)
+	int xx; // [sp+18h] [bp-1Ch]@23             Hellfire: xx (row offset in check)
 	int tryesCounter; // [sp+1Ch] [bp-18h]@6
-	int v28; // [sp+20h] [bp-14h]@1
-	int v29; // [sp+24h] [bp-10h]@1
-	int v30; // [sp+28h] [bp-Ch]@5
+	int swStored; // [sp+20h] [bp-14h]@1       stored copy of sw
+	int shStored; // [sp+24h] [bp-10h]@1       stored copy of sh
+	int colRange; // [sp+28h] [bp-Ch]@5        40 - sh (column limit)
 	int range; // [sp+2Ch] [bp-8h]@5
 	//int v32; // [sp+30h] [bp-4h]@0
-	int v33; // [sp+30h] [bp-4h]@6
+	int savedCol; // [sp+30h] [bp-4h]@6        saved col value
 	int isPatternPlaced; // [sp+3Ch] [bp+8h]@8
 
-	v7 = patternPtr[ 1 ];
-	v8 = minPatternsToPlace;
-	v9 = *patternPtr;
-	v23 = patternPtr;
-	v10 = maxPatternsToPlace - minPatternsToPlace;
-	v28 = *patternPtr;
-	v29 = patternPtr[ 1 ];
-	if( v10 ){
-		v24 = v8 + RNG(v10);
+	sh = patternPtr[ 1 ];
+	tmin = minPatternsToPlace;
+	sw = *patternPtr;
+	miniset = patternPtr;
+	tRange = maxPatternsToPlace - minPatternsToPlace;
+	swStored = *patternPtr;
+	shStored = patternPtr[ 1 ];
+	if( tRange ){
+		numt = tmin + RNG(tRange);
 	}else{
-		v24 = 1;
+		numt = 1;
 	}
-	v25 = 0;
-	if( v24 <= 0 ){
-		row = a7;
+	patternsPlaced = 0;
+	if( numt <= 0 ){
+		#ifdef _DEBUG
+		__debugbreak();// Currently unreachable: all callers pass min=1, max=1 → numt=1. If hit, row/col below are bogus.
+		#endif
+		row = ldir;
 		col = 0;//v32;
 	}else{
-		range = 40 - v9;
-		v30 = 40 - v7;
+		range = 40 - sw;
+		colRange = 40 - sh;
 		do{
 			row = RNG(range);
 			tryesCounter = 0;
-			col = RNG(v30);
-			v33 = col;
+			col = RNG(colRange);
+			savedCol = col;
 			do{
 				if( tryesCounter >= 200 ){
 					return 0;
@@ -5599,48 +5796,48 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 					&& col <= CataQuestRoomEndCol ){
 					isPatternPlaced = 0;
 				}
-				if( a4 != -1 && row >= a4 - v28 && row <= a4 + 12 ){
+				if( cx != -1 && row >= cx - swStored && row <= cx + 12 ){
 					row = RNG(range);
 					isPatternPlaced = 0;
-					v33 = RNG(v30);
-					col = v33;
+					savedCol = RNG(colRange);
+					col = savedCol;
 				}
-				if( a5 != -1 && col >= a5 - v29 && col <= a5 + 12 ){
+				if( cy != -1 && col >= cy - shStored && col <= cy + 12 ){
 					row = RNG(range);
 					isPatternPlaced = 0;
-					v33 = RNG(v30);
-					col = v33;
+					savedCol = RNG(colRange);
+					col = savedCol;
 				}
-				v13 = 0;
-				for( i = 2; v13 < v29; ++v13 ){
+				yy = 0;
+				for( ii = 2; yy < shStored; ++yy ){
 					if( isPatternPlaced != 1 ){
 						break;
 					}
-					v26 = 0;
-					if( v28 > 0 ){
-						v15 = col + v13 + 40 * row;
+					xx = 0;
+					if( swStored > 0 ){
+						mapIdx = col + yy + 40 * row;
 						do{
 							if( isPatternPlaced != 1 ){
 								break;
 							}
-							v16 = v23[ i ];
-							if( v16 && Map[ 0 ][ v15 ] != v16 ){
+							patTile = miniset[ ii ];
+							if( patTile && Map[ 0 ][ mapIdx ] != patTile ){
 								isPatternPlaced = 0;
 							}
-							if( FixedMap[ 0 ][ v15 ] ){
+							if( FixedMap[ 0 ][ mapIdx ] ){
 								isPatternPlaced = 0;
 							}
-							++i;
-							++v26;
-							v15 += 40;
-						} while( v26 < v28 );
+							++ii;
+							++xx;
+							mapIdx += 40;
+						} while( xx < swStored );
 					}
 				}
 				if( !isPatternPlaced && ++row == range ){
 					row = 0;
-					v33 = ++col;
-					if( col == v30 ){
-						v33 = 0;
+					savedCol = ++col;
+					if( col == colRange ){
+						savedCol = 0;
 						col = 0;
 					}
 				}
@@ -5649,43 +5846,43 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 			if( tryesCounter >= 200 ){
 				return 0;
 			}
-			v17 = 0;
-			for( j = v28 * v29 + 2; v17 < v29; ++v17 ){
-				v19 = v28;
-				if( v28 > 0 ){
-					v20 = &Map[ row ][ v17 ] + col;
+			yy2 = 0;
+			for( ii2 = swStored * shStored + 2; yy2 < shStored; ++yy2 ){
+				xxCount = swStored;
+				if( swStored > 0 ){
+					mapPtr = &Map[ row ][ yy2 ] + col;
 					do{
-						v21 = v23[ j ];
-						if( v21 ){
-							*v20 = v21;
+						newTile = miniset[ ii2 ];
+						if( newTile ){
+							*mapPtr = newTile;
 						}
-						++j;
-						v20 += 40;
-						--v19;
-					} while( v19 );
-					col = v33;
+						++ii2;
+						mapPtr += 40;
+						--xxCount;
+					} while( xxCount );
+					col = savedCol;
 				}
 			}
-			++v25;
-		} while( v25 < v24 );
+			++patternsPlaced;
+		} while( patternsPlaced < numt );
 	}
-	result = 1;
+	success = 1;
 	if( resetPlayerPosition == 1 ){
 		PlayerRowPos = 2 * row + 21;
 		PlayerColPos = 2 * col + 22;
 	}
-	if( !a7 ){
+	if( !ldir ){
 		SomeXPos2 = 2 * row + 21;
 		SomeYPos2 = 2 * col + 22;
 	}
-	if( a7 == 6 ){
+	if( ldir == 6 ){
 		SomeXPos2 = 2 * row + 21;
 		SomeYPos2 = 2 * col + 22;
 	}
-	return result;
+	return success;
 	#else
 	int col = 0;
-	int row = a7;
+	int row = ldir;
 
 	int patternRowSize = *patternPtr;
 	int patternColSize = *(patternPtr + 1);
@@ -5693,7 +5890,7 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 	uchar* beforePattern = (patternPtr + 2);
 	uchar* afterPattern = beforePattern + patternRowSize * patternColSize;
 
-	//здесь определяется сколько копий объекта понатыкать на карте
+	//(rt) this decides how many copies of the object to scatter over the map
 	int numberOfPatternsToPlace;
 	if( maxPatternsToPlace - minPatternsToPlace ){
 		numberOfPatternsToPlace = RNG(maxPatternsToPlace - minPatternsToPlace) + minPatternsToPlace;
@@ -5701,7 +5898,7 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 		numberOfPatternsToPlace = 1;
 	}
 
-	//уменьшаем зону поиска места для установки объекта учитывая его размеры (чтобы не выскочил за пределы массива)
+	//(rt) shrink the search area for placing the object by its size (so it doesn't go out of the array)
 	int mapRowsLimit = 40 - patternRowSize;
 	int mapColumnsLimit = 40 - patternColSize;
 
@@ -5719,27 +5916,27 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 				&& col >= CataQuestRoomStartCol && col <= CataQuestRoomEndCol ){
 					maxPatternsToPlace = 0;
 			}
-			if( a4 != -1 ){
-				if( row >= a4 - patternRowSize && row <= a4 + 12 ){
+			if( cx != -1 ){
+				if( row >= cx - patternRowSize && row <= cx + 12 ){
 					row = RNG(mapRowsLimit);
 					col = RNG(mapColumnsLimit);
 					continueFlag = 0;
 				}
 			}
-			if( a5 != -1 ){
-				if( col >= a5 - patternColSize && col <= a5 + 12 ){
+			if( cy != -1 ){
+				if( col >= cy - patternColSize && col <= cy + 12 ){
 					row = RNG(mapRowsLimit);
 					col = RNG(mapColumnsLimit);
 					continueFlag = 0;
 				}
 			}
-			// проверка на соответствие паттерну
+			// (rt) pattern match check
 			for( int colOffset = 0; colOffset < patternColSize && continueFlag; colOffset++ ){
 				for( int rowOffset = 0; rowOffset < patternRowSize && continueFlag; rowOffset++ ){
 					uchar neededTile = beforePattern[colOffset*patternRowSize+rowOffset];
 					int mapCell = (row+rowOffset)*40 + (col+colOffset);
 					if( (neededTile && (Map[ 0 ][ mapCell ] != neededTile)) || FixedMap[ 0 ][ mapCell ] ){
-						continueFlag = 0; //бида бида, паттерн не соблюдается, надо искать другое место
+						continueFlag = 0; //(rt) the pattern does not match; try another position
 					}
 				}
 			}
@@ -5750,7 +5947,7 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 			}
 
 			if( continueFlag ){
-				//матерь божья, мы нашли подходящее место для установки объекта, копируем ка его паттерн быстренько на карту
+				//(rt) found a suitable place for the object, copy its pattern onto the map
 				for( int colOffset = 0; colOffset < patternColSize; colOffset++ ){
 					for( int rowOffset = 0; rowOffset < patternRowSize; rowOffset++ ){
 						uchar newTile = afterPattern[colOffset*patternRowSize+rowOffset];
@@ -5763,7 +5960,7 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 				isPatternPlaced = true;
 			}
 
-			// следующая клетка
+			// (rt) next cell
 			if( !isPatternPlaced ){
 				if( ++row == mapRowsLimit ){
 					row = 0;
@@ -5782,16 +5979,16 @@ int __fastcall GenerateCataPatternObject(uchar* patternPtr, int minPatternsToPla
 
 	}
 
-	//перемещаем стартовую точку игрока поближе к созданному объекту (как правило это делается для лестницы)
+	//(rt) move the player's start point closer to the created object (usually done for stairs)
 	if( resetPlayerPosition ){
 		PlayerRowPos = Convert40to112(row) + 5;
 		PlayerColPos = Convert40to112(col) + 6;
 	}
-	if( !a7 ){
+	if( !ldir ){
 		SomeXPos2 = Convert40to112(row) + 5;
 		SomeYPos2 = Convert40to112(col) + 6;
 	}
-	if( a7 == 6 ){
+	if( ldir == 6 ){
 		SomeXPos2 = Convert40to112(row) + 5;
 		SomeYPos2 = Convert40to112(col) + 6;
 	}
@@ -5829,11 +6026,11 @@ void __fastcall PlaceCataPattern(uchar* patternPtr, int chanceToPlace)
 				continue;
 			}
 			uchar seekTile = patternPtr[ seekIndex ];
-			// защита от установки декора друг рядом с другом
+			// (rt) prevents placing decorations right next to each other
 			for( int colOffset = -patternColSize; colOffset < 2 * patternColSize && continueFlag == 1; colOffset++ ){
 				for( int rowOffset = -patternRowSize; rowOffset < 2 * patternRowSize && continueFlag == 1; rowOffset++ ){
 					int r = row + rowOffset, c = col + colOffset;
-					// фикс морфинга подземелий, пока с заглушкой эмулирующей баг th1 при сверке
+					// (rt) dungeon morphing fix, for now with a stub that emulates the th1 bug for comparison
 					if( r >= 0 && r < 40 && c >= 0 && c < 40 ){
 						if( Map[ r ][ c ] == seekTile ){
 							continueFlag = 0;
@@ -5869,7 +6066,7 @@ void CataTilesVariationsChange()
 			uchar& curWallAndFloorMap = Map[ 0 ][ cell ];
 			if( (row >= CataQuestRoomStartRow && row <= CataQuestRoomEndRow) 
 				|| (col >= CataQuestRoomStartCol && col <= CataQuestRoomEndCol) ){
-					continue;// косяк оригинального алгоритма. Не прямоугольник квестового зала освобождается от рандомизации, а крест с прямоугольником зала в центре
+					continue;// (rt) flaw in the original algorithm. It is not the quest hall's rectangle that is freed from randomization, but a cross with the hall's rectangle in the middle
 			}
 			if( RNG(4) ){
 				continue;
@@ -5979,12 +6176,17 @@ void SomeCataWallAndFroorConvert()
 //----- (004106F8) --------------------------------------------------------
 bool MakePrimaryCataMap()
 {
-	// выбор размера первой комнаты для установки туда квестового шаблона
+	// (rt) pick the size of the first room to place the quest template in
 	int questPatternRoomColSize = 0;
 	int questPatternRoomRowSize = 0;
 	int needQuestPatternRoom = 0;
 	if( Dungeon == DUN_5_CATACOMB_1 ){
 		if( Quests[Q_9_VALOR].status ){
+			needQuestPatternRoom = 1;
+			questPatternRoomRowSize = 20;
+			questPatternRoomColSize = 14;
+		}
+		else if (MaxCountOfPlayersInGame != 1 && Quests[Q_39_VALOR_MP].status) {
 			needQuestPatternRoom = 1;
 			questPatternRoomRowSize = 20;
 			questPatternRoomColSize = 14;
@@ -6025,10 +6227,10 @@ bool MakePrimaryCataMap()
 		}
 	}
 
-	// создание комнат
+	// (rt) create rooms
 	RecursiveCataHallsGeneration(2, 2, 39, 39, 0, 0, needQuestPatternRoom, questPatternRoomRowSize, questPatternRoomColSize);
 
-	// создание корридоров между комнатами и выбор тайлов для дверей
+	// (rt) create corridors between rooms and pick door tiles
 	while( CataPassageQueuePtr ){
 		int firstDoorRow, firstDoorCol, secondDoorRow, secondDoorCol, startOrientation;
 		LoadNextCataPassageParams(firstDoorRow, firstDoorCol, secondDoorRow, secondDoorCol, startOrientation);
@@ -6037,7 +6239,7 @@ bool MakePrimaryCataMap()
 		}
 	}
 
-	// небольшие преобразования перед созданием карты по шаблону
+	// (rt) small transformations before building the map from the template
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			Cell c(CatacombMapAdvance, row, col);
@@ -6057,9 +6259,9 @@ bool MakePrimaryCataMap()
 				case CATA_MA_67_UP_CORNER:
 				case CATA_MA_66_RIGHT_CORNER:
 				case CATA_MA_69_LEFT_CORNER:
-				case CATA_MA_65_DOWN_CORNER:	c = CATA_MA_35_WALL;	break;// углы теряют спец обозначения и становятся просто стенами
+				case CATA_MA_65_DOWN_CORNER:	c = CATA_MA_35_WALL;	break;// (rt) corners lose their special marks and become plain walls
 				case CATA_MA_44_PASSAGE_FLOOR:	
-					// пол коридора становится посто полом, а бейонд вокруг тайлов коридора становится стеной
+					// (rt) corridor floor becomes plain floor, and the Beyond around corridor tiles becomes wall
 					c = CATA_MA_46_FLOOR;
 					if( prevRowPrevCol == CATA_MA_32_BEYOND ){
 						prevRowPrevCol = CATA_MA_35_WALL;
@@ -6090,12 +6292,12 @@ bool MakePrimaryCataMap()
 		}
 	}
 	
-	// расширение комнат в стороны для набора заданной площади пола
+	// (rt) expand rooms sideways to reach the required floor area
 	if( !CataHallsExpand() ){
 		return false;
 	}
 
-	// за счёт применения шаблонов превращение грубого наброска в что то похожее на катакомбы
+	// (rt) turn the rough sketch into something catacomb-like by applying templates
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			CataFillWallAndFloorMapWithUsingSomePatterns(row, col);
@@ -6104,7 +6306,7 @@ bool MakePrimaryCataMap()
 	return true;
 }
 
-// оптимизация лишнего прибавления
+// (rt) optimization of a redundant addition
 __forceinline int RandToMaxMinus1( int min, int max ){	return min + RNG(max - min); }
 //----- (0041084A) --------------------------------------------------------
 void __fastcall RecursiveCataHallsGeneration(int startRow2, int startCol2, int endRow2, int endCol2, int motherCataHallIndex, int orientation, int needQuestPatternRoom, int questPatternRoomRowSize, int questPatternRoomColSize)
@@ -6113,12 +6315,12 @@ void __fastcall RecursiveCataHallsGeneration(int startRow2, int startCol2, int e
 		int rowSize2 = endRow2 - startRow2;
 		int colSize2 = endCol2 - startCol2;
 
-		// если слишком узкий холл, выходим
+		// (rt) if the hall is too narrow, exit
 		if( rowSize2 < MinCataHallSize || colSize2 < MinCataHallSize ){
 			return;
 		}
 
-		// рендомизируем размеры
+		// (rt) randomize the sizes
 		int roomColSize;
 		if( rowSize2 > BigCataHallSize ){
 			roomColSize = RandToMaxMinus1(MediumCataHallSize, BigCataHallSize);
@@ -6230,7 +6432,7 @@ void __fastcall ConstructCataHall(int startRow, int startCol, int endRow, int en
 	int afterStartRow; // ecx@7
 	unsigned __int8 *cataAdvOfs; // eax@8
 	unsigned __int8 *cell; // ebx@13
-	int rowDif_1; // eax@13
+	int rowCount; // eax@13            Hellfire: inner row countdown for floor fill
 	int colDif; // [sp+10h] [bp-4h]@4
 	int rowDif; // [sp+10h] [bp-4h]@8
 	int prevEndCol; // [sp+20h] [bp+Ch]@10
@@ -6250,17 +6452,19 @@ void __fastcall ConstructCataHall(int startRow, int startCol, int endRow, int en
 	*(int *) ((char *) &CataHalls[ 0 ].startCol + cataCountNext) = startCol;
 	*(int *) ((char *) &CataHalls[ 0 ].endCol + cataCountNext) = endCol;
 	if( isFixedHall == 1 ){
+		// BUG FIX (Bug 1 — Hellfire original, DRLG_L2.CPP DefineRoom):
+		// Original had 'row = endCol' inside the inner loop, overwriting the outer loop variable.
+		// This caused the outer for-loop to execute only once and used endCol as the row index,
+		// while advancing by 40 (row stride) instead of 1 (column stride). Net effect: marked wrong cells.
+		// Correct intent: mark every cell in the hall rectangle with FF_8_FIXED (0x80).
 		for( row = startRow; row < endRow; ++row ){
-			if( row < endCol ){
-				fixedMapOfs = &FixedMap[ row ][ startCol ];
-				colDif = endCol - row;
-				row = endCol;
-				do{
-					*fixedMapOfs |= 0x80u;
-					lastCol = colDif-- == 1;
-					fixedMapOfs += 40;
-				}while( !lastCol );
-			}
+			fixedMapOfs = &FixedMap[ row ][ startCol ];
+			colDif = endCol - startCol;
+			do{
+				*fixedMapOfs |= 0x80u;
+				lastCol = colDif-- == 1;
+				++fixedMapOfs;           // advance one column (was: += 40, which incorrectly stepped by row)
+			}while( !lastCol );
 		}
 	}
 	afterStartRow = startRow + 1;
@@ -6280,22 +6484,22 @@ void __fastcall ConstructCataHall(int startRow, int startCol, int endRow, int en
 		*(&CatacombMapAdvance[ 0 ][ startCol ] + endRowOfs) = 35;
 		if( afterStartRow < endRow ){
 			cell = &CatacombMapAdvance[ afterStartRow ][ startCol ];
-			rowDif_1 = endRow - afterStartRow;
+			rowCount = endRow - afterStartRow;
 			do{
 				*cell = 46;
 				cell += 40;
-				--rowDif_1;
-			}while( rowDif_1 );
+				--rowCount;
+			}while( rowCount );
 		}
 	}
 	#ifdef refucktor
-	// углы
+	// (rt) corners
 	CatacombMapAdvance[ startRow ][ startCol ] = CATA_MA_67_UP_CORNER;
 	CatacombMapAdvance[ startRow ][ endCol ] = CATA_MA_69_LEFT_CORNER;
 	CatacombMapAdvance[ endRow ][ startCol ] = CATA_MA_66_RIGHT_CORNER;
 	CatacombMapAdvance[ endRow ][ endCol ] = CATA_MA_65_DOWN_CORNER;
 
-	// стены 35
+	// (rt) walls 35
 	for( int row = startRow + 1; row <= endRow - 1; row++ ){
 		CatacombMapAdvance[ row ][ startCol ] = CATA_MA_35_WALL;
 		CatacombMapAdvance[ row ][ endCol ] = CATA_MA_35_WALL;
@@ -6306,29 +6510,29 @@ void __fastcall ConstructCataHall(int startRow, int startCol, int endRow, int en
 		CatacombMapAdvance[ endRow ][ col ] = CATA_MA_35_WALL;
 	}
 
-	// пол 46
+	// (rt) floor 46
 	for( int col = startCol + 1; col <= endCol - 1; col++ ){
 		for( int row = startRow + 1; row <= endRow - 1; row++ ){
 			CatacombMapAdvance[ row ][ col ] = CATA_MA_46_FLOOR;
 		}
 	}
 
-	CataHall& curHall = CataHalls[++CataHallsCount];// баг оригинала
+	CataHall& curHall = CataHalls[++CataHallsCount];// (rt) bug in the original
 	curHall.startRow = startRow;
 	curHall.startCol = startCol;
 	curHall.endRow = endRow;
 	curHall.endCol = endCol;
 
 	if( isFixedHall == 1 ){
-	#if comment // верная версия, но увы для совместимости придется пока оставить косячную
-		// Мор: что за потакание совместимости в угоду багам? чье решение? тут важно какая именно совместимость. может, и пожертвовать ею не грех
+	#if comment // (rt) the correct version, but for compatibility the buggy one has to stay for now
+		// Mor: why pander to compatibility at the expense of bugs? whose decision is it? what matters is which compatibility exactly. maybe sacrificing it is no sin
 		for( int row = startRow; row < endRow; row++ ){
 			for( int col = startCol; col < endCol; col++ ){
 				FixedMap[ row ][ col ] |= FF_8_FIXED;
 			}
 		}
 	#endif
-		// такая ахинея в оригинале. Она и оставлена для совместимости генерации
+		// (rt) this behaviour comes from the original and is kept for generation compatibility
 		for( int row = startRow; row < endRow; ++row ){
 			for( int col = row; col < endCol; ++col ){
 				FixedMap[col][startCol] |= FF_8_FIXED;
@@ -6352,7 +6556,7 @@ void __fastcall SaveCataPassageParamsToQueue(int firstDoorRow, int firstDoorCol,
 		nextCataRoomElement->startOrientation = startOrientation;
 		nextCataRoomElement->nextElementPtr = 0;
 
-		// добавление нового элемента в конец очереди
+		// (rt) add a new element at the end of the queue
 		CataPassageQueue* lastCataRoomElement = CataPassageQueuePtr;
 		while( lastCataRoomElement->nextElementPtr ){
 			lastCataRoomElement = lastCataRoomElement->nextElementPtr;
@@ -6570,11 +6774,11 @@ void __fastcall MakeCataPassageFloor(int row, int col)
 //----- (0041128F) --------------------------------------------------------
 void __fastcall CataFillWallAndFloorMapWithUsingSomePatterns(int row, int col)
 {
-	/* алгоритм следующий:
-		есть куча шаблонов каждый из 10ти значений.
-		проверяется квадрат 3 на 3 (в CatacombMapAdvance) вокруг нашей клетки на соответствие шаблону
-		если подошёл, то ставится 10 значение соответствующей клетке Map
-		квадрат может совпадать с несколькими шаблонами. Тогда приоритет отдаётся самому последнему
+	/* (rt) the algorithm is as follows:
+		(rt) there is a pile of templates of 10 values each.
+		(rt) a 3x3 square (in CatacombMapAdvance) around our cell is checked against a template
+		(rt) if it matches, the 10th value is put into the corresponding Map cell
+		(rt) the square may match several templates. Then the last one wins
 	*/
 	for( int patternIndex = 0; SomeCataPatternMaps10x100[patternIndex * 10 + 4] != 255; patternIndex++ ){
 		int checkingCol = col - 1;
@@ -6666,24 +6870,24 @@ bool CataHallsExpand()
 		bool mayDecCol = 0;
 		bool mayIncRow = 0;
 		bool mayDecRow = 0;
-		char v6 = CatacombMapAdvance[ 0 ][ cell - 40 ];
-		char v7 = CatacombMapAdvance[ 0 ][ cell - 1 ];
+		char cellAbove = CatacombMapAdvance[ 0 ][ cell - 40 ];
+		char cellLeft = CatacombMapAdvance[ 0 ][ cell - 1 ];
 
-		if( v6 == CATA_MA_32_BEYOND && CatacombMapAdvance[ 0 ][ cell + 40 ] == CATA_MA_46_FLOOR ){// переполение при row == 39. Как исправить не понимаю
+		if( cellAbove == CATA_MA_32_BEYOND && CatacombMapAdvance[ 0 ][ cell + 40 ] == CATA_MA_46_FLOOR ){// (rt) overflows when row == 39; a fix is not known yet
 
 			if( CatacombMapAdvance[ 0 ][ cell + 39 ] == CATA_MA_46_FLOOR 
 				&& CatacombMapAdvance[ 0 ][ cell + 41 ] == CATA_MA_46_FLOOR 
-				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == v6 
-				&& CatacombMapAdvance[ 0 ][ cell - 39 ] == v6 ){
+				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == cellAbove 
+				&& CatacombMapAdvance[ 0 ][ cell - 39 ] == cellAbove ){
 					mayIncCol = 1;
 					mayDecCol = 1;
 					mayDecRow = 1;
 			}
 
-		}else if( CatacombMapAdvance[ 0 ][ cell + 40 ] == CATA_MA_32_BEYOND && v6 == CATA_MA_46_FLOOR ){
+		}else if( CatacombMapAdvance[ 0 ][ cell + 40 ] == CATA_MA_32_BEYOND && cellAbove == CATA_MA_46_FLOOR ){
 
-			if( CatacombMapAdvance[ 0 ][ cell - 41 ] == v6 
-				&& CatacombMapAdvance[ 0 ][ cell - 39 ] == v6 
+			if( CatacombMapAdvance[ 0 ][ cell - 41 ] == cellAbove 
+				&& CatacombMapAdvance[ 0 ][ cell - 39 ] == cellAbove 
 				&& CatacombMapAdvance[ 0 ][ cell + 39 ] == CATA_MA_32_BEYOND 
 				&& CatacombMapAdvance[ 0 ][ cell + 41 ] == CATA_MA_32_BEYOND ){
 					mayIncCol = 1;
@@ -6691,12 +6895,12 @@ bool CataHallsExpand()
 					mayIncRow = 1;
 			}
 
-		}else if( v7 == CATA_MA_32_BEYOND && CatacombMapAdvance[ 0 ][ cell + 1 ] == CATA_MA_46_FLOOR ){
+		}else if( cellLeft == CATA_MA_32_BEYOND && CatacombMapAdvance[ 0 ][ cell + 1 ] == CATA_MA_46_FLOOR ){
 
 			if( CatacombMapAdvance[ 0 ][ cell - 39 ] == CATA_MA_46_FLOOR 
 				&& CatacombMapAdvance[ 0 ][ cell + 41 ] == CATA_MA_46_FLOOR 
-				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == v7 
-				&& CatacombMapAdvance[ 0 ][ cell + 39 ] == v7 ){
+				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == cellLeft 
+				&& CatacombMapAdvance[ 0 ][ cell + 39 ] == cellLeft ){
 					mayIncRow = 1;
 					mayDecRow = 1;
 					mayDecCol = 1;
@@ -6705,9 +6909,9 @@ bool CataHallsExpand()
 		}else{
 
 			if( CatacombMapAdvance[ 0 ][ cell + 1 ] == CATA_MA_32_BEYOND 
-				&& v7 == CATA_MA_46_FLOOR 
-				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == v7 
-				&& CatacombMapAdvance[ 0 ][ cell + 39 ] == v7 
+				&& cellLeft == CATA_MA_46_FLOOR 
+				&& CatacombMapAdvance[ 0 ][ cell - 41 ] == cellLeft 
+				&& CatacombMapAdvance[ 0 ][ cell + 39 ] == cellLeft 
 				&& CatacombMapAdvance[ 0 ][ cell - 39 ] == CATA_MA_32_BEYOND 
 				&& CatacombMapAdvance[ 0 ][ cell + 41 ] == CATA_MA_32_BEYOND ){
 					mayIncRow = 1;
@@ -6755,7 +6959,7 @@ bool CataHallsExpand()
 
 		if( !mayDecRow ){
 
-			// вначале считаем длину линии с endRow двигаясь в обе стороны до предела
+			// (rt) first count the length of the line at endRow, moving both ways to the limit
 			while( mayDecCol || mayIncCol ){
 				if( startCol == 0 ){
 					mayDecCol = 0;
@@ -6780,15 +6984,15 @@ bool CataHallsExpand()
 				}
 			}
 
-			// уменьшаем линию на 2 с обоих концов
+			// (rt) shorten the line by 2 at both ends
 			endCol -= 2;
 			startCol += 2;
-			if( endCol - startCol <= 5 ){// после уменьшения разница между ними должна составлять более 5
+			if( endCol - startCol <= 5 ){// (rt) after shortening, the difference between them must be more than 5
 				++tryesCount;
 				continue;
 			}
 
-			// теперь считаем ширину прямоугольника, проверяя все клетки линии и сдвигая линию по endRow
+			// (rt) now count the rectangle's width by checking every cell of the line and shifting the line along endRow
 			while( mayIncRow ){
 				if( endRow == 39 || endRow - startRow >= 12 ){
 					break;
@@ -6805,12 +7009,12 @@ bool CataHallsExpand()
 			}
 
 			endRow -= 2;
-			if( endRow - startRow <= 5 ){// после дохождения до предела, ширина должна составлять более 5
+			if( endRow - startRow <= 5 ){// (rt) after reaching the limit, the width must be more than 5
 				++tryesCount;
 				continue;
 			}
-			ExpandCataHall(startRow, startCol, endRow, endCol);// расширяем холл
-			CompleteExpandCataHall(startRow, startCol, endRow, endCol);// исправляем погрешности на стыках
+			ExpandCataHall(startRow, startCol, endRow, endCol);// (rt) expand the hall
+			CompleteExpandCataHall(startRow, startCol, endRow, endCol);// (rt) fix the errors at the joins
 			++tryesCount;
 			continue;
 		}
@@ -7026,12 +7230,12 @@ void __fastcall ExpandCataHall(int startRow, int startCol, int endRow, int endCo
 {
 	for( int col = startCol; col <= endCol; col++ ){
 		for( int row = startRow; row <= endRow; row++ ){
-			CatacombMapAdvance[ row ][ col ] = CATA_MA_46_FLOOR;// пол?
+			CatacombMapAdvance[ row ][ col ] = CATA_MA_46_FLOOR;// (rt) floor?
 		}
 	}
 
 	for( int col = startCol; col <= endCol; col++ ){
-		CatacombMapAdvance[ startRow ][ col ] = CATA_MA_35_WALL; // стены?
+		CatacombMapAdvance[ startRow ][ col ] = CATA_MA_35_WALL; // (rt) walls?
 		CatacombMapAdvance[ endRow ][ col ] = CATA_MA_35_WALL;
 	}
 
@@ -7044,19 +7248,19 @@ void __fastcall ExpandCataHall(int startRow, int startCol, int endRow, int endCo
 //----- (00411A8B) --------------------------------------------------------
 void __fastcall CompleteExpandCataHall(int startRow, int startCol, int endRow, int endCol)
 {
-	// убираем неровные края между холлом и его расширением
+	// (rt) remove the ragged edges between the hall and its extension
 	for( int row = startRow + 1; row < endRow; row++ ){
-		uchar& nextEndCol = CatacombMapAdvance[ row ][ endCol + 1 ];// на самом деле учар
+		uchar& nextEndCol = CatacombMapAdvance[ row ][ endCol + 1 ];// (rt) actually a uchar
 		uchar& prevStartCol = CatacombMapAdvance[ row ][ startCol - 1 ];
 
-		// если с обеих сторон от стены пол, то сносим стену
+		// (rt) if there is floor on both sides of the wall, remove the wall
 		if( prevStartCol == CATA_MA_46_FLOOR && CatacombMapAdvance[ row ][ startCol + 1 ] == CATA_MA_46_FLOOR ){
 			CatacombMapAdvance[ row ][ startCol ] = CATA_MA_46_FLOOR;
 		}
 		if( CatacombMapAdvance[ row ][ endCol - 1 ] == CATA_MA_46_FLOOR && nextEndCol == CATA_MA_46_FLOOR ){
 			CatacombMapAdvance[ row ][ endCol ] = CATA_MA_46_FLOOR;
 		}
-		// если находим дверь висящую теперь в воздухе, заменяем её на пол
+		// (rt) if we find a door now hanging in the air, replace it with floor
 		if( prevStartCol == CATA_MA_68_DOOR ){
 			prevStartCol = CATA_MA_46_FLOOR;
 		}
@@ -7067,16 +7271,16 @@ void __fastcall CompleteExpandCataHall(int startRow, int startCol, int endRow, i
 
 	for( int col = startCol + 1; col < endCol; col++ ){
 
-		uchar& nextEndRow = CatacombMapAdvance[ endRow + 1 ][ col ];// на самом деле учар
+		uchar& nextEndRow = CatacombMapAdvance[ endRow + 1 ][ col ];// (rt) actually a uchar
 		uchar& prevStartRow = CatacombMapAdvance[ startRow - 1 ][ col ];
-		// если с обеих сторон от стены пол, то сносим стену
+		// (rt) if there is floor on both sides of the wall, remove the wall
 		if( prevStartRow == CATA_MA_46_FLOOR && CatacombMapAdvance[ startRow + 1 ][ col ] == CATA_MA_46_FLOOR ){
 			CatacombMapAdvance[ startRow ][ col ] = CATA_MA_46_FLOOR;
 		}
 		if( CatacombMapAdvance[ endRow - 1 ][ col ] == CATA_MA_46_FLOOR && nextEndRow == CATA_MA_46_FLOOR ){
 			CatacombMapAdvance[ endRow ][ col ] = CATA_MA_46_FLOOR;
 		}
-		// если находим дверь висящую теперь в воздухе, заменяем её на пол
+		// (rt) if we find a door now hanging in the air, replace it with floor
 		if( prevStartRow == CATA_MA_68_DOOR ){
 			prevStartRow = CATA_MA_46_FLOOR;
 		}
@@ -7091,7 +7295,7 @@ void InitCataWallsTransparency()
 {
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
-			if( Map[ row ][ col ] == CATA_WAFM_3_FLOOR && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // пол не отнесённый ни к одной из комнат относим к новой комнате
+			if( Map[ row ][ col ] == CATA_WAFM_3_FLOOR && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // (rt) floor not belonging to any room is assigned to a new room
 				SetCataCellTransparency(row, col, Convert40to112(row), Convert40to112(col), 0);
 				TransValue++;
 			}
@@ -7243,73 +7447,77 @@ void SomeCataCornersConvert()
 //----- (00411EC9) --------------------------------------------------------
 void InitCataArchs()
 {
-	int* v0;      // ebx@1
-	int v1;       // edi@1
-	int* v2;      // edx@2
-	char* v3;     // ecx@2
-	int v4;       // esi@2
-	int v5;       // eax@3
-	char v6;      // ST00_1@9
-	int v7;       // ecx@15
-	int* v8;      // esi@15
-	char* result; // eax@16
-	int* v10;     // edx@16
-	int v11;      // ebx@16
-	int v12;      // edi@17
-	v1 = 0;
-	v0 = FineMap[ 0 ];
+	int* fineMapCol;    // ebx@1     Hellfire: (outer pointer into dPiece column)
+	int col;            // edi@1     Hellfire: i (column counter)
+	int* piecePtr;      // edx@2     Hellfire: (inner dPiece pointer)
+	char* specialPtr;   // ecx@2     Hellfire: (inner dSpecial pointer)
+	int rowCount;       // esi@2     Hellfire: j (row counter, 112)
+	int pieceId;        // eax@3     Hellfire: nPiece
+	char specialVal;    // ST00_1@9  Hellfire: top (arch special value)
+	int col2;           // ecx@15    Hellfire: i (column counter, loop 2)
+	int* fineMapCol2;   // esi@15    Hellfire: (outer dPiece pointer, loop 2)
+	char* specialPtr2;  // eax@16    Hellfire: (inner dSpecial pointer, loop 2)
+	int* innerPiecePtr; // edx@16    Hellfire: (inner dPiece pointer, loop 2)
+	int rowCount2;      // ebx@16    Hellfire: j (row counter, loop 2)
+	int pieceId2;       // edi@17    Hellfire: nPiece (loop 2)
+	col = 0;
+	fineMapCol = FineMap[ 0 ];
 	do{
-		v3 = &ArchGraphicsMap[ 0 ][ v1 ];
-		v2 = v0;
-		v4 = 112;
+		specialPtr = &ArchGraphicsMap[ 0 ][ col ];
+		piecePtr = fineMapCol;
+		rowCount = 112;
 		do{
-			v5 = *v2;
-			if( *v2 != 541 && v5 != 178 && v5 != 551 ){
-				if( v5 == 542 || v5 == 553 )
+			pieceId = *piecePtr;
+			if( *piecePtr != 541 && pieceId != 178 && pieceId != 551 ){
+				if( pieceId == 542 || pieceId == 553 )
 					goto LABEL_11;
-				if( v5 != 13 ){
-					if( v5 != 17 )
+				if( pieceId != 13 ){
+					if( pieceId != 17 )
 						goto LABEL_13;
 LABEL_11:
-					v6 = 6;
+					specialVal = 6;
 					goto LABEL_12;
 				}
 			}
-			v6 = 5;
+			specialVal = 5;
 LABEL_12:
-			*v3 = v6;
+			*specialPtr = specialVal;
 LABEL_13:
-			v2 += 112;
-			v3 += 112;
-			--v4;
-		}while( v4 );
-		++v0;
-		++v1;
-	}while( (int)v0 < (int)&FineMap[ 0 ][ 112 ] );
-	v7 = 0;
-	v8 = FineMap[ 0 ];
+			piecePtr += 112;
+			specialPtr += 112;
+			--rowCount;
+		}while( rowCount );
+		++fineMapCol;
+		++col;
+	}while( (int)fineMapCol < (int)&FineMap[ 0 ][ 112 ] );
+	col2 = 0;
+	fineMapCol2 = FineMap[ 0 ];
 	do{
-		result = &ArchGraphicsMap[ 0 ][ v7 + 2 ];
-		v10 = v8;
-		v11 = 112;
+		specialPtr2 = &ArchGraphicsMap[ 0 ][ col2 + 2 ];
+		innerPiecePtr = fineMapCol2;
+		rowCount2 = 112;
 		do{
-			v12 = *v10;
-			if( *v10 == 132 ){
-				*(result - 1) = 2;
-				*result = 1;
+			pieceId2 = *innerPiecePtr;
+			if( *innerPiecePtr == 132 ){
+				if( col2 < 110 ){// OOB fix: col2+2 must be < 112
+					*(specialPtr2 - 1) = 2;
+					*specialPtr2 = 1;
+				}
 			}else{
-				if( v12 == 135 || v12 == 139 ){
-					*(result + 110) = 3;
-					*(result + 222) = 4;
+				if( pieceId2 == 135 || pieceId2 == 139 ){
+					if( rowCount2 > 2 ){// OOB fix: writes to row+1 and row+2, must stay within 112 rows
+						*(specialPtr2 + 110) = 3;
+						*(specialPtr2 + 222) = 4;
+					}
 				}
 			}
-			v10 += 112;
-			result += 112;
-			--v11;
-		}while( v11 );
-		++v8;
-		++v7;
-	}while( (int)v8 < (int)&FineMap[ 0 ][ 112 ] );
+			innerPiecePtr += 112;
+			specialPtr2 += 112;
+			--rowCount2;
+		}while( rowCount2 );
+		++fineMapCol2;
+		++col2;
+	}while( (int)fineMapCol2 < (int)&FineMap[ 0 ][ 112 ] );
 }
 
 //----- (00411F8B) --------------------------------------------------------
@@ -7368,7 +7576,7 @@ void DeleteUnwantedWoodenDoorTiles()
 //----- (00412254) --------------------------------------------------------
 void CaveConvertTempTailToEnterToTownTiles()
 {
-	for( int col = 0; col < 39; col++ ){// отсебятина. Заменил 0-40 на 0-39 иначе, читает за границе массива
+	for( int col = 0; col < 39; col++ ){// (rt) my own change. Replaced 0-40 with 0-39, otherwise it reads past the end of the array
 		for( int row = 0; row < 39; row++ ){
 
 			Cell c(Map, row, col);
@@ -7386,8 +7594,8 @@ void CaveConvertTempTailToEnterToTownTiles()
 					nextRowNextCol = CAVE_WAFM_154_ENTER_TO_TOWN;
 					return;
 			}
-			// вот это бредятина объединять два конвертирования в одном
-			// на 9м когда встретит лестницу, после неё остальные места перестанет конвертировать
+			// (rt) two conversions are combined in one step here; they should be separate
+			// (rt) on level 9, once it meets the stairs, it stops converting the remaining places
 			if( c == CAVE_WAFM_5_CORNER_IN_DOWN && nextRowNextCol == CAVE_WAFM_7_FLOOR ){
 				c = CAVE_WAFM_7_FLOOR;
 			}
@@ -7448,7 +7656,7 @@ void __fastcall CaveBinPatternSomeStrangeRecursiveCalc(int row, int col)
 //----- (00412384) --------------------------------------------------------
 bool IsAllCaveFloorTilesAreLinked()
 {
-	// проверка все ли клетки проходимые связанны между собой
+	// (rt) check that all walkable cells are connected to each other
 	int startRow = 0;
 	int startCol = 0;
 	int floorTilesCount = 0;
@@ -7481,7 +7689,7 @@ void __fastcall CreateCaveTypeLabyrinth(int levelRandomSeed, int lvlDir)
 	ClearCurPattern();
 	CaveLevelGeneration(lvlDir);
 	InitLevelTiles( CAVE_WAFM_8_BEYOND );
-	if( Dungeon->graphType == DT_6_ABYSS ){ //  бездна
+	if( Dungeon->graphType == DT_6_ABYSS ){ //  (rt) abyss
 		for( int col = 0; col < 112; col++ ){
 			for( int row = 0; row < 112; row++ ){
 				int dmap = FineMap[ row ][ col ];
@@ -7490,14 +7698,14 @@ void __fastcall CreateCaveTypeLabyrinth(int levelRandomSeed, int lvlDir)
 				}
 			}
 		}
-	}else{ //  пещеры
+	}else{ //  (rt) caves
 		for( int col = 0; col < 112; col++ ){
 			for( int row = 0; row < 112; row++ ){
 				int dmap = FineMap[ row ][ col ];
 				if( dmap >= 56 && dmap <= 147 
 				 || dmap >= 154 && dmap <= 161 
 				 || dmap == 150 || dmap == 152 ){
-					DoLighting(row, col, 7, -1); // свет от лавы
+					DoLighting(row, col, 7, -1); // (rt) light from the lava
 				}
 			}
 		}
@@ -7510,7 +7718,7 @@ void __fastcall CaveLevelGeneration(int lvlDir)
 {
 	MaybeHasLavaTiles = 0;
 	while( 1 ){
-		// составляем бинарную карту пещер
+		// (rt) build the binary map of the caves
 		bool isBinPatternGenerationComplete = true;
 		do{
 			ClearWarps();
@@ -7554,7 +7762,7 @@ void __fastcall CaveLevelGeneration(int lvlDir)
 				int lavaRectColPos = RNG(10);
 				CaveMakeRectRoomInBinPattern(lavaRectRowPos + 10, lavaRectColPos + 10, lavaRectRowPos + 16, lavaRectColPos + 16);
 			}
-			else if (IsQuestOnLevel(Q_29_IRON_FIGURINE)) {
+			else if (IsQuestOnLevel(Q_29_IRON_FIGURINE) || IsQuestOnLevel(Q_40_SECRETS_OF_MAGIC)) {
 				int lavaRectRowPos = RNG(10);
 				int lavaRectColPos = RNG(10);
 				CaveMakeRectRoomInBinPattern(lavaRectRowPos + 10, lavaRectColPos + 10, lavaRectRowPos + 16, lavaRectColPos + 16);
@@ -7682,7 +7890,7 @@ void __fastcall CaveLevelGeneration(int lvlDir)
 		PlaceCavePattern(PatMap3x3_48A8B0_ABYSS, 45);
 		PlaceCavePattern(PatMap3x3_48A8C8_ABYSS, 50);
 		PlaceCavePattern(PatMap3x3_48A8E0_ABYSS, 55);
-		// почему то зеркально расположены
+		// (rt) mirrored for some reason
 		PlaceCavePattern(PatMap3x3_48A8E0_ABYSS, 10);
 		PlaceCavePattern(PatMap3x3_48A8C8_ABYSS, 15);
 		PlaceCavePattern(PatMap3x3_48A8B0_ABYSS, 20);
@@ -7763,7 +7971,7 @@ void __fastcall CaveLevelGeneration(int lvlDir)
 //----- (00412D83) --------------------------------------------------------
 bool __fastcall MakeSerratedCaveBinaryPatternRoom( int startRow, int startCol, int endRow, int endCol )
 {
-	if( startRow <= 1 || endRow >= 34 || startCol <= 1 || endCol >= 38 ){// странная верхняя граница
+	if( startRow <= 1 || endRow >= 34 || startCol <= 1 || endCol >= 38 ){// (rt) unusual upper bound
 		return false;
 	}
 	for( int col = startCol; col <= endCol; col++ ){
@@ -7801,7 +8009,7 @@ bool __fastcall MakeSerratedCaveBinaryPatternRoom( int startRow, int startCol, i
 //----- (00412EBE) --------------------------------------------------------
 void __fastcall RecursiveCaveRoomsGeneration(int startRow, int startCol, int somePrevRoomSize, int maybeOrientation)
 {
-	// не понимаю как это работает, но оно работает
+	// (rt) the mechanism is not fully understood, but it works
 	int startRowForRoom = somePrevRoomSize;
 	int startColForRoom = somePrevRoomSize;
 	int currentCol = startCol;
@@ -7908,14 +8116,14 @@ void __fastcall CaveMakeRectRoomInBinPattern(int startRow, int startCol, int end
 //----- (004130DD) --------------------------------------------------------
 void SomeCaveBinPatternConvert_MaybeLavaRiverConvert()
 {
-	// если встречается следующий паттерн:
+	// (rt) if the following pattern is met:
 	// 1 0
 	// 0 1
-	// либо
+	// (rt) or
 	// 0 1
 	// 1 0
-	// то на месте одного из 0й ставится 1. 
-	// Возможно сделано чтобы тайлы лавы соединялись строго под острыми углами, не по диагоналям
+	// (rt) then one of the 0s is replaced with 1. 
+	// (rt) Perhaps so that lava tiles join strictly at sharp angles, not diagonally
 	
 	for( int col = 0; col < Map_40 - 1; col++ ){
 		for( int row = 0; row < Map_40 - 1; row++ ){
@@ -7945,11 +8153,11 @@ void SomeCaveBinPatternConvert_MaybeLavaRiverConvert()
 //----- (0041314E) --------------------------------------------------------
 void CaveBinLavaLakeConvert()
 {
-	// если встречается следующий паттерн:
+	// (rt) if the following pattern is met:
 	// 1 1 1
 	// 1 0 1
 	// 1 1 1
-	// то на месте 0ля ставится 1. 
+	// (rt) then the 0 is replaced with 1. 
 
 	for( int col = 1; col < Map_40 - 1; col++ ){
 		for( int row = 1; row < Map_40 - 1; row++ ){
@@ -7971,7 +8179,7 @@ void CaveBinLavaLakeConvert()
 				c( 1, 1) == 0 ){
 					continue;
 			}
-			// если все окружающие тайлы - лава, а наш не лава, то конвертируем его в лавовый
+			// (rt) if all surrounding tiles are lava and ours isn't, convert it to lava
 			c = 1;
 		}
 	}
@@ -7980,7 +8188,7 @@ void CaveBinLavaLakeConvert()
 //----- (004131AC) --------------------------------------------------------
 void MakeSomeLavaBridgeInCaveBinPattern()
 {
-	// в последовательностях тайлов лавы делает случайные проходы
+	// (rt) makes random passages through runs of lava tiles
 
 	int startRow = 0;
 	for( int col = 1; col < Map_40 - 1; col++ ){
@@ -8156,7 +8364,7 @@ void CaveMakeLavaRivers()
 			}
 			++tryesCount;
 
-			// ищем крайние неугловые тайлы лавовых озер
+			// (rt) find the edge non-corner tiles of the lava lakes
 			int row = 0;
 			int col = 0;
 			int lavaLakeFoundTryesCount = 0;
@@ -8189,9 +8397,9 @@ void CaveMakeLavaRivers()
 				return;
 			}
 
-			// в зависимости от найденного тайла лавы выбираем главное направление распространения лавовой реки
-			// и запрещаем ей двигаться в противоположном направлении.
-			// она может также изгибаться перпендикулятно основному направлению
+			// (rt) depending on the lava tile found, pick the lava river's main direction
+			// (rt) and forbid it to move in the opposite direction.
+			// (rt) it may also bend perpendicular to the main direction
 			int curLavaRiverOrientation;
 			int banedLavaRiverOrientation;
 
@@ -8220,19 +8428,19 @@ void CaveMakeLavaRivers()
 			lavaRiverRows[0] = row;
 			lavaRiverCols[0] = col;
 			lavaRiverSize = 1;
-			int secondaryBannedLavaRiverOrientation = 4;// запрещаем двигаться в сторону противоположную последнему шагу
+			int secondaryBannedLavaRiverOrientation = 4;// (rt) forbid moving opposite to the last step
 			int lastLavaRiverOrientation = 4;
-			// цикл завершается либо, если река уже слишком длинная, либо если зашли в тупик
+			// (rt) the loop ends either when the river is already too long or when it hits a dead end
 			for( int orientationChangesCount = 0; orientationChangesCount < 4 && lavaRiverSize < 100; ){
 				
-				// выбираем новое направление (первый цикл либо нашли пол) либо следующее направление
+				// (rt) pick a new direction (first loop, or floor was found) or the next direction
 				if( orientationChangesCount ){
 					curLavaRiverOrientation = (curLavaRiverOrientation + 1) & 3;
 				}else{
 					curLavaRiverOrientation = RNG(4);
 				}
 				//if( CurVP == 50969 ) __debugbreak();
-				// пропускаем два запретных направления. Цикл завершается максимум за 2 оборота.
+				// (rt) skip the two forbidden directions. The loop finishes in at most 2 turns.
 				while( 1 ){
 					++orientationChangesCount;
 					if( curLavaRiverOrientation != banedLavaRiverOrientation && curLavaRiverOrientation != secondaryBannedLavaRiverOrientation ){
@@ -8244,7 +8452,7 @@ void CaveMakeLavaRivers()
 				int oldRow = row;
 				int oldCol = col;
 
-				// смещаемся в соответствии с выбранным направлением
+				// (rt) move according to the chosen direction
 				switch( curLavaRiverOrientation ){
 				case LO_0_COL_MINUS: --col; break;
 				case LO_1_COL_PLUS : ++col; break;
@@ -8253,11 +8461,11 @@ void CaveMakeLavaRivers()
 				}
 				Limit40(row, col);
 
-				// река может распространяться только по полу
+				// (rt) the river can only spread over floor
 				if( m(row, col) == CAVE_WAFM_7_FLOOR ){
 					orientationChangesCount = 0;
 					lavaRiverSize++;
-					// вначале предполагаем, что река идет прямо и ставим случайный тайл прямой реки для данного расположения
+					// (rt) first assume the river goes straight and place a random straight river tile for this layout
 					if( curLavaRiverOrientation == LO_0_COL_MINUS || curLavaRiverOrientation == LO_1_COL_PLUS ){
 						lavaRiverTiles[lavaRiverSize - 1] = (!RNG(2)) ? CAVE_WAFM_17_LAVA_RIVER_HORIZ_1 : CAVE_WAFM_18_LAVA_RIVER_HORIZ_2;
 					}
@@ -8267,9 +8475,9 @@ void CaveMakeLavaRivers()
 					lavaRiverRows[lavaRiverSize - 1] = row;
 					lavaRiverCols[lavaRiverSize - 1] = col;
 					
-					// деоптимизировал для большей понятности
+					// (rt) de-optimized for clarity
 
-					// проверяем на углы
+					// (rt) check for corners
 					if( lavaRiverSize > 2 ){
 						if( curLavaRiverOrientation == LO_0_COL_MINUS && lastLavaRiverOrientation == LO_2_ROW_PLUS 
 							|| curLavaRiverOrientation == LO_3_ROW_MINUS && lastLavaRiverOrientation == LO_1_COL_PLUS ){
@@ -8285,7 +8493,7 @@ void CaveMakeLavaRivers()
 								lavaRiverTiles[lavaRiverSize - 2] = CAVE_WAFM_19_LAVA_RIVER_CORNER;
 						}
 					}
-					// запрещаем двигаться обратно
+					// (rt) forbid moving back
 					switch (curLavaRiverOrientation ){
 						case LO_0_COL_MINUS:	secondaryBannedLavaRiverOrientation = LO_1_COL_PLUS;	break;
 						case LO_1_COL_PLUS:		secondaryBannedLavaRiverOrientation = LO_0_COL_MINUS;	break;
@@ -8299,8 +8507,8 @@ void CaveMakeLavaRivers()
 				}
 			}
 
-			// устанавливаем спецокончание реки - лава текущая из стены, если река оканчивается в навправлении стены за которой бейонд
-			// если же река не уперлась в стену, значит отменяем её
+			// (rt) place the river's special end - lava flowing out of the wall, if the river ends toward a wall with Beyond behind it
+			// (rt) if the river didn't run into a wall, cancel it
 			switch (curLavaRiverOrientation ){
 				case LO_0_COL_MINUS:
 					if( m(row, col - 1) == CAVE_WAFM_10_SWALL_M_MIDLE && m(row, col - 2) == CAVE_WAFM_8_BEYOND ){
@@ -8361,12 +8569,12 @@ void CaveMakeLavaRivers()
 
 		int passingIndex;
 		if( isLavaRiverValid == 1 ){
-			// короткая река, не подходит
+			// (rt) river too short, not suitable
 			if( lavaRiverSize < 7 ){
 				isLavaRiverValid = 0;
 			}
 			if( isLavaRiverValid == 1 ){
-				// выбираем где расположить брод через реку
+				// (rt) pick where to place the ford across the river
 				isLavaRiverValid = 0;
 				int passingFoundTryesCount = 0;
 				do{
@@ -8390,7 +8598,7 @@ void CaveMakeLavaRivers()
 							isLavaRiverValid = 2;
 						}
 					}
-					// странная проверка брода
+					// (rt) unusual ford check
 					for( int curRiverTileIndex = 0; curRiverTileIndex < lavaRiverSize && isLavaRiverValid; curRiverTileIndex++ ){
 						int row = lavaRiverRows[curRiverTileIndex];
 						int col = lavaRiverCols[curRiverTileIndex];
@@ -8412,7 +8620,7 @@ void CaveMakeLavaRivers()
 					}
 				}while( !isLavaRiverValid );
 
-				// после всех проверок можно наконец построить реку
+				// (rt) after all the checks the river can finally be built
 				if( isLavaRiverValid ){
 					lavaRiverTiles[ passingIndex ] = isLavaRiverValid == 1 ? CAVE_WAFM_44_LAVA_RIVER_VERT_PASSING : CAVE_WAFM_45_LAVA_RIVER_HORIZ_PASSING;
 					++countOfLavaRivers;
@@ -8468,7 +8676,7 @@ void CaveMakeSomeLavaLakes()
 			for( int curCol = col - someRadius; curCol < (col + someRadius); curCol++ ){
 				for( int curRow = row - someRadius; curRow < (row + someRadius); curRow++ ){
 					uchar& curWafm = Map[ curRow ][ curCol ];
-					// при достижении Map значений больше 128 бит 8 становится 1
+					// (rt) when Map values go above 128, bit 8 becomes 1
 					if( ! In40(curRow, curCol) || !(curWafm & BIT(8)) ){
 						continue;
 					}
@@ -8490,16 +8698,15 @@ void CaveMakeSomeLavaLakes()
 int __fastcall IsCaveTileLinkedWithOutOfMap(int row, int col, int* someRadius)
 {
 	#ifndef REFACKTOR
-	int *someRadius_1; // ebp@1
-	int col_1; // edi@1
-	int row_1; // esi@1
+	int *totareaPtr; // ebp@1       Hellfire: totarea pointer (cached copy of someRadius)
+	int savedCol; // edi@1          Hellfire: y (cached col for recursive calls)
+	int savedRow; // esi@1          Hellfire: x (cached row for recursive calls)
 	uchar wafm; // eax@6
-	int v7; // eax@19
-	//int *someRadiusa; // [sp+14h] [bp+4h]@9
+	int spawnResult; // eax@19      Hellfire: return from recursive DRLG_L3Spawn call
 
-	someRadius_1 = someRadius;
-	col_1 = col;
-	row_1 = row;
+	totareaPtr = someRadius;
+	savedCol = col;
+	savedRow = row;
 	if( *someRadius <= 40 && In40(row, col) ){
 		wafm = Map[ row ][ col ];
 		if( wafm & 0x80 ){
@@ -8510,34 +8717,34 @@ int __fastcall IsCaveTileLinkedWithOutOfMap(int row, int col, int* someRadius)
 			++*someRadius;
 			if( wafm == 8 ){
 				if( IsCaveTileLinkedWithOutOfMap( row + 1, col, someRadius ) == 1
-					|| IsCaveTileLinkedWithOutOfMap( row_1 - 1, col_1, someRadius ) == 1
-					|| IsCaveTileLinkedWithOutOfMap( row_1, col_1 + 1, someRadius ) == 1 ){
+					|| IsCaveTileLinkedWithOutOfMap( savedRow - 1, savedCol, someRadius ) == 1
+					|| IsCaveTileLinkedWithOutOfMap( savedRow, savedCol + 1, someRadius ) == 1 ){
 					return 1;
 				}
-				v7 = IsCaveTileLinkedWithOutOfMap( row_1, col_1 - 1, someRadius );
+				spawnResult = IsCaveTileLinkedWithOutOfMap( savedRow, savedCol - 1, someRadius );
 			LABEL_24:
-				if( v7 == 1 ){
+				if( spawnResult == 1 ){
 					return 1;
 				}
 				return 0;
 			}
 			if( CaveLavaFlags2[ wafm ] & 8 ){
-				if( IsCaveTileLinkedWithOutOfMap_2( row, col - 1, someRadius_1 ) == 1 ){
+				if( IsCaveTileLinkedWithOutOfMap_2( row, col - 1, totareaPtr ) == 1 ){
 					return 1;
 				}
 			}
 			if( CaveLavaFlags2[ wafm ] & 4 ){
-				if( IsCaveTileLinkedWithOutOfMap_2( row_1, col_1 + 1, someRadius_1 ) == 1 ){
+				if( IsCaveTileLinkedWithOutOfMap_2( savedRow, savedCol + 1, totareaPtr ) == 1 ){
 					return 1;
 				}
 			}
 			if( !(CaveLavaFlags2[wafm] & 2) ){
 				goto LABEL_18;
 			}
-			if( IsCaveTileLinkedWithOutOfMap_2( row_1 + 1, col_1, someRadius_1 ) != 1 ){
+			if( IsCaveTileLinkedWithOutOfMap_2( savedRow + 1, savedCol, totareaPtr ) != 1 ){
 			LABEL_18:
 				if( CaveLavaFlags2[wafm] & 1 ){
-					v7 = IsCaveTileLinkedWithOutOfMap_2( row_1 - 1, col_1, someRadius_1 );
+					spawnResult = IsCaveTileLinkedWithOutOfMap_2( savedRow - 1, savedCol, totareaPtr );
 					goto LABEL_24;
 				}
 				return 0;
@@ -8584,32 +8791,32 @@ int __fastcall IsCaveTileLinkedWithOutOfMap(int row, int col, int* someRadius)
 int __fastcall IsCaveTileLinkedWithOutOfMap_2(int row, int col, int* someRadius)
 {
 	#ifndef REFACKTOR
-	int col_1; // edi@1
-	int row_1; // esi@1
+	int savedCol; // edi@1          Hellfire: y (cached col for recursive calls)
+	int savedRow; // esi@1          Hellfire: x (cached row for recursive calls)
 	unsigned __int8 wafm; // cl@6
-	int wafm_1; // ebx@8
-	int result; // eax@24
+	int savedWafm; // ebx@8         Hellfire: i (saved tile index for flag lookups)
+	int found; // eax@24            Hellfire: return value (1=edge reached, 0=not)
 
-	col_1 = col;
-	row_1 = row;
-	result = 1;
+	savedCol = col;
+	savedRow = row;
+	found = 1;
 	if( *someRadius <= 40 && In40(row, col) ){
 		wafm = Map[ row ][ col ];
 		if( wafm & 0x80
 			|| wafm <= 0xFu
-			&& ((wafm_1 = wafm, Map[ row_1 ][ col ] = wafm | 0x80, ++*someRadius, !(CaveLavaFlags[ wafm ] & 8))
-				 || IsCaveTileLinkedWithOutOfMap_2( row_1, col - 1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 4) || IsCaveTileLinkedWithOutOfMap_2( row_1, col_1 + 1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 2) || IsCaveTileLinkedWithOutOfMap_2( row_1 + 1, col_1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 1) || IsCaveTileLinkedWithOutOfMap_2( row_1 - 1, col_1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 0x80) || IsCaveTileLinkedWithOutOfMap( row_1, col_1 - 1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 0x40) || IsCaveTileLinkedWithOutOfMap( row_1, col_1 + 1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 0x20) || IsCaveTileLinkedWithOutOfMap( row_1 + 1, col_1, someRadius ) != 1)
-			&& (!(CaveLavaFlags[ wafm_1 ] & 0x10) || IsCaveTileLinkedWithOutOfMap( row_1 - 1, col_1, someRadius ) != 1) ){
-			result = 0;
+			&& ((savedWafm = wafm, Map[ savedRow ][ col ] = wafm | 0x80, ++*someRadius, !(CaveLavaFlags[ wafm ] & 8))
+				 || IsCaveTileLinkedWithOutOfMap_2( savedRow, col - 1, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 4) || IsCaveTileLinkedWithOutOfMap_2( savedRow, savedCol + 1, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 2) || IsCaveTileLinkedWithOutOfMap_2( savedRow + 1, savedCol, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 1) || IsCaveTileLinkedWithOutOfMap_2( savedRow - 1, savedCol, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 0x80) || IsCaveTileLinkedWithOutOfMap( savedRow, savedCol - 1, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 0x40) || IsCaveTileLinkedWithOutOfMap( savedRow, savedCol + 1, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 0x20) || IsCaveTileLinkedWithOutOfMap( savedRow + 1, savedCol, someRadius ) != 1)
+			&& (!(CaveLavaFlags[ savedWafm ] & 0x10) || IsCaveTileLinkedWithOutOfMap( savedRow - 1, savedCol, someRadius ) != 1) ){
+			found = 0;
 		}
 	}
-	return result;
+	return found;
 	#else
 	if( *someRadius > 40 || ! In40(row, col) ){
 		return 1;
@@ -8641,28 +8848,51 @@ int __fastcall IsCaveTileLinkedWithOutOfMap_2(int row, int col, int* someRadius)
 //----- (00413E8B) --------------------------------------------------------
 void CaveLavaConvert_SomeBeyondIntoLava()
 {
-	for( int col = 1; col < 39; col++ ){// отсебятина. Заменил 0-40 на 1-39 иначе, читает за границе массива
-		for( int row = 1; row < 39; row++ ){
-			uchar& curRowCurCol  = Map[ row + 0 ][ col + 0 ];
-			uchar prevRowNextCol = Map[ row - 1 ][ col + 1 ];
-			uchar prevRowCurCol  = Map[ row - 1 ][ col + 0 ];
-			uchar prevRowPrevCol = Map[ row - 1 ][ col - 1 ];
-			uchar curRowNextCol  = Map[ row + 0 ][ col + 1 ];
-			uchar curRowPrevCol  = Map[ row + 0 ][ col - 1 ];
-			uchar nextRowNextCol = Map[ row + 1 ][ col + 1 ];
-			uchar nextRowCurCol  = Map[ row + 1 ][ col + 0 ];
-			uchar nextRowPrevCol = Map[ row + 1 ][ col - 1 ];
-			if( curRowCurCol == CAVE_WAFM_8_BEYOND ){ // работает неверно, поскольку пропускает случаи когда 2+ тайлов бейонда стоят рядом
-				if( InSegment(prevRowPrevCol, CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA) 
-				 && InSegment(prevRowCurCol , CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(prevRowNextCol, CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(curRowPrevCol , CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(curRowNextCol , CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(nextRowPrevCol, CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(nextRowCurCol , CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)
-				 && InSegment(nextRowNextCol, CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA)	){
-						curRowCurCol = CAVE_WAFM_33_LAVA;
+	// (th4) Fill Beyond (CAVE_WAFM_8) holes that are fully enclosed by lava, whatever their size.
+	//
+	// Where the holes come from: CaveMakeSomeLavaLakes (above) turns an enclosed pocket of Beyond
+	// into lava only if it is larger than 3 tiles (someRadius > 4), at most ~40 tiles, and wins a
+	// 25% roll -- each pocket on its own. Neighbouring pockets that did convert merge visually into
+	// one lake, and the small pockets left between them stay black inside it.
+	//
+	// The original clean-up converted a Beyond tile only when all 8 neighbours were lava, so it
+	// fixed single isolated holes but never two or more touching Beyond tiles (each sees another
+	// Beyond as a neighbour). This version works on whole groups instead: every 8-connected group
+	// of Beyond tiles whose entire border is lava (CAVE_WAFM_25..41) becomes CAVE_WAFM_33_LAVA.
+	// Groups touching the map edge, or bordering any wall / floor / other tile, are left alone.
+	// It consumes no RNG, so everything else generated for the level is unchanged; a single hole
+	// is handled exactly as before.
+	static uchar seen[ Map_40 ][ Map_40 ];
+	static short stackR[ Map_40 * Map_40 ], stackC[ Map_40 * Map_40 ];
+	static short groupR[ Map_40 * Map_40 ], groupC[ Map_40 * Map_40 ];
+	memset( seen, 0, sizeof( seen ) );
+	for( int col = 0; col < Map_40; col++ ){
+		for( int row = 0; row < Map_40; row++ ){
+			if( seen[ row ][ col ] || Map[ row ][ col ] != CAVE_WAFM_8_BEYOND ) continue;
+			// flood the 8-connected Beyond group
+			int sp = 0, gn = 0;
+			bool enclosedByLava = true;
+			seen[ row ][ col ] = 1; stackR[ sp ] = (short)row; stackC[ sp ] = (short)col; ++sp;
+			while( sp ){
+				--sp; const int r = stackR[ sp ], c = stackC[ sp ];
+				groupR[ gn ] = (short)r; groupC[ gn ] = (short)c; ++gn;
+				if( r == 0 || c == 0 || r == Map_40 - 1 || c == Map_40 - 1 ) enclosedByLava = false;	// reaches the map edge
+				for( int dr = -1; dr <= 1; ++dr ){
+					for( int dc = -1; dc <= 1; ++dc ){
+						if( !dr && !dc ) continue;
+						const int nr = r + dr, nc = c + dc;
+						if( nr < 0 || nc < 0 || nr >= Map_40 || nc >= Map_40 ) continue;
+						const uchar w = Map[ nr ][ nc ];
+						if( w == CAVE_WAFM_8_BEYOND ){
+							if( !seen[ nr ][ nc ] ){ seen[ nr ][ nc ] = 1; stackR[ sp ] = (short)nr; stackC[ sp ] = (short)nc; ++sp; }
+						}else if( !InSegment( w, CAVE_WAFM_25_LAVA, CAVE_WAFM_41_LAVA ) ){
+							enclosedByLava = false;	// borders something that is not lava
+						}
+					}
 				}
+			}
+			if( enclosedByLava ){
+				for( int k = 0; k < gn; ++k ) Map[ groupR[ k ] ][ groupC[ k ] ] = CAVE_WAFM_33_LAVA;
 			}
 		}
 	}
@@ -8677,7 +8907,7 @@ bool __fastcall PlaceCavePatMap(uchar* patternPtr, int minPatternsToPlace, int m
 	char* beforePattern = ((char*)patternPtr + 2);
 	char* afterPattern = beforePattern + patternRowSize * patternColSize;
 
-	//здесь определяется сколько копий объекта понатыкать на карте
+	//(rt) this decides how many copies of the object to scatter over the map
 	int numberOfPatternsToPlace;
 	if( maxPatternsToPlace - minPatternsToPlace ){
 		numberOfPatternsToPlace = RNG(maxPatternsToPlace - minPatternsToPlace);
@@ -8718,18 +8948,18 @@ bool __fastcall PlaceCavePatMap(uchar* patternPtr, int minPatternsToPlace, int m
 				}
 			}
 
-			// проверка на соответствие паттерну
+			// (rt) pattern match check
 			for( int colOffset = 0; colOffset < patternColSize && continueFlag; colOffset++ ){
 				for( int rowOffset = 0; rowOffset < patternRowSize && continueFlag; rowOffset++ ){
 					uchar neededTile = beforePattern[colOffset*patternRowSize+rowOffset];
 					if( (neededTile && (Map[row+rowOffset][col+colOffset] != neededTile)) || FixedMap[row+rowOffset][col+colOffset] ){
-						continueFlag = 0; //бида бида, паттерн не соблюдается, надо искать другое место
+						continueFlag = 0; //(rt) the pattern does not match; try another position
 					}
 				}
 			}
 
 			if( continueFlag ){
-				//матерь божья, мы нашли подходящее место для установки объекта, копируем ка его паттерн быстренько на карту
+				//(rt) found a suitable place for the object, copy its pattern onto the map
 				for( int colOffset = 0; colOffset < patternColSize; colOffset++ ){
 					for( int rowOffset = 0; rowOffset < patternRowSize; rowOffset++ ){
 						uchar newTile = afterPattern[colOffset*patternRowSize+rowOffset];
@@ -8742,7 +8972,7 @@ bool __fastcall PlaceCavePatMap(uchar* patternPtr, int minPatternsToPlace, int m
 				isPatternPlaced = true;
 			}
 
-			// следующая клетка
+			// (rt) next cell
 			if( !isPatternPlaced ){
 				if( ++row == mapRowsLimit ){
 					row = 0;
@@ -8783,22 +9013,22 @@ void __fastcall PlaceCavePattern(uchar* patternPtr, int chanceToPlace)
 		for( int row = 0; row < mapRowsLimit; row++ ){
 			Cell c(Map, row, col);
 			bool continueFlag = 1;
-			// проверка на соответствие паттерну
+			// (rt) pattern match check
 			for( int colOffset = 0; colOffset < patternColSize && continueFlag; colOffset++ ){
 				for( int rowOffset = 0; rowOffset < patternRowSize && continueFlag; rowOffset++ ){
 					uchar neededTile = beforePattern[colOffset*patternRowSize+rowOffset];
 					if( (neededTile && (Map[row+rowOffset][col+colOffset] != neededTile)) || FixedMap[row+rowOffset][col+colOffset] ){
-						continueFlag = 0; //бида бида, паттерн не соблюдается, надо искать другое место
+						continueFlag = 0; //(rt) the pattern does not match; try another position
 					}
 				}
 			}
 			if( !continueFlag ){
 				continue;
 			}
-			// предотвращение установки нескольких трещин рядом
+			// (rt) prevents placing several cracks next to each other
 			uchar afterPatternStart = afterPattern[0];
 			if( afterPatternStart >= CAVE_WAFM_84_CRACK_IN_WALL_1 && afterPatternStart <= CAVE_WAFM_100_CRACK_IN_WALL_11 ){
-				// фикс морфинга подземелий (+ пробная заглушка эмулирующая баг th1 при сверке)
+				// (rt) dungeon morphing fix (+ a trial stub emulating the th1 bug for comparison)
 				uchar prevRowCurCol = c(-1, 0);
 				uchar curRowNextCol = c( 0, 1);
 				uchar curRowPrevCol = c( 0,-1);
@@ -8838,154 +9068,162 @@ void __fastcall PlaceCavePattern(uchar* patternPtr, int chanceToPlace)
 //----- (00414296) --------------------------------------------------------
 int __fastcall PlaceAbyssWallPattern(uchar* patternPtr, int chanceToPlace)
 {
-	unsigned __int8 *v2; // ebx@1
-	int v3; // edi@1
-	int result; // eax@1
-	int v5; // ecx@1
-	unsigned __int8 *map_1; // ecx@4
-	int v7; // esi@5
-	int i; // edx@5
-	unsigned __int8 v9; // cl@10
-	int v10; // esi@18
-	unsigned __int8 v11; // al@18
-	unsigned __int8 map; // al@21
-	int v13; // edx@35
-	int v14; // edi@37
-	unsigned __int8 v15; // cl@38
-	bool v16; // zf@44
-	int v17; // [sp+8h] [bp-30h]@1
-	int v18; // [sp+Ch] [bp-2Ch]@1
-	int v19; // [sp+10h] [bp-28h]@4
-	int v20; // [sp+14h] [bp-24h]@7
-	int v21; // [sp+18h] [bp-20h]@2
-	int v22; // [sp+1Ch] [bp-1Ch]@1
-	int v23; // [sp+20h] [bp-18h]@1
-	unsigned __int8 *v24; // [sp+24h] [bp-14h]@4
-	int v25; // [sp+28h] [bp-10h]@4
-	int v26; // [sp+2Ch] [bp-Ch]@1
-	int v27; // [sp+30h] [bp-8h]@5
-	char j; // [sp+37h] [bp-1h]@1
+	// Hellfire equivalent: DRLG_L5PlaceRndSet() in DRLG_L1.CPP:2550
+	// Note: eax (result) was reused across 5 unrelated purposes; split into named locals below.
+	unsigned __int8 *pattern; // ebx@1         Hellfire: miniset (pattern data pointer)
+	int patternHeight; // edi@1               Hellfire: sh (pattern height = miniset[1])
+	int scanRowInit; // ecx@1                 decompiler: row scan base offset for mapScanPtr init
+	unsigned __int8 *mapScanPtr; // ecx@4     current scan position pointer (tracks savedMapPtr in scan)
+	int patRow; // esi@5                      Hellfire: yy (pattern row offset in match loop)
+	int i; // edx@5                           Hellfire: ii (pattern data index)
+	unsigned __int8 expectedTile; // cl@10    Hellfire: miniset[ii] (tile to match)
+	int replaceOffset; // esi@18              Hellfire: kk (pattern replace data index = sh*sw+2)
+	unsigned __int8 firstReplaceTile; // al@18  Hellfire: miniset[kk] (first replace tile, for lava check)
+	unsigned __int8 adjacentTile; // al@21    Hellfire: dungeon[sx-1][sy] (cell above scan pos)
+	int replaceRow; // edx@35                 Hellfire: yy (pattern row in replace loop)
+	int colsRemaining; // edi@37             Hellfire: xx (pattern col countdown in replace loop)
+	unsigned __int8 replaceTile; // cl@38     Hellfire: miniset[kk] (tile to write)
+	bool lastScanCol; // zf@44               loop termination: remainingScanCols hit 0
+	int storedPatternHeight; // [sp+8h] [bp-30h]@1  saved copy of sh
+	int storedChance; // [sp+Ch] [bp-2Ch]@1         Hellfire: rndper
+	int remainingScanCols; // [sp+10h] [bp-28h]@4   Hellfire: sx counting down (col scan counter)
+	int patCol; // [sp+14h] [bp-24h]@7              Hellfire: xx (pattern col in match loop)
+	int maxScanCols; // [sp+18h] [bp-20h]@2         Hellfire: MDMAXX - sw
+	int maxScanRows; // [sp+1Ch] [bp-1Ch]@1          Hellfire: MDMAXY - sh
+	int currentScanRow; // [sp+20h] [bp-18h]@1      Hellfire: sy (row scan position)
+	unsigned __int8 *savedMapPtr; // [sp+24h] [bp-14h]@4  scan pointer anchor (reset after inner loops)
+	int mapRowOffset; // [sp+28h] [bp-10h]@4        Hellfire: sx * 40 (col offset in flat map)
+	int patternWidth; // [sp+2Ch] [bp-Ch]@1          Hellfire: sw (pattern width = miniset[0])
+	int matchFound; // [sp+30h] [bp-8h]@5            Hellfire: found
+	char placed; // [sp+37h] [bp-1h]@1              return value (TRUE if pattern was placed)
 
-	v2 = patternPtr;
-	j = 0;
-	v18 = chanceToPlace;
-	v3 = patternPtr[ 1 ];
-	result = *patternPtr;
-	v5 = 0;
-	v26 = result;
-	v22 = 40 - v3;
-	v17 = v3;
-	v23 = 0;
-	if( 40 - v3 > 0 ){
-		v21 = 40 - result;
+	pattern = patternPtr;
+	placed = 0;
+	storedChance = chanceToPlace;
+	patternHeight = patternPtr[ 1 ];
+	scanRowInit = 0;
+	patternWidth = *patternPtr;
+	maxScanRows = 40 - patternHeight;
+	storedPatternHeight = patternHeight;
+	currentScanRow = 0;
+	if( 40 - patternHeight > 0 ){
+		maxScanCols = 40 - patternWidth;
 		while( 1 ){
-			result = v21;
-			if( v21 > 0 ){
+			if( maxScanCols > 0 ){
 				break;
 			}
 		LABEL_45:
-			v5 = v23++ + 1;
-			if( v23 >= v22 ){
+			scanRowInit = currentScanRow++ + 1;
+			if( currentScanRow >= maxScanRows ){
 				goto LABEL_46;
 			}
 		}
-		v25 = 0;
-		map_1 = (unsigned __int8 *) Map + v5;
-		v24 = map_1;
-		v19 = v21;
+		mapRowOffset = 0;
+		mapScanPtr = (unsigned __int8 *) Map + scanRowInit;
+		savedMapPtr = mapScanPtr;
+		remainingScanCols = maxScanCols;
 		while( 1 ){
-			v7 = 0;
-			v27 = 1;
-			for( i = 2; v7 < v3; ++v7 ){
-				if( v27 != 1 ){
+			patRow = 0;
+			matchFound = 1;
+			for( i = 2; patRow < patternHeight; ++patRow ){
+				if( matchFound != 1 ){
 					break;
 				}
-				v20 = 0;
-				if( v26 > 0 ){
-					result = v25 + v7 + v23;
+				patCol = 0;
+				if( patternWidth > 0 ){
+					int checkIdx = mapRowOffset + patRow + currentScanRow; // Hellfire: sx+xx col-major flat index
 					do{
-						if( v27 != 1 ){
+						if( matchFound != 1 ){
 							break;
 						}
-						v9 = v2[ i ];
-						if( v9 && Map[ 0 ][ result ] != v9 ){
-							v27 = 0;
+						expectedTile = pattern[ i ];
+						if( expectedTile && Map[ 0 ][ checkIdx ] != expectedTile ){
+							matchFound = 0;
 						}
-						if( FixedMap[ 0 ][ result ] ){
-							v27 = 0;
+						if( FixedMap[ 0 ][ checkIdx ] ){
+							matchFound = 0;
 						}
 						++i;
-						++v20;
-						result += 40;
-					} while( v20 < v26 );
-					map_1 = v24;
+						++patCol;
+						checkIdx += 40;
+					} while( patCol < patternWidth );
+					mapScanPtr = savedMapPtr;
 				}
 			}
-			v10 = v26 * v3 + 2;
-			v11 = v2[ v10 ];
-			if( v11 < 84u || v11 > 100u ){
+			replaceOffset = patternWidth * patternHeight + 2;
+			firstReplaceTile = pattern[ replaceOffset ];
+			if( firstReplaceTile < 84u || firstReplaceTile > 100u ){
 				goto LABEL_33;
 			}
-			if( v27 == 1 ){
+			if( matchFound == 1 ){
 				break;
 			}
 		LABEL_44:
-			v25 += 40;
-			map_1 += 40;
-			v16 = v19-- == 1;
-			v24 = map_1;
-			if( v16 ){
+			mapRowOffset += 40;
+			mapScanPtr += 40;
+			lastScanCol = remainingScanCols-- == 1;
+			savedMapPtr = mapScanPtr;
+			if( lastScanCol ){
 				goto LABEL_45;
 			}
 		}
-		map = *(map_1 - 40);
-		if( map >= 84u && map <= 100u ){
-			v27 = 0;
+		// Bug 3 fix (Hellfire original, DRLG_L1.CPP DRLG_L5PlaceRndSet):
+		// When mapRowOffset == 0 (leftmost scan column), mapScanPtr - 40 reads 40 bytes before the
+		// start of Map (OOB). Guard the cell-above adjacency read against this.
+		if( mapRowOffset > 0 ){
+			adjacentTile = *(mapScanPtr - 40);
+			if( adjacentTile >= 84u && adjacentTile <= 100u ){
+				matchFound = 0;
+			}
 		}
-		if( map_1[ 40 ] >= 84u && map <= 100u ){
-			v27 = 0;
+		// Bug 2 fix (Hellfire original copy-paste, DRLG_L1.CPP:2580):
+		// Original used 'adjacentTile <= 100u' as the upper-bound in all 4 adjacency checks instead
+		// of each cell's own value. This made 3 of the 4 checks behave as 'cell >= 84' alone
+		// (adjacentTile is almost always <= 100), failing to reject placements adjacent to lava in
+		// 3 of the 4 directions. Each check now uses its own cell for both bounds.
+		if( mapScanPtr[ 40 ] >= 84u && mapScanPtr[ 40 ] <= 100u ){
+			matchFound = 0;
 		}
-		if( map_1[ 1 ] >= 84u && map <= 100u ){
-			v27 = 0;
+		if( mapScanPtr[ 1 ] >= 84u && mapScanPtr[ 1 ] <= 100u ){
+			matchFound = 0;
 		}
-		if( *(map_1 - 1) >= 84u && map <= 100u ){
-			v27 = 0;
+		if( *(mapScanPtr - 1) >= 84u && *(mapScanPtr - 1) <= 100u ){
+			matchFound = 0;
 		}
 	LABEL_33:
-		if( v27 == 1 ){
-			result = RNG(100);
-			if( result < v18 ){
-				v13 = 0;
-				for( j = 1; v13 < v3; ++v13 ){
-					if( v26 > 0 ){
-						v14 = v26;
-						result = (int) Map + v13 + v23 + v25;
+		if( matchFound == 1 ){
+			int rndRoll = RNG(100);                // Hellfire: random(0, 100)
+			if( rndRoll < storedChance ){
+				replaceRow = 0;
+				for( placed = 1; replaceRow < patternHeight; ++replaceRow ){
+					if( patternWidth > 0 ){
+						colsRemaining = patternWidth;
+						int writeAddr = (int) Map + replaceRow + currentScanRow + mapRowOffset; // Hellfire: dungeon[sx+xx][sy+yy] write ptr
 						do{
-							v15 = v2[ v10 ];
-							if( v15 ){
-								*(uchar*) result = v15;
+							replaceTile = pattern[ replaceOffset ];
+							if( replaceTile ){
+								*(uchar*) writeAddr = replaceTile;
 							}
-							++v10;
-							result += 40;
-							--v14;
-						} while( v14 );
-						v3 = v17;
+							++replaceOffset;
+							writeAddr += 40;
+							--colsRemaining;
+						} while( colsRemaining );
+						patternHeight = storedPatternHeight;
 					}
 				}
 			}
-			map_1 = v24;
+			mapScanPtr = savedMapPtr;
 		}
 		goto LABEL_44;
 	}
 LABEL_46:
-	result = j;
-	return result;
+	return placed;
 }
 
 //----- (00414425) --------------------------------------------------------
 void MakeSomeCaveWoodenWallsCrossWallsAndDoors()
 {
-	// покрыть часть каменных стен досками
+	// (rt) cover part of the stone walls with planks
 	for( int col = 0; col < 39; col++ ){
 		for( int row = 0; row < 39; row++ ){
 
@@ -9096,7 +9334,7 @@ void MakeSomeCaveWoodenWallsCrossWallsAndDoors()
 			if( Map[ row ][ col ] != CAVE_WAFM_7_FLOOR ){
 				continue;
 			}
-			if( RNG(1) ){// пустое условие. никогда не выполняется
+			if( RNG(1) ){// (rt) empty condition. never true
 				continue;
 			}
 			if( !IsCoordinateNotNearAloneRoom(row, col) ){
@@ -9127,7 +9365,7 @@ void MakeSomeCaveWoodenWallsCrossWallsAndDoors()
 				}
 				int doorCol = RNG(endCol - startCol - 1) + startCol + 1;
 				for( int curCol = startCol; curCol <= endCol; curCol++ ){
-					if( curCol == doorCol ){// тайл двери остаётся пустым. Впоследстствии туда в другой функции дверь запихнётся
+					if( curCol == doorCol ){// (rt) the door tile stays empty. A door gets put there later by another function
 						continue;
 					}
 					uchar& wafm = Map[ row ][ curCol ];
@@ -9180,7 +9418,7 @@ void MakeSomeCaveWoodenWallsCrossWallsAndDoors()
 
 				int doorRow = RNG(endRow - startRow - 1) + startRow + 1;
 				for( int curRow = startRow; curRow <= endRow; curRow++ ){
-					if( curRow == doorRow ){// тайл двери остаётся пустым. Впоследстствии туда в другой функции дверь запихнётся
+					if( curRow == doorRow ){// (rt) the door tile stays empty. A door gets put there later by another function
 						continue;
 					}
 					uchar& wafm = Map[ curRow ][ col ];
@@ -9310,7 +9548,7 @@ void __fastcall LoadQuestDungeonMainMapCave( char* dunNamePtr, int a2, int a3 )
 	ushort rowSize = dunData[0];
 	ushort colSize = dunData[1];
 	ushort* dunArray = &dunData[2];
-	// заполняем карту архитектуры из дуна
+	// (rt) fill the architecture map from the DUN
 	for( int row = 0; row < rowSize; row++ ){
 		for( int col = 0; col < colSize; col++ ){
 			ushort wallAndFloorMapValue = dunArray[row + col * rowSize];
@@ -9322,7 +9560,7 @@ void __fastcall LoadQuestDungeonMainMapCave( char* dunNamePtr, int a2, int a3 )
 		}
 	}
 
-	// не заполненные тайлы заполняем бейондом
+	// (rt) fill the unfilled tiles with Beyond
 	for( int row = 0; row < Map_40; row++ ){
 		for( int col = 0; col < Map_40; col++ ){
 			uchar& wafm = Map[ row ][ col ];
@@ -9340,7 +9578,8 @@ void __fastcall LoadQuestDungeonMainMapCave( char* dunNamePtr, int a2, int a3 )
 	AddQuestMonsters((ushort*)dunData, 0, 0);
 	SetMapObjects((int)dunData, 0, 0);
 
-	if( Dungeon != DUN_40_ISLAND && Dungeon != DUN_51_FETID_CAVERN /*&& Dungeon != DUN_55_DEEP_HOLLOW*/  && ( Dungeon != DUN_39_FROZEN_LOCH) ) {
+	if( Dungeon != DUN_40_ISLAND && Dungeon != DUN_51_FETID_CAVERN /*&& Dungeon != DUN_55_DEEP_HOLLOW*/  
+		&& ( Dungeon != DUN_39_FROZEN_LOCH) && (Dungeon != DUN_116_MINING_CAVES)) {// lava lighting
 		for( int row = 0; row < FineMap_112; row++ ){
 			for( int col = 0; col < FineMap_112; col++ ){
 				int dmap = FineMap[ row ][ col ];
@@ -9364,7 +9603,7 @@ void __fastcall LoadQuestDungeonAltMapCave( char* dunNamePtr, int a2, int a3 )
 	ushort colSize = dunData[1];
 	ushort* dunArray = &dunData[2];
 
-	// заполняем карту архитектуры из дуна
+	// (rt) fill the architecture map from the DUN
 	for( int col = 0; col < colSize; col++ ){
 		for( int row = 0; row < rowSize; row++ ){
 			ushort wallAndFloorMapValue = dunArray[row + col * rowSize];
@@ -9376,7 +9615,7 @@ void __fastcall LoadQuestDungeonAltMapCave( char* dunNamePtr, int a2, int a3 )
 		}
 	}
 
-	// не заполненные тайлы заполняем бейондом
+	// (rt) fill the unfilled tiles with Beyond
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			uchar& wafm = Map[ row ][ col ];
@@ -9453,7 +9692,7 @@ void SomeStrangeHellTilesConvert()
 void __fastcall CreateHellTypeLabyrinth(int levelRandomSeed, int lvlDir)
 {
 	SetRndSeed(levelRandomSeed);
-	// оптимизировать генерацию уровней можно всегда
+	// (rt) level generation can always be optimized
 	if( true /*IsExeValidating*/ && StartLevelSeed[ (DUNGEON)Dungeon ] == RandomSeed && MatchLevelSeed[ (DUNGEON)Dungeon ] ){
 		RandomSeed = MatchLevelSeed[ (DUNGEON)Dungeon ];
 	}else{
@@ -9516,7 +9755,7 @@ void __fastcall HellLevelGeneration(int lvlDir)
 		if( ! isGenerationEnd ) continue;
 
 		if( Dungeon == DUN_16_HELL_4 ){
-			MakePandemonium(1);// альтернативные дуны 16го
+			MakePandemonium(1);// (rt) alternative DUNs of level 16
 		}
 		bool goFromUp = lvlDir == LVL_0_DOWN;
 		bool goFromDown = lvlDir == LVL_1_UP;
@@ -9527,11 +9766,14 @@ void __fastcall HellLevelGeneration(int lvlDir)
 			if( isGenerationEnd && Dungeon == DUN_13_HELL_1 && (GameMode != GM_NIGHTMARE && GameMode != GM_SPEEDRUN)){
 				isGenerationEnd = PlaceHellPatMap( (int)PatMap4x5_48AA78_HellDungeonEnterToTown, 1, 1, -1, -1, goFromTown, 6 );
 			}
-			if( goFromDown ){
+			if (goFromDown) {
 				PlayerRowPos = 2 * CurPattern.row + 22;
 				PlayerColPos = 2 * CurPattern.col + 22;
-			}else{
-				++PlayerRowPos;
+				PlayerColPos += 1;   // match 15->14 style nudge
+				PlayerRowPos += 1;
+			}
+			else {
+				++PlayerColPos;
 			}
 		}else{
 			if( Dungeon == DUN_15_HELL_3 ){
@@ -9546,7 +9788,7 @@ void __fastcall HellLevelGeneration(int lvlDir)
 					isGenerationEnd = PlaceHellPatMap( pandemoniumEnterType, 1, 1, -1, -1, ! goFromUp, 1 );
 				}
 				if( goFromUp ){
-					++PlayerRowPos;
+					++PlayerColPos;
 				}else{
 					++PlayerColPos;
 				}
@@ -9560,14 +9802,20 @@ void __fastcall HellLevelGeneration(int lvlDir)
 						}
 					}
 				}
-				if( goFromDown ){
-					if( Dungeon == DUN_16_HELL_4 && isGenerationEnd ){
+				if (goFromDown) {
+					if (Dungeon == DUN_16_HELL_4 && isGenerationEnd) {
 						PlayerRowPos = 2 * DiabloQuad4row + 27;
 						PlayerColPos = 2 * DiabloQuad4col + 24;
+						++PlayerColPos; // Hell 4: pentagram entry, keep original column nudge
 					}
+					else {
+						PlayerRowPos += 2; // standard down-stairs arrival (15->14, 14->13): land row+1 off warp tile					
+						PlayerColPos -= 1;
+						
+					}
+				}
+				else {
 					++PlayerColPos;
-				}else{
-					++PlayerRowPos;
 				}
 			}
 		}
@@ -9610,7 +9858,7 @@ void __fastcall HellLevelGeneration(int lvlDir)
 		for( int i = 0; i < 40*40; i++ ){
 			AltMap[ 0 ][ i ] = Map[ 0 ][ i ];
 		}
-		MakePandemonium(0);// основные дуны 16го
+		MakePandemonium(0);// (rt) main DUNs of level 16
 	}
 }
 
@@ -9670,18 +9918,18 @@ void HellMakeSomeCrossWalls()
 	int col; // edi@1
 	int row; // esi@2
 	int cell; // ebx@2
-	int v3; // eax@6
-	int v4; // eax@10
-	int v5; // eax@14
-	int v6; // eax@18
-	int v7; // eax@22
-	int v8; // eax@26
-	int v9; // eax@30
-	int v10; // eax@34
-	int v11; // eax@38
-	int v12; // eax@42
-	int v13; // eax@46
-	int v14; // eax@50
+	int horizWallEnd; // eax@6
+	int horizWallEnd_2; // eax@10
+	int horizWallEnd_3; // eax@14
+	int horizWallEnd_4; // eax@18
+	int horizWallEnd_5; // eax@22
+	int horizWallEnd_6; // eax@26
+	int horizWallEnd_7; // eax@30
+	int vertWallEnd; // eax@34
+	int vertWallEnd_2; // eax@38
+	int vertWallEnd_3; // eax@42
+	int vertWallEnd_4; // eax@46
+	int vertWallEnd_5; // eax@50
 	int walls_2; // eax@54
 	int walls; // eax@58
 	int walls_1; // eax@62
@@ -9693,75 +9941,75 @@ void HellMakeSomeCrossWalls()
 		do{
 			if( !FixedMap[ 0 ][ cell ] ){
 				if( Map[ 0 ][ cell ] == 10 && RNG(100) < 100 ){
-					v3 = HellCountWallInRowFrom( row, col );
-					if( v3 != -1 ){
-						HellSetVerticalWall( row, col, v3 );
+					horizWallEnd = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 12 && RNG(100) < 100 ){
-					v4 = HellCountWallInRowFrom( row, col );
-					if( v4 != -1 ){
-						HellSetVerticalWall( row, col, v4 );
+					horizWallEnd_2 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_2 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_2 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 13 && RNG(100) < 100 ){
-					v5 = HellCountWallInRowFrom( row, col );
-					if( v5 != -1 ){
-						HellSetVerticalWall( row, col, v5 );
+					horizWallEnd_3 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_3 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_3 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 15 && RNG(100) < 100 ){
-					v6 = HellCountWallInRowFrom( row, col );
-					if( v6 != -1 ){
-						HellSetVerticalWall( row, col, v6 );
+					horizWallEnd_4 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_4 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_4 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 16 && RNG(100) < 100 ){
-					v7 = HellCountWallInRowFrom( row, col );
-					if( v7 != -1 ){
-						HellSetVerticalWall( row, col, v7 );
+					horizWallEnd_5 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_5 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_5 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 21 && RNG(100) < 100 ){
-					v8 = HellCountWallInRowFrom( row, col );
-					if( v8 != -1 ){
-						HellSetVerticalWall( row, col, v8 );
+					horizWallEnd_6 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_6 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_6 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 22 && RNG(100) < 100 ){
-					v9 = HellCountWallInRowFrom( row, col );
-					if( v9 != -1 ){
-						HellSetVerticalWall( row, col, v9 );
+					horizWallEnd_7 = HellCountWallInRowFrom( row, col );
+					if( horizWallEnd_7 != -1 ){
+						HellSetVerticalWall( row, col, horizWallEnd_7 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 8 && RNG(100) < 100 ){
-					v10 = HellCountWallInColFrom( row, col );
-					if( v10 != -1 ){
-						HellSetHorisontalWall( row, col, v10 );
+					vertWallEnd = HellCountWallInColFrom( row, col );
+					if( vertWallEnd != -1 ){
+						HellSetHorisontalWall( row, col, vertWallEnd );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 9 && RNG(100) < 100 ){
-					v11 = HellCountWallInColFrom( row, col );
-					if( v11 != -1 ){
-						HellSetHorisontalWall( row, col, v11 );
+					vertWallEnd_2 = HellCountWallInColFrom( row, col );
+					if( vertWallEnd_2 != -1 ){
+						HellSetHorisontalWall( row, col, vertWallEnd_2 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 11 && RNG(100) < 100 ){
-					v12 = HellCountWallInColFrom( row, col );
-					if( v12 != -1 ){
-						HellSetHorisontalWall( row, col, v12 );
+					vertWallEnd_3 = HellCountWallInColFrom( row, col );
+					if( vertWallEnd_3 != -1 ){
+						HellSetHorisontalWall( row, col, vertWallEnd_3 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 14 && RNG(100) < 100 ){
-					v13 = HellCountWallInColFrom( row, col );
-					if( v13 != -1 ){
-						HellSetHorisontalWall( row, col, v13 );
+					vertWallEnd_4 = HellCountWallInColFrom( row, col );
+					if( vertWallEnd_4 != -1 ){
+						HellSetHorisontalWall( row, col, vertWallEnd_4 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 15 && RNG(100) < 100 ){
-					v14 = HellCountWallInColFrom( row, col );
-					if( v14 != -1 ){
-						HellSetHorisontalWall( row, col, v14 );
+					vertWallEnd_5 = HellCountWallInColFrom( row, col );
+					if( vertWallEnd_5 != -1 ){
+						HellSetHorisontalWall( row, col, vertWallEnd_5 );
 					}
 				}
 				if( Map[ 0 ][ cell ] == 16 && RNG(100) < 100 ){
@@ -9789,9 +10037,9 @@ void HellMakeSomeCrossWalls()
 		++col;
 	}while( col < 40 );
 	#else
-	// технически похоже, но иногда чуть меньше вызовов RNG
-	// предполагал что из-за уже исправленных багов в HellSetVerticalWall, HellSetHorisontalWall
-	// но вопроизвелось из без них
+	// (rt) technically similar, but sometimes a few fewer RNG calls
+	// (rt) assumed it was because of the already-fixed bugs in HellSetVerticalWall, HellSetHorisontalWall
+	// (rt) but it reproduced even without them
 	for( int col = 0; col < Map_40; ++col ){
 		for( int row = 0; row < Map_40; ++row ){
 			if( FixedMap[ row ][ col ] ){
@@ -10826,7 +11074,7 @@ void CopyHellInitalRoomsScheme()
 //----- (00416E55) --------------------------------------------------------
 void SomeStrangeHellBinaryMapChenges()
 {
-	int someBinHellMapColsChecksResultArray[20];// был глобальным массивом. Название не верно
+	int someBinHellMapColsChecksResultArray[20];// (rt) was a global array. The name is wrong
 
 	memset(someBinHellMapColsChecksResultArray, 0, sizeof( someBinHellMapColsChecksResultArray ));
 	for( int colInv = 19; colInv >= 0; colInv-- ){
@@ -10846,7 +11094,7 @@ void SomeStrangeHellBinaryMapChenges()
 	int col = RNG(19) + 1;
 	do{
 		if( !someBinHellMapColsChecksResultArray[col] ){
-			// не прошёл col проверку, выбираем следующий
+			// (rt) failed the col check, pick the next one
 			if( ++col == 20 ){
 				col = 1;
 			}
@@ -11042,109 +11290,110 @@ void RecursiveHellRoomsConstruct_2(int startRow, int startCol, int rows, int col
 
 	}
 }
-// неразобранная функция (0041710C), зато в отличие от почти разобранной верхней, работает эквивалентно тх1
+// (rt) un-analysed function (0041710C), but unlike the almost-analysed one above, it works equivalently to th1
 void __fastcall RecursiveHellRoomsConstruct(int startRow, int startCol, int rows, int cols, int quarterProbability)
 {
-	int v5; // eax@2
-	int v6; // ecx@3
-	int v7; // eax@5
-	int v8; // ecx@5
-	int v9; // eax@8
-	int v10; // esi@8
-	int v11; // edi@8
-	int v12; // ebx@8
-	int v13; // eax@8
-	int v14; // eax@19
-	int v15; // esi@19
-	int v16; // eax@19
-	int v17; // edi@19
-	int v18; // ebx@19
-	int v19; // eax@19
-	int startRowa; // [sp+Ch] [bp-10h]@8
-	int startRowb; // [sp+Ch] [bp-10h]@19
-	int v22; // [sp+10h] [bp-Ch]@8
-	int v23; // [sp+10h] [bp-Ch]@19
-	int v24; // [sp+14h] [bp-8h]@1
-	int v25; // [sp+14h] [bp-8h]@12
-	int v26; // [sp+18h] [bp-4h]@1
-	int v27; // [sp+24h] [bp+8h]@7
-	int v28; // [sp+28h] [bp+Ch]@12
-	int v29; // [sp+28h] [bp+Ch]@18
-	int v30; // [sp+28h] [bp+Ch]@23
-	int v31; // [sp+2Ch] [bp+10h]@7
-	int v32; // [sp+2Ch] [bp+10h]@18
+	int randomRoll; // eax@2
+	int dirProb; // ecx@3
+	int dirChoice; // eax@5
+	int unused; // ecx@5
+	int randVal; // eax@8
+	int roomRowSize; // esi@8
+	int roomColSize; // edi@8
+	int roomRow; // ebx@8
+	int firstRoomCheck; // eax@8
+	int randVal2; // eax@19
+	int roomRowSize2; // esi@19
+	int randVal3; // eax@19
+	int roomColSize2; // edi@19
+	int roomCol; // ebx@19
+	int firstRoomCheck2; // eax@19
+	int firstRoomCol; // [sp+Ch] [bp-10h]@8
+	int firstRoomRow; // [sp+Ch] [bp-10h]@19
+	int firstRoomOk; // [sp+10h] [bp-Ch]@8
+	int firstRoomOk2; // [sp+10h] [bp-Ch]@19
+	int savedRow; // [sp+14h] [bp-8h]@1
+	int secondRoomCol; // [sp+14h] [bp-8h]@12
+	int savedCol; // [sp+18h] [bp-4h]@1
+	int halfRows; // [sp+24h] [bp+8h]@7
+	int secondRoomOk; // [sp+28h] [bp+Ch]@12
+	int halfCols; // [sp+28h] [bp+Ch]@18
+	int secondRoomOk2; // [sp+28h] [bp+Ch]@23
+	int retryCount; // [sp+2Ch] [bp+10h]@7
+	int retryCount2; // [sp+2Ch] [bp+10h]@18
 
-	v26 = startCol;
-	v24 = startRow;
+	savedCol = startCol;
+	savedRow = startRow;
 	while( 1 ){
 		while( 1 ){
-			v5 = RNG(4);
-			v6 = quarterProbability == 1 ? (unsigned __int8)(v5 != 0) : (unsigned __int8)(v5 == 0);
-			v7 = v6;
-			v8 = 0;
-			if( !v7 )
+			randomRoll = RNG(4);
+			dirProb = quarterProbability == 1 ? (unsigned __int8)(randomRoll != 0) : (unsigned __int8)(randomRoll == 0);
+			dirChoice = dirProb;
+			unused = 0;
+			if( !dirChoice )
 				break;
-			if( v7 != 1 )
+			if( dirChoice != 1 )
 				return;
-			v31 = 0;
-			v27 = rows / 2;
+			retryCount = 0;
+			halfRows = rows / 2;
 			do
 			{
-				v9 = RNG(5);
-				v10 = (v9 + 2) & 0xFFFFFFFE;
-				v11 = (RNG(5) + 2) & 0xFFFFFFFE;
-				v12 = v27 + v24 - v10 / 2;
-				startRowa = v26 - v11;
-				v13 = ThereIsNoHellRoom(v12 - 1, v26 - v11 - 1, v10 + 2, v11 + 1);
-				++v31;
-				v22 = v13;
+				randVal = RNG(5);
+				roomRowSize = (randVal + 2) & 0xFFFFFFFE;
+				roomColSize = (RNG(5) + 2) & 0xFFFFFFFE;
+				roomRow = halfRows + savedRow - roomRowSize / 2;
+				firstRoomCol = savedCol - roomColSize;
+				firstRoomCheck = ThereIsNoHellRoom(roomRow - 1, savedCol - roomColSize - 1, roomRowSize + 2, roomColSize + 1);
+				++retryCount;
+				firstRoomOk = firstRoomCheck;
 			}
-			while( !v13 && v31 < 20 );
-			if( v13 == 1 )
-				BuildHellRectangleRoom(v12, startRowa, v10, v11);
-			v25 = cols + v26;
-			v28 = ThereIsNoHellRoom(v12 - 1, cols + v26, v10 + 2, v11 + 1);
-			if( v28 == 1 )
-				BuildHellRectangleRoom(v12, v25, v10, v11);
-			if( v22 == 1 )
-				RecursiveHellRoomsConstruct(v12, startRowa, v10, v11, 0);
-			if( v28 != 1 )
+			while( !firstRoomCheck && retryCount < 20 );
+			if( firstRoomCheck == 1 )
+				BuildHellRectangleRoom(roomRow, firstRoomCol, roomRowSize, roomColSize);
+			secondRoomCol = cols + savedCol;
+			secondRoomOk = ThereIsNoHellRoom(roomRow - 1, cols + savedCol, roomRowSize + 2, roomColSize + 1);
+			if( secondRoomOk == 1 )
+				BuildHellRectangleRoom(roomRow, secondRoomCol, roomRowSize, roomColSize);
+			if( firstRoomOk == 1 )
+				RecursiveHellRoomsConstruct(roomRow, firstRoomCol, roomRowSize, roomColSize, 0);
+			if( secondRoomOk != 1 )
 				return;
 			quarterProbability = 0;
-			cols = v11;
-			rows = v10;
-			v26 = v25;
-			v24 = v12;
+			cols = roomColSize;
+			rows = roomRowSize;
+			savedCol = secondRoomCol;
+			savedRow = roomRow;
 		}
-		v32 = 0;
-		v29 = cols / 2;
+		retryCount2 = 0;
+		halfCols = cols / 2;
 		do
 		{
-			v14 = RNG(5);
-			v15 = (v14 + 2) & 0xFFFFFFFE;
-			v16 = RNG(5);
-			v17 = (v16 + 2) & 0xFFFFFFFE;
-			v18 = v29 + v26 - ((v16 + 2) & 0xFFFFFFFE) / 2;
-			startRowb = v24 - v15;
-			v19 = ThereIsNoHellRoom(v24 - v15 - 1, v18 - 1, v17 + 2, v15 + 1);
-			++v32;
-			v23 = v19;
+			randVal2 = RNG(5);
+			roomRowSize2 = (randVal2 + 2) & 0xFFFFFFFE;
+			randVal3 = RNG(5);
+			roomColSize2 = (randVal3 + 2) & 0xFFFFFFFE;
+			roomCol = halfCols + savedCol - ((randVal3 + 2) & 0xFFFFFFFE) / 2;
+			firstRoomRow = savedRow - roomRowSize2;
+//			firstRoomCheck2 = ThereIsNoHellRoom(savedRow - roomRowSize2 - 1, roomCol - 1, roomColSize2 + 2, roomRowSize2 + 1);// Sonnet 4.6 claims this is a scattered local decompilation bug
+			firstRoomCheck2 = ThereIsNoHellRoom(savedRow - roomRowSize2 - 1, roomCol - 1, roomRowSize2 + 1, roomColSize2 + 2);
+			++retryCount2;
+			firstRoomOk2 = firstRoomCheck2;
 		}
-		while( !v19 && v32 < 20 );
-		if( v19 == 1 )
-			BuildHellRectangleRoom(startRowb, v18, v15, v17);
-		v24 += rows;
-		v30 = ThereIsNoHellRoom(v24, v18 - 1, v15 + 1, v17 + 2);
-		if( v30 == 1 )
-			BuildHellRectangleRoom(v24, v18, v15, v17);
-		if( v23 == 1 )
-			RecursiveHellRoomsConstruct(startRowb, v18, v15, v17, 1);
-		if( v30 != 1 )
+		while( !firstRoomCheck2 && retryCount2 < 20 );
+		if( firstRoomCheck2 == 1 )
+			BuildHellRectangleRoom(firstRoomRow, roomCol, roomRowSize2, roomColSize2);
+		savedRow += rows;
+		secondRoomOk2 = ThereIsNoHellRoom(savedRow, roomCol - 1, roomRowSize2 + 1, roomColSize2 + 2);
+		if( secondRoomOk2 == 1 )
+			BuildHellRectangleRoom(savedRow, roomCol, roomRowSize2, roomColSize2);
+		if( firstRoomOk2 == 1 )
+			RecursiveHellRoomsConstruct(firstRoomRow, roomCol, roomRowSize2, roomColSize2, 1);
+		if( secondRoomOk2 != 1 )
 			break;
 		quarterProbability = 1;
-		cols = v17;
-		rows = v15;
-		v26 = v18;
+		cols = roomColSize2;
+		rows = roomRowSize2;
+		savedCol = roomCol;
 	}
 }
 
@@ -11185,7 +11434,7 @@ bool __fastcall PlaceHellPatMap(int patternPtr, int minPatternsToPlace, int maxP
 	char* beforePattern = ((char*)patternPtr + 2);
 	char* afterPattern = beforePattern + patternRowSize * patternColSize;
 
-	//здесь определяется сколько копий объекта понатыкать на карте
+	//(rt) this decides how many copies of the object to scatter over the map
 	int numberOfPatternsToPlace;
 	if( maxPatternsToPlace - minPatternsToPlace ){
 		numberOfPatternsToPlace = RNG(maxPatternsToPlace - minPatternsToPlace);
@@ -11229,18 +11478,18 @@ bool __fastcall PlaceHellPatMap(int patternPtr, int minPatternsToPlace, int maxP
 				}
 			}
 
-			// проверка на соответствие паттерну
+			// (rt) pattern match check
 			for( int colOffset = 0; colOffset < patternColSize && continueFlag; colOffset++ ){
 				for( int rowOffset = 0; rowOffset < patternRowSize && continueFlag; rowOffset++ ){
 					uchar neededTile = beforePattern[colOffset*patternRowSize+rowOffset];
 					if( (neededTile && (Map[row+rowOffset][col+colOffset] != neededTile)) || FixedMap[row+rowOffset][col+colOffset] ){
-						continueFlag = 0; //бида бида, паттерн не соблюдается, надо искать другое место
+						continueFlag = 0; //(rt) the pattern does not match; try another position
 					}
 				}
 			}
 
 			if( continueFlag ){
-				//матерь божья, мы нашли подходящее место для установки объекта, копируем ка его паттерн быстренько на карту
+				//(rt) found a suitable place for the object, copy its pattern onto the map
 				for( int colOffset = 0; colOffset < patternColSize; colOffset++ ){
 					for( int rowOffset = 0; rowOffset < patternRowSize; rowOffset++ ){
 						uchar newTile = afterPattern[colOffset*patternRowSize+rowOffset];
@@ -11253,7 +11502,7 @@ bool __fastcall PlaceHellPatMap(int patternPtr, int minPatternsToPlace, int maxP
 				isPatternPlaced = true;
 			}
 
-			// следующая клетка
+			// (rt) next cell
 			if( !isPatternPlaced ){
 				if( ++row == mapRowsLimit ){
 					row = 0;
@@ -11262,7 +11511,7 @@ bool __fastcall PlaceHellPatMap(int patternPtr, int minPatternsToPlace, int maxP
 					}
 				}
 				tryesCounter++;
-				//после 4000 фэйлов в поиске подходящего места просто выходим, ну его нафиг
+				//(rt) give up after 4000 failed placement attempts
 				if( tryesCounter >= 200 ){
 					return false;
 				}
@@ -11292,7 +11541,7 @@ void InitHellWallsTransparency()
 {
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
-			if( Map[ row ][ col ] == HELL_WAFM_6_FLOOR && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // пол не отнесённый ни к одной из комнат относим к новой комнате
+			if( Map[ row ][ col ] == HELL_WAFM_6_FLOOR && !TransMap[Convert40to112(row)][Convert40to112(col)] ){ // (rt) floor not belonging to any room is assigned to a new room
 				SetHellCellTransparency(row, col, Convert40to112(row), Convert40to112(col), 0);
 				TransValue++;
 			}

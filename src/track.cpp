@@ -21,7 +21,7 @@ void TrackMouse()
 			// don't track if mouse still on same target
 			if( top.Row != player.TargetRow || top.Col != player.TargetCol ){
 				// don't track if it hasn't been long enough since we last tracked
-				i64 newTick = GetTickCountTh(); // перехватываем вызов
+				i64 newTick = GetTickCountTh(); // (rt) intercept the call
 				if( newTick - TrackTime >= 300_ms ){ // TRACK_LOOP_DELAY
 					TrackTime = newTick;
 					// track!

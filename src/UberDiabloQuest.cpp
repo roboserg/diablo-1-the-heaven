@@ -13,8 +13,8 @@ int UberDiabloMonsterIndex;// 0057737C
 void Floor24QuestMapObjectsGeneration()
 {
 	AddQuestLeverOn24Level();
-	// добавление 3х книг для открытия коморки убера
-	int indexesTable [6][3] = {// оптимизация. В оригинале было 6 условий
+	// (rt) adding 3 books for opening Uber's chamber
+	int indexesTable [6][3] = {// (rt) optimization. The original had 6 conditions
 		{6, 7, 8},
 		{6, 8, 7},
 		{7, 6, 8},
@@ -35,7 +35,7 @@ void __fastcall AddQuestBookOnMap( int bookIndex, int row112, int col112 )
 	AddQuestBook86(BO_86_QUEST_BOOK, bookIndex, row112, col112);
 }
 
-// переделана для использования с книгами из квеста хоразона. Оригинальные значения в коментариях
+// (rt) reworked for use with the books from the Horazon quest. Original values in the comments
 //----- (00454B04) --------------------------------------------------------
 bool __fastcall ReadUberBook(int bookIndex)
 {
@@ -65,7 +65,7 @@ void OpenUberDiabloRoom()
 		FineMap[ UberRow ][ UberCol + 1 ] = 299;
 		FineMap[ UberRow ][ UberCol -2 ] = 300;
 		FineMap[ UberRow ][ UberCol - 1 ] = 301;
-		// активация и звук с выпуском убера из коморки
+		// (rt) activation and sound when Uber is released from the chamber
 		Monsters[UberDiabloMonsterIndex].ActivationCounter = 255;
 		PlayGlobalSound(S_997_M_UBERGRT);
 		MonsterLookAround(UberDiabloMonsterIndex);
@@ -123,7 +123,7 @@ void AddQuestLeverOn24Level()
 		int isValidCol = true;
 		for( int rowOffset = -1; rowOffset <= 1; rowOffset++ ){
 			for( int colOffset = -1; colOffset <= 1; colOffset++ ){
-				if( !IsCellFree(row112 + rowOffset, col112 + colOffset) ){// оптимизация, в оригинале 9 вызовов
+				if( !IsCellFree(row112 + rowOffset, col112 + colOffset) ){// (rt) optimization, the original had 9 calls
 					isValidCol = false;
 				}
 			}
@@ -133,12 +133,12 @@ void AddQuestLeverOn24Level()
 		}
 		#endif
 	}
-	// значение найденного row и col не используется
-	// дворды координат также не используются
+	// (rt) the found row and col value is not used
+	// (rt) the coordinate dwords aren't used either
 	UberLeverRow = UberRow + 3;
 	UberLeverCol = UberCol - 1;
 	AddObject(BO_4_LEVER, UberRow + 3, UberCol - 1);
-	// в th открытие сделано не просто сменой парой тайлов, а заменой всей комнаты на комнату открытую
+	// (rt) in th, opening is done not by just swapping a pair of tiles but by replacing the whole room with the opened room
 	SetChangeRect(
 		ObjIndex(UberLeverRow, UberLeverCol),
 		CurPattern.row,

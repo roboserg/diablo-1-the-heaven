@@ -68,6 +68,7 @@ struct BaseMonster
 {
 	BASE_MONSTER id;
 	int			valid; // MONSTER_AVAILABILITY 0 - not, 1 - mod, 2 - classic, 3 - all
+	int			SpriteHeight;				// sprite pixel height for overhead HP bars (0 = unset)
 	int			SpritePitch;				// 0	0	width of monster
 	int			SeedingSize;				// 0x4	4	ImageSize originally
 	const char*	AnimationFileName;			// 0x8	8
@@ -146,7 +147,7 @@ struct Affix
 	int				quality;
 	ITEM_AFFIX		item;
     ITEM_SPECIALISATION itemSpecialization;
-	int				ExcludedCombinations; // если в префиксе 16, а в постфиксе 1 (или наоборот), то не комбинируется
+	int				ExcludedCombinations; // (rt) if the prefix has 16 and the suffix 1 (or vice versa), they don't combine
 	int				DoubleChance;
 	int				NotCursed;
 	int				MinGoldValue;
@@ -189,10 +190,10 @@ struct EffectAction
 // sizeof 512
 struct Item // TH4
 {
-	int				seed;					void SetSeed(i64 seed, int genVersion = CurItemGenVersion); i64 MakeSeed(); // 0 у квестовых уников здесь храниться uniqueItemIndex, для индекса уже есть поле Item_v25.UniqueItemIndex
+	int				seed;					void SetSeed(i64 seed, int genVersion = CurItemGenVersion); i64 MakeSeed(); // (rt) 0 for quest uniques uniqueItemIndex is stored here; there is already the Item_v25.UniqueItemIndex field for the index
 	int				seed64_reserved;
 	ITEM_CODE		ItemCode;				// (-1 == no item) ItemCode from BaseItem_ID 11 - Gold 196-188
-	int				dropType;				// маска типа дропа синий/белый/уник/из босса/магазин (для генерации\восстановления)
+	int				dropType;				// (rt) drop type mask blue/white/unique/from boss/shop (for generation/restoration)
 	short			MapRow;
 	short			MapCol;
 	char*			ItemCELFilePtr;			// sprite data ? free()
@@ -202,7 +203,7 @@ struct Item // TH4
 	short			subOffsetX;				// always 16, this and next may be for subcell items positioning
 	char			animPhase;
 	char			EquippedLocation;
-	MAGIC_LEVEL		MagicLevel;				// 0 - Normal, 1 - Magic, 2 - Unique (интерпретация данных вещи)
+	MAGIC_LEVEL		MagicLevel;				// (rt) 0 - Normal, 1 - Magic, 2 - Unique (interpretation of the item data)
 	MAGIC_CODE		MagicCode;
 	char			TypeID;
 	uchar			RequiredLevel;
@@ -281,7 +282,7 @@ struct Item // TH4
 	//void operator=(const struct ItemInfo64&); // unused, see LoadItem
 
 	void getStatEffects(struct StatEffects&, struct Player&);
-	static constexpr StructVersion versions[] = {{26, 512}, {16, 1339}, {15, 1093}, {14, 1093}, {13, 1081}, {8, 889}, {4, 877}, {3, 581}, {2, 555}, {1, 372}}; // 21, 1339 (добавлять слева в массив индекс старшей)
+	static constexpr StructVersion versions[] = {{26, 512}, {16, 1339}, {15, 1093}, {14, 1093}, {13, 1081}, {8, 889}, {4, 877}, {3, 581}, {2, 555}, {1, 372}}; // (rt) 21, 1339 (add the index of the newest one on the left of the array)
 };
 static_assert( sizeof(Item) == StructSize<Item>(CurSaveVersion), "Item size and Item::versions[CurVersion].size are not the same");
 
@@ -363,7 +364,7 @@ struct BaseItem
     short			MaxThornsLow;
     short			MaxThornsHigh;
 	short			RequiredStrengthMin;
-	short			RequiredStrengthMax; // от требований базовых вещей зависит дроп, пока используем Max при ограничении
+	short			RequiredStrengthMax; // (rt) the drop depends on the base items' requirements; Max is used for the limit for now
 	short			RequiredMagicMin;
 	short			RequiredMagicMax;
 	short			RequiredDexterityMin;
@@ -539,6 +540,27 @@ struct UniqueSet
     Item		FakeItemToShowEffect;
 };
 
+// Power-ups system
+#define POWERUP_COUNT   15      // (rt) number of upgrade types
+#define DARK_MISSION_MAX_50	50	// (th4) Dark Campaign: reserved mission state slots
+
+#define POWERUP_AC       0       // Armor Class
+#define POWERUP_DAMAGE   1       // damage (melee & ranged)
+#define POWERUP_TOHIT    2       // accuracy
+#define POWERUP_RESIST   3       // all res
+#define POWERUP_HP       4       // +HP
+#define POWERUP_MANA     5       // +Mana
+#define POWERUP_GOLD     6       // gold find
+#define POWERUP_STUN     7       // stun threshold
+#define POWERUP_DFE      8       // - damage from enemies
+// (rt) --- the remaining 6 are unused for now, but reserved ---
+#define POWERUP_9        9
+#define POWERUP_10       10
+#define POWERUP_11       11
+#define POWERUP_12       12
+#define POWERUP_13       13
+#define POWERUP_14       14
+
 // sizeof
 struct Player 
 {
@@ -558,7 +580,7 @@ struct Player
 	short				NextCol;							// player col
 	short				TargetRow;							// target row / next moving pos
 	short				TargetCol;							// target col / next moving pos
-	short				ownerRow;							// owner row / Эти поля видно только в ии 15 и при получении сетевых сообщений используются. как row и col
+	short				ownerRow;							// (rt) owner row / These fields are seen only in AI 15 and are used as row and col when receiving network messages
 	short				ownerCol;							// owner col
 	short				oldRow;
 	short				oldCol;
@@ -632,7 +654,7 @@ struct Player
 	short				AvailableLvlPoints;
 	
 	int					BaseDamage;
-	int					BlockBonus;
+	int					BlockBonus;	// (th4) RETIRED: always 0, read by no block formula (it was never saved)
 	int					BaseLife;
 	int					MaxBaseLife;
 	int					CurLife;
@@ -779,11 +801,11 @@ struct Player
 	short				resistMeleeMax;
 	short				resistArrowMax;
 
-	// пока используется как список, использовать как маску (неповторяющиеся эффекты) можно по ненулевому id (либо chance)
-	EffectAction		effectAction[200]; // 200 = 20 эффектов * 10 вещей
-	// эти сразу используются как маска (по ненулевому id)
-	EffectAction		effectActionPercent[EA_CAP]; // не меньше EA_COUNT
-	EffectAction		effectActionValue[EA_CAP]; // не меньше EA_COUNT
+	// (rt) used as a list for now; can be used as a mask (non-repeating effects) by a non-zero id (or chance)
+	EffectAction		effectAction[200]; // (rt) 200 = 20 effects * 10 items
+	// (rt) these are used directly as a mask (by a non-zero id)
+	EffectAction		effectActionPercent[EA_CAP]; // (rt) no less than EA_COUNT
+	EffectAction		effectActionValue[EA_CAP]; // (rt) no less than EA_COUNT
 	bitset<EA_CAP>		effectFlag;
 
 	char				perk[PERKS_MAX_800];
@@ -798,7 +820,9 @@ struct Player
 	ushort				AurasValues[5];
 	uchar				griswoldLevel;
 
-	char				reserved[5499];
+	uchar               powerupLevel[POWERUP_COUNT]; // currently 10 types
+
+	char				reserved[5499 - POWERUP_COUNT];// automatic reduction according to number of powerups
 
 	char*				currentAnimationPointer;
 	char*				StayAnimCel;
@@ -849,8 +873,10 @@ struct Player
 	int					AnimPitchTurning;
 
 
-	char				reservedPointers[856];
+	uint				totalKills;			// (th4) lifetime monsters killed by this character
+	char				reservedPointers[856 - sizeof(uint)];	// reduced to keep sizeof(Player) unchanged
 
+	
 	static constexpr StructVersion versions[] = {
 		{26, 0x18000 /*98304*/}, {19, 130216}, {18, 130196}, {17, 129296}, {16, 129296}, {15, 107404}, {14, 107400},
 		{13, 106328}, {12, 106224}, {11,  73764}, {10,  73760}, { 9,  73752}, { 8,  60824}, { 7,  56984},
@@ -901,7 +927,7 @@ struct MonsterSprite
 {
 	int			baseMonsterIndex;		//	0	0
 	uint 		placeFlag;				//	0x4	4 MONSTER_PLACEMENT_FLAG, used only 3 bits, can be reused
-	MonsterAnim animation[6];			//	0x8	 8 52 96 140 184 228 // временно отключено
+	MonsterAnim animation[6];			//	(rt) 0x8	 8 52 96 140 184 228 // temporarily disabled
 	int			Pitch;			        //	0x130	304
 	int			StartOfsX;				//	0x134	308
 	int			minHitPoints;			//	0x138	312
@@ -910,8 +936,8 @@ struct MonsterSprite
 	char		firstAtackToHitFrame;	//	0x144	324
 	char		deadSpriteNum;				//	0x145	325
 	ushort		aligment;				//	0x146	326
-	BaseMonster* baseMonsterPtr;		//	0x148	328  // временно отключено
-	uchar*		colorTable;				//	0x14C	332 временно отключена сверка из-за странного поведения сверки при FreeMem
+	BaseMonster* baseMonsterPtr;		//	(rt) 0x148	328  // temporarily disabled
+	uchar*		colorTable;				//	(rt) 0x14C	332 comparison temporarily disabled due to odd comparison behaviour on FreeMem
 };
 
 // 0069DC88
@@ -972,7 +998,7 @@ struct Monster
 	int		BaseLife;				// 144
 	int		CurrentLife;			// 148
 	uchar	ai;						// 152 index of monster AI func ( AI_28_Lazarus for example )
-	uchar	intel;					// 153 разумность монстра
+	uchar	intel;					// (rt) 153 monster intelligence
 	uchar	_unused[2];				// 154 // unused
 	int		flag;                   // 156
 	uchar	ActivationCounter;		// 160
@@ -985,7 +1011,7 @@ struct Monster
 	int		RandomSeedForAction;	// 180
 	ushort	overTime;				// 184 acid time period
 	ushort	prevOverTime;			// Unused
-	uchar	BossID;					// 188 0069DD44 старый адрес, новый - 0069DCA0 ( .NewBossId +24 )
+	uchar	BossID;					// (rt) 188 0069DD44 old address, new - 0069DCA0 ( .NewBossId +24 )
 	uchar	uniqTrans;				// 189
 	uchar	udeadNum;				// 190
 	uchar	Attackers;				// 191 number of players
@@ -1102,7 +1128,7 @@ struct ItemInfo19
 {
 	int		seed;					// 0 
 	ushort  dropType;				// 4
-	short	baseItemIndex;			// 6 тут используется значение -1 так что нужно знаковое представление
+	short	baseItemIndex;			// (rt) 6 the value -1 is used here, so a signed representation is needed
 	uchar	magicLevelAndIdentified;// 8
 	uchar	curDurability;			// 9
 	uchar	baseDurability;			// 10
@@ -1150,7 +1176,7 @@ struct ItemInfo64
 	i64		seed;					// 8 
 	short   quality;				// 16 extracted from dropType 6 bits
 	short	magicFind;              // 18 extracted from seed 10 bits
-	short	baseItemIndex;			// 20 тут используется значение -1 так что нужно знаковое представление
+	short	baseItemIndex;			// (rt) 20 the value -1 is used here, so a signed representation is needed
 	short	uniqIndex;				// 22 extracted from seed 12 bits
 	uchar	magicLevelAndIdentified;// 24 TODO: used only 3 bits (combine with flag)
 	int		amount;					// 25 gold quantity, can be used for stacking also
@@ -1233,9 +1259,9 @@ struct PlayerInfo_TH1: PlayerInfo // TH1 player info
 	uchar		tmp3[2];					//0x4D0	1232 align
 	uint		allowedDifficulty;			//0x4D2	1234
 	uint		Difficulty;					//0x4D6	1238
-	uint		affixFlag2;					//0x4DA	1242 affixFlag не сохраняется, только новый, разобраться
+	uint		affixFlag2;					//(rt) 0x4DA	1242 affixFlag is not saved, only the new one; look into it
 	uchar		MoreAdvancedSpellLevels[17]; //0x4DE 1246
-	uchar		aligment[3];				//???	??? сюда можно расширить affixFlag2 до 64 бит
+	uchar		aligment[3];				//(rt) ???	??? affixFlag2 can be extended to 64 bits here
 };
 
 struct OldPlayerInfo2: PlayerInfo_TH1
@@ -1301,9 +1327,9 @@ struct PlayerInfo_v17: PlayerInfo
 	uchar		tmp3[2];					//0x4D0	1232 align
 	uint		allowedDifficulty;			//0x4D2	1234
 	uint		Difficulty;					//0x4D6	1238
-	uint		affixFlag2;					//0x4DA	1242 affixFlag не сохраняется, только новый, разобраться
+	uint		affixFlag2;					//(rt) 0x4DA	1242 affixFlag is not saved, only the new one; look into it
 	uchar		MoreAdvancedSpellLevels[17]; //0x4DE 1246
-	uchar		aligment[3];				//???	??? сюда можно расширить affixFlag2 до 64 бит
+	uchar		aligment[3];				//(rt) ???	??? affixFlag2 can be extended to 64 bits here
 	ItemInfo32	newbodySlots[3];
 	ItemInfo32	newInvSlots[30];
 	uchar		newInvUsed[30];
@@ -1353,9 +1379,9 @@ struct PlayerInfo_v18: PlayerInfo
 	uchar		tmp3[2];					//0x4D0	1232 align
 	uint		allowedDifficulty;			//0x4D2	1234
 	uint		Difficulty;					//0x4D6	1238
-	uint		affixFlag2;					//0x4DA	1242 affixFlag не сохраняется, только новый, разобраться
+	uint		affixFlag2;					//(rt) 0x4DA	1242 affixFlag is not saved, only the new one; look into it
 	uchar		MoreAdvancedSpellLevels[17]; //0x4DE 1246
-	uchar		aligment[3];				//???	??? сюда можно расширить affixFlag2 до 64 бит
+	uchar		aligment[3];				//(rt) ???	??? affixFlag2 can be extended to 64 bits here
 	ItemInfo42	newbodySlots[3];
 	ItemInfo42	newInvSlots[30];
 	uchar		newInvUsed[30];
@@ -1406,7 +1432,7 @@ struct PlayerInfo_v21: PlayerInfo
 	uchar		AdvancedSpellLevels[10];
 	uint		allowedDifficulty;
 	uint		Difficulty;
-	uint		affixFlag2;					//affixFlag не сохраняется, только новый, разобраться
+	uint		affixFlag2;					//(rt) affixFlag is not saved, only the new one; look into it
 	uchar		MoreAdvancedSpellLevels[17];
 	ItemInfo42	newbodySlots[3];
 	ItemInfo42	newInvSlots[30];
@@ -1532,9 +1558,15 @@ struct PlayerInfo_v26: PlayerInfo
 	int			CurrentSeedRun;
 	int			CurrentSeedRun_64_reserved;
 	GAME_MODE   gameMode;
+	uchar powerupLevel[POWERUP_COUNT];
+	uint		totalKills;			// (th4) lifetime monsters killed by this character (v28+)
 
+	// (th4) v28 appends totalKills (+4 bytes; project builds with /Zp1 so no padding).
+	// Older v27 saves still load: their size is whitelisted in AllowedPlayerInfoSizesToLoad
+	// (CharSlots.cpp) and SavePlayerInfo's memset leaves totalKills at 0 for them.
 	static constexpr StructVersion versions[] = {
-		{26, 11798}
+		{28, 11798 + POWERUP_COUNT + sizeof(uint)},
+		{27, 11798 + POWERUP_COUNT}
 	};
 };
 
@@ -1656,14 +1688,14 @@ struct Object // Struct120Bytes
 	int  isDoor;					// 76
 	int  lightIndex;				// 80
 	int  Seed;						// 84
-	union {	struct { // попробовать пронумеровать структуры, если больше одной неименованной структуры в одном скопе - ассист с ума сходит
+	union {	struct { // (rt) try numbering the structs; with more than one unnamed struct in one scope, Visual Assist gets confused
 		int  TrapedObjectRow;		// 88
 		int  TrapedObjectCol;		// 92
 		int  TrapSpellIndex; 		// 96
 		int  OpenState2;	 		// 100
 	}; struct {
-		int  ShrineIndex;		// 88 // проверить пересечения с TrapedObjectRow (выше)
-		int  MaybeSpeechIndex;		// 92 // проверить пересечения с TrapedObjectCol (выше)
+		int  ShrineIndex;		// (rt) 88 // check for overlaps with TrapedObjectRow (above)
+		int  MaybeSpeechIndex;		// (rt) 92 // check for overlaps with TrapedObjectCol (above)
 		int  BookNameIndex;			// 96
 		int  OpenState;				// 100 0x64
 	}; struct {
@@ -1709,9 +1741,9 @@ struct PathStep
 	char		align;		//  3
 	int			row;		//  4
 	int			col;		//  8
-	PathStep*	prevPtr;	// 12 // пока отключим сверку возможно рекурсивных указателей
-	PathStep*	subSteps[8];// 16 // а вообще нада таки сделать поиск и сравнение
-	PathStep*	nextPtr;	// 48 // индексов в соотвествующих массивах вместо рекурсивной раскрутки
+	PathStep*	prevPtr;	// (rt) 12 // comparison of possibly recursive pointers disabled for now
+	PathStep*	subSteps[8];// (rt) 16 // in general, lookup and comparison should be done
+	PathStep*	nextPtr;	// (rt) 48 // of indices in the corresponding arrays instead of recursive unwinding
 };
 
 // sizeof 52
@@ -1730,6 +1762,17 @@ struct Light
 	int deltaRow;	// 40
 	int deltaCol;	// 44
 	int flag;		// 48
+};
+
+// (th4) Stage 3: colored-light tint side table, parallel to LightList.
+// LightList itself is raw-serialized to saves (sizeof(Light) in Saving.cpp),
+// so the tint must NOT extend the Light struct — it lives in LightTintList[Lights_128_Count].
+// White (255,255,255) = no tint.
+struct LightTint
+{
+	uchar r;	// 0
+	uchar g;	// 1
+	uchar b;	// 2
 };
 
 // sizeof 11
@@ -1794,8 +1837,8 @@ struct CObjectUnderCursor
 	int  ItemID;            // 12
 	int  ObjectIndex;       // 16
 	int  playerIndex;       // 20
-	int  Row;               // 24 знаковое, есть сравнение >= 0
-	int  Col;               // 28 знаковое, есть сравнение >= 0
+	int  Row;               // (rt) 24 signed, there is a >= 0 comparison
+	int  Col;               // (rt) 28 signed, there is a >= 0 comparison
 	int  MonsterID;			// 32
 	uint GraphicsID;		// 36
 	int UsedItemSeed;
@@ -1836,7 +1879,7 @@ struct Towner
 	int		field_18;				// 24
 	int		field_1C;				// 28
 	int		field_20;				// 32
-	char*	stayAnim;				// 36 // пока отключено из-за free()
+	char*	stayAnim;				// (rt) 36 // disabled for now because of free()
 	int		DelayFrameCount;		// 40
 	int		CurDelayFrame;			// 44
 	int		StayingFrameCount;		// 48
@@ -1849,7 +1892,7 @@ struct Towner
 	int		field_4C;				// 76
 	int		isThisTownerSpeakingNow;// 80
 	int		field_54;				// 84
-	int		IsTownerActionSelected;	// 88 // TODO: раньше дооптимизировал до того, что от использования избавился. Надо вернуть
+	int		IsTownerActionSelected;	// (rt) 88 // TODO: earlier optimized to the point of removing its use. Should be restored
 	TownerQuestInfo QuestInfo[24];	// 92 // TODO: check for need, unused originally
 	int		seed;								// 164
 	int		indexOfPlayerWhichSpeaksTownsman;	// 168
@@ -1858,8 +1901,8 @@ struct Towner
 	int		field_B4;							// 180
 	char	Name[32];							// 184
 	char*	animationFrameArray[8];				// 216
-	int		animationFrameCount;				// 248 // пока отключено из-за free()
-	char*	spritePtr;							// 252 // пока отключено из-за free()
+	int		animationFrameCount;				// (rt) 248 // disabled for now because of free()
+	char*	spritePtr;							// (rt) 252 // disabled for now because of free()
 };
 
 // sizeof 4
@@ -2139,7 +2182,7 @@ struct PlayerClass
 	const char* NamePtr;
 	PlayerStat StartStat;
 	//PlayerStat MaxStat;
-	int BlockBonus;
+	int BlockBonus;	// (th4) RETIRED: not used any more (Player::BlockBonus)
 	int NumberOfSubSteps;
 	int SkillIndex;
 	int LifeBase;
@@ -2159,7 +2202,7 @@ struct FullPlayerClass
 	StartItem StartItems;
 };
 
-// надписи (в городе) на знаках, могильных камнях и просто по координатам областей
+// (rt) inscriptions (in town) on signs, gravestones and simply at area coordinates
 // sizeof 24
 struct Sign
 {
@@ -2393,6 +2436,13 @@ struct DiabloFont
 	short unused;			// 258
 	HANDLE trans[256];		// 260
 	int fontLoaded;			// 1284
+	// (th4) CHI: GB2312 needs 8178 glyphs; charWidth/trans above are byte-indexed and
+	// hold 256, which is why Latin locs work (PL/RU just replace the high cells) and
+	// Chinese cannot. These are APPENDED so every offset above stays where IDA mapped
+	// it -- LoadFont reads the .bin straight into this struct and must not shift.
+	// Null for every non-CHI language, so nothing else pays for them.
+	uchar* chiWidth;		// 1288: 8178 advances, grid-indexed
+	HANDLE* chiTrans;		// 1292: 8178 sprites, grid-indexed
 };
 
 // sizeof 272
@@ -2449,21 +2499,28 @@ struct ModemWin
 };
 
 // sizeof 272
+// (th4) Capacity of the text carried by a menu element. Was 256, which capped every
+// trait / class description at 255 bytes -- about 120 Hindi characters. TextWin,
+// IpxWin and TraitWin share ONE layout (surface, size, one pointer, text) and are
+// cast to each other freely, so all three MUST stay the same size: grow this, not
+// the arrays. AllocTextWin() allocates sizeof(TextWin), not a literal.
+#define MENU_TEXT_CAP 1024
+
 struct TextWin
 {
 	uchar* surface;				// 0
 	SIZE size;					// 4
 	ProviderDesc* providerDesc;	// 12
-	char text[256];				// 16
+	char text[ MENU_TEXT_CAP ];				// 16
 };
 
-// sizeof 272
+// sizeof == sizeof(TextWin); see MENU_TEXT_CAP
 struct IpxWin
 {
 	uchar* surface;				// 0
 	SIZE size;					// 4
 	IpxGame* ipxGame;			// 12
-	char text[ 256 ];			// 16
+	char text[ MENU_TEXT_CAP ];			// 16
 };
 
 // sizeof 272
@@ -2481,7 +2538,7 @@ struct TraitWin
 	uchar* surface;				// 0
 	SIZE size;					// 4
 	void* traitIndex;		    // 12
-	char text[ 256 ];			// 16
+	char text[ MENU_TEXT_CAP ];			// 16
 };
 
 // sizeof 272
@@ -2556,6 +2613,7 @@ public:
 	int color;
 	int iterations;
 	int angle;//0-360
+	float dirX, dirY; // precomputed cos/sin of angle, so we don't call trig functions every draw frame
 	int posX, posY;
 	bool showOnCenter;
 	int callerID;
@@ -2567,6 +2625,10 @@ public:
 		color = c;
 		iterations = 0;
 		angle = -60 + (rand() % 121) + 180 * (rand() % 2); //angle = 60 + rand() % 61;
+		constexpr double PI = 3.14159265;
+		double radian = angle * PI / 180.0;
+		dirX = (float)cos(radian);
+		dirY = (float)sin(radian);
 		showOnCenter = center;
 		posX = px;
 		posY = py;
@@ -2737,6 +2799,16 @@ struct WeaponAnim
 	bool canPairShied;
 };
 
+// (th4) Dark Campaign mission descriptor. See DarkMissions[] in Monster.cpp.
+struct DarkMission
+{
+	DUNGEON		dungeon;		// level the outbound portal leads to
+	int			briefSpeech;	// SP_* the Dark Lord plays when briefing it
+	const char*	name;			// design-side label, not shown to the player yet
+	int			returnRow;		// where the way home appears once the level is cleared --
+	int			returnCol;		// PER MISSION: one global tile would land in a wall on some maps
+};
+
 struct BossPack
 {
 	UNIQUE_MONSTER uniq;
@@ -2833,8 +2905,8 @@ struct EA_v25
 // sizeof 1339
 struct I_v25
 {
-	int				seed;					// 0 у квестовых уников здесь храниться uniqueItemIndex, для индекса уже есть поле Item.UniqueItemIndex
-	int				dropType;				// +4 маска типа дропа синий/белый/уник/из босса/магазин (для генерации\восстановления)
+	int				seed;					// (rt) 0 for quest uniques uniqueItemIndex is stored here; there is already the Item.UniqueItemIndex field for the index
+	int				dropType;				// (rt) +4 drop type mask blue/white/unique/from boss/shop (for generation/restoration)
 	int				ItemCode;				// +8 (-1 == no item) ItemCode from BaseItem_ID 11 - Gold 196-188
 	int				MapRow;					// +12
 	int				MapCol;					// +16
@@ -2854,7 +2926,7 @@ struct I_v25
 	char			throwing;
 	short			resistAll;
 	int				Identified;				// TODO: change to bit flag ?
-	MAGIC_LEVEL		MagicLevel;				// +60 0 - Normal, 1 - Magic, 2 - Unique (интерпретация данных вещи)
+	MAGIC_LEVEL		MagicLevel;				// (rt) +60 0 - Normal, 1 - Magic, 2 - Unique (interpretation of the item data)
 	char			Name[64];				// +61
 	char			FullMagicalItemName[64];// +125
 	char			EquippedLocation;		// +189
@@ -2910,7 +2982,7 @@ struct I_v25
 	uchar			unused_oldReqStat[4];
 	int				IsReqMet;				// +356 bit flags
 	int				baseItemIndex;			// +360
-	uint			reserved;				// +364 сюда можно расширить affixFlag2 до 64 бит
+	uint			reserved;				// (rt) +364 affixFlag2 can be extended to 64 bits here
 	uint			affixFlag2;				// +364
 	short			goldFind;
 	short			magicFindEffect;
@@ -2934,7 +3006,7 @@ struct I_v25
 	short			RequiredMagic;
 	short			RequiredDexterity;
 	short			RequiredVitality;
-	short			percentStats; // в Player идет в отдельные статы
+	short			percentStats; // (rt) goes into separate stats in Player
 	short			percentStr;
 	short			percentDex;
 	short			percentMag;
@@ -2977,7 +3049,7 @@ struct I_v25
 	short			lifePercent;
 	short			manaPercent;
 	ushort			weaponPercentMask;
-	short			weaponPercent;  // в Player нужны отдельные поля типам оружия
+	short			weaponPercent;  // (rt) Player needs separate fields per weapon type
 	short			resist[ 8 ];
 	short			resistControl[ 8 ];
 	short			attackSpeed;
@@ -3000,8 +3072,8 @@ struct P_v25
 	int				CurAction;							//		0
 	char			walkPath[MaxPathStep_25];			// 0x4  4
 	unsigned char	IsExists;							// 0x1D	29 
-	unsigned char	SomeNewFlags;						// 0x1E	30 тут я в первом байте храню бег в городе
-	PLAYER_FULL_CLASS	fullClassId;					// 0x1F 31 бывшее выравнивание (char)
+	unsigned char	SomeNewFlags;						// (rt) 0x1E	30 the first byte stores running in town
+	PLAYER_FULL_CLASS	fullClassId;					// (rt) 0x1F 31 former alignment (char)
 	int				destAction;							// 0x20	32
 	int				destParam1;							// 0x24	36 next action param1 (map row / object index )
 	int				destParam2;							// 0x28	40 next action param2 (map col / spell level )
@@ -3016,7 +3088,7 @@ struct P_v25
 	int				NextCol;							// 0x44	68 player col
 	int				TargetRow;							// 0x48	72 target row / next moving pos
 	int				TargetCol;							// 0x4C	76 target col / next moving pos
-	int				ownerRow;							// 0x50 80 owner row / Эти поля видно только в ии 15 и при получении сетевых сообщений используются. как row и col
+	int				ownerRow;							// (rt) 0x50 80 owner row / These fields are seen only in AI 15 and are used as row and col when receiving network messages
 	int				ownerCol;							// 0x54	84 owner col
 	int				oldRow;								// 0x58	88  
 	int				oldCol;								// 0x5C	92
@@ -3115,7 +3187,7 @@ struct P_v25
 	int				MaxBaseMana;						// 0x1A8	424
 	int				CurMana;							// 0x1AC	428 *(int*)(*(int*)0x006EAE14+428)/64
 	int				MaxCurMana;							// 0x1B0	432
-	int				RatioManaGlobe;						//_(RatioManaGlobe);					// 0x1B4	436 отключено из-за плясок флага NeedDrawMana (точная сверка отрисовки не нужна)
+	int				RatioManaGlobe;						//(rt) _(RatioManaGlobe);					// 0x1B4	436 disabled because of the NeedDrawMana flag toggling (exact draw comparison isn't needed)
 	short			CharLevel;							// 0x1B8	440 (int*)(*(int*)0x006EAE14+440) 
 	short			ReservedCharLevel;					// 0x1B9
 	i64				Xp;									// 0x1BC	444
@@ -3172,7 +3244,7 @@ struct P_v25
 	int				BlockAnimationFrameCount;			// 0x384	900
 	int				AnimPitchBlock;						// 0x388	904
 
-	I_v25		OnBodySlots[10];					// 0x38C	908 +1280 +1652 +2024 +/*OnBodySlot[ONBODY_WEAPON]*/2396(оружие, посох - 4 элем) +2768 +3140
+	I_v25		OnBodySlots[10];					// (rt) 0x38C	908 +1280 +1652 +2024 +/*OnBodySlot[ONBODY_WEAPON]*/2396(weapon, staff - 4 elements) +2768 +3140
 	I_v25		InventorySlots[IS_70_40_Inv_Count];	// 0xDB8		3512/*InventorySlots[40]*/
 	int				InvItemCount;						// 0x47D8	8392
 	union{																						   
@@ -3191,7 +3263,7 @@ struct P_v25
 	int				field_5534;							// 0x5534	21812
 	union{
 		struct{
-			int		AvailableChargesMaskLo;				// 0x5538	21816 64 битная маска доступных заклинанй в вещах
+			int		AvailableChargesMaskLo;				// (rt) 0x5538	21816 64-bit mask of spells available from items
 			int		AvailableChargesMaskHi;				// 0x553C	21820
 		};
 		__int64		AvailableChargesMask;
@@ -3218,7 +3290,7 @@ struct P_v25
 	ushort			reserved_2[6];						// 0x5574	21876
 	int				allowedDifficulty;					// 0x5580	21888
 	int				Difficulty;							// 0x5584	21892
-	uint			affixFlag2;							// 0x5588	21896 // можно расширить вниз до 64 бит (сдвинув ниже неипользуемое)
+	uint			affixFlag2;							// (rt) 0x5588	21896 // can be extended down to 64 bits (by moving the unused part lower)
 	int				reserved_3[5];						// 0x558C	21900
 
 	char*			StayAnimCel;						//
@@ -3311,11 +3383,11 @@ struct P_v25
 	int				goldAbsFindMin;
 	int				goldAbsFindMax;
 
-	// пока используется как список, использовать как маску (неповторяющиеся эффекты) можно по ненулевому id (либо chance)
-	EA_v25 effectAction[200]; // 200 = 20 эффектов * 10 вещей
-	// эти сразу используются как маска (по ненулевому id)
-	EA_v25 effectActionPercent[EA_CAP]; // не меньше EA_COUNT
-	EA_v25 effectActionValue[EA_CAP]; // не меньше EA_COUNT
+	// (rt) used as a list for now; can be used as a mask (non-repeating effects) by a non-zero id (or chance)
+	EA_v25 effectAction[200]; // (rt) 200 = 20 effects * 10 items
+	// (rt) these are used directly as a mask (by a non-zero id)
+	EA_v25 effectActionPercent[EA_CAP]; // (rt) no less than EA_COUNT
+	EA_v25 effectActionValue[EA_CAP]; // (rt) no less than EA_COUNT
 
 	char			perk[PERKS_MAX_800];
 	__int64			gameChanger;
@@ -3336,4 +3408,34 @@ struct P_v25
 	char align3[3];
 	ushort AuraIndex[5];
 	ushort AurasValues[5];
+};
+
+// Post-render player sprite re-draw command (one slot per player index 0-3).
+// Saved during normal render; replayed after all tiles to clear LightSurface
+// at player sprite pixels, making players glow full-bright through walls.
+struct PlayerReDrawCmd {
+	bool  valid;
+	int   playerIndex;
+	int   row, col;
+	int   rowOffset, colOffset;
+	char* animPtr;
+	int   frame, pitch, shiftY, screenCellRow;
+	SpriteType spriteType;  // (th4) Player, or PlayerShaded for the THIEF
+	int   darkLevel;        // (th4) PlayerShaded only: the capped cell DarkLevel captured in the main pass (-1 = none)
+};
+
+// Post-render sprite command for monsters and missiles (Option C).
+// Populated during normal rendering; replayed after all tiles to write
+// per-sprite brightness (DarkLevel*17) to LightSurface.
+struct PostRenderSpriteCmd {
+	int x, y;
+	char* cl2Buf;
+	uint frameNum;
+	int pitch;
+	int shiftY;           // offsetStart for CL2_Draw
+	int tileInCellIndex;  // offsetEnd for CL2_Draw
+	bool darken;          // passed to CL2_Draw (true = DarkLevel*17 brightness)
+	uchar darkLevel;      // DarkLevel at time of draw (needed because CL2_Draw reads global DarkLevel)
+	SpriteType spriteType; // (th4) what kind of sprite (Player/Monster/Missile)
+	bool tintExclude;      // (th4) Stage 3: write white tint at this sprite's pixels in the replay (owner-pixel exclusion)
 };

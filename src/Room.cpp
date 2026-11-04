@@ -92,9 +92,9 @@ bool __fastcall SetRoomCursoreToCenterOfRoom(int roomIndex)
 	int hallIndex = Rooms[roomIndex].transIndex;
 	int row = 0;
 	int col = 0;
-	// глупый алгоритм. находит n-ое вхождение клетки комнаты удаленной от стен идругих объектов не менее чем на 2 клетки
-	// если есть менее чем n вхождений, то проходится ещё раз по имеющимся пока 
-	// если нет ни одного вхождения, то выйдем уже после первого прохода по клеткам
+	// (rt) crude algorithm: finds the n-th occurrence of a room cell at least 2 cells away from walls and other objects
+	// (rt) if there are fewer than n occurrences, it goes over the existing ones again 
+	// (rt) if there are no occurrences at all, it exits after the first pass over the cells
 	while( true ){
 		bool checkResult = false;
 
@@ -121,8 +121,8 @@ bool __fastcall SetRoomCursoreToCenterOfRoom(int roomIndex)
 		}
 
 		if( checkResult ){
-			// возможно оригинальный баг. Финальной будет только первая найденная клетка
-			// поскольку найдя её мы ещё randChangeFactor раз проверим её же вместо перехода к следующей
+			// (rt) possibly an original bug: only the first cell found will be final
+			// (rt) since after finding it, it checks the same cell randChangeFactor more times instead of moving to the next
 			--randChangeFactor;
 			if( randChangeFactor <= 0 ){
 				RoomCursorRow = row;
@@ -130,11 +130,11 @@ bool __fastcall SetRoomCursoreToCenterOfRoom(int roomIndex)
 				return true;
 			}
 		}else{
-			// перебираем всю карту, если дошли до конца, начинаем сначала
+			// (rt) iterate over the whole map; on reaching the end, start again
 			if( ++row == 112 ){
 				row = 0;
 				if( ++col == 112 ){
-					// если прошли всю карту и так ни разу не встретили подходящей клетки
+					// (rt) if the whole map was traversed without meeting a suitable cell
 					if( randChangeFactor == startRandChangeFactor ){
 						return false;
 					}
@@ -184,8 +184,8 @@ bool __fastcall IsFloorAroundCellIsFree( int row, int col, int roomIndex, int su
 			 || TileBlockWalking[FineMap[ checkedRow ][ checkedCol ]]
 			 || TransMap[ checkedRow ][ checkedCol ] != Rooms[roomIndex].transIndex
 			 || ObjectsMap[ checkedRow ][ checkedCol ]
-				// похоже на косяк. Вместо однократной проверки на допустимость, проверка будет произведена до 9 раз
-				// соответственно шансы на успех становятся мизерными
+				// (rt) looks like a flaw: instead of a single validity check, the check runs up to 9 times
+				// (rt) so the chances of success become very small
 			 || successChance != -1 && !RNG(successChance) ){
 				return false;
 			}
@@ -296,19 +296,19 @@ bool  __fastcall IsRoomTypeSuitable( int roomIndex, int roomType )
 //----- (0047205F) --------------------------------------------------------
 bool __fastcall HallIsRoom(int hallIndex)
 {
-	// холл в котором находится переход не может быть комнатой
+	// (rt) the hall containing the transition can't be a room
 	for( auto& warp: Warps ){
 		if( TransMap[ warp.Row ][ warp.Col ] == hallIndex){
 			return false;
 		}
 	}
-	// измеряем размер холла
+	// (rt) measure the hall's size
 	int roomCellsCount = 0;
 	for( int col = 0; col < 112; col++ ){
 		for( int row = 0; row < 112; row++ ){
 			if( TransMap[ row ][ col ] == hallIndex ){
-				// если клетка уже помечена как относящаяся к комнате,
-				// переходу или квестовому шаблону, то это не комната (или уже отмеченная комната)
+				// (rt) if the cell is already marked as belonging to a room,
+				// (rt) a transition or a quest template, it's not a room (or an already marked room)
 				if( FlagMap[ row ][ col ] & CF_8_FORBIDDEN ){
 					return false;
 				}
@@ -316,17 +316,17 @@ bool __fastcall HallIsRoom(int hallIndex)
 			}
 		}
 	}
-	// лимит размера комнаты для церкви
+	// (rt) room size limit for the church
 	if( Dungeon->genType == DT_1_CHURCH 
 	 && !(roomCellsCount >= 9 && roomCellsCount <= 100) ){
 			return false;
 	}
-	// ни один из проходимых тилов этого холла не должен соседствовать с проходимыми тилами другого холла
-	// т.е. пол комнаты должен быть окружен стенами
+	// (rt) none of this hall's walkable tiles may border walkable tiles of another hall
+	// (rt) i.e. the room's floor must be surrounded by walls
 	for( int col = 0; col < 112; col ++ ){
 		for( int row = 0; row < 112; row++ ){
 			if( TransMap[ row ][ col ] == hallIndex && !TileBlockWalking[ FineMap[ row ][ col ]] ){
-				// как оно интересно работает с краевыми элементами? bug!!
+				// (rt) how does it handle the edge elements? possible bug
 				if( TransMap[row - 1][col    ] != hallIndex && !TileBlockWalking[ FineMap[row - 1][col    ] ]
 				 || TransMap[row + 1][col    ] != hallIndex && !TileBlockWalking[ FineMap[row + 1][col    ] ]
 				 || TransMap[row    ][col - 1] != hallIndex && !TileBlockWalking[ FineMap[row    ][col - 1] ]
@@ -361,7 +361,7 @@ void InitRooms() // InitThemes
 	switch(Dungeon->genType){
 	case DT_1_CHURCH:
 		for( int transIndex = 0; transIndex < RoomsMax; ++transIndex ){
-			if( HallIsRoom(transIndex) ){ // 12 hallIndex должен дать true
+			if( HallIsRoom(transIndex) ){ // (rt) 12 hallIndex should give true
 				Rooms[RoomsCount].transIndex = transIndex;
 				ROOM_TYPE roomType = DefaultRoomTypesTable[RNG(countof(DefaultRoomTypesTable))];
 				while( ! IsRoomTypeSuitable(RoomsCount, roomType) ){
@@ -571,10 +571,10 @@ void __fastcall MakeAloneRoomType3AncientTomes( int roomIndex )
 		AddObject(BO_11_BANNER, row + 1, col + 1);
 	}
 
-	if( !ObjectsMap[ row ][ col - 3 ] ){ // проверяется клетка рядом, чтобы стойка с книгой не перекрывала дверь
+	if( !ObjectsMap[ row ][ col - 3 ] ){ // (rt) the neighbouring cell is checked so the book stand doesn't block the door
 		AddObject(BO_61_ANCIENT_TOME, row, col - 2);
 	}
-	if( !ObjectsMap[ row ][ col + 3 ] ){ // проверяется клетка рядом, чтобы стойка с книгой не перекрывала дверь
+	if( !ObjectsMap[ row ][ col + 3 ] ){ // (rt) the neighbouring cell is checked so the book stand doesn't block the door
 		AddObject(BO_61_ANCIENT_TOME, row, col + 2);
 	}
 
@@ -583,7 +583,7 @@ void __fastcall MakeAloneRoomType3AncientTomes( int roomIndex )
 //----- (00472882) --------------------------------------------------------
 void __fastcall MakeAloneRoomType4Gold( int roomIndex )
 {
-	char successChanceTable1[4] = {4, 9, 7, 10}; // берем некий шанс из таблички по актам. И генерим случайное число от 0 до него
+	char successChanceTable1[4] = {4, 9, 7, 10}; // (rt) take some chance from the per-act table and generate a random number from 0 to it
 	GetRndSeed();
 	
     // Prevent random generator from damage
@@ -597,7 +597,7 @@ void __fastcall MakeAloneRoomType4Gold( int roomIndex )
 		for( int row = 0; row < 112; row++ ){
 			if( TransMap[ row ][ col ] == hallIndex && !TileBlockWalking[FineMap[ row ][ col ]] ){
 				int randFactor = RNG(successChanceTable1[Dungeon->genType - 1]);
-				if( !(2 * RNG(successChanceTable1[ Dungeon->genType - 1 ])) ){// скорее всего ошибка и должно было быть умножение successChanceTable1[DungeonType] на 2
+				if( !(2 * RNG(successChanceTable1[ Dungeon->genType - 1 ])) ){// (rt) most likely a mistake; it should have been successChanceTable1[DungeonType] multiplied by 2
 					CreateTypeItem(row, col, 0, IC_11_GOLD, 0, 0, 1);
 					SomeActionWithDropItemsInAloneRooms();
 				}
@@ -606,12 +606,12 @@ void __fastcall MakeAloneRoomType4Gold( int roomIndex )
 					SomeActionWithDropItemsInAloneRooms();
 				}
 
-				int i = successChanceTable1[Dungeon->genType - 1] - 2; // берем некий шанс из таблички. При этом уменьшаем на 2
-				if( !randFactor	|| randFactor >= i ){ // С шансом 1/N или если rand(N) >= N-2 (еще сколько-то процентов)
-					int itemIndex = SomeActionWithDropItemsInAloneRooms(); // Обращаемся к только что брошенной кучке золота или предмету
-					if( randFactor >= i && Dungeon->genType != DT_1_CHURCH ){ // если rand(N) >= N-2 и это НЕ склеп или собор
-						Items[itemIndex].amount >>= 1; // Делим QualityLevel пополам (в случае золота, это его количество)
-						LimitToMin(Items[itemIndex].amount, 1); // минималочка = 1 (чтоб не было кучек золота в 0 монет, ибо тупость)
+				int i = successChanceTable1[Dungeon->genType - 1] - 2; // (rt) take some chance from the table, reduced by 2
+				if( !randFactor	|| randFactor >= i ){ // (rt) With a 1/N chance, or if rand(N) >= N-2 (a few more percent)
+					int itemIndex = SomeActionWithDropItemsInAloneRooms(); // (rt) Refer to the gold pile or item just dropped
+					if( randFactor >= i && Dungeon->genType != DT_1_CHURCH ){ // (rt) if rand(N) >= N-2 and this is NOT the crypt or the cathedral
+						Items[itemIndex].amount >>= 1; // (rt) Halve QualityLevel (for gold, that's its amount)
+						LimitToMin(Items[itemIndex].amount, 1); // (rt) minimum = 1 (so there are no gold piles of 0 coins)
 					}
 				}
 			}
@@ -649,7 +649,7 @@ void __fastcall MakeAloneRoomType5Libryary( int roomIndex )
 					AddObject(BO_64_LIBRARY_BOOK, row, col);
 					if( RNG(2 * successChanceTable1[Dungeon->genType - 1]) ){
 						int objectIndex = ObjectsMap[ row ][ col ] - 1;
-						// был адский мега баг, в th1 портиться ObjectsIndexInverse
+						// (rt) there was a severe bug: in th1 ObjectsIndexInverse gets corrupted
 						if( objectIndex >= 0 ){
 							Objects[objectIndex].selectable = 0;
 							Objects[objectIndex].FrameIndex += 2;
@@ -897,7 +897,7 @@ void FillAloneRooms()
 		}
 	}
 	InitObjFlag = false;
-	if( Dungeon->genType == DT_4_HELL && ChambersCount > 0 ){// в аду большие двери и все комнаты считаются одной
+	if( Dungeon->genType == DT_4_HELL && ChambersCount > 0 ){// (rt) in hell the doors are large and all rooms count as one
 		UniteAllHalls();
 	}
 }

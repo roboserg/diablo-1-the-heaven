@@ -2,15 +2,15 @@
 
 ## Prerequisites
 
-Install **Visual Studio Build Tools** with the following components:
+Install **Visual Studio Build Tools** (2022 or 2026) with the following components:
 
 | Component | Where to find it |
 |---|---|
 | Desktop development with C++ workload | Workloads tab |
 | MSVC Build Tools for x64/x86 (Latest) | Included automatically |
-| Windows 11 SDK (10.0.22621.0) | Optional → Desktop development with C++ |
+| Windows 11 SDK (any recent version, e.g. 10.0.26100.0) | Optional → Desktop development with C++ |
 
-No XP support, no v141, no CMake/vcpkg/testing tools needed.
+The project targets the **v145** toolset (Build Tools 2026). With Build Tools 2022 you build with **v143** by passing `/p:PlatformToolset=v143` (see step 3). No XP support, no v141, no CMake/vcpkg/testing tools needed.
 
 ---
 
@@ -24,22 +24,19 @@ From the repo root in a terminal:
 scripts\InitProject.bat
 ```
 
-This creates two files if they don't already exist:
-- `personal.props` — your local build settings
-- `thehell4.vcxproj.user` — debugger settings
+This copies `tools\personal.props` to `personal.props` (your local build settings, ignored by git) if it doesn't exist yet. It also tries to copy a `thehell4.vcxproj.user` debugger settings file that isn't part of this release; the "file not found" message for it is harmless.
 
 ### 2. Edit personal.props
 
 Open `personal.props` and set:
 
 ```xml
-<GameFolder>C:\path\to\your\output\dir\</GameFolder>
-<FxCopDir>C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86</FxCopDir>
-
+<GameFolder>$(MSBuildProjectDirectory)\build\</GameFolder>
+<FxCopDir>C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86</FxCopDir>
 ```
 
-- **GameFolder** — where the built `TH4.exe` will be placed. Must end with a backslash `\`. The default `$(MSBuildProjectDirectory)\build\` outputs into a `build/` folder at the repo root — no changes needed unless you want a different location.
-- **FxCopDir** — directory containing `fxc.exe` (the HLSL shader compiler). The path above is correct if you installed Windows 11 SDK 10.0.22621.0.
+- **GameFolder** — where the built `TH4.exe` will be placed. Must end with a backslash `\`. `$(MSBuildProjectDirectory)\build\` outputs into a `build/` folder at the repo root (ignored by git).
+- **FxCopDir** — directory containing `fxc.exe` (the HLSL shader compiler). Use the version folder of the Windows SDK you installed (look under `C:\Program Files (x86)\Windows Kits\10\bin\`).
 
 ### 3. Build
 
@@ -49,20 +46,26 @@ Press `Ctrl+Shift+B` — VS Code will invoke MSBuild using the project's `.sln` 
 
 > If no build task exists yet, open the Command Palette (`Ctrl+Shift+P`) → **Tasks: Configure Default Build Task** → **Create tasks.json from template** → **MSBuild**, then point it at `TheHell_4.sln`.
 
-#### Option B — From a Developer Command Prompt
+#### Option B — From PowerShell
 
-Open a **Developer Command Prompt for VS Build Tools**, navigate to the repo root and run:
+Build Tools 2026 (v145):
 
 ```
-& "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\MSBuild.exe" TheHell_4.sln /p:Configuration=Release /p:Platform=Win32
+& "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\MSBuild.exe" TheHell_4.sln /p:Configuration=Release /p:Platform=Win32 /m
 ```
 
-Or simply use the provided script:
+Build Tools 2022 (v143):
+
 ```
-.\build.ps1
+& "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe" TheHell_4.sln /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /m
 ```
 
-Use `Configuration=Debug` for a debug build.
+Or simply use the provided script, which picks whichever Build Tools you have:
+
+```
+.\build.ps1           # Release
+.\build.ps1 Debug     # Debug
+```
 
 ---
 
@@ -71,13 +74,14 @@ Use `Configuration=Debug` for a debug build.
 Copy these files into your `GameFolder` to run the game:
 
 ```
-config.ini
-diabdat.mpq
-TH2data.mor
-THmusic.mor   (optional)
+diabdat.mpq     from Diablo 1 (required)
+TH4data.mor     from The Hell 4 v0.774 (required: graphics and sounds)
+THmusic.mor     from The Hell 4 (optional music)
+THmusic2.mor    from The Hell 4 (optional music)
+THmusic3.mor    from The Hell 4 (optional music)
 ```
 
-Then launch `TH4.exe` directly or via the VS debugger.
+`config.ini` is created on first launch. Then launch `TH4.exe` directly or via the VS debugger.
 
 ---
 
@@ -88,4 +92,5 @@ Then launch `TH4.exe` directly or via the VS debugger.
 | `Cannot find fxc.exe` | Check `FxCopDir` in `personal.props` points to a folder that contains `fxc.exe` |
 | `personal.props not found` | Run `scripts\InitProject.bat` first |
 | `GameFolder` errors | Make sure the path ends with a backslash `\` and the folder exists |
-| `v143 toolset not found` | In VS Build Tools installer, ensure "MSVC Build Tools for x64/x86 (Latest)" is checked |
+| `v145 toolset not found` | You have Build Tools 2022: build with `/p:PlatformToolset=v143`, or use `.\build.ps1` |
+| `RC2135: file not found: ../res/credits.txt` | The v0.774 release omitted `res/credits.txt` and `res/support.txt`; this fork restores them from v0.208 |

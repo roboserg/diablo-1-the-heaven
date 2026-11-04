@@ -1,6 +1,7 @@
 ﻿#include "stdafx.h"
 
 DisplayObject CharPanelRect;
+DisplayObject CharPanelNameRect;	// (th4) hover target for the total-kills tooltip
 DisplayObject CharPanelCurStrRect;
 DisplayObject CharPanelCurMagRect;
 DisplayObject CharPanelCurDexRect;
@@ -38,6 +39,14 @@ void DrawBox(const DisplayObject& displayObjectRef, uchar color)
 	int bottom = yPos + displayObjectRef.Heigth;
 	for( int y = yPos; y < bottom; ++y ){
 		memset( WorkingSurface + y * WorkingWidth + xPos, color, width );
+		// Approach B (A8L8): clear LightSurface so panel box pixels render at full brightness.
+		if( LightSurface ) memset( LightSurface + y * WorkingWidth + xPos, 0, width );
+		// (th4) Stage 2: same for the alpha overlay under the box row.
+		AlphaOverlayClearRow(WorkingSurface + y * WorkingWidth + xPos, width);
+		// (th4) Stage 3 (2026-09-05): same for the colored-light tint — opaque
+		// box rows (ALT item-label box, minion bars, ...) must not be multiplied
+		// by the world's winning light color.
+		TintClearRow(WorkingSurface + y * WorkingWidth + xPos, width);
 	}
 }
 
@@ -49,11 +58,26 @@ void DrawRect(const DisplayObject& displayObjectRef, uchar color)
 	int width = displayObjectRef.Width;
 	int bottom = yPos + displayObjectRef.Heigth;
 	memset( WorkingSurface + yPos * WorkingWidth + xPos, color, width );
+	// Approach B (A8L8): mirror every WorkingSurface write into LightSurface = 0.
+	if( LightSurface ) memset( LightSurface + yPos * WorkingWidth + xPos, 0, width );
+	AlphaOverlayClearRow(WorkingSurface + yPos * WorkingWidth + xPos, width);
+	TintClearRow(WorkingSurface + yPos * WorkingWidth + xPos, width);
 	for( int y = yPos + 1; y < bottom - 1; ++y ){
 		WorkingSurface[y * WorkingWidth + xPos] = color;
 		WorkingSurface[y * WorkingWidth + xPos + width - 1] = color;
+		if( LightSurface ){
+			LightSurface[y * WorkingWidth + xPos] = 0;
+			LightSurface[y * WorkingWidth + xPos + width - 1] = 0;
+		}
+		AlphaOverlayClearPixel(WorkingSurface + y * WorkingWidth + xPos);
+		AlphaOverlayClearPixel(WorkingSurface + y * WorkingWidth + xPos + width - 1);
+		TintClearPixel(WorkingSurface + y * WorkingWidth + xPos);
+		TintClearPixel(WorkingSurface + y * WorkingWidth + xPos + width - 1);
 	}
 	memset( WorkingSurface + (bottom - 1) * WorkingWidth + xPos, color, width );
+	if( LightSurface ) memset( LightSurface + (bottom - 1) * WorkingWidth + xPos, 0, width );
+	AlphaOverlayClearRow(WorkingSurface + (bottom - 1) * WorkingWidth + xPos, width);
+	TintClearRow(WorkingSurface + (bottom - 1) * WorkingWidth + xPos, width);
 }
 
 //----- (th2) ------------------------------------------------------------
@@ -113,26 +137,96 @@ int ResistColor(float resistPercent)
 	}
 }
 
+//----- (th4) -------------------------------------------------------------
+// Dark Campaign class/subclass names. Plain English literals wrapped in L() -- the
+// translations live in the Localization*.cpp overlays like every other UI string.
+const char* DarkCampaignClassName( PLAYER_FULL_CLASS fullClass )
+{
+	switch( fullClass ){
+	case PFC_WARRIOR:		return L("Fallen Warrior");
+	case PFC_ARCHER:		return L("Poacher");
+	case PFC_MAGE:			return L("Occultist");
+	case PFC_MONK:			return L("Apostate");
+	case PFC_ROGUE:			return L("Brigand");
+	case PFC_SAVAGE:		return L("Ravager");
+	case PFC_INQUISITOR:	return L("Tormentor");
+	case PFC_GUARDIAN:		return L("Dark Knight");
+	case PFC_SCOUT:			return L("Stalker");
+	case PFC_SHARPSHOOTER:	return L("Headhunter");
+	case PFC_TRAPPER:		return L("Snarer");
+	case PFC_WARLOCK:		return L("Diabolist");
+	case PFC_KENSEI:		return L("Bloodblade");
+	case PFC_SHUGOKI:		return L("Oni");
+	case PFC_SHINOBI:		return L("Nukenin");
+	case PFC_ASSASSIN:		return L("Cutthroat");
+	case PFC_IRON_MAIDEN:	return L("Iron Widow");
+	case PFC_BOMBARDIER:	return L("Grenadier");
+	case PFC_GLADIATRIX:	return L("Gladiatrix");
+	case PFC_BERSERKER:		return L("Bloodrager");
+	case PFC_EXECUTIONER:	return L("Executioner");
+	case PFC_DRUID:			return L("Shapeshifter");
+	}
+	return nullptr;
+}
+
+//----- (th4) -------------------------------------------------------------
+// Dark Campaign names for the class GROUPS, used by the item tooltips. These are
+// the plurals of the six DC base-class names the character-creation dialog shows
+// (Warmonger / Hunter / Heretic / Zealot / Renegade / Brute). Summoners and
+// Gladiators are not part of the DC roster, so they keep their normal names --
+// nullptr means "no DC name here", and the caller falls back.
+const char* DarkCampaignClassGroupName( PLAYER_CLASS_GROUPS group )
+{
+	switch( group ){
+	case PCG_WARRIORS:	return L("Warmongers");
+	case PCG_ARCHERS:	return L("Hunters");
+	case PCG_MAGES:		return L("Heretics");
+	case PCG_MONKS:		return L("Zealots");
+	case PCG_ROGUES:	return L("Renegades");
+	case PCG_SAVAGES:	return L("Brutes");
+	}
+	return nullptr;
+}
+
 //----- (th2) -------------------------------------------------------------
 const char* GetFullClassName( int playerIndex )
 {
 	Player& player = Players[playerIndex];
 	PLAYER_FULL_CLASS fullClass = player.fullClassId;
 	const char* name = FullPlayerClasses[fullClass].name;
+	// (th4) Dark Campaign renames the whole roster; done here, before the switch, so the
+	// trait/GameChanger overrides below (Thief, Ranger, Psion...) can still take precedence.
+	if( GameMode == GM_DARK_CAMPAIGN ){
+		if( const char* dcName = DarkCampaignClassName( fullClass ) ) name = dcName;
+	}
 	switch( fullClass ){
 	case PFC_SAVAGE:      if( HasTrait(playerIndex, TraitId::Barbarian)  )	name = "Barbarian";		break;
-	case PFC_GUARDIAN:    if (HasTrait(playerIndex, TraitId::Pistoleer))	name = "Pistoleer";		break;
+	case PFC_GUARDIAN:
+	{
+		if (player.gameChanger & BIT(GC_27_TERMINATOR))						name = "CDS, model 101";
+		else if (player.gameChanger & BIT(GC_28_SUPERMUTANT))				name = "Super Mutant";
+		else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))			name = "Enclave Soldier";
+		else if (HasTrait(playerIndex, TraitId::Pistoleer))					name = "Pistoleer";
+	}
+		break;
 	case PFC_EXECUTIONER: if( player.gameChanger & BIT(GC_9_NIGHT_KIN)   )	name = "Night Kin";		break;
 	case PFC_MAGE:        if (HasTrait(playerIndex, TraitId::Psion))		name = "Psion";
 						  else if (GameMode == GM_CLASSIC)					name = "Sorcerer";		break;
-	case PFC_INQUISITOR:  if( HasTrait(playerIndex, TraitId::Devastator) )	name = "Devastator";	break;
+	case PFC_INQUISITOR:
+	{
+		if (HasTrait(playerIndex, TraitId::Devastator))	name = "Devastator";
+		else if (HasTrait(playerIndex, TraitId::Warlord))	name = "Warlord";
+	}
+		break;
 	case PFC_WARLOCK:	  if (HasTrait(playerIndex, TraitId::Hydramancer))	name = "Hydramancer";	break;
 	case PFC_MURMILLO:	  if (HasTrait(playerIndex, TraitId::Crupellarius))	name = "Crupellarius";	break;
 	case PFC_TEMPLAR:	  if (HasTrait(playerIndex, TraitId::Paladin))		name = "Paladin";		break;
 	case PFC_ELEMENTALIST:if (HasTrait(playerIndex, TraitId::Mamluk))		name = "Mamluk";		break;
-	case PFC_WARRIOR:	  if (HasTrait(playerIndex, TraitId::Fechtmeister)){ name = "Fechtmeister"; }
-						  else if (HasTrait(playerIndex, TraitId::Ranger)) { name = "Ranger"; }		break;
+	case PFC_WARRIOR:	  if (HasTrait(playerIndex, TraitId::Fechtmeister)){name = "Fechtmeister"; }
+						  else if (HasTrait(playerIndex, TraitId::Ranger)) {name = "Ranger"; }		break;
 	case PFC_ARCHER:	  if (GameMode == GM_CLASSIC)						name = "Rogue";			break;
+	case PFC_SHARPSHOOTER:if (HasTrait(playerIndex, TraitId::Thief))		name = "Thief";			break; // (th4)
+	case PFC_SECUTOR:	  if (HasTrait(playerIndex, TraitId::Scissor))		name = "Scissor";		break;
 	}
 	return name;
 }
@@ -149,14 +243,14 @@ void CharPanel_Draw()
 	Surface_DrawCEL(CharPanelRect.Left + Screen_LeftBorder, CharPanelRect.Down + Screen_TopBorder, Data_CharCEL, 1, CharPanelRect.Width);
     
 	Player& player = Players[CurrentPlayerIndex];
-	DrawText(20 + xoffset, 32 + yoffset, 151 + xoffset, player.playerName, 0);// Имя персонажа
+	DrawText(20 + xoffset, 32 + yoffset, 151 + xoffset, player.playerName, 0);// (rt) Character name
 	
-	DrawText(168 + xoffset, 32 + yoffset, 299 + xoffset, GetFullClassName(CurrentPlayerIndex), 0);// Класс
-	sprintf(stringBuffer, "%i", player.CharLevel);// Уровень
+	DrawText(168 + xoffset, 32 + yoffset, 299 + xoffset, GetFullClassName(CurrentPlayerIndex), 0);// (rt) Class
+	sprintf(stringBuffer, "%i", player.CharLevel);// (rt) Level
 	DrawText(66 + xoffset, 69 + yoffset, 109 + xoffset, stringBuffer, player.CharLevel >= PlayerMaxLevel() ? 3 : 0);
 	PrintBigNum(stringBuffer, player.Xp, '.', 9); // XP unsigned patch (9)
 
-	DrawText(215 + xoffset, 69 + yoffset, 300 + xoffset, stringBuffer, player.Xp >= LevelUp(PlayerMaxLevel() - 1) ? 3 : 0 );// Количество опыта, максимальный опыт золотым
+	DrawText(215 + xoffset, 69 + yoffset, 300 + xoffset, stringBuffer, player.Xp >= LevelUp(PlayerMaxLevel() - 1) ? 3 : 0 );// (rt) Experience amount; max experience in gold
 	if( player.CharLevel >= PlayerMaxLevel() ){
 		strcpy(stringBuffer, "None");
 		fontColor = C_3_Gold;
@@ -166,7 +260,7 @@ void CharPanel_Draw()
 	}
 	int separator = 225;
 	char* separator_text = "/";
-	DrawText(215 + xoffset, 97 + yoffset, 300 + xoffset, stringBuffer, fontColor);// опыта до следующего уровня
+	DrawText(215 + xoffset, 97 + yoffset, 300 + xoffset, stringBuffer, fontColor);// (rt) experience to the next level
 	sprintf(stringBuffer, "%i", player.DamageFromEnemy);
 	DrawText(190 + xoffset, 137 + yoffset, separator-GetTextWidth(separator_text) + xoffset, stringBuffer, (player.DamageFromEnemy > 0?C_2_Red:C_0_White));// DFE
 	if (player.resistMeleeMin == player.resistMeleeMax) {
@@ -197,7 +291,7 @@ void CharPanel_Draw()
 	}
 	DrawText(258 + xoffset, 187 + yoffset, 301 + xoffset, stringBuffer, GetColorNumber(player.ItemsAddToHitPercents));// To Hit
 
-	// Повреждения
+	// (rt) Damage
 	int minDamage = 0;
 	int maxDamage = 0;
 	
@@ -282,38 +376,38 @@ void CharPanel_Draw()
 	sprintf(stringBuffer, "%i", player.CurVitality);
 	DrawText(143 + xoffset, 239 + yoffset, 173 + xoffset, stringBuffer, GetColorNumber (player.CurVitality  - player.BaseVitality));
 
-	// Количество лэвэл поинтов и картинки кнопок добавления
+	// (rt) Number of level points and the add-point button pictures
 	if( player.AvailableLvlPoints > 0 && LevelPointsToMax(CurrentPlayerIndex) < player.AvailableLvlPoints ){
-		player.AvailableLvlPoints = LevelPointsToMax(CurrentPlayerIndex);// Доступных лэвел поинтов никогда не будет больше количества которого не хватает до максимальной раскачки
+		player.AvailableLvlPoints = LevelPointsToMax(CurrentPlayerIndex);// (rt) Available level points will never exceed what is missing up to the maximum build
 	}
 	if( player.AvailableLvlPoints > 0 ){
 		sprintf(stringBuffer, "%i", player.AvailableLvlPoints);
-		DrawText(95 + xoffset, 266 + yoffset, 126 + xoffset, stringBuffer, 2);// Пишем сколько очков есть
-		// Рисуем плюсик везде где есть возможность добавить поинт
-		if( player.BaseStrength  < maxStat.Strength  ) DrawPlusCEL(137 + xoffset, 159 + 28 * 0 + yoffset, AttributeUpAvail[0] + 2);
-		if( player.BaseMagic     < maxStat.Magic     ) DrawPlusCEL(137 + xoffset, 159 + 28 * 1 + yoffset, AttributeUpAvail[1] + 4);
-		if( player.BaseDexterity < maxStat.Dexterity ) DrawPlusCEL(137 + xoffset, 159 + 28 * 2 + yoffset, AttributeUpAvail[2] + 6);
-		if( player.BaseVitality  < maxStat.Vitality  ) DrawPlusCEL(137 + xoffset, 159 + 28 * 3 + yoffset, AttributeUpAvail[3] + 8);
+		DrawText(95 + xoffset, 266 + yoffset, 126 + xoffset, stringBuffer, 2);// (rt) Write how many points there are
+		// (rt) Draw a plus wherever a point can be added
+		if( player.BaseStrength  < maxStat.Strength  ) DrawPlusCEL(137 + xoffset, 161 + 28 * 0 + yoffset, AttributeUpAvail[0] + 2);
+		if( player.BaseMagic     < maxStat.Magic     ) DrawPlusCEL(137 + xoffset, 161 + 28 * 1 + yoffset, AttributeUpAvail[1] + 4);
+		if( player.BaseDexterity < maxStat.Dexterity ) DrawPlusCEL(137 + xoffset, 162 + 28 * 2 + yoffset, AttributeUpAvail[2] + 6);
+		if( player.BaseVitality  < maxStat.Vitality  ) DrawPlusCEL(137 + xoffset, 162 + 28 * 3 + yoffset, AttributeUpAvail[3] + 8);
 	}
 	// life and mana
 	int offsLeft = 0;
 	int offsRight = 4;
 	fontColor = player.MaxCurLife > player.MaxBaseLife;
 	sprintf(stringBuffer, "%i", player.MaxCurLife >> 6);
-	DrawText(95 + offsLeft + xoffset, 304 + yoffset, 126 + xoffset, stringBuffer, fontColor);// Пишем максимальное количество жизни
+	DrawText(95 + offsLeft + xoffset, 304 + yoffset, 126 + xoffset, stringBuffer, fontColor);// (rt) Write the maximum life
 	if( player.CurLife != player.MaxCurLife ){
 		fontColor = C_2_Red;
 	}
 	sprintf(stringBuffer, "%i", player.CurLife >> 6);
-	DrawText(143 + offsRight + xoffset, 304 + yoffset, 174 + xoffset, stringBuffer, fontColor);// Пишем текущее количество жизни
+	DrawText(143 + offsRight + xoffset, 304 + yoffset, 174 + xoffset, stringBuffer, fontColor);// (rt) Write the current life
 	fontColor = player.MaxCurMana > player.MaxBaseMana;
 	sprintf(stringBuffer, "%i", player.MaxCurMana >> 6);
-	DrawText(95 + offsLeft + xoffset, 332 + yoffset, 126 + xoffset, stringBuffer, fontColor);// Пишем максимальное количество маны
+	DrawText(95 + offsLeft + xoffset, 332 + yoffset, 126 + xoffset, stringBuffer, fontColor);// (rt) Write the maximum mana
 	if( player.CurMana != player.MaxCurMana ){
 		fontColor = C_2_Red;
 	}
 	sprintf(stringBuffer, "%i", player.CurMana >> 6);
-	DrawText(143 + offsRight + xoffset, 332 + yoffset, 174 + xoffset, stringBuffer, fontColor);// Пишем текущее количество маны
+	DrawText(143 + offsRight + xoffset, 332 + yoffset, 174 + xoffset, stringBuffer, fontColor);// (rt) Write the current mana
 
 	/*if (GameMode == GM_COLISEUM){ 
 		sprintf(stringBuffer, "0"); 
@@ -375,7 +469,7 @@ void CharPanel_Draw()
 	//-------------------------------------------------------------------------------------------------------------------------------------------
 	sprintf(stringBuffer, "%i%%", critChance);
 	DrawText(95 + xoffset, 387 + yoffset, 126 + xoffset, stringBuffer, color);
-	// Пишем максимальное количество маны
+	// (rt) Write the maximum mana
 	//sprintf(stringBuffer, "%i-%i", minCritDmg,maxCritDmg);
 
     PrintDamageRangeToStringBuffer( minCritDmg, maxCritDmg );

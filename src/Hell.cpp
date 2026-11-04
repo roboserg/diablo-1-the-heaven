@@ -1,4 +1,5 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
+#include "MenuPortrait.h"
 
 // hellfrui.dll sources
 const char MultiRestrictedChars[] = ",<>%&\\\"?*#/"; // multi player name restricted chars (originally " ,<>%&\\\"?*#/")
@@ -12,6 +13,7 @@ int ClearFonts();
 HANDLE DeleteFonts();
 int LoadFonts();
 void __fastcall LoadFont( DiabloFont *font, char *fontBin, char *fontPcx );
+void __fastcall LoadChiSheet( DiabloFont *font, char *sheetPcx, char *widthBin );  // (th4) Chinese
 int __cdecl GetCurFontWidth();
 int __cdecl GetSpaceWidth();
 int __fastcall GetStringDrawWidth( char *text );
@@ -175,7 +177,7 @@ char *GetSelectedHeroName();
 LPARAM IsMultiplayer();
 int __fastcall GetHeroStats( int classId, CharStat *charStat );
 void __fastcall ClearHeroInfoText( HWND parent );
-void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELECTION_MODE classSelectionMode = CSM_NONE );
+void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELECTION_MODE classSelectionMode = CSM_NONE, HWND scrollDlg = nullptr );
 void __fastcall WriteAndDrawDialogTitle( HWND hdlg, char *text );
 char *__fastcall CheckSecretGameName( char *gameName );
 int __fastcall CheckWrongChar( char *gameName, char *zeroSting );
@@ -328,7 +330,7 @@ int EnterNameList[ 2 ] = { ID_CAPTION, 0 };
 int NameOkCancelList[ 3 ] = { ID_OK_BUTTON, ID_CANCEL_BUTTON, 0 };
 int EditNameList[ 2 ] = { ID_ENTER_NAME, 0 };
 int VersionList[ 2 ] = { ID_VERSION_TEXT, 0 };
-int MainMenuButtonList[ 9 ] = { ID_MAINMENU_SINGLEPLAYER, ID_MAINMENU_MULTIPLAYER, ID_MAINMENU_CLASSIC, ID_MAINMENU_COLISEUM, ID_MAINMENU_REPLAY_INTRO, ID_MAINMENU_SUPPORT, ID_MAINMENU_CREDITS, ID_EXIT_CANCEL_BUTTON, 0 };
+int MainMenuButtonList[ 10 ] = { ID_MAINMENU_SINGLEPLAYER, ID_MAINMENU_MULTIPLAYER, ID_MAINMENU_CLASSIC, ID_MAINMENU_COLISEUM, ID_MAINMENU_OUTBREAK, ID_MAINMENU_REPLAY_INTRO, ID_MAINMENU_SUPPORT, ID_MAINMENU_DARK_CAMPAIGN, ID_EXIT_CANCEL_BUTTON, 0 };
 int ModemConnectionTitleList[ 2 ] = { ID_CAPTION, 0 };
 int ParentText2List[ 2 ] = { ID_SUBCAPTION, 0 };
 int ParentEnteredTextList[ 2 ] = { ID_PARENT_TEXT, 0 };
@@ -458,6 +460,9 @@ int DialogButtonLeaved; // weak
 int CurPentagramFrame; // weak
 SIZE CursorSize;
 PALETTEENTRY MenuPalette[ 256 ];
+PALETTEENTRY LogoPalette[ 256 ];       // logo PCX's own palette
+bool         LogoPaletteUsed[ 256 ];   // which indices the logo actually uses
+bool         LogoPaletteLoaded;        // whether LogoPalette is valid
 HGDIOBJ DllPalette;
 unsigned __int8 *CursorBuf;
 unsigned __int8 *CursorAnim;
@@ -539,7 +544,7 @@ char HeroDexterityStr[ 5 ];
 char HeroMagicStr    [ 5 ];
 char HeroVitalityStr [ 5 ];
 
-Pcx PcxHeros    = "ui_art\\traits.pcx";
+Pcx PcxTraits    = "ui_art\\traits.pcx";
 Pcx PcxHero_pix = "ui_art\\hero_pix.pcx";
 Pcx PcxGcs      = "ui_art\\gcs.pcx";
 user_info *IpxUserInfo;
@@ -648,6 +653,7 @@ uchar getSubclassIdForButtonId( uchar classId, int buttonId )
         case ID_SUBCLASS_ASSASSIN:	        subclassId = PSC_ROGUE_ASSASSIN;	    break;
         case ID_SUBCLASS_IRON_MAIDEN:	    subclassId = PSC_ROGUE_IRON_MAIDEN;	    break;
         case ID_SUBCLASS_BOMBARDIER:	    subclassId = PSC_ROGUE_BOMBARDIER;	    break;
+		case ID_SUBCLASS_GLADIATRIX:	    subclassId = PSC_ROGUE_GLADIATRIX;	    break;
         }
         break;
 
@@ -703,30 +709,30 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
     switch( saveInfo->Class )
     {
 	case PC_0_WARRIOR:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[195] : GameMode == GM_CLASSIC ? PcxHero_pix[286] : PcxHero_pix[129]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[78] : GameMode == GM_COLISEUM ? PcxHero_pix[195] : GameMode == GM_CLASSIC ? PcxHero_pix[286] : PcxHero_pix[129]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_WARRIOR_WARRIOR:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[235] : GameMode == GM_CLASSIC ? PcxHero_pix[286] : PcxHero_pix[260/*105*/]; break;
-		case PSC_WARRIOR_INQUISITOR:				portrait = GameMode == GM_COLISEUM ? PcxHero_pix[198] : PcxHero_pix[124]; break;
-		case PSC_WARRIOR_GUARDIAN:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[194] : PcxHero_pix[130]; break;
-		case PSC_WARRIOR_TEMPLAR:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[196] : PcxHero_pix[125]; break;
+		case PSC_WARRIOR_WARRIOR:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[117] : GameMode == GM_COLISEUM ? PcxHero_pix[235] : GameMode == GM_CLASSIC ? PcxHero_pix[286] : PcxHero_pix[260/*105*/]; break;
+		case PSC_WARRIOR_INQUISITOR:				portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[36] : GameMode == GM_COLISEUM ? PcxHero_pix[198] : PcxHero_pix[124]; break;
+		case PSC_WARRIOR_GUARDIAN:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[348] : GameMode == GM_COLISEUM ? PcxHero_pix[194] : PcxHero_pix[314/*130*/]; break;
+		case PSC_WARRIOR_TEMPLAR:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[196] : PcxHero_pix[311/*125*/]; break;
 		}
 		break;
 
 	case PC_1_ARCHER:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[227] : GameMode == GM_CLASSIC ? PcxHero_pix[287] : PcxHero_pix[ 14]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[340] : GameMode == GM_COLISEUM ? PcxHero_pix[227] : GameMode == GM_CLASSIC ? PcxHero_pix[287] : PcxHero_pix[ 14]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_ARCHER_ARCHER:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[ 16] : GameMode == GM_CLASSIC ? PcxHero_pix[287] : PcxHero_pix[108]; break;
-		case PSC_ARCHER_SCOUT:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[207] : PcxHero_pix[ 82]; break;
-		case PSC_ARCHER_SHARPSHOOTER:				portrait = GameMode == GM_COLISEUM ? PcxHero_pix[ 73] : PcxHero_pix[253/* 92*/]; break;
-		case PSC_ARCHER_TRAPPER:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[214] : PcxHero_pix[254/* 70*/]; break;
+		case PSC_ARCHER_ARCHER:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[343] : GameMode == GM_COLISEUM ? PcxHero_pix[ 16] : GameMode == GM_CLASSIC ? PcxHero_pix[287] : PcxHero_pix[292/*108*/]; break;
+		case PSC_ARCHER_SCOUT:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[339] : GameMode == GM_COLISEUM ? PcxHero_pix[207] : PcxHero_pix[310/* 82*/]; break;
+		case PSC_ARCHER_SHARPSHOOTER:				portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[60]  : GameMode == GM_COLISEUM ? PcxHero_pix[ 73] : PcxHero_pix[322/* 92*/]; break;
+		case PSC_ARCHER_TRAPPER:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[342] : GameMode == GM_COLISEUM ? PcxHero_pix[214] : PcxHero_pix[254/* 70*/]; break;
 		}
 		break;
 
 	case PC_2_MAGE:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[217] : GameMode == GM_CLASSIC ? PcxHero_pix[288] : PcxHero_pix[119]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[341] : GameMode == GM_COLISEUM ? PcxHero_pix[217] : GameMode == GM_CLASSIC ? PcxHero_pix[288] : PcxHero_pix[119]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_MAGE_MAGE:							portrait = GameMode == GM_COLISEUM ? PcxHero_pix[218] : GameMode == GM_CLASSIC ? PcxHero_pix[288] : PcxHero_pix[251/*232*/]; break;
-		case PSC_MAGE_ELEMENTALIST:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[219] : PcxHero_pix[256/*115*/]; break;
+		case PSC_MAGE_MAGE:							portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[338] : GameMode == GM_COLISEUM ? PcxHero_pix[218] : GameMode == GM_CLASSIC ? PcxHero_pix[288] : PcxHero_pix[251/*232*/]; break;
+		case PSC_MAGE_ELEMENTALIST:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[219] : PcxHero_pix[354]; break;
 		case PSC_MAGE_SUMMONER:
 			if( mode == CSM_SUBCLASS ){				portrait = GameMode == GM_COLISEUM ? PcxHero_pix[221] : PcxHero_pix[122]; break; }
 			switch( saveInfo->Specialization ){
@@ -735,46 +741,47 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 			case PSCL_MAGE_SUMMONER_BEASTMASTER:	portrait = GameMode == GM_COLISEUM ? PcxHero_pix[200] : PcxHero_pix[257/* 38*/]; break;
 			}
 			break;
-		case PSC_MAGE_WARLOCK:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[220] : PcxHero_pix[228]; break;
+		case PSC_MAGE_WARLOCK:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[123] : GameMode == GM_COLISEUM ? PcxHero_pix[220] : PcxHero_pix[297/*228*/]; break;
 		}
 		break;
 
 	case PC_3_MONK:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[226] : PcxHero_pix[ 93]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[350] : GameMode == GM_COLISEUM ? PcxHero_pix[226] : PcxHero_pix[ 93]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_MONK_MONK:							portrait = GameMode == GM_COLISEUM ? PcxHero_pix[222] : PcxHero_pix[242]; break;
-		case PSC_MONK_KENSEI:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[224] : PcxHero_pix[116]; break;
-		case PSC_MONK_SHUGOKI:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[230] : PcxHero_pix[ 54]; break;
-		case PSC_MONK_SHINOBI:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[229] : PcxHero_pix[183]; break;
+		case PSC_MONK_MONK:							portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[221] : GameMode == GM_COLISEUM ? PcxHero_pix[222] : PcxHero_pix[318/*242*/]; break;
+		case PSC_MONK_KENSEI:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[337] : GameMode == GM_COLISEUM ? PcxHero_pix[224] : PcxHero_pix[116]; break;
+		case PSC_MONK_SHUGOKI:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[346] : GameMode == GM_COLISEUM ? PcxHero_pix[230] : PcxHero_pix[299/* 54*/]; break;
+		case PSC_MONK_SHINOBI:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[94]  : GameMode == GM_COLISEUM ? PcxHero_pix[229] : PcxHero_pix[298/*183*/]; break;
 		}
 		break;
 
 	case PC_4_ROGUE:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[216] : PcxHero_pix[ 28]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[351] : GameMode == GM_COLISEUM ? PcxHero_pix[216] : PcxHero_pix[ 28]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_ROGUE_ROGUE:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[212] : PcxHero_pix[109]; break;
-		case PSC_ROGUE_ASSASSIN:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[215] : PcxHero_pix[ 91]; break;
-		case PSC_ROGUE_IRON_MAIDEN:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[211] : PcxHero_pix[252/*182*/]; break;
-		case PSC_ROGUE_BOMBARDIER:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[213] : PcxHero_pix[255/*248*/]; break;
+		case PSC_ROGUE_ROGUE:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[347] : GameMode == GM_COLISEUM ? PcxHero_pix[212] : PcxHero_pix[109]; break;
+		case PSC_ROGUE_ASSASSIN:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[166] : GameMode == GM_COLISEUM ? PcxHero_pix[215] : PcxHero_pix[ 91]; break;
+		case PSC_ROGUE_IRON_MAIDEN:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[1] : GameMode == GM_COLISEUM ? PcxHero_pix[211] : PcxHero_pix[317/*252*//*182*/]; break;
+		case PSC_ROGUE_BOMBARDIER:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[349] : GameMode == GM_COLISEUM ? PcxHero_pix[213] : PcxHero_pix[255/*248*/]; break;
+		case PSC_ROGUE_GLADIATRIX:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[355/*76*/] : GameMode == GM_COLISEUM ? PcxHero_pix[328] : PcxHero_pix[328/*248*/]; break;
 		}
 		break;
 
 	case PC_5_SAVAGE:
-		if( mode == CSM_CLASS ){					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[209] : PcxHero_pix[ 29]; break; }
+		if( mode == CSM_CLASS ){					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[352] : GameMode == GM_COLISEUM ? PcxHero_pix[209] : PcxHero_pix[ 29]; break; }
 		switch( saveInfo->SubClass ){
-		case PSC_SAVAGE_SAVAGE:						portrait = GameMode == GM_COLISEUM ? PcxHero_pix[210] : PcxHero_pix[110]; break;
-		case PSC_SAVAGE_BERSERKER:					portrait = GameMode == GM_COLISEUM ? PcxHero_pix[247] : PcxHero_pix[266/* 50*/]; break;
-		case PSC_SAVAGE_EXECUTIONER:				portrait = GameMode == GM_COLISEUM ? PcxHero_pix[208] : PcxHero_pix[ 75]; break;
+		case PSC_SAVAGE_SAVAGE:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[30] : GameMode == GM_COLISEUM ? PcxHero_pix[210] : PcxHero_pix[334]; break;
+		case PSC_SAVAGE_BERSERKER:					portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[336] : GameMode == GM_COLISEUM ? PcxHero_pix[247] : PcxHero_pix[316/*266*//* 50*/]; break;
+		case PSC_SAVAGE_EXECUTIONER:				portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[59] : GameMode == GM_COLISEUM ? PcxHero_pix[208] : PcxHero_pix[ 75]; break;
 		case PSC_SAVAGE_GLADIATOR:
 			if( mode == CSM_SUBCLASS ){				portrait = GameMode == GM_COLISEUM ? PcxHero_pix[ 68] : PcxHero_pix[101]; break; }
 			switch( saveInfo->Specialization ){
-			case PSCL_SAVAGE_GLADIATOR_THRAEX:		portrait = GameMode == GM_COLISEUM ? PcxHero_pix[205] : PcxHero_pix[100]; break;
-			case PSCL_SAVAGE_GLADIATOR_MURMILLO:	portrait = GameMode == GM_COLISEUM ? PcxHero_pix[202] : PcxHero_pix[ 96]; break;
-			case PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:	portrait = GameMode == GM_COLISEUM ? PcxHero_pix[204] : PcxHero_pix[272/* 95*/]; break;
-			case PSCL_SAVAGE_GLADIATOR_SECUTOR:		portrait = GameMode == GM_COLISEUM ? PcxHero_pix[203] : PcxHero_pix[136]; break;
+			case PSCL_SAVAGE_GLADIATOR_THRAEX:		portrait = GameMode == GM_COLISEUM ? PcxHero_pix[205] : PcxHero_pix[326]; break;
+			case PSCL_SAVAGE_GLADIATOR_MURMILLO:	portrait = GameMode == GM_COLISEUM ? PcxHero_pix[202] : PcxHero_pix[294/* 96*/]; break;
+			case PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:	portrait = GameMode == GM_COLISEUM ? PcxHero_pix[204] : PcxHero_pix[335/*272*//* 95*/]; break;
+			case PSCL_SAVAGE_GLADIATOR_SECUTOR:		portrait = GameMode == GM_COLISEUM ? PcxHero_pix[203] : PcxHero_pix[323/*136*/]; break;
             }
             break;
-		case PSC_SAVAGE_DRUID:						portrait = /*GameMode == GM_COLISEUM ? PcxHero_pix[208] : */PcxHero_pix[111]; break;
+		case PSC_SAVAGE_DRUID:						portrait = GameMode == GM_DARK_CAMPAIGN ? PcxHero_pix[345] : /*GameMode == GM_COLISEUM ? PcxHero_pix[208] : */PcxHero_pix[111]; break;
 		}
         break;
     }
@@ -799,10 +806,10 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 				}
 				else {
 					if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) {
-						portrait = PcxHero_pix[277];
+						portrait = PcxHero_pix[277]; 
 					}
 					else {
-						portrait = PcxHero_pix[133];
+						portrait = PcxHero_pix[305/*133*/];
 					}
 				}
 			}
@@ -813,8 +820,21 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		}
 		// inquisitor
 		else if (saveInfo->SubClass == PSC_WARRIOR_INQUISITOR) {
-			if (has(saveInfo->Traits, TraitId::Devastator)) {
-				portrait = PcxHero_pix[88];
+			if (has(saveInfo->Traits, TraitId::Warlord)) {
+				if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { 
+					portrait = PcxHero_pix[332]; 
+				}
+				else { 
+					if (has(saveInfo->Traits, TraitId::FearTheReaper)) {
+						portrait = PcxHero_pix[333];
+					}
+					else {
+						portrait = PcxHero_pix[331];
+					}
+				}
+			}
+			else if (has(saveInfo->Traits, TraitId::Devastator)) {
+				portrait = PcxHero_pix[312/*88*/];
 			}
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[278/*237*/]; }
 			if (!strcmpi(saveInfo->Name, "Mordor")){
@@ -824,9 +844,15 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		// guardian
 		else if (saveInfo->SubClass == PSC_WARRIOR_GUARDIAN) {
 			if (has(saveInfo->Traits, TraitId::Pistoleer)) {
-				portrait = PcxHero_pix[159];
-				if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[273]; }
-				if (!strcmpi(saveInfo->Name, "Clint Eastwood")) { portrait = PcxHero_pix[187]; }
+				portrait = PcxHero_pix[304/*159*/];
+				if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE))					{ portrait = PcxHero_pix[273]; }
+				if (!strcmpi(saveInfo->Name, "Clint Eastwood"))					{ portrait = PcxHero_pix[187]; }
+				if (saveInfo->GameChanger & BIT(GC_27_TERMINATOR))				{ portrait = PcxHero_pix[307]; }
+				else if (saveInfo->GameChanger & BIT(GC_28_SUPERMUTANT))		{ portrait = PcxHero_pix[308]; }
+				else if (saveInfo->GameChanger & BIT(GC_29_ENCLAVE_SOLDIER))	{ 
+					if (!strcmpi(saveInfo->Name, "Frank Horrigan")) { portrait = PcxHero_pix[320]; }
+					else { portrait = PcxHero_pix[309]; }
+				}
 			}
 			else if (has(saveInfo->Traits, TraitId::Juggernaut)) {
 				portrait = PcxHero_pix[158];
@@ -844,7 +870,7 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		}
 		// templar
 		else if (saveInfo->SubClass == PSC_WARRIOR_TEMPLAR) {
-			if (has(saveInfo->Traits, TraitId::Paladin)) { portrait = PcxHero_pix[86];	}
+			if (has(saveInfo->Traits, TraitId::Paladin)) { portrait = PcxHero_pix[313/*86*/];	}
 			else if (has(saveInfo->Traits, TraitId::HolyAura)) { portrait = PcxHero_pix[138]; }
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[236]; }
 		}
@@ -863,7 +889,10 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		}
 		// ss
 		else if (saveInfo->SubClass == PSC_ARCHER_SHARPSHOOTER) {
-			if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[179]; }
+			if (has(saveInfo->Traits, TraitId::Thief)) {
+				portrait = PcxHero_pix[344];
+			}
+			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[179]; }
 		}
 	}
 	
@@ -891,10 +920,10 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 				else if (has(saveInfo->Traits, TraitId::Gifted))		{ portrait = PcxHero_pix[190]; }
 				else if (has(saveInfo->Traits, TraitId::BlueBlood))		{ portrait = PcxHero_pix[191]; }
 				else if (has(saveInfo->Traits, TraitId::SmallFrame))	{ portrait = PcxHero_pix[192]; }
-				else													{ portrait = PcxHero_pix[ 90]; }
+				else													{ portrait = PcxHero_pix[296/* 90*/]; }
 			}
 			else if (has(saveInfo->Traits, TraitId::AvatarOfCold)) {
-				portrait = PcxHero_pix[117];
+				portrait = PcxHero_pix[353];
 			}
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { 
 				portrait = PcxHero_pix[240]; 
@@ -952,13 +981,13 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		if (saveInfo->SubClass == PSC_ROGUE_ROGUE) {
 			if (has(saveInfo->Traits, TraitId::Axepertise)) {
 				if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[161]; }
-				else { portrait = PcxHero_pix[132]; }
+				else { portrait = PcxHero_pix[300/*132*/]; }
 			}
 			else if (has(saveInfo->Traits, TraitId::BigFrame)) {
 				portrait = PcxHero_pix[142];
 			}
 			else if (has(saveInfo->Traits, TraitId::GoldDigger)) {
-				portrait = PcxHero_pix[137];
+				portrait = PcxHero_pix[301/*137*/];
 			}
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) {
 				portrait = PcxHero_pix[162];
@@ -976,7 +1005,7 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 		else if (saveInfo->SubClass == PSC_ROGUE_IRON_MAIDEN) {
 			//maiden
 			if (has(saveInfo->Traits, TraitId::TwoTowers)) {
-				portrait = PcxHero_pix[275/*181*/];
+				portrait = PcxHero_pix[319/*275*//*181*/];
 				if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { 
 					portrait = PcxHero_pix[276]; 
 				}
@@ -1000,13 +1029,19 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 					portrait = PcxHero_pix[283];
 				}
 				else {
-					portrait = PcxHero_pix[259/*62*/];
+					portrait = PcxHero_pix[356/*259*//*62*/];
 				}
 			}
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) {
 				portrait = PcxHero_pix[281];
 			}
 		}
+		else if (saveInfo->SubClass == PSC_ROGUE_GLADIATRIX) {
+			if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) {
+				portrait = PcxHero_pix[329];
+			}
+		}
+
 	}
 
 	//--------------------------------------------------------------------------------
@@ -1045,14 +1080,14 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 				portrait = PcxHero_pix[139];
 			}
 			else if (has(saveInfo->Traits, TraitId::Psychotic)) {
-				portrait = PcxHero_pix[143];
+				portrait = PcxHero_pix[302/*143*/];
 			}
 			else if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[284]; }
 		}
 		// executioners
 		else if (saveInfo->SubClass == PSC_SAVAGE_EXECUTIONER) {
 			if (saveInfo->GameChanger & BIT(GC_9_NIGHT_KIN)) {			portrait = PcxHero_pix[ 80]; }
-			else if (has(saveInfo->Traits, TraitId::Leper)) {			portrait = PcxHero_pix[ 84]; }
+			else if (has(saveInfo->Traits, TraitId::Leper)) {			portrait = PcxHero_pix[303/* 84*/]; }
 			else if (has(saveInfo->Traits, TraitId::ThickSkinned)) {	portrait = PcxHero_pix[150]; }
 			else if (has(saveInfo->Traits, TraitId::Rabid)) {			portrait = PcxHero_pix[ 44]; }
 			else if (has(saveInfo->Traits, TraitId::OldHabit)) {		portrait = PcxHero_pix[ 31]; }
@@ -1067,7 +1102,7 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 			}
 			// murmillo
 			else if (saveInfo->Specialization == PSCL_SAVAGE_GLADIATOR_MURMILLO) {
-				if (has(saveInfo->Traits, TraitId::Crupellarius)) { portrait = PcxHero_pix[145]; }
+				if (has(saveInfo->Traits, TraitId::Crupellarius)) { portrait = PcxHero_pix[293/*145*/]; }
 				else if (has(saveInfo->Traits, TraitId::BloodAndSand)) {
 					if (has(saveInfo->Traits, TraitId::ThickSkinned)) {	portrait = PcxHero_pix[149]; }
 					else {	portrait = PcxHero_pix[32];	}
@@ -1079,9 +1114,9 @@ Portrait getHeroPortrait( CharSaveInfo* saveInfo, CLASS_SELECTION_MODE mode /*= 
 				if (has(saveInfo->Traits, TraitId::Sandman)) { portrait = PcxHero_pix[176]; }
 				if (!strcmpi(saveInfo->Name, "Gannicus")) {	portrait = PcxHero_pix[173]; }
 			}
-			/*else if (saveInfo->Specialization == PSCL_SAVAGE_GLADIATOR_SECUTOR) {
-				if (saveInfo->GameMode == GM_COLISEUM) { portrait = PcxHero_pix[58]; }
-			}*/
+			else if (saveInfo->Specialization == PSCL_SAVAGE_GLADIATOR_SECUTOR) {
+				if (has(saveInfo->Traits, TraitId::Scissor)) { portrait = PcxHero_pix[324]; }
+			}
 		}
 		else if (saveInfo->SubClass == PSC_SAVAGE_DRUID) {
 			if (saveInfo->GameChanger & BIT(GC_15_ICE_AGE)) { portrait = PcxHero_pix[58]; }
@@ -1298,10 +1333,222 @@ int LoadFonts()
 	LoadFont( &Font16s, "ui_art\\font16.bin", "ui_art\\font16s.pcx" );
 	LoadFont( &Font42g, "ui_art\\font42.bin", "ui_art\\font42g.pcx" );
 	LoadFont( &Font42s, "ui_art\\font42.bin", "ui_art\\font42y.pcx" );
+	// (th4) CHI: the SDlg dialogs (Select Trait, Game Changers, Game Modes, difficulty)
+	// draw through this font system, not through MenuEngine/bigtgold.cel -- which is why
+	// the main menu shows Chinese while those dialogs showed Latin-1 mojibake. The stock
+	// 256-cell atlas cannot hold GB2312, so CHI loads an extra grid sheet per font.
+	// Gated: every other language leaves chiTrans null and takes the original path.
+	//
+	// Which fonts the translated dialogs actually use, verified by reading every call
+	// site rather than pattern-matching them:
+	//   30s -> titles          (InitTextElemList .., 5)
+	//   30g -> OK / Cancel     (InitButtonListText .., 4)
+	//   24g -> list buttons    (InitButtonListText / ResetButtonText .., 2)
+	//   16s -> description panel, via DrawTextToElemList(.., LANG_RU ? 0 : 1)
+	// 24s and 42g belong to modem / IPX / legacy screens; 42s is never requested.
+	if( GameLanguage == LANG_CHI ){
+		// font16 serves the description panel of EVERY translated dialog: Traits,
+		// GameChangers, GameModes and difficulty all do
+		//     DrawTextToElemList( .., is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 )
+		// i.e. Font16s for us, Font16g for RU (whose 16s has no Cyrillic). Loading the
+		// sheet into BOTH means no gameplay file has to special-case Chinese.
+		LoadChiSheet( &Font16g, "ui_art\\font16c.pcx", "ui_art\\font16c.wid" );
+		LoadChiSheet( &Font16s, "ui_art\\font16c.pcx", "ui_art\\font16c.wid" );
+		LoadChiSheet( &Font24g, "ui_art\\font24c.pcx", "ui_art\\font24c.wid" );
+		// Font24s draws the "Description:" label on the IPX Select Game screen
+		// (InitTextElemList( .., IxpDescTitleList, 3 )), so it needs the sheet too.
+		LoadChiSheet( &Font24s, "ui_art\\font24c.pcx", "ui_art\\font24c.wid" );
+		LoadChiSheet( &Font30g, "ui_art\\font30c.pcx", "ui_art\\font30c.wid" );
+		LoadChiSheet( &Font30s, "ui_art\\font30c.pcx", "ui_art\\font30c.wid" );
+	}
+	// (th4) Korean uses the very same machinery -- the sheets are 94 cells wide like
+	// the Chinese ones, only 25 rows instead of 87. Everything downstream (chiWidth,
+	// ChiSheetIndex, the measure and draw loops) is script-agnostic already.
+	if( GameLanguage == LANG_KO ){
+		LoadChiSheet( &Font16g, "ui_art\\font16k.pcx", "ui_art\\font16k.wid" );
+		LoadChiSheet( &Font16s, "ui_art\\font16k.pcx", "ui_art\\font16k.wid" );
+		LoadChiSheet( &Font24g, "ui_art\\font24k.pcx", "ui_art\\font24k.wid" );
+		LoadChiSheet( &Font24s, "ui_art\\font24k.pcx", "ui_art\\font24k.wid" );
+		LoadChiSheet( &Font30g, "ui_art\\font30k.pcx", "ui_art\\font30k.wid" );
+		LoadChiSheet( &Font30s, "ui_art\\font30k.pcx", "ui_art\\font30k.wid" );
+	}
+	// (th4) Japanese rides the identical machinery -- EUC-JP is 94 cells wide like
+	// GB2312 and EUC-KR, only 84 lead rows. The sheets ship in TH4loc_jpn.mor as
+	// ui_art\\font16j/24j/30j .pcx + .wid, painted on the 94-column grid.
+	if( GameLanguage == LANG_JA ){
+		// (th4) TWO sheets per size. The stock atlas draws the *g fonts in GOLD and the
+		// *s fonts in silver -- visible in the main menu, where the ASCII "(PVP)" comes
+		// out gold next to the Japanese. CHI and KO load one sheet into both and end up
+		// monochrome everywhere; Japanese ships a gold sheet for the g fonts and a
+		// silver one for the s fonts so the CJK matches the Latin around it.
+		// The .wid is identical for both, so one width file serves each size.
+		LoadChiSheet( &Font16g, "ui_art\\font16j.pcx",  "ui_art\\font16j.wid" );
+		LoadChiSheet( &Font16s, "ui_art\\font16js.pcx", "ui_art\\font16j.wid" );
+		LoadChiSheet( &Font24g, "ui_art\\font24j.pcx",  "ui_art\\font24j.wid" );
+		LoadChiSheet( &Font24s, "ui_art\\font24js.pcx", "ui_art\\font24j.wid" );
+		LoadChiSheet( &Font30g, "ui_art\\font30j.pcx",  "ui_art\\font30j.wid" );
+		LoadChiSheet( &Font30s, "ui_art\\font30js.pcx", "ui_art\\font30j.wid" );
+		// font42 as well, which CHI and KO never did. The main menu draws through
+		// Font42g, and both the measure loop (CurFont->chiWidth) and the draw loop
+		// (font.chiTrans) key off the FONT OBJECT, not off a font id -- so giving 42 a
+		// sheet makes DialogMainMenu render real EUC-JP. That is why the Japanese main
+		// menu needs no private 0x80..0x9C cells painted into font42g/42y.pcx, and no
+		// edit to the stock atlas at all.
+		LoadChiSheet( &Font42g, "ui_art\\font42j.pcx",  "ui_art\\font42j.wid" );
+		LoadChiSheet( &Font42s, "ui_art\\font42js.pcx", "ui_art\\font42j.wid" );
+	}
+	// (th4) Arabic uses the same 94-column grid loader, with two differences worth
+	// knowing. Only 2 lead rows are needed (157 cells: 143 presentation forms, 10
+	// Arabic-Indic digits, 4 punctuation), and the .wid carries each form's REAL INK
+	// WIDTH rather than a fixed cell width -- Arabic is drawn proportionally or joined
+	// script reads as spaced-out capitals. Gold and silver sheets per size, as JA.
+	if( GameLanguage == LANG_AR ){
+		LoadChiSheet( &Font16g, "ui_art\\font16a.pcx",  "ui_art\\font16a.wid" );
+		LoadChiSheet( &Font16s, "ui_art\\font16as.pcx", "ui_art\\font16a.wid" );
+		LoadChiSheet( &Font24g, "ui_art\\font24a.pcx",  "ui_art\\font24a.wid" );
+		LoadChiSheet( &Font24s, "ui_art\\font24as.pcx", "ui_art\\font24a.wid" );
+		LoadChiSheet( &Font30g, "ui_art\\font30a.pcx",  "ui_art\\font30a.wid" );
+		LoadChiSheet( &Font30s, "ui_art\\font30as.pcx", "ui_art\\font30a.wid" );
+		LoadChiSheet( &Font42g, "ui_art\\font42a.pcx",  "ui_art\\font42a.wid" );
+		LoadChiSheet( &Font42s, "ui_art\\font42as.pcx", "ui_art\\font42a.wid" );
+	}
+	// (th4) Hindi uses the same grid loader again. Two differences from Arabic: the
+	// sheet is TWENTY lead rows rather than two, because each cell is a pre-composed
+	// Devanagari CLUSTER and not a letter (see vars.h), and the .wid is essential for
+	// the same reason it is in Arabic -- a bare consonant and one carrying a left
+	// matra differ by roughly half a cell, so a fixed step would space the text like
+	// capitals. Gold and silver per size, as JA and AR.
+	if( GameLanguage == LANG_HIN ){
+		LoadChiSheet( &Font16g, "ui_art\\font16h.pcx",  "ui_art\\font16h.wid" );
+		LoadChiSheet( &Font16s, "ui_art\\font16hs.pcx", "ui_art\\font16h.wid" );
+		LoadChiSheet( &Font24g, "ui_art\\font24h.pcx",  "ui_art\\font24h.wid" );
+		LoadChiSheet( &Font24s, "ui_art\\font24hs.pcx", "ui_art\\font24h.wid" );
+		LoadChiSheet( &Font30g, "ui_art\\font30h.pcx",  "ui_art\\font30h.wid" );
+		LoadChiSheet( &Font30s, "ui_art\\font30hs.pcx", "ui_art\\font30h.wid" );
+		LoadChiSheet( &Font42g, "ui_art\\font42h.pcx",  "ui_art\\font42h.wid" );
+		LoadChiSheet( &Font42s, "ui_art\\font42hs.pcx", "ui_art\\font42h.wid" );
+	}
 	return 1;
 }
 
 //----- (200012E0) --------------------------------------------------------
+// (th4) CHI: load the GB2312 grid sheet for a dialog font.
+//
+// The stock atlas is a 256-cell VERTICAL STRIP: cell i occupies rows height*i..+height,
+// columns 0..charWidth[i]. It cannot hold GB2312 -- 8178 cells * 26 rows = 212628 rows,
+// and PCX stores ymax as uint16 (65535 max). Latin locs are fine because PL/RU only need
+// a handful of extra glyphs and just replace high cells; Chinese needs 8178.
+//
+// So CHI ships a SECOND sheet laid out as a grid:
+//     row = lead  - CHI_LEAD_FIRST      (87 rows)
+//     col = trail - CHI_TRAIL_FIRST     (94 cols == CHI_ROW_LEN)
+// the same divisor ChiLetterID already uses for the CEL fonts.
+//
+// STransCreate needs NO change: TransSize is really a source rect --
+// field_0=x0, width=y0, height=x1, size=y1. LoadFont simply never sets x0, because a
+// strip only ever has one column. Setting x0 is all a grid takes.
+void __fastcall LoadChiSheet( DiabloFont *font, char *sheetPcx, char *widthBin )
+{
+	HANDLE    fh;
+	int       widBytes;
+	int       spritesBuf = 0;
+	SIZE      size;
+	TransSize transSize;
+	// (th4) Cell count depends on the active script. GB2312 is 87 lead rows, EUC-KR
+	// Wansung only 25 -- both are 94 cells wide, which is why one loader serves both.
+	const int cells = ( GameLanguage == LANG_KO )
+	                ? ( KOR_LEAD_LAST - KOR_LEAD_FIRST + 1 ) * KOR_ROW_LEN   // 2350
+	                : ( GameLanguage == LANG_JA )
+	                ? ( JA_LEAD_LAST  - JA_LEAD_FIRST  + 1 ) * JA_ROW_LEN    // 7896 (th4)
+	                : ( GameLanguage == LANG_AR )
+	                ? ( AR_LEAD_LAST  - AR_LEAD_FIRST  + 1 ) * AR_ROW_LEN    // 188 (th4)
+	                : ( GameLanguage == LANG_HIN )
+	                ? ( HIN_LEAD_LAST - HIN_LEAD_FIRST + 1 ) * HIN_ROW_LEN  // 1880 (th4)
+	                : ( CHI_LEAD_LAST - CHI_LEAD_FIRST + 1 ) * CHI_ROW_LEN;  // 8178
+
+	if( !font || font->chiTrans ) return;               // already loaded
+	font->chiWidth = (uchar*) SMemAlloc( cells, __FILE__, __LINE__, 0 );
+	if( !font->chiWidth ) return;
+	memset( font->chiWidth, 0, cells );
+
+	if( !SFileOpenFile( widthBin, &fh ) ){
+		SMemFree( font->chiWidth, __FILE__, __LINE__, 0 );
+		font->chiWidth = 0;
+		return;
+	}
+	widBytes = SFileGetFileSize( fh, 0 );
+	if( widBytes > cells ) widBytes = cells;
+	SFileReadFile( fh, font->chiWidth, widBytes, 0, 0 );
+	SFileCloseFile( fh );
+
+	LoadSpriteSheet( sheetPcx, (unsigned __int8 **) &spritesBuf, &size );
+	if( !spritesBuf ){
+		SMemFree( font->chiWidth, __FILE__, __LINE__, 0 );
+		font->chiWidth = 0;
+		return;
+	}
+	font->chiTrans = (HANDLE*) SMemAlloc( cells * sizeof( HANDLE ), __FILE__, __LINE__, 0 );
+	if( !font->chiTrans ){
+		SMemFree( (unsigned __int8*) spritesBuf, __FILE__, __LINE__, 0 );
+		SMemFree( font->chiWidth, __FILE__, __LINE__, 0 );
+		font->chiWidth = 0;
+		return;
+	}
+	memset( font->chiTrans, 0, cells * sizeof( HANDLE ) );
+
+	{
+		int cellW = size.cx / CHI_ROW_LEN;      // sheet is exactly 94 cells wide
+		// (th4) Row height must come from the SHEET, not from font->height. The two are
+		// equal for the Chinese art, but nothing guarantees it: if font->height is the
+		// larger of the two, the last rows address past the end of the bitmap and
+		// STransCreate walks off the buffer -- an instant crash at startup. Derive it
+		// from the image and fall back to the font only if that is not sane.
+		int rows  = cells / CHI_ROW_LEN;
+		int cellH = ( rows > 0 && size.cy / rows > 0 ) ? size.cy / rows : font->height;
+		int i;
+		for( i = 0; i < cells; ++i ){
+			if( !font->chiWidth[ i ] ) continue;                       // empty cell
+			int col = i % CHI_ROW_LEN;
+			int row = i / CHI_ROW_LEN;
+			// Hard bounds guard: never hand STransCreate a rect outside the sheet.
+			if( ( row + 1 ) * cellH > size.cy ) continue;
+			if( col * cellW + font->chiWidth[ i ] > size.cx ) continue;
+			transSize.field_0 = col * cellW;                           // x0
+			transSize.height  = col * cellW + font->chiWidth[ i ] - 1; // x1
+			transSize.width   = row * cellH;                           // y0
+			transSize.size    = row * cellH + cellH - 1;               // y1
+			STransCreate( (unsigned __int8*) spritesBuf, size.cx, size.cy, 8,
+			              &transSize, 0x1000020, &font->chiTrans[ i ] );
+		}
+	}
+	SMemFree( (unsigned __int8*) spritesBuf, __FILE__, __LINE__, 0 );
+}
+
+// (th4) CHI: grid index for a GB2312 pair, or -1. Mirrors ChiLetterID's maths.
+static int ChiSheetIndex( uchar lead, uchar trail )
+{
+	// (th4) Serves both double-byte scripts. IsChiLead is already language-gated, so a
+	// stray 0xB0..0xC8 byte in a single-byte language can never reach here.
+	if( !IsChiLead( lead ) || !IsChiTrail( trail ) ) return -1;
+	if( GameLanguage == LANG_KO )
+		return ( lead - KOR_LEAD_FIRST ) * KOR_ROW_LEN + ( trail - KOR_TRAIL_FIRST );
+	// (th4) Japanese: EUC-JP lead base is 0xA1, not 0xB0 -- without this arm the CHI
+	// maths below would index the wrong cell for every pair.
+	if( GameLanguage == LANG_JA )
+		return ( lead - JA_LEAD_FIRST ) * JA_ROW_LEN + ( trail - JA_TRAIL_FIRST );
+	// (th4) Arabic: lead base 0xA1 like JA, but only 2 rows. NOTE the value this
+	// returns is a SHEET CELL, and for Arabic the sheet holds FORMS -- the caller
+	// must pass a form id from AR_Shape, never a raw stored byte pair.
+	if( GameLanguage == LANG_AR )
+		return ( lead - AR_LEAD_FIRST ) * AR_ROW_LEN + ( trail - AR_TRAIL_FIRST );
+	// (th4) Hindi: lead base 0xA1 like JA/AR, 20 rows. The value returned is a SHEET
+	// CELL and for Hindi the sheet holds pre-composed CLUSTERS, so the stored pair
+	// already IS the cell -- unlike Arabic there is no form to resolve first.
+	if( GameLanguage == LANG_HIN )
+		return ( lead - HIN_LEAD_FIRST ) * HIN_ROW_LEN + ( trail - HIN_TRAIL_FIRST );
+	return ( lead - CHI_LEAD_FIRST ) * CHI_ROW_LEN + ( trail - CHI_TRAIL_FIRST );
+}
+
 void __fastcall LoadFont( DiabloFont *font, char *fontBin, char *fontPcx )
 {
 	DiabloFont *font_1; // ebp@1
@@ -1369,6 +1616,14 @@ int __cdecl GetCurFontWidth()
 	return curFontWidth;
 }
 
+// (th4) GetCurFontWidth() above returns CurFont->height -- the decompiler misnamed it
+// and every caller relies on that. This is the same value under an honest name, for
+// files that cannot see CurFont (it is a Hell.cpp global with no extern).
+int __cdecl GetCurFontHeight()
+{
+	return GetCurFontWidth();
+}
+
 //----- (20001430) --------------------------------------------------------
 int __cdecl GetSpaceWidth()
 {
@@ -1388,6 +1643,22 @@ int __cdecl GetSpaceWidth()
 //----- (20001450) --------------------------------------------------------
 int __fastcall GetStringDrawWidth( char *text )
 {
+	// (th4) ARABIC. The stored bytes are LOGICAL base letters; what gets painted are
+	// contextual FORMS, and a lam+alef pair collapses into ONE glyph. Measuring the
+	// raw bytes therefore disagrees with DrawFontString -- by a whole cell for every
+	// ligature -- and every centring and truncation decision built on this number
+	// would be wrong. Shape first, then add up what will actually be drawn.
+	if( GameLanguage == LANG_AR && CurFont && CurFont->fontLoaded && CurFont->chiTrans && text ){
+		static AR_Glyph g[ 512 ];
+		const int n = AR_Shape( (const unsigned char*)text, (int)strlen( text ), g, 512 );
+		int w = 0;
+		for( int i = 0; i < n; ++i ){
+			if( g[i].isForm ) w += CurFont->chiWidth[ g[i].cell ];   // menu sheets carry real widths in .wid
+			else if( CurFont->charWidth[ g[i].raw ] ) w += CurFont->charWidth[ g[i].raw ];
+			else w += CurFont->spaceWidth;
+		}
+		return w;
+	}
 	int stringPixLen; // eax@1
 	int curWidth; // edx@6
 	unsigned __int8 nextLetter; // dl@8
@@ -1399,6 +1670,20 @@ int __fastcall GetStringDrawWidth( char *text )
 			letterIndex = *text;
 			if( *text ){
 				do{
+					// (th4) CHI: a GB2312 pair is ONE glyph and must be measured as one.
+					// If it is folded byte-by-byte the width disagrees with what
+					// DrawFontString paints, and every centring and truncation decision
+					// built on this number is wrong.
+					if( CurFont->chiWidth ){
+						int ci = ChiSheetIndex( (uchar) text[ 0 ], (uchar) text[ 1 ] );
+						if( ci >= 0 && CurFont->chiWidth[ ci ] ){
+							stringPixLen += CurFont->chiWidth[ ci ];
+							text += 2;
+							letterIndex = *text;
+							nextLetter = letterIndex;
+							continue;
+						}
+					}
 					if( CurFont->charWidth[ letterIndex ] ){
 						curWidth = CurFont->charWidth[ letterIndex ];
 					}else{
@@ -1419,12 +1704,123 @@ int __fastcall GetStringDrawWidth( char *text )
 //----- (200014B0) --------------------------------------------------------
 void __fastcall DrawFontString(uint8_t* str, TextWin* elemData, int x, int y)
 {
+	g_MenuTextLineCount = 0;
 	if (str == nullptr || !(elemData && elemData->surface) || !(CurFont && CurFont->fontLoaded)) return;
 	if (x < 0) x = 0;
 	if (y < 0) y = 0;
 
+	// (th4) SCROLLED TEXT. The layout below is unchanged; what changed is that a line
+	// is now a NUMBER, not a y coordinate. Line n is drawn at baseY + (n - skip) * h
+	// and only if that lands inside the element -- the same test the old early return
+	// used, so the heap-smash guard is preserved. Lines before `skip` are laid out
+	// and not drawn. The walk no longer returns early at the bottom, so the count it
+	// reports at the end is the TOTAL the text wraps to, which is what a scrollbar
+	// needs to size itself. skip is 0 for every caller but the trait description.
+	const int skip  = g_MenuTextSkipLines;
+	const int baseY = y;
+	int lineNo = 0;
+	const int fontH = CurFont->height;
+	auto lineY       = [&]() -> int  { return baseY + ( lineNo - skip ) * fontH; };
+	auto lineVisible = [&]() -> bool { return lineNo >= skip && lineY() >= 0 && lineY() + fontH <= elemData->size.cy; };
+
+	// (th4) ARABIC takes its own path and returns; it cannot share the loop below.
+	// The Latin loop consumes one byte at a time and decides everything locally, but
+	// Arabic needs the WHOLE line before it can draw a single glyph: a letter's shape
+	// depends on its neighbours, and the run has to be reversed. So: shape the logical
+	// string once, fill a line greedily by width, reorder THAT line, draw it, repeat.
+	//
+	// Reordering per line rather than per string is the point. Wrapping happens after
+	// the reversal in a naive implementation, which splits a reversed run across two
+	// lines and scrambles both -- the failure UAX #9 calls out and the reason we do not
+	// pre-bake visual strings into the tables.
+	//
+	// NO UI MIRRORING, by design: lines still start at x = 0. Only the text within a
+	// line runs right to left.
+	if( GameLanguage == LANG_AR && CurFont->chiTrans ){
+		// (th4) A string with NO Arabic in it -- the mod name and version line, a
+		// filename -- must not take this path: the reorder would mirror it and the
+		// digit rule would swap 0-9 for Arabic-Indic. Fall through to the Latin loop
+		// below, which draws it exactly as English does.
+		bool arHasArabic = false;
+		for( const uint8_t* p = str; *p; ++p )
+			if( *p >= AR_LEAD_FIRST && *p <= AR_LEAD_LAST ){ arHasArabic = true; break; }
+		if( arHasArabic ){
+		const DiabloFont& f = *CurFont;
+		static AR_Glyph g[ 512 ];
+		const int n = AR_Shape( str, (int)strlen( (const char*)str ), g, 512 );
+		int i = 0;
+		bool firstLine = true;
+		while( i < n ){
+			// fill one line, in LOGICAL order, stopping on width or an explicit break
+			static AR_Glyph line[ 512 ];
+			int len = 0, w = 0;
+			while( i < n ){
+				if( !g[i].isForm && g[i].raw == '\n' ){ ++i; break; }
+				const int adv = g[i].isForm ? f.chiWidth[ g[i].cell ]
+				              : ( f.charWidth[ g[i].raw ] ? f.charWidth[ g[i].raw ] : f.spaceWidth );
+				if( len && w + adv > elemData->size.cx ) break;
+				line[ len++ ] = g[i++];
+				w += adv;
+			}
+			if( !len ) continue;
+
+			// (th4) BACK OFF TO THE LAST SPACE. The fill loop above stops the instant the
+			// next glyph would overflow, which lands mid-word -- the class descriptions
+			// were breaking words like "aydan" into "a" + "ydan" across two lines. Rewind
+			// to the last space and hand the rest back to the next line. If the line holds
+			// no space at all it stays as-is: a single word longer than the panel still has
+			// to be drawn somehow, and cutting it is better than dropping it.
+			if( i < n ){
+				int brk = len;
+				while( brk > 0 && !( !line[brk-1].isForm && line[brk-1].raw == ' ' ) ) --brk;
+				if( brk > 0 ){
+					i -= ( len - brk );
+					len = brk;
+					w = 0;
+					for( int q = 0; q < len; ++q )
+						w += line[q].isForm ? f.chiWidth[ line[q].cell ]
+						                    : ( f.charWidth[ line[q].raw ] ? f.charWidth[ line[q].raw ] : f.spaceWidth );
+				}
+			}
+
+			AR_Reorder( line, len );
+
+			// (th4) no early return here any more: keep laying out so the line count is complete
+			// (th4) WHO DECIDES ALIGNMENT. The caller has often already positioned this
+			// text: DrawTextToButtonPic passes x = (size.cx - textWidth - 1) / 2, i.e. the
+			// MENU BUTTONS ARE CENTRED BY THE CALLER. Overriding that with a right-align
+			// is what pushed the whole main menu against the right edge. So:
+			//   single line that fits -> honour the caller's x exactly, as Latin does;
+			//   text that wrapped     -> right-align, which is what a paragraph wants.
+			const bool wrapped = ( i < n ) || !firstLine;
+			int px = wrapped ? ( ( w < elemData->size.cx ) ? ( elemData->size.cx - w ) : 0 ) : x;
+			firstLine = false;
+			for( int k = 0; k < len; ++k ){
+				if( line[k].isForm ){
+					if( f.chiTrans[ line[k].cell ] && lineVisible() )
+						STransBlt( elemData->surface, px, lineY(), elemData->size.cx, f.chiTrans[ line[k].cell ] );
+					px += f.chiWidth[ line[k].cell ];
+				}else{
+					const uint8_t c = line[k].raw;
+					// (th4) whitespace advances but never paints -- the Arabic sheets have art
+					// in the frame the space index resolves to, which drew a dot per space.
+					if( c > ' ' && f.charWidth[ c ] && f.trans[ c ] ){
+						if( lineVisible() ) STransBlt( elemData->surface, px, lineY(), elemData->size.cx, f.trans[ c ] );
+						px += f.charWidth[ c ];
+					}else{
+						px += f.spaceWidth;
+					}
+				}
+			}
+			++lineNo;
+		}
+		g_MenuTextLineCount = lineNo;
+		return;
+		}
+	}
+
 	const int32_t& elWidth = elemData->size.cx;
-	const int32_t& elHeight = elemData->size.cy;
+	const int32_t& elHeight = elemData->size.cy; (void)elHeight;
 	const DiabloFont& font = *CurFont;
 
 	uint8_t curChar = *str;
@@ -1433,10 +1829,27 @@ void __fastcall DrawFontString(uint8_t* str, TextWin* elemData, int x, int y)
 	uint8_t ch;
 
 	while( curChar ) {
+		// (th4) CHI: GB2312 pair -> one cell of the grid sheet. Tested FIRST, so a lead
+		// byte can never be folded through charWidth as though it were Latin -- that is
+		// what painted Latin-1 mojibake where the hanzi belonged.
+		if( font.chiTrans ){
+			int ci = ChiSheetIndex( curChar, (uchar) str[ 1 ] );
+			if( ci >= 0 && font.chiTrans[ ci ] ){
+				int adv = font.chiWidth[ ci ];
+				if( x + adv > elWidth ){
+					++lineNo;                                 // (th4) was y += height + early return; see lineVisible()
+					x = 0;
+				}
+				if( lineVisible() ) STransBlt( elemData->surface, x, lineY(), elWidth, font.chiTrans[ ci ] );
+				x += adv;
+				str += 2;
+				curChar = *str;
+				continue;
+			}
+		}
 		// vertical tab
 		if (curChar == '\n') {
-			y += font.height;
-			if (y > elHeight) return;
+			++lineNo;
 			x = 0;
 			curChar = *++str;
 			continue;
@@ -1444,14 +1857,13 @@ void __fastcall DrawFontString(uint8_t* str, TextWin* elemData, int x, int y)
 
 		// word-wrap
 		if (x + font.charWidth[curChar] > elWidth) {
-			y += font.height;
-			if (y > elHeight) return;
+			++lineNo;
 			x = 0;
 		}
 
 		// draw letter
 		if( font.charWidth[ curChar ] && font.trans[ curChar ]) {
-			STransBlt( elemData->surface, x, y, elWidth, font.trans[ curChar ] );
+			if( lineVisible() ) STransBlt( elemData->surface, x, lineY(), elWidth, font.trans[ curChar ] );
 			x += font.charWidth[ curChar ];
 			curChar = *++str;
 			continue;
@@ -1467,11 +1879,11 @@ void __fastcall DrawFontString(uint8_t* str, TextWin* elemData, int x, int y)
 		}
 		x += font.spaceWidth;
 		if( x + wordWidth > elWidth ){
-			y += font.height;
-			if (y > elHeight) return;
+			++lineNo;
 			x = 0;
 		}
 	}
+	g_MenuTextLineCount = lineNo + 1;      // (th4) lines used, counting the one in progress
 }
 
 //----- (20001650) --------------------------------------------------------
@@ -2652,7 +3064,7 @@ int __stdcall DialogCreateBnetGame( HWND hDlg, unsigned int msg, WPARAM wParam, 
 	while( 1 ){
 		difButton = GetDlgItem( hDlg, difficulty_4 + ID_CREATE_DIF_1 );
 		GetClientRect( difButton, &rect_text.rect );
-		difButtonData = (TextWin *) SMemAlloc( 272u, __FILE__, __LINE__, 0 );
+		difButtonData = (TextWin *) SMemAlloc( sizeof(TextWin), __FILE__, __LINE__, 0 );
 		if( !difButtonData ){
 			break;
 		}
@@ -2889,7 +3301,7 @@ int __stdcall DialogCredits( HWND hdlg, unsigned int msg, WPARAM wParam, LPARAM 
 		SDlgSetBitmap( static_1, 0, 0, -1, 1, CreditImage, &scrollRect, width, height, -1 );
 		ScrollPos = height - 30;
 		ScrollCredits( hdlg );
-		timesNewRoman = CreateFontA( -17, 0, 0, 0, 700, 0, 0, 0, 0, 0, 0, 0, 18u, "Times New Roman" );
+		timesNewRoman = CreateFontA( -17, 0, 0, 0, 700, 0, 0, 0, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 204 : 0, 0, 0, 0, 18u, "Times New Roman" ); // 204 = RUSSIAN_CHARSET
 		font = timesNewRoman;
 		if( timesNewRoman ){
 			fontImported = SGdiImportFont( timesNewRoman, &CreditFont );
@@ -3425,7 +3837,7 @@ int __cdecl DialogDirectConnection( HWND hDlg, unsigned int Msg, WPARAM wParam, 
 					}else if( GameIndex ){
 						JoinDirectConnectionGame( hDlg );
 					}else{
-						LoadStringA( HInstance, STR_43_Game_not_detected, errorText, 127 );
+						LoadStringL( STR_43_Game_not_detected, errorText, 127, "\n\n", "A multi player game was not detected!" );
 						SelectOk_2( hDlg, errorText, 0, 0 );
 					}
 				}
@@ -3440,7 +3852,7 @@ int __cdecl DialogDirectConnection( HWND hDlg, unsigned int Msg, WPARAM wParam, 
 						}else if( GameIndex ){
 							JoinDirectConnectionGame( hDlg );
 						}else{
-							LoadStringA( HInstance, STR_43_Game_not_detected, errorText, 127 );
+							LoadStringL( STR_43_Game_not_detected, errorText, 127, "\n\n", "A multi player game was not detected!" );
 							SelectOk_2( hDlg, errorText, 0, 0 );
 						}
 					}
@@ -3557,7 +3969,7 @@ int __fastcall JoinDirectConnectionGame( HWND hdlg )
 			FadePalette( 10 );
 			result = SDlgEndDialog( hdlg_1,  1 );
 		}else{
-			LoadStringA( HInstance, STR_37_Unable_join, errorText, 63 );
+			LoadStringL( STR_37_Unable_join, errorText, 63, "\n\n", "Unable to join game \"%s.\"" );
 			sprintf( errorText2, errorText, GameName_0 );
 			result = SelectOk_2( hdlg_1, errorText2, 0, 0 );
 		}
@@ -3614,7 +4026,7 @@ void __fastcall SelectDirectOkButton( HWND hdlg )
 					FadePalette( 10 );
 					SDlgEndDialog( hglg,  1 );
 				}else{
-					LoadStringA( HInstance, STR_37_Unable_join, errorText3, 63 );
+					LoadStringL( STR_37_Unable_join, errorText3, 63, "\n\n", "Unable to join game \"%s.\"" );
 					sprintf( errorText, errorText3, GameName_0 );
 					SelectOk_2( hglg, errorText, 0, 0 );
 				}
@@ -3622,7 +4034,7 @@ void __fastcall SelectDirectOkButton( HWND hdlg )
 				SelectOk_2( hglg, errorText2, 0, 0 );
 			}
 		}else{
-			LoadStringA( HInstance, STR_43_Game_not_detected, errorText, 127 );
+			LoadStringL( STR_43_Game_not_detected, errorText, 127, "\n\n", "A multi player game was not detected!" );
 			SelectOk_2( hglg, errorText, 0, 0 );
 		}
 	}
@@ -3633,7 +4045,7 @@ int __fastcall EnumerateDirectConnectionGames( HWND hdlg )
 {
 	HWND hdlg_1; // esi@1
 	int result; // eax@1
-	char joinErrorText[ 128 ]; // [sp+10h] [bp-80h]@3
+	char joinErrorText[ 256 ]; // (th4) was 128: translated rows run longer than English // [sp+10h] [bp-80h]@3
 
 	GameIndex = 0;
 	GameName_0[ 0 ] = 0;
@@ -3643,7 +4055,7 @@ int __fastcall EnumerateDirectConnectionGames( HWND hdlg )
 	if( !result ){
 		result = GetLastError();
 		if( result == 0x2105000C ){
-			LoadStringA( HInstance, STR_50_Incompatible_connect_game_version, joinErrorText, 127 );
+			LoadStringL( STR_50_Incompatible_connect_game_version, joinErrorText, sizeof(joinErrorText), "\n", "Unable to join the detected game. Your version of The Hell is incompatible with the game creator's version." );
 			SelectOk_2( hdlg_1, joinErrorText, 0, 0 );
 			PlaySoundTitleSelect();
 			CheckFadeTimer();
@@ -3849,7 +4261,21 @@ void __fastcall DrawTextToButtonPic( HWND hWnd, int limitWidth )
 				if( textWidth > maxWidth ){
 					lastChar = &text_1[ len - 1 ];
 					do{
-						*--lastChar = 0;
+						// (th4) CHI: step back a whole CHARACTER. The original walked back
+						// one BYTE, which for GB2312 lands between a lead and its trail:
+						// the orphaned lead then folds through the Latin path and every
+						// byte after it decodes from the wrong boundary.
+						char* prev = text_1;
+						char* scan = text_1;
+						while( *scan && scan < lastChar - 1 ){
+							int step = ( IsChiLead( (uchar) scan[0] ) && IsChiTrail( (uchar) scan[1] ) ) ? 2 : 1;
+							prev = scan;
+							scan += step;
+						}
+						if( scan >= lastChar - 1 && scan > text_1 ) prev = scan;
+						if( prev <= text_1 ){ *text_1 = 0; break; }
+						*prev = 0;
+						lastChar = prev;
 						textWidth = GetStringDrawWidth( text_1 );
 					} while( textWidth > maxWidth );
 				}
@@ -3993,7 +4419,7 @@ void __fastcall DrawElemTextToElemBmp( HWND elem, char style )
 	TextWin *elemData; // esi@1
 	char *str; // edi@3
 	int x; // eax@6
-	char elemText[ 256 ]; // [sp+Ch] [bp-100h]@3
+	char elemText[ MENU_TEXT_CAP ]; // [sp+Ch] [bp-100h]@3
 
 	elem_1 = elem;
 	style_1 = style;
@@ -4001,7 +4427,7 @@ void __fastcall DrawElemTextToElemBmp( HWND elem, char style )
 	elemData = elemData_1;
 	if( elemData_1 ){
 		if( elemData_1->surface ){
-			GetWindowTextA( elem_1, elemText, 255 );
+			GetWindowTextA( elem_1, elemText, MENU_TEXT_CAP - 1 );
 			str = elemText;
 			if( strlen( elemText ) == 0 ){
 				str = elemData->text;
@@ -4030,7 +4456,7 @@ void __fastcall DrawTextToElemList( HWND hdlg, int *elementList, int fontIndex )
 	TextWin *elemData; // eax@4
 	int *nextElem; // eax@5
 	int *elementList_1; // [sp+4h] [bp-104h]@1
-	char elemText[ 256 ]; // [sp+8h] [bp-100h]@3
+	char elemText[ MENU_TEXT_CAP ]; // [sp+8h] [bp-100h]@3
 
 	elementList_2 = *elementList;
 	elementList_1 = elementList;
@@ -4042,7 +4468,7 @@ void __fastcall DrawTextToElemList( HWND hdlg, int *elementList, int fontIndex )
 			SetCurFont( fontIndex );
 			style = (char)GetWindowLongA( curElem, GWL_STYLE );
 			DrawElemTextToElemBmp( curElem, style );
-			GetWindowTextA( curElem, elemText, 255 );
+			GetWindowTextA( curElem, elemText, MENU_TEXT_CAP - 1 );
 			if( strlen( elemText ) != 0 ){
 				elemData = (TextWin *) GetWindowLongA( curElem, GWL_USERDATA );
 				WriteTextToElemData( elemData, elemText );
@@ -4326,8 +4752,67 @@ int NewHeroTitle()
 		if( ColiseumInMainMenu && GameMode == GM_COLISEUM ) titleId = STR_80_New_hero_coliseum;
 	}else{
 		if( ClassicInMainMenu  && GameMode == GM_CLASSIC  ) titleId = STR_83_New_hero_classic;
+		if (OutbreakInMainMenu && GameMode == GM_OUTBREAK) titleId = STR_86_New_hero_outbreak;
+		if( GameMode == GM_DARK_CAMPAIGN ) titleId = STR_89_New_hero_dark_campaign; // (th4)
 	}
 	return titleId;
+}
+
+//----- (th4) -------------------------------------------------------------
+// Localized text for whatever NewHeroTitle() currently is.
+//
+// Six ids can come back -- single, multi, coliseum, classic, outbreak, villain -- but
+// every call site open-coded an if/else that handled only single and multi (one also
+// handled villain). Everything else fell through to the English resource string, which
+// is why Dark Campaign read "New Villain" and the Coliseum / Classic / Outbreak titles
+// were English in all 18 languages.
+//
+// One place, keyed off the id, so a site cannot handle a subset. LMenu returns its
+// input on a miss, so a language without the row still gets English -- no list to keep.
+const char* NewHeroTitleText()
+{
+	const char* en = "";
+	switch( NewHeroTitle() ){
+		case STR_31_New_hero_single:        en = "New Hero Single Player"; break;
+		case STR_32_New_hero_multi:         en = "New Hero Multi Player";  break;
+		case STR_80_New_hero_coliseum:      en = "New Hero Coliseum";      break;
+		case STR_83_New_hero_classic:       en = "New Hero Classic";       break;
+		case STR_86_New_hero_outbreak:      en = "New Hero Outbreak";      break;
+		case STR_89_New_hero_dark_campaign: en = "New Villain";            break;
+		default: return 0;                  // unknown id: caller keeps the resource text
+	}
+	return LMenu( en );
+}
+
+//----- (th4) -------------------------------------------------------------
+// Localized text for whatever CharSelectTitle() currently is.
+//
+// Six ids again -- single, multi, coliseum, classic, outbreak, dark campaign -- and the
+// call sites handled different subsets of them: one covered five, the other only
+// single-player, so "Classic Characters" and friends stayed English on the Game File
+// Exists dialog. Same shape and same reasoning as NewHeroTitleText above.
+const char* CharSelectTitleText()
+{
+	const char* en = "";
+	switch( CharSelectTitle() ){
+		case STR_29_Single_char:        en = "Single Player Characters"; break;
+		case STR_28_Multi_char:         en = "Multi Player Characters";  break;
+		case STR_79_Coliseum_char:      en = "Coliseum Characters";      break;
+		case STR_84_Classic_char:       en = "Classic Characters";       break;
+		case STR_87_Outbreak_char:      en = "Outbreak Characters";      break;
+		case STR_90_Dark_campaign_char: en = "Dark Campaign Characters"; break;
+		default: return 0;              // unknown id: caller keeps the resource text
+	}
+	return LMenu( en );
+}
+
+//----- (th4) -------------------------------------------------------------
+// The "empty slot" entry in the character list. Dark Campaign calls it a villain.
+// NOTE: three sites compare a loaded name against this string and one writes it, so
+// they must all resolve through here or the empty-slot detection breaks.
+int NewHeroStringId()
+{
+	return GameMode == GM_DARK_CAMPAIGN ? STR_92_New_villain : STR_30_New_hero;
 }
 
 //----- (th4) -------------------------------------------------------------
@@ -4339,6 +4824,8 @@ int CharSelectTitle()
 		if( ColiseumInMainMenu && GameMode == GM_COLISEUM ) titleId = STR_79_Coliseum_char;
 	}else{
 		if( ClassicInMainMenu  && GameMode == GM_CLASSIC  ) titleId = STR_84_Classic_char;
+		if (OutbreakInMainMenu && GameMode == GM_OUTBREAK) titleId = STR_87_Outbreak_char;
+		if( GameMode == GM_DARK_CAMPAIGN ) titleId = STR_90_Dark_campaign_char; // (th4)
 	}
 	return titleId;
 }
@@ -4433,9 +4920,18 @@ int __stdcall DialogEnterName( HWND hdlg, UINT Msg, WPARAM wParam, LPARAM lParam
 			EnteredName = (char *) lParam;
 			parent = GetParent( hdlg );
 
-			SetWindowTextA(GetDlgItem(parent, ID_CLASS_DESCRIPTION), "Name your character");
-			DrawTextToElemList(parent, ClassDescriptionList, 1);
+			SetWindowTextA(GetDlgItem(parent, ID_CLASS_DESCRIPTION), GameLanguage != LANG_EN ? LMenu("Name your character") : "Name your character");
+			DrawTextToElemList(parent, ClassDescriptionList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1);
 			LoadStringA( HInstance, NewHeroTitle(), title, 31 );
+			// (th4) Non-English: title/caption/buttons via LMenu overlay (OVL_MENU).
+			// LMenu returns the English input unchanged when a language lacks the entry,
+			// so this is a safe fallback for every language.
+			if( GameLanguage != LANG_EN ){
+				if( const char* t = NewHeroTitleText() ) strcpy( title, t );   // (th4) all six titles
+				SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu("Enter Name") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+			}
 			WriteAndDrawDialogTitle( parent, title );
 			parentData = GetWindowLongA( parent, GWL_USERDATA );
 			SetWindowLongA( hdlg, GWL_USERDATA, parentData );
@@ -5004,6 +5500,23 @@ int __fastcall LoadDialogBackground( HWND hwnd, HWND parent, char *dlgTypeName, 
 		GetPaletteEntries( defaultPalette, 0, 10u, pPalEntries );
 		GetPaletteEntries( defaultPalette, 10u, 10u, &pPalEntries[ 246 ] );
 		memcpy( MenuPalette, pPalEntries, sizeof( MenuPalette ) );
+		// Patch logo palette entries for backgrounds that are palette-
+		// incompatible with th4_logo_v1.pcx. selconn.pcx and selgame.pcx
+		// are original Hellfire files never updated for the TH4 logo: their
+		// embedded palettes map the logo's letter indices to green instead of
+		// orange-red. Other backgrounds (selhero.pcx, mainmenu.pcx, ...) were
+		// updated by the TH4 developer and must NOT be patched — patching
+		// them would overwrite portrait skin/hair entries causing black dots.
+		bool logoBackgroundNeedsPatch =
+		(strstr(PicFileName, "selconn.pcx") != nullptr) ||
+		(strstr(PicFileName, "selgame.pcx") != nullptr);
+		if (LogoPaletteLoaded && logoBackgroundNeedsPatch) {
+			for( int logoIdx = 10; logoIdx < 246; logoIdx++ ){
+				if( LogoPaletteUsed[ logoIdx ] ){
+					MenuPalette[ logoIdx ] = LogoPalette[ logoIdx ];
+				}
+			}
+		}
 		if( isMenuPalette ){
 			pal = MenuPalette;
 			palNum = 255;
@@ -5234,6 +5747,23 @@ LRESULT __stdcall SelectionButtonProc( HWND hWnd, UINT Msg, WPARAM wParam, LPARA
 	LRESULT( __stdcall *uiWndProc )(HWND, UINT, WPARAM, LPARAM); // edi@1
 	PAINTSTRUCT Paint; // [sp+Ch] [bp-40h]@3
 
+	// (th4) MOUSE WHEEL IN THE META DIALOGS. Every selection list in these Win32
+	// dialogs moves on VK_UP / VK_DOWN and nothing ever translated the wheel into
+	// those, so scrolling did nothing on the main menu, the connection list, the
+	// character list and the rest -- in every language, not just Arabic. This proc
+	// already wraps every selectable button, so one arm here covers all of them:
+	// turn a wheel notch into the arrow key the list is already listening for, and
+	// send it to the FOCUSED control rather than whatever the pointer is over.
+	if( Msg == WM_MOUSEWHEEL ){
+		const short wheel = (short)HIWORD( wParam );
+		if( wheel != 0 ){
+			HWND focus = GetFocus();
+			if( !focus ) focus = hWnd;
+			SendMessageA( focus, WM_KEYDOWN, ( wheel > 0 ) ? VK_UP : VK_DOWN, 0 );
+		}
+		return 0;
+	}
+
 	uiWndProc = (LRESULT( __stdcall * )(HWND, UINT, WPARAM, LPARAM))GetPropA( hWnd, "UIWNDPROC" );
 	if( Msg == WM_DESTROY ){
 		RemovePropA( hWnd, "UIWNDPROC" );
@@ -5341,7 +5871,7 @@ TextWin *__cdecl AllocTextWin()
 {
 	TextWin *widData; // eax@1
 
-	widData = (TextWin *) SMemAlloc( 272u, __FILE__, __LINE__, 0 );
+	widData = (TextWin *) SMemAlloc( sizeof(TextWin), __FILE__, __LINE__, 0 );
 	if( widData ){
 		widData->surface = 0;
 		widData->size.cx = 0;
@@ -5375,8 +5905,8 @@ void __fastcall WriteTextToElemData( TextWin *elemData, const char *srcText )
 	textBuf_1 = elemData;
 	if( elemData ){
 		if( srcText ){
-			strcpy( elemData->text, srcText );
-			textBuf_1->text[ 255 ] = 0;
+			strncpy( elemData->text, srcText, MENU_TEXT_CAP - 1 );
+			textBuf_1->text[ MENU_TEXT_CAP - 1 ] = 0;
 		}else{
 			elemData->text[ 0 ] = 0;
 		}
@@ -5653,6 +6183,305 @@ int __stdcall DialogMainMenu( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM
 		versionStatic = GetDlgItem( hdlg, ID_VERSION_TEXT );
 		SetWindowTextA( versionStatic, GameVersion );
 		InitTextElemList( hdlg, VersionList, 1 );
+		if( GameLanguage == LANG_RU ){
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "\x8E\x84\x88\x8D \x88\x83\x90\x8E\x8A" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "\x91\x85\x92\x85\x82\x80\x9F \x88\x83\x90\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "\x8A\x8B\x80\x91\x91\x88\x97\x85\x91\x8A\x88\x89 DIABLO" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "\x8A\x8E\x8B\x88\x87\x85\x89 (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "\x82\x91\x8F\x9B\x98\x8A\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "\x87\x80\x91\x92\x80\x82\x8A\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "\x8F\x8E\x84\x84\x85\x90\x86\x8A\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\x92\x85\x8C\x8D\x80\x9F \x8A\x80\x8C\x8F\x80\x8D\x88\x9F" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "\x82\x9B\x95\x8E\x84" );
+		}
+// (th4) Bulgarian, cloned from the Russian block above. These menu strings are
+// hardcoded here rather than in LocalizationBG.cpp and use the META atlas
+// (0x80-0x9F, caps-only), not CP1251. Without this block BG fell through to the
+// English fallback -- which the meta atlas CAN render, so the menu showed English.
+if( GameLanguage == LANG_BG ){
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "\x85\x84\x88\x8d \x88\x83\x90\x80\x97" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "\x8c\x90\x85\x86\x8e\x82\x80 \x88\x83\x90\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "\x8a\x8b\x80\x91\x88\x97\x85\x91\x8a\x88 DIABLO" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "\x8a\x8e\x8b\x88\x87\x85\x93\x8c (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "\x88\x87\x81\x93\x95\x82\x80\x8d\x85" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "\x87\x80\x91\x92\x80\x82\x8a\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "\x8f\x8e\x84\x8a\x90\x85\x8f\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\x92\x9a\x8c\x8d\x80 \x8a\x80\x8c\x8f\x80\x8d\x88\x9f" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "\x88\x87\x95\x8e\x84" );
+		}
+		else if( GameLanguage == LANG_UK ){ // (th4) Ukrainian: META atlas (CP1251-0x40), caps only
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "\x8E\x84\x88\x8D \x83\x90\x80\x82\x85\x96\x9C" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "\x8C\x85\x90\x85\x86\x85\x82\x80 \x83\x90\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "\x8A\x8B\x80\x91\x88\x97\x8D\x88\x89 DIABLO" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "\x8A\x8E\x8BI\x87\x85\x89 (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "\x91\x8F\x80\x8B\x80\x95" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "\x87\x80\x91\x92\x80\x82\x8A\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "\x8FI\x84\x92\x90\x88\x8C\x8A\x80" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\x92\x85\x8C\x8D\x80 \x8A\x80\x8C\x8F\x80\x8DI\x9F" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "\x82\x88\x95I\x84" );
+		}
+		else if( GameLanguage == LANG_ID ){ // (th4) Indonesian: ASCII, DiabloFont renders directly
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Pemain Tunggal" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multipemain" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klasik" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Koloseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Wabah" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Putar Intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Dukungan" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Kampanye Kegelapan" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Keluar" );
+		}
+		else if( GameLanguage == LANG_PT ){ // (th4) Portuguese: ASCII-folded (no PT meta font), DiabloFont renders directly
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Um Jogador" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multijogador" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Classico" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Coliseu (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Surto" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Rever Introducao" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Apoiar" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Campanha Sombria" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Sair" );
+		}
+		else if( GameLanguage == LANG_ES ){ // (th4) Spanish: real accents -- the stock meta atlas has every Spanish cell
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Un Jugador" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multijugador" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Cl\xE1sico" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Coliseo (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Brote" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Ver Intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Apoyo" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Campa\xF1""a Oscura" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Salir" );
+		}
+		else if( GameLanguage == LANG_IT ){ // (th4) Italian: ASCII-folded (meta DiabloFont has no accents)
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Giocatore Singolo" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multigiocatore" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Classico" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Colosseo (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Epidemia" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Rivedi Intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Supporto" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Campagna Oscura" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Esci" );
+		}
+		else if( GameLanguage == LANG_FR ){ // (th4) French: ASCII-folded (meta DiabloFont has no accents)
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Un Joueur" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multijoueur" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Classique" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Colisee (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Epidemie" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Revoir l'Intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Soutien" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Campagne Noire" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Quitter" );
+		}
+		else if( GameLanguage == LANG_PL ){ // (th4) Polish: REAL CP1250 diacritics -- unlike PT/ES/IT/FR,
+			// which fold here because the stock meta atlas has no accented glyphs. TH4loc_pol.mor
+			// ships font42g/font42.bin with the Polish cells drawn at their CP1250 positions, and this
+			// list is drawn with fontIndex 6 = Font42g (see SetCurFont), so o-acute / s-acute resolve.
+			// Widest item here is "DIABLO Klasyczne" at 286px; Italian already ships 287px in this
+			// same list, so the buttons take it.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Jeden Gracz" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Wielu Graczy" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klasyczne" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Koloseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Epidemia" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Powt\xF3rz Intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Wsparcie" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Mroczna Kampania" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Wyj\x9C""cie" );
+		}
+		else if( GameLanguage == LANG_HR ){ // (th4) Croatian: full diacritics -- TH4loc_hrv.mor carries the meta atlas
+			// (ui_art font16/24/30/42) with the Croatian cells. Same wording as HR_Menu.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Jedan igra\xE8" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Vi\x9A""e igra\xE8""a" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klasi\xE8no" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Koloseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Epidemija" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Ponovi uvod" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Podr\x9Aka" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Mra\xE8na kampanja" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Izlaz" );
+		}
+		else if( GameLanguage == LANG_CS ){ // (th4) Czech: full CP1250 diacritics -- TH4loc_cze.mor ships the
+			// meta atlas (ui_art font16/24/30/42) with Czech cells. Same wording as CS_Menu.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Jeden hr\xE1\xE8" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "V\xED""ce hr\xE1\xE8\xF9" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klasick\xFD" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Koloseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Epidemie" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "P\xF8""ehr\xE1t intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Podpora" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Temn\xE1 kampa\xF2" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Konec" );
+		}
+		else if( GameLanguage == LANG_CHI ){ // (th4) Chinese: these 9 items are hardcoded here
+			// (not LMenu/OVL_MENU), exactly as RU/PL are. The meta menu is drawn by
+			// DrawFontString via the DiabloFont atlas, which is single-byte indexed, so this
+			// is NOT GB2312 -- TH4loc_chi.mor ships ui_art\font42.bin + font42g/font42y.pcx
+			// with the CJK cells drawn at private codes 0x80.., the same trick RU uses for
+			// Cyrillic (CP1251-0x40) and PL for CP1250. Drawn with fontIndex 6 = Font42g.
+			// Widest item is "\x87\x88\x89 (PVP)" at 177px; PL already ships 286px here.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "\x80\x81\x82\x83" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "\x84\x81\x82\x83" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "\x85\x86 DIABLO" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "\x87\x88\x89 (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "\x8A\x8B" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "\x8C\x8D\x8E\x89" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "\x8F\x90" );
+			// (th4) Private atlas codes, same as every other item here: the main menu is
+			// Font42g, the one font with no LoadChiSheet, so it draws only cells painted into
+			// the meta atlas. 0x8C..0x8F carry straight on from 0x8B, freed when Replay Intro,
+			// Support and Credits were dropped -- repaint those four cells in font42g.pcx.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\x8C\x8D\x8E\x8F" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "\x94\x95" );
+		}
+		else if( GameLanguage == LANG_DA ){ // (th4) Danish: ASCII-folded (ae/oe/aa), like PT/ES/IT/FR/DE.
+			// The Win32 main menu draws from the meta atlas, which Codepage_Danish does NOT reach --
+			// that fold only covers the CEL fonts -- so the accents are folded in the literal itself,
+			// exactly as DA_Menu is. Widest item is "DIABLO Klassisk"; Italian already ships 287px in
+			// this list, so the buttons take it unchanged.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Enkeltspiller" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Flerspiller" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klassisk" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Colosseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Udbrud" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Gense intro" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Stoette" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Moerk kampagne" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Afslut" );
+		}
+		else if( GameLanguage == LANG_SW ){
+			// (th4) Swahili. Nothing to fold: standard Kiswahili orthography is pure ASCII,
+			// so unlike PT/NL/DE these strings need no accent handling at all for the meta
+			// DiabloFont atlas. Wording matches the SW_Menu rows the player sees one click
+			// later ("Mchezaji Mmoja", "Wachezaji Wengi", "Kampeni ya Giza").
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Mchezaji Mmoja" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Wachezaji Wengi" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO ya Kiasili" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Koloseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Mlipuko" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Rudia Utangulizi" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Msaada" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Kampeni ya Giza" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Ondoka" );
+		}
+		else if( GameLanguage == LANG_NL ){ // (th4) Dutch: ASCII-folded, like PT/ES/IT/FR/DE/DA.
+			// The meta DiabloFont has no accented glyphs, so the diaeresis/acute Dutch uses
+			// elsewhere would draw blank here. None of these nine strings needs one anyway;
+			// nl/fold.py raises if a folded string still holds a non-ASCII byte.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Enkele Speler" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Multiplayer" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klassiek" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Colosseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Uitbraak" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Intro Herhalen" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Ondersteuning" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Duistere Veldtocht" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Afsluiten" );
+		}
+		else if( GameLanguage == LANG_DE ){ // (th4) German: ASCII-folded (meta DiabloFont has no accents; ue/ss for umlauts)
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Ein Spieler" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Mehrspieler" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klassisch" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Kolosseum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Ausbruch" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Intro erneut" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Unterstuetzung" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Dunkler Feldzug" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Verlassen" );
+		}
+		else if( GameLanguage == LANG_TR ){ // (th4) Turkish: ASCII-folded (meta DiabloFont has no
+			// accents at all, so PT/ES/IT/FR/DE all fold here too). G-breve -> g, I-dot -> I,
+			// S-cedilla -> s, C-cedilla -> c, O/U-diaeresis -> o/u. Widest item is
+			// "DIABLO Klasik"; Italian already ships 287px in this list, so the buttons take it.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ), "Tek Oyuncu" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ), "Cok Oyunculu" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ), "DIABLO Klasik" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ), "Kolezyum (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ), "Salgin" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ), "Girisi Tekrarla" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ), "Destek" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "Karanlik Sefer" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ), "Cikis" );
+		}
+		else if( GameLanguage == LANG_KO ){ // (th4) Korean: private atlas codes, same trick as CHI.
+			// The meta menu is drawn by DrawFontString through the DiabloFont atlas, which is
+			// SINGLE-BYTE indexed -- so this is NOT EUC-KR. TH4loc_kor.mor must ship
+			// ui_art\font42.bin + font42g/font42y.pcx with the 29 Hangul cells below painted at
+			// private codes 0x80..0x9C, the same range RU fills with CP1251-0x40 and PL with
+			// CP1250. Drawn with fontIndex 6 = Font42g (see SetCurFont). The LoadKorSheet path
+			// (font16k/24k/30k) does NOT serve this dialog -- Font42g has no sheet.
+			//
+			// Code map (paint these cells, in this order, starting at 0x80):
+			//   80 SI  81 GEUL 82 PEUL 83 RE  84 I   85 MEOL 86 TI  87 KEUL 88 RAE 89 SIK
+			//   8A KOL 8B RO   8C SE   8D UM  8E CHANG 8F GWEOL 90 IN 91 TEU 92 JAE 93 SAENG
+			//   94 HU  95 WON  96 EO   97 DUM 98 UI  99 JEON  9A YEOK 9B JONG 9C RYO
+			//
+			// Widest item is "\x8A\x8B\x8C\x8D (PVP)"; Polish already ships 286px in this list,
+			// so the buttons take it with room to spare.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER ),  "\x80\x81 \x82\x83\x84" );        // Singeul Peullei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER ),   "\x85\x86 \x82\x83\x84" );        // Meolti Peullei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC ),       "\x87\x88\x89 DIABLO" );          // Keullaesik DIABLO
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM ),      "\x8A\x8B\x8C\x8D (PVP)" );       // Kollosseum
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK ),      "\x8E\x8F" );                     // Changgweol
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO ),  "\x90\x91\x8B \x92\x93" );        // Inteuro Jaesaeng
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT ),       "\x94\x95" );                     // Huwon
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\x96\x97\x98 \x99\x9A" );        // Eodumui Jeonyeok
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON ),     "\x9B\x9C" );                     // Jongryo
+		}
+		else if( GameLanguage == LANG_JA ){ // (th4) Japanese: REAL EUC-JP, not private codes.
+			// CHI and KO had to hand-paint 0x80..0x9C into font42g/42y.pcx because Font42g
+			// had no grid sheet. Japanese ships ui_art\\font42j.pcx/.wid and LoadChiSheet
+			// loads it into Font42g/Font42s, so DrawFontString resolves the pairs itself --
+			// the stock atlas is never touched and the strings below are ordinary EUC-JP.
+			// Cell advance is 42px, so 6 chars = 252px; Polish already ships 286px in this
+			// list, so every item here fits the buttons.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER   ), "\xA5\xBD\xA5\xED\xA5\xD7\xA5\xEC\xA5\xA4" );  // Soro Purei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER    ), "\xA5\xDE\xA5\xEB\xA5\xC1\xA5\xD7\xA5\xEC\xA5\xA4" );  // Maruchi Purei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC        ), "\xA5\xAF\xA5\xE9\xA5\xB7\xA5\xC3\xA5\xAF" );  // Kurashikku
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM       ), "\xC6\xAE\xB5\xBB\xBE\xEC (PVP)" );  // Tougijou (PVP)
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK       ), "\xC2\xE7\xC8\xAF\xC0\xB8" );  // Daihassei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO   ), "\xC6\xB3\xC6\xFE\xBA\xC6\xC0\xB8" );  // Dounyuu Saisei
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT        ), "\xBB\xD9\xB1\xE7" );  // Shien
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN  ), "\xB0\xC7\xA4\xCE\xC0\xEF\xCC\xF2" );  // Yami no Sen-eki
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON      ), "\xBD\xAA\xCE\xBB" );  // Shuuryou
+		}
+		else if( GameLanguage == LANG_AR ){
+			// (th4) ARABIC. These dialogs are OWNER-DRAWN: SetWindowTextA only stores the
+			// string and TH4 renders it with DrawFontString from its own sheets, so the
+			// private double-byte encoding is right here -- Windows never interprets these
+			// bytes. DrawFontString shapes and reorders them (see ArabicText.cpp), and the
+			// big-font sheet is font42a.pcx, loaded by the LANG_AR arm above.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER  ), "\xA1\xBE\xA1\xA7\xA1\xB9\xA1\xA8 \xA1\xC2\xA1\xA7\xA1\xAD\xA1\xAF" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER   ), "\xA1\xBE\xA1\xB9\xA1\xA8 \xA1\xAC\xA1\xBF\xA1\xA7\xA1\xB9\xA1\xC4" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC       ), "\xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM      ), "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBE\xA1\xA8\xA1\xA9 (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK      ), "\xA1\xAA\xA1\xBB\xA1\xB4" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO  ), "\xA1\xA5\xA1\xB9\xA1\xA7\xA1\xAF\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBC\xA1\xAF\xA1\xBF\xA1\xA9" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT       ), "\xA1\xA7\xA1\xBE\xA1\xAF\xA1\xB9\xA1\xBF" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBF\xA1\xBE\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB8\xA1\xBE\xA1\xBF\xA1\xA9" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON     ), "\xA1\xAE\xA1\xB1\xA1\xC2\xA1\xAC" );
+		}
+		else if( GameLanguage == LANG_HIN ){
+			// (th4) HINDI. Owner-drawn like every meta dialog, so these private byte pairs
+			// are never seen by Windows -- DrawFontString resolves each pair straight to a
+			// sheet cell through ChiLetterID. Unlike Arabic there is NO shaping step: the
+			// bytes are already visual, one pair per pre-composed Devanagari cluster, with
+			// half-forms chosen and left matras moved in front of their consonant by the
+			// offline build. ASCII passes through untouched, which is how "(PVP)" survives.
+			// The cells come from TH4loc_hin.mor: rebuild that and this together or a pair
+			// here will index a cell the pack does not have and draw nothing.
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SINGLEPLAYER  ), "\xA1\xAB\xA1\xB1\xAB\xC2 \xA1\xD8\xAB\xC5\xAE\xBC" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_MULTIPLAYER   ), "\xA9\xB8\xAD\xF9 \xA1\xD8\xAB\xC5\xAE\xBC" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_CLASSIC       ), "\xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xA5\xCB\xAA\xC0\xAE\xBE\xAB\xDD" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_COLISEUM      ), "\xA1\xCC\xAB\xDD\xAD\xD2\xAA\xBD\xA9\xFA (PVP)" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_OUTBREAK      ), "\xAE\xBF\xA1\xCC\xA8\xD4" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_REPLAY_INTRO  ), "\xA8\xD4\xAA\xE4\xA2\xF8\xAA\xBD \xA7\xC9\xA9\xBB\xAA\xE1" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_SUPPORT       ), "\xAD\xCC\xAD\xF0\xAA\xBD\xA6\xCD" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_MAINMENU_DARK_CAMPAIGN ), "\xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xA1\xA1\xA9\xDF\xAA\xC0\xA7\xF0" );
+			SetWindowTextA( GetDlgItem( hdlg, ID_EXIT_CANCEL_BUTTON     ), "\xA9\xBB\xAD\xED\xAA\xDE \xA7\xF6\xA1\xB1\xAB\xD8" );
+		}
 		InitButtonListText( hdlg, MainMenuButtonList, 6, 1 );
 		InitSelectionAndLoadPentagram( "ui_art\\focus42.pcx" );
 		SDlgSetTimer( hdlg, 1, 55, 0 );
@@ -5739,6 +6568,33 @@ int __stdcall DialogMainMenu( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM
 			SDlgEndDialog( hdlg,  MM_1_SINGLE_PLAYER);
 			result = SDlgDefDialogProc_( hdlg, WM_COMMAND, wParam, lParam );
 			break;
+		case ID_MAINMENU_OUTBREAK:
+			GameMode = GM_OUTBREAK;
+			GameModeFilter = B(GM_OUTBREAK);
+			GetIsShareware();
+			CheckFadeTimer();
+			PlaySoundTitleSelect();
+			SDlgKillTimer(hdlg, 1);
+			SDlgKillTimer(hdlg, 2);
+			FadePalette(10);
+			SDlgEndDialog(hdlg, MM_1_SINGLE_PLAYER);
+			result = SDlgDefDialogProc_(hdlg, WM_COMMAND, wParam, lParam);
+			break;
+		// (th4) DARK CAMPAIGN -- occupies the old CREDITS slot in the meta menu. Wired exactly
+		// like OUTBREAK above: set the mode + filter, then end the dialog as a single-player
+		// start so the normal SP hero-select flow runs.
+		case ID_MAINMENU_DARK_CAMPAIGN:
+			GameMode = GM_DARK_CAMPAIGN;
+			GameModeFilter = B(GM_DARK_CAMPAIGN);
+			GetIsShareware();
+			CheckFadeTimer();
+			PlaySoundTitleSelect();
+			SDlgKillTimer(hdlg, 1);
+			SDlgKillTimer(hdlg, 2);
+			FadePalette(10);
+			SDlgEndDialog(hdlg, MM_1_SINGLE_PLAYER);
+			result = SDlgDefDialogProc_(hdlg, WM_COMMAND, wParam, lParam);
+			break;
 		case ID_MAINMENU_SINGLEPLAYER:
 			GameMode = GM_NORMAL;
 			GameModeFilter = -1;
@@ -5760,10 +6616,7 @@ int __stdcall DialogMainMenu( HWND hdlg, unsigned int Msg, WPARAM wParam, LPARAM
 			CheckRequirementsAndEndDialog( hdlg, (HANDLE) MM_4_SUPPORT, 1 );
 			result = SDlgDefDialogProc_( hdlg, WM_COMMAND, wParam, lParam );
 			break;
-		case ID_MAINMENU_CREDITS:
-			CheckRequirementsAndEndDialog( hdlg, (HANDLE) MM_5_CREDITS, 1 );
-			result = SDlgDefDialogProc_( hdlg, WM_COMMAND, wParam, lParam );
-			break;
+		// (th4) ID_MAINMENU_CREDITS (1003) is now the DARK CAMPAIGN button -- see its case above.
 		default:
 			return SDlgDefDialogProc_( hdlg, Msg, wParam, lParam );
 		}
@@ -5784,7 +6637,7 @@ int __fastcall CheckRequirementsAndEndDialog( HWND hWnd, HANDLE result_1, int ne
 	if( GetIsShareware() && result_2 == 3 ){
 		result = SelectError( hwnd, STR_70_Only_in_full_game, 1 );
 	}else if( result_2 != 2
-		|| (Buffer.dwLength = 32, GlobalMemoryStatus( &Buffer ), Buffer.dwTotalPhys > 14336000) )// 16 мегабайт оперативки минимум ?
+		|| (Buffer.dwLength = 32, GlobalMemoryStatus( &Buffer ), Buffer.dwTotalPhys > 14336000) )// (rt) 16 MB of RAM minimum?
 	{
 		CheckFadeTimer();
 		if( needSound ){
@@ -6574,7 +7427,10 @@ int __fastcall SelectOk( HWND hWndParent, char *text, int redWarning )
 	OkCaption = 0;
 	IsCallBackOkDialog = 0;
 	RedWarning = redWarning;
-	return SDlgDialogBoxParam( HInstance, "OK_DIALOG", hWndParent, DialogOk, (LPARAM) text );
+	MenuPortrait_Suppress( 1 );	// (th4) as SelectYesNo -- modal box over a still-visible portrait
+	const int answer = SDlgDialogBoxParam( HInstance, "OK_DIALOG", hWndParent, DialogOk, (LPARAM) text );
+	MenuPortrait_Suppress( 0 );
+	return answer;
 }
 
 //----- (20009C40) --------------------------------------------------------
@@ -6597,6 +7453,7 @@ int __stdcall UiMessageBoxCallback( HWND hdlg, LPCSTR lpText, LPCSTR lpCaption, 
 	IsCallBackOkDialog = 1;
 	bigDialog = 0;
 	IsBigDialog = 0;
+	MenuPortrait_Suppress( 1 );	// (th4) as SelectYesNo -- covers the retry loop and the MessageBoxA bail-out below
 	while( 1 ){
 		result = SDlgDialogBoxParam( HInstance, dialogName[ bigDialog ], hdlg, DialogOk, (LPARAM) lpText );
 		if( result != 0xFF000000 ){
@@ -6604,9 +7461,12 @@ int __stdcall UiMessageBoxCallback( HWND hdlg, LPCSTR lpText, LPCSTR lpCaption, 
 		}
 		bigDialog = IsBigDialog + 1;
 		if( IsBigDialog++ <= 1 ){
-			return MessageBoxA( hdlg, lpText, lpCaption, errorDialogType );
+			const int mbAnswer = MessageBoxA( hdlg, lpText, lpCaption, errorDialogType );
+			MenuPortrait_Suppress( 0 );
+			return mbAnswer;
 		}
 	}
+	MenuPortrait_Suppress( 0 );
 	return result;
 }
 
@@ -7045,6 +7905,59 @@ void __fastcall DeleteScroll( HWND hDlg, int nIDDlgItem )
 }
 
 //----- (2000A77B) --------------------------------------------------------
+// (th4) Scroll state for the class/subclass/specialization description. Declared HERE,
+// not next to the helpers further down: ClsDescScrollBy below and the WM_LBUTTONUP arm in
+// DialogSelectClass both read it, and both sit thousands of lines ABOVE SetHeroInfoText.
+static int g_ClsDescTop   = 0;               // first visible wrapped line
+static int g_ClsDescMax   = 0;               // last legal top (0 when it all fits)
+static int g_ClsDescPage  = 1;               // lines visible at once
+
+// (th4) Scroll the class/subclass/specialization description by `delta` wrapped lines
+// and redraw it. Redrawing goes through SetHeroInfoText, the one place that renders the
+// description, so the portrait and stats stay in step with it.
+static void ClsDescScrollBy( HWND hDlg, int delta )
+{
+	int top = g_ClsDescTop + delta;
+	if( top > g_ClsDescMax ) top = g_ClsDescMax;
+	if( top < 0 ) top = 0;
+	if( top == g_ClsDescTop ) return;      // at an end: no move, no sound -- same as the list
+	g_ClsDescTop = top;
+	PlaySoundTitleMove();                  // (th4) S_75_I_TITLEMOV, what the list scroll plays
+	SetHeroInfoText( GetParent( hDlg ), &NewSaveInfo, ClassSelectionMode, hDlg );
+	// (th4) Force the repaint the list scrollbar gets for free.
+	// These dialogs are painted onto a surface, not by Windows. SetScrollOnElem writes the
+	// new thumb position into the scrollbar's surface, but nothing puts that surface on
+	// screen. The LIST scrollbar never noticed because every list scroll calls SetFocus,
+	// and the BN_SETFOCUS arm of the dialog proc does exactly this InvalidateRect/
+	// UpdateWindow pair ("removes menu freezes"). Scrolling TEXT changes no focus, so
+	// nothing repainted and the bar only caught up on the NEXT click -- it looked like it
+	// reacted to every other click.
+	// Parent first: the child is WS_EX_TRANSPARENT and shows what is underneath it.
+	{
+		const HWND parentDlg = GetParent( hDlg );
+		if( parentDlg ){ InvalidateRect( parentDlg, NULL, FALSE ); UpdateWindow( parentDlg ); }
+		InvalidateRect( hDlg, NULL, FALSE ); UpdateWindow( hDlg );
+	}
+}
+
+// WM_LBUTTONDOWN arm for the description scrollbar. Action codes are the ones
+// GetScrollAction hands every other list: 1 up-arrow, 2 down-arrow, 3 page up, 4 page down.
+static bool ClsDescHandleScrollClick( HWND hDlg, int cursorX, int cursorY )
+{
+	const HWND scroll = GetDlgItem( hDlg, ID_DESC_SCROLL );
+	if( !scroll || !IsWindowVisible( scroll ) ) return false;
+	if( !CheckCursorOnButton( hDlg, scroll, cursorX, cursorY ) ) return false;
+	const int act = GetScrollAction( scroll, cursorX, cursorY );
+	switch( act ){
+		case 1: ClsDescScrollBy( hDlg, -1 ); break;
+		case 2: ClsDescScrollBy( hDlg, +1 ); break;
+		case 3: ClsDescScrollBy( hDlg, -g_ClsDescPage ); break;
+		case 4: ClsDescScrollBy( hDlg, +g_ClsDescPage ); break;
+		default: break;   // 5 = thumb drag, not supported
+	}
+	return true;
+}
+
 int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPARAM lParam )
 {
 	int result;
@@ -7077,6 +7990,7 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
         ID_SUBCLASS_ASSASSIN,
         ID_SUBCLASS_IRON_MAIDEN,
         ID_SUBCLASS_BOMBARDIER,
+		ID_SUBCLASS_GLADIATRIX,
         ID_SUBCLASS_SAVAGE,
         ID_SUBCLASS_BERSERKER,
         ID_SUBCLASS_EXECUTIONER,
@@ -7111,11 +8025,1745 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
 	switch( Msg ){
 		case WM_INITDIALOG:
 		{
+			InitScroll( hDlg, ID_DESC_SCROLL );                          // (th4) description scrollbar
+			ShowWindow( GetDlgItem( hDlg, ID_DESC_SCROLL ), SW_HIDE );   // shown by the first draw if needed
 			char tempBuf[32];
 			LoadStringA( HInstance, NewHeroTitle(), tempBuf, 31 );
+			// (th4) Localize ALL six titles. The per-language blocks below handle only
+			// single-player, so everything else (Dark Campaign, Coliseum, Classic,
+			// Outbreak) used to fall through to the English resource text.
+			if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );
+			if( GameLanguage == LANG_RU && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "\x8D\x8E\x82\x9B\x89 \x83\x85\x90\x8E\x89 - \x8E\x84\x88\x8D \x88\x83\x90\x8E\x8A" ); // NOVYJ GEROJ - ODIN IGROK
+			}
+			// (th4) Indonesian title (plain ASCII, ID atlas renders it directly).
+			if( GameLanguage == LANG_ID && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Pahlawan Baru Pemain Tunggal" );
+			}
+			// (th4) Portuguese title (ASCII-folded, meta DiabloFont renders directly).
+			if( GameLanguage == LANG_PT && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Novo Heroi Um Jogador" );
+			}
+			// (th4) Spanish title (real accents, stock meta atlas).
+			if( GameLanguage == LANG_ES && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Nuevo H\xE9roe Un Jugador" );
+			}
+			// (th4) Italian title (ASCII-folded, meta DiabloFont renders directly).
+			if( GameLanguage == LANG_IT && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Nuovo Eroe Giocatore Singolo" );
+			}
+			// (th4) French title (ASCII-folded, meta DiabloFont renders directly).
+			if( GameLanguage == LANG_FR && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Nouveau Heros Un Joueur" );
+			}
+			// (th4) Polish title (real CP1250 diacritics via the Polish meta atlas).
+			if( GameLanguage == LANG_PL && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Nowy Bohater - Gra Pojedyncza" ); // 29 chars, fits tempBuf[32]
+			}
+			// (th4) Danish title (ASCII-folded, meta DiabloFont renders directly).
+			if( GameLanguage == LANG_DA && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, "Ny helt - enkeltspiller" ); // 23 chars, fits tempBuf[32]
+			}
+			// (th4) Chinese title. Taken from OVL_MENU rather than hardcoded, the way the
+			// Traits dialog does it -- one source for the string, and the dialog fonts
+			// carry the CJK sheet so it renders directly.
+			if( GameLanguage == LANG_CHI && NewHeroTitle() == STR_31_New_hero_single ){
+				strcpy( tempBuf, LMenu( "New Hero Single Player" ) );
+			}
+			// (th4) Korean. Same approach as Chinese -- pull from OVL_MENU so the string
+			// lives in one place, and the dialog fonts carry the Korean sheet. Unlike the
+			// other languages the MULTI-player title is covered too: no localization had
+			// ever overridden STR_32, so every language shows English on that screen.
+			// (th4) Danish joins Korean here: DA_Menu carries the multiplayer title row too,
+			// so both screens localise. The single-player title is already set above for DA
+			// from a hardcoded literal, and this assignment is identical, so order is moot.
+			if( GameLanguage != LANG_EN ){
+				if( const char* t = NewHeroTitleText() ) strcpy( tempBuf, t );   // (th4) all six titles
+			}
 			WriteAndDrawDialogTitle( GetParent( hDlg ), tempBuf );
 			SetWindowLongA( hDlg, GWL_USERDATA, (LONG)GetWindowLongA( GetParent( hDlg ), GWL_USERDATA ) );
 			InitButtonListProc( hDlg, buttons );
+			// (th4) DARK CAMPAIGN button labels. English literals through LMenu, exactly like the
+			// rest of the menu strings -- the translations live in the Localization*.cpp overlays.
+			// Placed before the per-language blocks below, which are gated off for DC so they
+			// cannot overwrite these; their caption/OK/Cancel still localise normally.
+			if( GameMode == GM_DARK_CAMPAIGN ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), LMenu("Warmonger") );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), LMenu("Hunter") );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), LMenu("Heretic") );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), LMenu("Zealot") );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), LMenu("Renegade") );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), LMenu("Brute") );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR    ), LMenu("Fallen Warrior") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), LMenu("Tormentor") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN   ), LMenu("Dark Knight") );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER       ), LMenu("Poacher") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT        ), LMenu("Stalker") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), LMenu("Headhunter") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER      ), LMenu("Snarer") );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE    ), LMenu("Occultist") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), LMenu("Diabolist") );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK    ), LMenu("Apostate") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI  ), LMenu("Bloodblade") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), LMenu("Oni") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), LMenu("Nukenin") );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE       ), LMenu("Brigand") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN    ), LMenu("Cutthroat") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), LMenu("Iron Widow") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER  ), LMenu("Grenadier") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX  ), LMenu("Gladiatrix") );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE      ), LMenu("Ravager") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER   ), LMenu("Bloodrager") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), LMenu("Executioner") );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID       ), LMenu("Shapeshifter") );
+						break;
+					}
+				}
+			}
+			// RU: caption / OK / Cancel / class+subclass buttons. Set control text
+			// BEFORE InitButtonListText so it is picked up, like the title menu.
+			// Atlas byte = CP1251-0x40 (same encoding the working main menu uses).
+			if( GameLanguage == LANG_RU ){
+				switch( ClassSelectionMode ){
+				case CSM_SUBCLASS:      SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x9B\x81\x8E\x90 \x8F\x8E\x84\x8A\x8B\x80\x91\x91\x80" ); break; // VYBOR PODKLASSA
+					case CSM_SPECIALIZATION:SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x9B\x81\x8E\x90 \x91\x8F\x85\x96\x88\x80\x8B\x88\x87\x80\x96\x88\x88" ); break; // VYBOR SPECIALIZACII
+					default:                SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x9B\x81\x8E\x90 \x8A\x8B\x80\x91\x91\x80" ); break; // VYBOR KLASSA
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\x8E\x92\x8C\x85\x8D\x80" ); // OTMENA
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\x82\x8E\x88\x8D" ); // VOIN
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "\x8B\x93\x97\x8D\x88\x8A" ); // LUCHNIK
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "\x8C\x80\x83" ); // MAG
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "\x8C\x8E\x8D\x80\x95" ); // MONAH
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "\x90\x80\x87\x81\x8E\x89\x8D\x88\x8A" ); // RAZBOJNIK
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "\x84\x88\x8A\x80\x90\x9C" ); // DIKAR
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\x82\x8E\x88\x8D" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\x88\x8D\x8A\x82\x88\x87\x88\x92\x8E\x90" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\x91\x92\x90\x80\x86" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\x92\x80\x8C\x8F\x8B\x88\x85\x90" );
+						break;
+					case PC_1_ARCHER:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\x8B\x93\x97\x8D\x88\x96\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\x90\x80\x87\x82\x85\x84\x97\x88\x96\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\x91\x8D\x80\x89\x8F\x85\x90" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\x8B\x8E\x82\x93\x98\x8D\x88\x96\x80" );
+						break;
+					case PC_2_MAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\x8C\x80\x83" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\x91\x92\x88\x95\x88\x89\x8D\x88\x8A" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\x8F\x90\x88\x87\x9B\x82\x80\x92\x85\x8B\x9C \x3E" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\x97\x85\x90\x8D\x8E\x8A\x8D\x88\x86\x8D\x88\x8A" );
+						break;
+					case PC_3_MONK:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\x8C\x8E\x8D\x80\x95" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\x8A\x85\x8D\x91\x85\x89" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\x91\x9E\x83\x8E\x8A\x88" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\x91\x88\x8D\x8E\x81\x88" );
+						break;
+					case PC_4_ROGUE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\x90\x80\x87\x81\x8E\x89\x8D\x88\x96\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\x80\x91\x91\x80\x91\x88\x8D" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\x86\x85\x8B\x85\x87\x8D\x80\x9F \x84\x85\x82\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\x81\x8E\x8C\x81\x80\x90\x84\x88\x90" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\x83\x8B\x80\x84\x88\x80\x92\x90\x88\x8A\x91" );
+						break;
+					case PC_5_SAVAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\x84\x88\x8A\x80\x90\x9C" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\x81\x85\x90\x91\x85\x90\x8A" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\x8F\x80\x8B\x80\x97" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\x83\x8B\x80\x84\x88\x80\x92\x8E\x90 \x3E" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\x84\x90\x93\x88\x84" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\x84\x85\x8C\x8E\x8D\x8E\x8B\x8E\x83" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\x8D\x85\x8A\x90\x8E\x8C\x80\x8D\x92" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\x8F\x8E\x82\x85\x8B\x88\x92\x85\x8B\x9C \x87\x82\x85\x90\x85\x89" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\x92\x90\x80\x8A\x91" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\x8C\x93\x90\x8C\x88\x8B\x8B\x8E\x8D" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\x84\x88\x8C\x80\x95\x85\x90" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\x91\x85\x8A\x93\x92\x8E\x90" );
+					}
+				}
+			}
+// (th4) Bulgarian, cloned from the Russian block above. These menu strings are
+// hardcoded here rather than in LocalizationBG.cpp and use the META atlas
+// (0x80-0x9F, caps-only), not CP1251. Without this block BG fell through to the
+// English fallback -- which the meta atlas CAN render, so the menu showed English.
+if( GameLanguage == LANG_BG ){
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:      SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x88\x87\x81\x8e\x90 \x8d\x80 \x8f\x8e\x84\x8a\x8b\x80\x91" ); break; // VYBOR PODKLASSA
+					case CSM_SPECIALIZATION:SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x88\x87\x81\x8e\x90 \x8d\x80 \x91\x8f\x85\x96\x88\x80\x8b\x88\x87\x80\x96\x88\x9f" ); break; // VYBOR SPECIALIZACII
+					default:                SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x88\x87\x81\x8e\x90 \x8d\x80 \x8a\x8b\x80\x91" ); break; // VYBOR KLASSA
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\x8e\x92\x8a\x80\x87" ); // OTMENA
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\x82\x8e\x88\x8d" ); // VOIN
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "\x91\x92\x90\x85\x8b\x85\x96" ); // LUCHNIK
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "\x8c\x80\x83" ); // MAG
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "\x8c\x8e\x8d\x80\x95" ); // MONAH
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "\x90\x80\x87\x81\x8e\x89\x8d\x88\x8a" ); // RAZBOJNIK
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "\x84\x88\x82\x80\x8a" ); // DIKAR
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\x82\x8e\x88\x8d" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\x88\x8d\x8a\x82\x88\x87\x88\x92\x8e\x90" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\x91\x92\x90\x80\x86" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\x92\x80\x8c\x8f\x8b\x88\x85\x90" );
+						break;
+					case PC_1_ARCHER:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\x91\x92\x90\x85\x8b\x8a\x88\x8d\x9f" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\x90\x80\x87\x93\x87\x8d\x80\x82\x80\x97\x8a\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\x91\x8d\x80\x89\x8f\x85\x90\x88\x91\x92\x8a\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\x8a\x80\x8f\x80\x8d\x84\x86\x88\x89\x8a\x80" );
+						break;
+					case PC_2_MAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\x8c\x80\x83" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\x91\x92\x88\x95\x88\x89\x8d\x88\x8a" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\x8f\x90\x88\x87\x8e\x82\x80\x92\x85\x8b >" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\x97\x85\x90\x8d\x8e\x8a\x8d\x88\x86\x8d\x88\x8a" );
+						break;
+					case PC_3_MONK:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\x8c\x8e\x8d\x80\x95" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\x8a\x85\x8d\x91\x85\x89" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\x98\x93\x83\x8e\x8a\x88" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\x98\x88\x8d\x8e\x81\x88" );
+						break;
+					case PC_4_ROGUE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\x90\x80\x87\x81\x8e\x89\x8d\x88\x97\x8a\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\x80\x91\x80\x91\x88\x8d\x8a\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\x86\x85\x8b\x9f\x87\x8d\x80 \x84\x85\x82\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\x81\x8e\x8c\x81\x80\x90\x84\x88\x90\x8a\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\x83\x8b\x80\x84\x88\x80\x92\x90\x88\x8a\x91" );
+						break;
+					case PC_5_SAVAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\x84\x88\x82\x80\x8a" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\x81\x85\x90\x91\x85\x90\x8a" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\x8f\x80\x8b\x80\x97" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\x83\x8b\x80\x84\x88\x80\x92\x8e\x90 >" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\x84\x90\x93\x88\x84" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\x84\x85\x8c\x8e\x8d\x8e\x8b\x8e\x83" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\x8d\x85\x8a\x90\x8e\x8c\x80\x8d\x92" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\x8f\x8e\x82\x85\x8b\x88\x92\x85\x8b \x8d\x80 \x87\x82\x85\x90\x8e\x82\x85" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\x92\x90\x80\x8a\x91" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\x8c\x93\x90\x8c\x88\x8b\x8e\x8d" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\x84\x88\x8c\x80\x95\x85\x90" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\x91\x85\x8a\x93\x92\x8e\x90" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_UK ){ // (th4) Ukrainian: META atlas (CP1251-0x40), caps only
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:           SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x88\x81I\x90 \x8FI\x84\x8A\x8B\x80\x91\x93" ); break; // VYBIR PIDKLASU
+					case CSM_SPECIALIZATION:     SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x88\x81I\x90 \x91\x8F\x85\x96I\x80\x8BI\x87\x80\x96II" ); break; // VYBIR SPECIALIZACII
+					default:                SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\x82\x88\x81I\x90 \x8A\x8B\x80\x91\x93" ); break; // VYBIR KLASU
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\x91\x8A\x80\x91\x93\x82\x80\x92\x88" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\x82\x8EI\x8D" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "\x8B\x93\x97\x8D\x88\x96\x9F" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\x8C\x80\x83" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "\x97\x85\x90\x8D\x85\x96\x9C" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "\x90\x8E\x87\x81I\x89\x8D\x88\x96\x9F" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "\x84\x88\x8A\x93\x8D" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\x82\x8EI\x8D" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "I\x8D\x8A\x82I\x87\x88\x92\x8E\x90" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\x82\x80\x90\x92\x8E\x82\x88\x89" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\x92\x80\x8C\x8F\x8BI\x85\x90" );
+						break;
+					case PC_1_ARCHER:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\x8B\x93\x97\x8D\x88\x96\x9F" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\x90\x8E\x87\x82I\x84\x8D\x88\x96\x9F" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\x91\x8D\x80\x89\x8F\x85\x90\x8A\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\x8F\x80\x91\x92\x8A\x80\x90\x8A\x80" );
+						break;
+					case PC_2_MAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\x8C\x80\x83" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\x91\x92\x88\x95I\x89\x8D\x88\x8A" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\x8F\x90\x88\x8A\x8B\x88\x8A\x80\x97 >" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\x97\x8E\x90\x8D\x8E\x8A\x8D\x88\x86\x8D\x88\x8A" );
+						break;
+					case PC_3_MONK:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\x97\x85\x90\x8D\x85\x96\x9C" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\x8A\x85\x8D\x91\x85\x89" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\x91\x9E\x83\x8E\x8AI" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\x91\x88\x8D\x8E\x81I" );
+						break;
+					case PC_4_ROGUE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\x90\x8E\x87\x81I\x89\x8D\x88\x96\x9F" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\x80\x91\x80\x91\x88\x8D\x8A\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\x87\x80\x8BI\x87\x8D\x80 \x84I\x82\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\x81\x8E\x8C\x81\x80\x90\x84\x88\x90\x8A\x80" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\x83\x8B\x80\x84I\x80\x92\x90\x88\x91\x80" );
+						break;
+					case PC_5_SAVAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\x84\x88\x8A\x93\x8D" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\x81\x85\x90\x91\x85\x90\x8A" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\x8A\x80\x92" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\x83\x8B\x80\x84I\x80\x92\x8E\x90 >" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\x84\x90\x93I\x84" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\x84\x85\x8C\x8E\x8D\x8E\x8B\x8E\x83" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\x8D\x85\x8A\x90\x8E\x8C\x80\x8D\x92" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\x8F\x8E\x82\x85\x8B\x88\x92\x85\x8B\x9C \x87\x82I\x90I\x82" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\x92\x90\x80\x8A\x91" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\x8C\x93\x90\x8CI\x8B\x8B\x8E\x8D" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\x84I\x8C\x80\x95\x85\x90" );
+			SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\x91\x85\x8A\x93\x92\x8E\x90" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_JA ){ // (th4) Japanese: REAL EUC-JP, not the meta atlas.
+				// Font42/30/24/16 all have grid sheets from TH4loc_jpn.mor, so this dialog
+				// resolves EUC-JP pairs directly. Same reason JA_Menu is not atlas-encoded.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:			 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA5\xB5\xA5\xD6\xA5\xAF\xA5\xE9\xA5\xB9\xA4\xCE\xC1\xAA\xC2\xF2" ); break;
+					case CSM_SPECIALIZATION:	 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xC0\xEC\xCC\xE7\xA4\xCE\xC1\xAA\xC2\xF2" ); break;
+					default:				 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA5\xAF\xA5\xE9\xA5\xB9\xA4\xCE\xC1\xAA\xC2\xF2" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xBC\xE8\xBE\xC3" );
+			if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\xC0\xEF\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "\xBC\xCD\xBC\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\xCB\xE2\xBD\xD1\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "\xBD\xA4\xC6\xBB\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "\xC5\xF0\xC2\xB1" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "\xCC\xEE\xBF\xCD" );
+			}
+			else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+				switch( NewSaveInfo.Class ){
+				case PC_0_WARRIOR:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\xC0\xEF\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\xBF\xB3\xCC\xE4\xB4\xB1" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xBC\xE9\xB8\xEE\xBC\xD4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\xC0\xBB\xC6\xB2\xB5\xB3\xBB\xCE" );
+					break;
+				case PC_1_ARCHER:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xBC\xCD\xBC\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\xC0\xCD\xB8\xF5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\xC1\xC0\xB7\xE2\xBC\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\xE6\xAB\xBB\xC8\xA4\xA4" );
+					break;
+				case PC_2_MAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xCB\xE2\xBD\xD1\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\xB8\xB5\xC1\xC7\xBD\xD1\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\xBE\xA4\xB4\xAD\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xCB\xE2\xC6\xBB\xBB\xD5" );
+					break;
+				case PC_3_MONK:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\xBD\xA4\xC6\xBB\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\xB7\xF5\xC0\xBB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\xBC\xE9\xB8\xEE\xB5\xB4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\xC7\xA6" );
+					break;
+				case PC_4_ROGUE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xC5\xF0\xC2\xB1" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\xB0\xC5\xBB\xA6\xBC\xD4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xC5\xB4\xA4\xCE\xBD\xE8\xBD\xF7" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\xC7\xFA\xB7\xE2\xBC\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\xBD\xF7\xC6\xAE\xBB\xCE" );
+					break;
+				case PC_5_SAVAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\xCC\xEE\xBF\xCD" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\xB6\xB8\xC0\xEF\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\xBD\xE8\xB7\xBA\xBF\xCD" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\xC6\xAE\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\xA5\xC9\xA5\xEB\xA5\xA4\xA5\xC9" );
+					break;
+				}
+			}
+			else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+				if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\xB0\xAD\xCB\xE2\xB3\xD8\xBC\xD4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\xBB\xE0\xCE\xEE\xBD\xD1\xBB\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\xBD\xC3\xBB\xC8\xA4\xA4" );
+				}
+				else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\xA5\xC8\xA5\xE9\xA5\xA8\xA5\xAF\xA5\xB9" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\xA5\xE0\xA5\xEB\xA5\xDF\xA5\xC3\xA5\xED" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\xA5\xC7\xA5\xA3\xA5\xDE\xA5\xAB\xA5\xA8\xA5\xEB\xA5\xB9" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\xA5\xBB\xA5\xAF\xA5\xC8\xA5\xEB" );
+				}
+			}
+			}
+			else if( GameLanguage == LANG_HIN ){
+				// (th4) HINDI. Owner-drawn like every meta dialog: SetWindowTextA only stores
+				// the bytes and DrawFontString renders them from the Hindi meta sheets, so the
+				// pack encoding is correct here and Windows never interprets these bytes.
+				// STRUCTURE copied from the AR block and only the strings swapped, so no
+				// control and no mode branch can be missed -- that is exactly how the JA
+				// dialog lost 39 of its 44 controls the first time round.
+				// Every label is the literal HIN_Ui already ships, so the dialog, the info
+				// panel and the character screen all read the same.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA1\xA5\xA8\xD4\xAC\xC7\xAE\xD9 \xA3\xA6\xA8\xA8" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xAC\xCD\xAC\xFD\xAD\xAB\xAE\xD1\xA4\xC0\xA6\xCD \xA3\xA6\xA8\xA8" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xAC\xC7\xAE\xD9 \xA3\xA6\xA8\xA8" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xA5\xAD\xA1\xB1" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xAA\xDE\xB0\xF2" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\xAA\xD8\xAF\xBA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "\xA9\xDF\xB1\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "\xA3\xB5\xAA\xDE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "\xA3\xDD\xA1\xF3\xAB\xCB" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\xAA\xD8\xAF\xBA" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\xA7\xCF\xAE\xF4\xAE\xCC\xAA\xC0\xAA\xC6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xAD\xCD\xAA\xDE\xAE\xE1\xA1\xB1" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\xA4\xF6\xAE\xC9\xA8\xD4\xAB\xC2\xAA\xDE" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\xA1\xB1\xAC\xEB\xB0\xC2" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\xA7\xF6\xAC\xEB\xA8\xA7\xA9\xBB\xA3\xDC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\xA8\xF6\xA7\xC3\xA9\xBB\xA3\xDC" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\xA6\xCA\xAE\xDA\xAC\xC7\xAC\xDC\xAE\xE5" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\xA1\xA2\xB0\xFB\xA7\xF0\xA1\xB1\xAF\xE4 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xA9\xFA\xAE\xCC\xAE\xC4\xAD\xCF\xA7\xCF\xA1\xB1" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\xA9\xDF\xB1\xA8" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\xA1\xC6\xA7\xF0\xAD\xE1\xA1\xA3" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\xAC\xF4\xA2\xB0\xA1\xB7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\xAC\xEE\xA8\xAD\xA9\xBE" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xA3\xB5\xAA\xDE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\xAD\xED\xAE\xDA\xAA\xC0\xAA\xE1" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xAB\xE0\xAD\xED \xA1\xB1\xAE\xCC\xAA\xC0" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\xA2\xB0\xAB\xC2\xAE\xCC\xA7\xB1\xA3\xDC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\xA9\xFA\xAE\xCF\xAB\xC2\xAA\xD8\xAF\xBA" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\xA3\xDD\xA1\xF3\xAB\xCB" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\xA1\xA5\xAE\xCC\xA9\xFA\xAE\xD6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\xA3\xDC\xAE\xCF\xAB\xC5\xA7\xAE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\xA9\xFA\xAE\xCF\xAB\xC2 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\xB0\xF4\xA1\xA3\xA7\xAE" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\xA7\xB1\xA7\xF0\xAC\xC7\xAC\xEB\xAE\xC3\xAF\xC0" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\xAA\xAE\xA6\xCA\xA1\xB1\xAD\xCF\xA7\xCF\xA1\xB1" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\xA8\xD4\xAC\xF4\xAE\xC3\xAC\xCA\xAA\xA5" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\xB1\xAC\xAE\xBD\xAD\xCC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\xAA\xA8\xB1\xA6\xAB\xDD" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\xA7\xB4\xA9\xFD\xA1\xC6\xAA\xDE\xAD\xCC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\xAD\xE1\xA1\xBD\xA6\xE5\xAA\xDE" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_AR ){
+				// (th4) ARABIC. Owner-drawn like every meta dialog: SetWindowTextA only stores
+				// the bytes and DrawFontString renders them from font42a/30a/24a/16a, shaping and
+				// reordering on the way. The block STRUCTURE is copied from the JA one and only
+				// the strings are swapped, so no control and no mode branch can be missed --
+				// that is exactly how the JA dialog lost 39 of its 44 controls the first time.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:			 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA1\xA7\xA1\xAE\xA1\xAA\xA1\xC4\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xB1\xA1\xB9\xA1\xC4\xA1\xA9" ); break;
+					case CSM_SPECIALIZATION:	 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA1\xA7\xA1\xAE\xA1\xAA\xA1\xC4\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xAE\xA1\xB5\xA1\xB5" ); break;
+					default:				 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xA1\xA7\xA1\xAE\xA1\xAA\xA1\xC4\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xA1\xBF\xA1\xC2\xA1\xA7\xA1\xBB\xA1\xBC" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xA1\xA5\xA1\xBE\xA1\xBA\xA1\xA7\xA1\xA1" );
+			if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "\xA1\xB1\xA1\xA7\xA1\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "\xA1\xBE\xA1\xB5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4" );
+			}
+			else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+				switch( NewSaveInfo.Class ){
+				case PC_0_WARRIOR:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\xA1\xBF\xA1\xAD\xA1\xBC\xA1\xBC" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xB3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\xA1\xBB\xA1\xA7\xA1\xB1\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xA8\xA1\xAF" );
+					break;
+				case PC_1_ARCHER:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xA1\xB1\xA1\xA7\xA1\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\xA1\xBD\xA1\xB4\xA1\xA7\xA1\xBB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\xA1\xBC\xA1\xC0\xA1\xA7\xA1\xB5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xAE\xA1\xA7\xA1\xAE" );
+					break;
+				case PC_2_MAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xC4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xA1\xBF\xA1\xB4\xA1\xB9\xA1\xC2\xA1\xB0" );
+					break;
+				case PC_3_MONK:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\xA1\xBD\xA1\xC4\xA1\xC0\xA1\xB3\xA1\xC4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\xA1\xB4\xA1\xC2\xA1\xBA\xA1\xC2\xA1\xBD\xA1\xC4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\xA1\xB4\xA1\xC4\xA1\xC0\xA1\xC2\xA1\xA8\xA1\xC4" );
+					break;
+				case PC_4_ROGUE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xA1\xBE\xA1\xB5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xA1\xA7\xA1\xBE\xA1\xB9\xA1\xB0\xA1\xB1\xA1\xA7\xA1\xA1 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xAF\xA1\xC4\xA1\xAF\xA1\xC4\xA1\xA9" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\xA1\xBC\xA1\xA7\xA1\xB0\xA1\xBB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\xA1\xBF\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9\xA1\xA9" );
+					break;
+				case PC_5_SAVAGE:
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xB4\xA1\xC4\xA1\xB7" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\xA1\xAC\xA1\xBE\xA1\xA7\xA1\xAF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\xA1\xBF\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\xA1\xAF\xA1\xB1\xA1\xC2\xA1\xC4\xA1\xAF" );
+					break;
+				}
+			}
+			else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+				if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\xA1\xAE\xA1\xA8\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB1\xA1\xC2\xA1\xA7\xA1\xAD" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4" );
+				}
+				else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\xA1\xAB\xA1\xB1\xA1\xA7\xA1\xBD\xA1\xB3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\xA1\xBF\xA1\xC2\xA1\xB1\xA1\xBF\xA1\xC4\xA1\xBE\xA1\xC2" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\xA1\xAF\xA1\xC4\xA1\xBF\xA1\xA7\xA1\xBD\xA1\xC4\xA1\xB1\xA1\xC2\xA1\xB3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC2\xA1\xAA\xA1\xC2\xA1\xB1" );
+				}
+			}
+			}
+		// (th4) Indonesian: Choose Class / Subclass / Specialization screens.
+			// Plain ASCII -> ID atlas renders directly.
+			else if( GameLanguage == LANG_ID ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Pilih Kelas" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Batal" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Ksatria" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "Pemanah" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Penyihir" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Biksu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "Bandit" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Barbar" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Pilih Subkelas" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Batal" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Ksatria" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inkuisitor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Penjaga" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templar" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Pemanah" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Pengintai" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Penembak Jitu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Penjebak" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Penyihir" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalis" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Pemanggil >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Warlock" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Biksu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Bandit" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Asasin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Iron Maiden" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardir" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrix" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Barbar" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Algojo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druid" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Pilih Spesialisasi" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Batal" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonolog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromanser" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Penjinak Buas" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Spanish: Choose Class / Subclass / Specialization screens.
+			// Plain ASCII -> the meta DiabloFont atlas renders it directly, so no
+			// CP1251-style byte remapping is needed (unlike the LANG_RU branch above).
+			// The trailing "> " on Invocador / Gladiador marks a button that opens a
+			// further screen; it is part of the English label and must be kept.
+			else if( GameLanguage == LANG_ES ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Elegir Clase" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Volver" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Guerrero" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "Arquero" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Mago" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Monje" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "P\xED""cara" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Salvaje" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Elegir Subclase" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Volver" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Guerrero" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisidor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Guardi\xE1n" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templario" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Arquera" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Exploradora" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Tiradora" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Trampera" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mago" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalista" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Invocador >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Brujo" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Monje" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "P\xED""cara" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Asesina" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Dama de Hierro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardera" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatriz" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Salvaje" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Verdugo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiador >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druida" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Elegir Especializaci\xF3n" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Volver" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demon\xF3logo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nigromante" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Amo de Bestias" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Korean: Choose Class / Subclass / Specialization screens. Real EUC-KR --
+			// these dialogs draw through Font16/24/30, which carry the Korean grid sheet
+			// (LoadChiSheet, Hell.cpp), so all 2350 Wansung syllables are available. The
+			// trailing "> " on the Summoner and Gladiator buttons marks a button that opens
+			// a further screen and is kept exactly as in the English labels.
+			// (th4) Korean: Choose Class / Subclass / Specialization. Real EUC-KR -- these
+			// dialogs draw through Font16/24/30, which carry the Korean grid sheet.
+			// NOTE the label lines are padded to different widths, so the id must be matched
+			// with \s* around the ')'. A stricter pattern silently leaves the copied Spanish
+			// text in place on every padded line.
+			else if( GameLanguage == LANG_KO ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xC1\xF7\xBE\xF7 \xBC\xB1\xC5\xC3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xAE\xC0\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC3\xEB\xBC\xD2" );
+					// (th4) DC keeps the villain names set above; only caption/OK/Cancel are shared.
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\xC0\xFC\xBB\xE7" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "\xB1\xC3\xBC\xF6" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "\xB8\xB6\xB9\xFD\xBB\xE7" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "\xBC\xF6\xB5\xB5\xBD\xC2" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "\xB5\xB5\xC0\xFB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "\xBE\xDF\xB8\xB8\xC0\xCE" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xBC\xBC\xBA\xCE \xC1\xF7\xBE\xF7 \xBC\xB1\xC5\xC3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xAE\xC0\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC3\xEB\xBC\xD2" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\xC0\xFC\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\xBD\xC9\xB9\xAE\xB0\xFC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xBC\xF6\xC8\xA3\xB1\xE2\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\xBC\xBA\xC0\xFC\xBB\xE7" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xB1\xC3\xBC\xF6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\xC1\xA4\xC2\xFB\xBA\xB4" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\xB8\xED\xBB\xE7\xBC\xF6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\xB5\xA3\xBB\xE7\xB3\xC9\xB2\xDB" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xB8\xB6\xB9\xFD\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\xBF\xF8\xBC\xD2\xBC\xFA\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\xBC\xD2\xC8\xAF\xBC\xFA\xBB\xE7 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xC8\xE6\xB8\xB6\xB9\xFD\xBB\xE7" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\xBC\xF6\xB5\xB5\xBD\xC2" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\xB0\xCB\xBC\xBA" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\xBC\xF6\xC8\xA3\xB1\xCD" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\xBD\xC3\xB3\xEB\xBA\xF1" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xB5\xB5\xC0\xFB" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\xBE\xCF\xBB\xEC\xC0\xDA" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xB0\xAD\xC3\xB6 \xC3\xB3\xB3\xE0" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\xC6\xF8\xB0\xDD\xBA\xB4" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\xBF\xA9\xB0\xCB\xC5\xF5\xBB\xE7" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\xBE\xDF\xB8\xB8\xC0\xCE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\xB1\xA4\xC0\xFC\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\xC3\xB3\xC7\xFC\xC0\xCE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\xB0\xCB\xC5\xF5\xBB\xE7 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\xB5\xE5\xB7\xE7\xC0\xCC\xB5\xE5" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xC0\xFC\xB9\xAE\xC8\xAD \xBC\xB1\xC5\xC3" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xAE\xC0\xCE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC3\xEB\xBC\xD2" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\xBE\xC7\xB8\xB6\xC7\xD0\xC0\xDA" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\xB0\xAD\xB7\xC9\xBC\xFA\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\xBE\xDF\xBC\xF6\xC1\xB6\xB7\xC3\xBB\xE7" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\xC6\xAE\xB6\xF3\xBF\xA2\xBD\xBA" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\xB9\xAB\xB8\xA3\xB9\xD0\xB7\xCE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\xBD\xD6\xB0\xCB\xC5\xF5\xBB\xE7" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\xBC\xBC\xC4\xED\xC5\xE4\xB8\xA3" );
+					}
+				}
+			}
+			// (th4) Italian: Choose Class / Subclass / Specialization screens.
+			// Plain ASCII -> the meta DiabloFont atlas renders it directly. The
+			// trailing "> " on Evocatore / Gladiatore marks a button that opens a
+			// further screen; it is part of the English label and must be kept.
+			else if( GameLanguage == LANG_IT ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Scegli Classe" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annulla" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Guerriero" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "Arciere" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Mago" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Monaco" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "Furfante" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Selvaggio" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Scegli Sottoclasse" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annulla" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Guerriero" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisitore" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Guardiano" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templare" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Arciera" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Esploratrice" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Tiratrice Scelta" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Trappolatrice" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mago" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalista" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Evocatore >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Stregone" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Monaco" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Furfante" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Assassina" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Vergine di Ferro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardiera" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrice" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Selvaggio" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Giustiziere" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiatore >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druido" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Scegli Specializzazione" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annulla" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonologo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Negromante" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Domabestie" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Chinese: Choose Class / Subclass / Specialization screens.
+			// GB2312 bytes go straight through: the dialog fonts now carry a CJK grid sheet
+			// (ui_art\\fontNNc.pcx), so DrawFontString resolves pairs itself -- no CP1251-style
+			// byte remapping like the LANG_RU branch, and no ASCII folding like LANG_ES.
+			// The trailing " >" on Summoner / Gladiator marks a button that opens a further
+			// screen; it is part of the label and is kept, exactly as the other locs keep it.
+			else if( GameLanguage == LANG_CHI ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xD1\xA1\xD4\xF1\xD6\xB0\xD2\xB5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xB7\xB6\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC8\xA1\xCF\xFB" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "\xD5\xBD\xCA\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "\xB9\xAD\xBC\xFD\xCA\xD6" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\xB7\xA8\xCA\xA6" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "\xCE\xE4\xC9\xAE" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "\xB5\xC1\xD4\xF4" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "\xD2\xB0\xC8\xCB" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xD1\xA1\xD4\xF1\xD7\xD3\xD6\xB0\xD2\xB5" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xB7\xB6\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC8\xA1\xCF\xFB" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "\xD5\xBD\xCA\xBF" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "\xC9\xF3\xC5\xD0\xB9\xD9" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xCA\xD8\xBB\xA4\xD5\xDF" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "\xCA\xA5\xB5\xEE\xC6\xEF\xCA\xBF" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xB9\xAD\xBC\xFD\xCA\xD6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "\xB3\xE2\xBA\xF2" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "\xC9\xF1\xC9\xE4\xCA\xD6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "\xCF\xDD\xDA\xE5\xCA\xA6" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xB7\xA8\xCA\xA6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "\xD4\xAA\xCB\xD8\xCA\xA6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "\xD5\xD9\xBB\xBD\xCA\xA6 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xCA\xF5\xCA\xBF" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "\xCE\xE4\xC9\xAE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "\xBD\xA3\xCA\xA5" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "\xCA\xD8\xBB\xA4\xB9\xED" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "\xC8\xCC\xD5\xDF" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xB5\xC1\xD4\xF4" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "\xB4\xCC\xBF\xCD" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xCC\xFA\xB4\xA6\xC5\xAE" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "\xB1\xAC\xC6\xC6\xCA\xD6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "\xC5\xAE\xBD\xC7\xB6\xB7\xCA\xBF" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "\xD2\xB0\xC8\xCB" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "\xBF\xF1\xD5\xBD\xCA\xBF" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "\xB9\xF4\xD7\xD3\xCA\xD6" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "\xBD\xC7\xB6\xB7\xCA\xBF >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "\xB5\xC2\xC2\xB3\xD2\xC1" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "\xD1\xA1\xD4\xF1\xD7\xA8\xBE\xAB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "\xC8\xB7\xB6\xA8" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "\xC8\xA1\xCF\xFB" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "\xB6\xF1\xC4\xA7\xD1\xA7\xD5\xDF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "\xCB\xC0\xC1\xE9\xB7\xA8\xCA\xA6" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "\xD1\xB1\xCA\xDE\xCA\xA6" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "\xC9\xAB\xC0\xD7\xCB\xB9\xB6\xB7\xCA\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "\xD3\xE3\xBF\xF8\xB6\xB7\xCA\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "\xCB\xAB\xBD\xA3\xB6\xB7\xCA\xBF" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "\xD7\xB7\xBB\xF7\xB6\xB7\xCA\xBF" );
+				}
+			}
+			// (th4) French: Choose Class / Subclass / Specialization screens.
+			// ASCII-folded (meta DiabloFont atlas has no accents). The trailing "> "
+			// on Invocateur / Gladiateur marks a button that opens a further screen;
+			// it is part of the English label and must be kept.
+			else if( GameLanguage == LANG_FR ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Choisir la Classe" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annuler" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Guerrier" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "Archer" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Mage" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Moine" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "Voleuse" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Sauvage" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Choisir la Sous-classe" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annuler" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Guerrier" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisiteur" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Gardien" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templier" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Archere" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Eclaireuse" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Tireuse d'Elite" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Piegeuse" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mage" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementaliste" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Invocateur >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Sorcier" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Moine" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Voleuse" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Assassine" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Vierge de Fer" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardiere" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrice" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Sauvage" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Bourreau" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiateur >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druide" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Choisir la Specialisation" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annuler" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonologue" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Necromancien" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Maitre des Betes" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Polish: Choose Class / Subclass / Specialization. REAL CP1250 diacritics
+			// (TH4loc_pol.mor ships the Polish meta atlas), unlike PT/ES/IT/FR which fold here.
+			// Widest button is "W\xB3""adca Zwierz\xB9""t" at 210px; Russian already ships 243px in
+			// this same dialog, so the buttons take it.
+			else if( GameLanguage == LANG_PL ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Wybierz Klas\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Anuluj" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Wojownik" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "\xA3uczniczka" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Mag" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Mnich" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "\xA3otrzyca" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Dzikus" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Wybierz Podklas\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Anuluj" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Wojownik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inkwizytor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Stra\xBFnik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templariusz" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "\xA3uczniczka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Zwiadowczyni" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Snajperka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Traperka" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mag" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalista" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Przyzywacz >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Czarnoksi\xEA\xBFnik" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Mnich" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "\xA3otrzyca" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Asasynka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\xAF""elazna Dziewica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardierka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatorka" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Dzikus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Kat" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druid" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Wybierz Specjalizacj\xEA" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Anuluj" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonolog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromanta" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "W\xB3""adca Zwierz\xB9t" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Croatian: Choose Class / Subclass / Specialization. Full diacritics (meta atlas in TH4loc_hrv.mor);
+			// names = the glossary class names HR_Ui / HR_Menu use.
+			else if( GameLanguage == LANG_HR ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Odaberi klasu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "U redu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Otka\x9Ei" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Ratnik" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Strijelka" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "\xC8""arobnjak" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Redovnik" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Odmetnica" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Divljak" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Odaberi podklasu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "U redu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Otka\x9Ei" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Ratnik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inkvizitor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "\xC8uvar" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templar" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Strijelka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Izvi\xF0""a\xE8ica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Snajperistica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Traperica" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "\xC8""arobnjak" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalist" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Priziva\xE8 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Vje\x9Atac" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Redovnik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Odmetnica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Ubojica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\x8E""eljezna djevica" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombarderka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladijatorica" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Divljak" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Krvnik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladijator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druid" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Odaberi specijalizaciju" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "U redu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Otka\x9Ei" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonolog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromant" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Gospodar zvijeri" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Czech: Choose Class / Subclass / Specialization. Full CP1250 diacritics (the meta
+			// atlas in TH4loc_cze.mor has the Czech cells); names = the glossary class names CS_Ui / CS_Menu use.
+			else if( GameLanguage == LANG_CS ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vyber povol\xE1n\xED" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Zru\x9Ait" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "V\xE1le\xE8n\xEDk" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Lu\xE8i\x9Atnice" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "M\xE1g" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Mnich" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Lot\xF8ice" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Divoch" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vyber podt\xF8\xED""du" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Zru\x9Ait" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "V\xE1le\xE8n\xEDk" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inkvizitor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Str\xE1\x9E""ce" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templ\xE1\xF8" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Lu\xE8i\x9Atnice" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Zv\xEC""dka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Ostrost\xF8""elkyn\xEC" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Traperka" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "M\xE1g" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalista" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Vyvol\xE1va\xE8 >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "\xC8""ernokn\xEC\x9En\xEDk" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Mnich" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Lot\xF8ice" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Asas\xEDnka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "\x8E""elezn\xE1 panna" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombard\xE9rka" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladi\xE1torka" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Divoch" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserkr" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Kat" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladi\xE1tor >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druid" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vyber specializaci" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Zru\x9Ait" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "D\xE9monolog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromant" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "P\xE1n zv\xED\xF8""at" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			// (th4) Portuguese: Choose Class screen only (ASCII-folded, meta DiabloFont).
+			else if( GameLanguage == LANG_PT ){
+				if( ClassSelectionMode == CSM_CLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Escolher Classe" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Cancelar" );
+					if( GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Guerreiro" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER  ), "Arqueiro" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE    ), "Mago" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK    ), "Monge" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE   ), "Ladino" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE  ), "Barbaro" );
+					}
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Escolher Subclasse" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Cancelar" );
+					if( GameMode != GM_DARK_CAMPAIGN ) switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Guerreiro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisidor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Guardiao" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templario" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Arqueiro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Batedor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Franco-Atirador" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Armadilheiro" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mago" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalista" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Invocador >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Bruxo" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Monge" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Ladino" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Assassino" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Dama de Ferro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardeiro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiadora" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Barbaro" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Furioso" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Carrasco" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiador >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druida" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Escolher Especializacao" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Cancelar" );
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonologo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Necromante" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Mestre das Feras" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_DE ){ // (th4) German: ASCII-folded (meta DiabloFont has no accents; ue/ss for umlauts)
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Unterklasse waehlen" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Spezialisierung waehlen" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Klasse waehlen" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Abbrechen" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Krieger" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Bogenschuetze" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "Magier" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Moench" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Schurkin" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Wilder" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Krieger" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisitor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Waechter" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templer" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Bogenschuetzin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Spaeherin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Scharfschuetzin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Fallenstellerin" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Magier" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalist" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Beschwoerer >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Hexenmeister" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Moench" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Schurkin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Assassine" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Eiserne Jungfrau" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardiererin" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatorin" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Wilder" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Berserker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Henker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Gestaltwandler" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Daemonologe" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromant" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Bestienmeister" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_TR ){ // (th4) Turkish: ASCII-folded (meta DiabloFont has no
+				// accents at all, as for PT/ES/IT/FR/DE). G-breve -> g, I-dot -> I, S-cedilla -> s,
+				// C-cedilla -> c, O/U-diaeresis -> o/u. The trailing "> " on Cagirici / Gladyator
+				// marks a button that opens a further screen; it is part of the label and must be kept.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Alt Sinif Sec" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Uzmanlik Sec" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Sinif Sec" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "Tamam" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Iptal" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Savasci" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Okcu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "Buyucu" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Kesis" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Haydut" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Vahsi" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Savasci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Engizisyoncu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Muhafiz" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Tapinak Sovalyesi" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Okcu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Izci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Keskin Nisanci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Tuzakci" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Buyucu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalist" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Cagirici >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Kara Buyucu" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Kesis" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Haydut" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Suikastci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Demir Bakire" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardimanci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Kadin Gladyator" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Vahsi" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Cinnetci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Cellat" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladyator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Sekil Degistiren" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Iblisbilimci" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Olubuyucu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Canavar Ustasi" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_DA ){ // (th4) Danish: ASCII-folded (ae/oe/aa), as for
+				// PT/ES/IT/FR/DE/TR -- this dialog draws from the meta atlas, which Codepage_Danish
+				// does not reach. Class names are the same wording as the DA_Ui rows the character
+				// panel prints, folded here; keeping the two in sync matters because the player sees
+				// both within a few clicks. The trailing "> " on Hidkalder / Gladiator marks a button
+				// that opens a further screen; it is part of the label and must be kept.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vaelg underklasse" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vaelg specialisering" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Vaelg klasse" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annuller" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Kriger" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Bueskytte" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "Magiker" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Munk" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Slyngel" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Vildmand" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Kriger" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inkvisitor" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Vogter" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Tempelridder" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Bueskytte" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Spejder" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Skarpskytte" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Faeldefanger" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Magiker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalist" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Hidkalder >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Troldkarl" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Munk" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Slyngel" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Snigmorder" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Jernjomfru" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombarder" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrix" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Vildmand" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Baersaerk" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Boeddel" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druide" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Daemonolog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Nekromantiker" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Baestemester" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_SW ){
+				// (th4) Swahili. Pure ASCII, so nothing needs folding for the meta atlas.
+				// Class names are IDENTICAL to the SW_Ui / SW_Menu rows the character panel
+				// and creation menu print -- the player sees both within a few clicks, so a
+				// mismatch here reads as a bug. The trailing "> " on Mwitaji / Gladiatori marks
+				// a button that opens a further screen; it is part of the label, keep it.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Chagua tabaka dogo" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Chagua utaalamu" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Chagua tabaka" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "SAWA" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Ghairi" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Shujaa" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Mpiga Upinde" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "Mchawi" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Mtawa" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Mjanja" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Mkatili" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Shujaa" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Mhukumu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Mlinzi" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Templari" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Mpiga Upinde" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Mpelelezi" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Mlengaji" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Mtegaji" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Mchawi" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Mchawi wa Asili" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Mwitaji >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Mlozi" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Mtawa" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Mjanja" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Muuaji" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "Bikira wa chuma" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Mlipuaji" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrix" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Mkatili" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Mkali" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Mnyongaji" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiatori >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druidi" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Mwitaji Pepo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Mwamsha Wafu" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Mfugaji Wanyama" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
+			else if( GameLanguage == LANG_NL ){ // (th4) Dutch: ASCII-folded, as for
+				// PT/ES/IT/FR/DE/TR/DA -- this dialog draws from the meta atlas, which has NO accented
+				// glyphs at all, so the diaeresis Dutch uses elsewhere would draw blank here. Class names are the same wording as the NL_Ui / NL_Menu rows the character
+				// panel prints, folded here; keeping the two in sync matters because the player sees
+				// both within a few clicks. The trailing "> " on Oproeper / Gladiator marks a button
+				// that opens a further screen; it is part of the label and must be kept.
+				switch( ClassSelectionMode ){
+					case CSM_SUBCLASS:       SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Selecteer subklasse" ); break;
+					case CSM_SPECIALIZATION: SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Selecteer specialisatie" ); break;
+					default:                 SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), "Selecteer klasse" ); break;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), "OK" );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), "Annuleren" );
+				if( ClassSelectionMode == CSM_CLASS && GameMode != GM_DARK_CAMPAIGN ){
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_WARRIOR ), "Krijger" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ARCHER ), "Boogschutter" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MAGE ), "Magier" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_MONK ), "Monnik" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_ROGUE ), "Schurk" );
+					SetWindowTextA( GetDlgItem( hDlg, ID_CLASS_SAVAGE ), "Wildeman" );
+				}
+				else if( ClassSelectionMode == CSM_SUBCLASS && GameMode != GM_DARK_CAMPAIGN ){
+					switch( NewSaveInfo.Class ){
+					case PC_0_WARRIOR:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARRIOR ), "Krijger" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_INQUISITOR ), "Inquisiteur" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GUARDIAN ), "Wachter" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TEMPLAR ), "Tempelier" );
+						break;
+					case PC_1_ARCHER:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ARCHER ), "Boogschutter" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SCOUT ), "Verkenner" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHARPSHOOTER ), "Scherpschutter" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_TRAPPER ), "Valzetter" );
+						break;
+					case PC_2_MAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MAGE ), "Magier" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ELEMENTALIST ), "Elementalist" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SUMMONER ), "Oproeper >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_WARLOCK ), "Zwartkunstenaar" );
+						break;
+					case PC_3_MONK:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_MONK ), "Monnik" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_KENSEI ), "Kensei" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHUGOKI ), "Shugoki" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SHINOBI ), "Shinobi" );
+						break;
+					case PC_4_ROGUE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ROGUE ), "Schurk" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_ASSASSIN ), "Sluipmoordenaar" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_IRON_MAIDEN ), "IJzeren maagd" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BOMBARDIER ), "Bombardier" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATRIX ), "Gladiatrix" );
+						break;
+					case PC_5_SAVAGE:
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_SAVAGE ), "Wildeman" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_BERSERKER ), "Razende" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_EXECUTIONER ), "Beul" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_GLADIATOR ), "Gladiator >" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SUBCLASS_DRUID ), "Druide" );
+						break;
+					}
+				}
+				else if( ClassSelectionMode == CSM_SPECIALIZATION ){
+					if( NewSaveInfo.Class == PC_2_MAGE && NewSaveInfo.SubClass == PSC_MAGE_SUMMONER ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DEMONOLOGIST ), "Demonoloog" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_NECROMANCER ), "Necromant" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_BEASTMASTER ), "Beestenmeester" );
+					}
+					else if( NewSaveInfo.Class == PC_5_SAVAGE && NewSaveInfo.SubClass == PSC_SAVAGE_GLADIATOR ){
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_THRAEX ), "Thraex" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_MURMILLO ), "Murmillo" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_DIMACHAERUS ), "Dimachaerus" );
+						SetWindowTextA( GetDlgItem( hDlg, ID_SPECIALIZATION_SECUTOR ), "Secutor" );
+					}
+				}
+			}
 			InitTextElemList( hDlg, ClassElemList, 5 );
 			InitButtonListText( hDlg, ClassElementList, 4, 0 );
 			InitButtonListText( hDlg, buttons, 2, 1 );
@@ -7126,6 +9774,7 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
 			break;
 		}
 		case WM_DESTROY:
+			DeleteScroll( hDlg, ID_DESC_SCROLL );                        // (th4)
 			DeletePentagram();
 			DeleteElementListData( hDlg, buttons );
 			DeleteElementListData( hDlg, ClassElementList );
@@ -7141,11 +9790,34 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
 				SelectButton( (HWND) lParam );
 				AnimateSelectionPentagram( hDlg, (HWND) lParam );
 				
+				// (th4) Only a real selection button may change the selection.
+				// OK, Cancel and the two scrollbars can all take focus, and the code below
+				// happily re-derived Class/SubClass/Specialization from whatever id arrived:
+				// getSubclassIdForButtonId and getSpecializationIdForButtonId both map an
+				// unrecognised button onto their FIRST entry, so a stray focus event silently
+				// moved the player to a different subclass. That changed the description, which
+				// reset the description scroll -- the "every other click" report.
+				switch( (unsigned __int16) wParam ){
+				case ID_OK_BUTTON:
+				case ID_CANCEL_BUTTON:
+				case ID_EXIT_CANCEL_BUTTON:
+				case ID_DESC_SCROLL:
+				case ID_SCROLL:
+				case ID_CAPTION:
+					break;   // not a selection button: leave the selection alone
+				default:
                 switch( ClassSelectionMode )
                 {
                 default://SELECT_CLASS
                     {
-						uchar classId;
+						// (th4) Was declared uninitialised, and the switch below has a
+						// `default: break;` -- so a BN_SETFOCUS from anything that is NOT a
+						// class button (OK, Cancel, or whatever a stray click gives focus to)
+						// wrote GARBAGE into NewSaveInfo.Class. That corrupts the description
+						// index derived from it further down, which is why the class/subclass
+						// description scroll kept snapping back to the top. Default to the
+						// class already selected so an unrecognised focus event is a no-op.
+						uchar classId = NewSaveInfo.Class;
                         switch( (unsigned __int16) wParam ){
                         case ID_CLASS_WARRIOR:					classId = PC_0_WARRIOR;					break;
                         case ID_CLASS_ARCHER:					classId = PC_1_ARCHER;					break;
@@ -7170,7 +9842,9 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
                     }
                     break;
                 }
-				SetHeroInfoText( GetParent( hDlg ), &NewSaveInfo, ClassSelectionMode );
+				SetHeroInfoText( GetParent( hDlg ), &NewSaveInfo, ClassSelectionMode, hDlg );
+				break;   // (th4) end of the "real selection button" arm
+				}
 				
 			}else if( HIWORD_IDA(wParam) == BN_DOUBLECLICKED || (ushort)wParam == 1 ){
 				PlaySoundTitleSelect();
@@ -7183,7 +9857,16 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
 			}
 			
 			break;
+		// (th4) BOTH messages, exactly as the trait LIST dialog does.
+		// The window class has CS_DBLCLKS, so when the player clicks the scrollbar at any
+		// normal pace every SECOND click is delivered as WM_LBUTTONDBLCLK instead of
+		// WM_LBUTTONDOWN. Handling only WM_LBUTTONDOWN silently dropped half of them --
+		// the "reacts to every other click" report. A debug log made it unmistakable:
+		// 41 WM_LBUTTONUP against only 25 WM_LBUTTONDOWN, with 16 clicks producing an UP
+		// and no DOWN at all. The list scrollbars never had the problem because their
+		// handler already pairs the two.
 		case WM_LBUTTONDOWN:
+		case WM_LBUTTONDBLCLK:
 			if( CheckCursorOnButton( hDlg, GetDlgItem( hDlg, ID_OK_BUTTON ), (unsigned __int16) lParam, (unsigned int) lParam >> 16u ) ){
 				PlaySoundTitleSelect();
 				SDlgKillTimer( hDlg, 1 );
@@ -7192,6 +9875,21 @@ int __stdcall DialogSelectClass( HWND hDlg, unsigned int Msg, WPARAM wParam, LPA
 				PlaySoundTitleSelect();
 				SDlgKillTimer( hDlg, 1 );
 				SDlgEndDialog( hDlg,  2 );
+			}else if( ClsDescHandleScrollClick( hDlg, (unsigned __int16) lParam, (unsigned int) lParam >> 16u ) ){
+				// (th4) The click belonged to the description scrollbar, so stop here.
+				// Letting it fall through to SDlgDefDialogProc_ lets the default handling
+				// move focus, and this dialog's BN_SETFOCUS arm re-derives the whole
+				// selection from the focused button -- which is what was resetting the
+				// scroll between clicks. The list scrollbar never had this problem
+				// because moving the list IS a focus change.
+				needToCallDefDialogProc = false;
+				result = 0;
+			}
+			break;
+		case WM_LBUTTONUP:
+			// (th4) let go of an arrow: repaint it in its released state
+			if( CheckScrollPressAndRelease( GetDlgItem( hDlg, ID_DESC_SCROLL ) ) ){
+				SetScrollOnElem( hDlg, ID_DESC_SCROLL, g_ClsDescMax + 1, g_ClsDescTop );
 			}
 			break;
 		case WM_TIMER:
@@ -7444,10 +10142,18 @@ void __fastcall DrawProviderInfo( HWND hdlg, int nIDDlgItem )
 				requirementsTextElem = GetDlgItem( hdlg_1, ID_CONNECT_REQUIREMENTS_TEXT );
 				if( requirementsTextElem ){
 					reqData = (TextWin *) GetWindowLongA( requirementsTextElem, GWL_USERDATA );
-					WriteTextToElemData( reqData, selectData->requirements );
+					WriteTextToElemData( reqData, LMenu(selectData->requirements) );
 					maxPlayersElem = GetDlgItem( hdlg_1, ID_CONNECT_MAX_PLAYERS );
 					if( maxPlayersElem ){
 						LoadStringA( HInstance, STR_33_Max_players, maxPlayersInfo, 63 );
+						// (th4) CHI: LMenu resolves per-language; the guard was never widened past RU.
+						// (th4) ID/ES/IT/FR/PL/DE/TR added (all four MP guards: here, ~10656, ~16581, ~16604):
+						// their *_Menu rows existed but were never reached. PL/DE/TR rows carry accented
+						// bytes; they render exactly as the trait dialog captions already do (Traits.cpp
+						// ~1617, same ID_CAPTION controls via LMenu). PT added once PT_Menu got these rows.
+						// (th4) DA added: the Danish rows exist in DA_Menu, but without the gate this
+						// screen kept showing the English resource string.
+						if( is(GameLanguage, LANG_RU, LANG_CHI, LANG_KO, LANG_DA, LANG_NL, LANG_UK, LANG_BG, LANG_JA, LANG_AR, LANG_HIN, LANG_SW, LANG_CS, LANG_HR, LANG_ID, LANG_ES, LANG_IT, LANG_FR, LANG_PL, LANG_DE, LANG_TR, LANG_PT) ) strcpy( maxPlayersInfo, LMenu("Players Supported: %d") ); // (th4) UK and BG added
 						if( ClientInfo ){
 							clientMaxPlayers = ClientInfo->MaxPlayers;
 							providerMaxPlayers = selectData->maxPlayers;
@@ -7460,7 +10166,7 @@ void __fastcall DrawProviderInfo( HWND hdlg, int nIDDlgItem )
 						}
 						maxPlayersData = (TextWin *) GetWindowLongA( maxPlayersElem, GWL_USERDATA );
 						WriteTextToElemData( maxPlayersData, srcText );
-						DrawTextToElemList( hdlg_1, MaxPlayersList, 1 );
+						DrawTextToElemList( hdlg_1, MaxPlayersList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 					}
 				}
 			}
@@ -8119,8 +10825,27 @@ void __fastcall InitSelectConnection( HWND hdlg )
 		LoadDialogBackground( hdlg, 0, &ZeroString_, -1, 1, "ui_art\\selconn.pcx", &textWin_1->surface, &textWin_1->size, 0 );
 		CheckPressKey( hdlg, 1 );
 	}
-	InitTextElemList( hdlg, MaxPlayersList, 1 );
-	InitTextElemList( hdlg, reqTitleList, 1 );
+	// RU: caption/subcaption/labels/buttons via LMenu; use font16g (idx 0) for the
+	// requirements + max-players text because font16s (idx 1) has no Cyrillic.
+	// (th4) CHI added: every string here already goes through LMenu, which resolves for
+	// ANY language and returns the English input untouched when an entry is missing --
+	// the guard was simply never widened past RU. Adding CHI rather than relaxing this
+	// to != LANG_EN keeps every other language's behaviour byte-for-byte identical.
+	// CHI keeps fontIndex 1 (font16s) below: it now carries the CJK grid sheet, so
+	// unlike RU it needs no switch to font16g.
+	// (th4) KO: same, the Korean dialog sheets cover these strings.
+	// (th4) DA: ASCII-folded rows, so the meta atlas renders them directly.
+	// (th4) UK and BG: both menu tables are ATLAS-encoded like RU, so these render here too.
+	// (th4) JA: JA_Menu is plain EUC-JP and every dialog font has a grid sheet, so it too.
+	if( is(GameLanguage, LANG_RU, LANG_CHI, LANG_KO, LANG_DA, LANG_NL, LANG_UK, LANG_BG, LANG_JA, LANG_AR, LANG_HIN, LANG_SW, LANG_CS, LANG_HR, LANG_ID, LANG_ES, LANG_IT, LANG_FR, LANG_PL, LANG_DE, LANG_TR, LANG_PT) ){
+		SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu("Multi Player Game") );
+		SetWindowTextA( GetDlgItem( hdlg, ID_SUBCAPTION ), LMenu("Select Connection") );
+		SetWindowTextA( GetDlgItem( hdlg, ID_CONNECT_REQUIREMENTS_LABEL ), LMenu("Requirements:") );
+		SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+		SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+	}
+	InitTextElemList( hdlg, MaxPlayersList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+	InitTextElemList( hdlg, reqTitleList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 	InitTextElemList( hdlg, MultiSelectTitleList, 5 );
 	InitButtonListText( hdlg, MultiOkCancelList, 4, 0 );
 	InitButtonListText( hdlg, ProviderButtonList, 0, 1 );
@@ -8128,7 +10853,7 @@ void __fastcall InitSelectConnection( HWND hdlg )
 	ProviderDescHead = 0;
 	SNetEnumGames( 0, InitProviderDesc );
 	
-	// сортируем соединения в нужном порядке
+	// (rt) sort the connections in the required order
 	SortProviders( 'DRIP' ); // 3. Direct IP
 	SortProviders( 'IPXN' ); // 2. IPX
 	SortProviders( 'UDPN' ); // 1. UDP
@@ -8144,7 +10869,7 @@ void __fastcall InitSelectConnection( HWND hdlg )
 					provButtonTextWin = (TextWin *) GetWindowLongA( provButton, GWL_USERDATA );
 					if( provButtonTextWin ){
 						provButtonTextWin->providerDesc = providerDesc;
-						WriteTextToElemData( provButtonTextWin, providerDesc->text1 );
+						WriteTextToElemData( provButtonTextWin, LMenu(providerDesc->text1) );
 						providerDesc = providerDesc->next;
 					}
 				}else{
@@ -8163,7 +10888,7 @@ void __fastcall InitSelectConnection( HWND hdlg )
 	}
 	if( GameMode == GM_COLISEUM ){
 		char tempBuf[32];
-		LoadStringA( HInstance, STR_82_Coliseum_game, tempBuf, 31 );
+		LoadStringL( STR_82_Coliseum_game, tempBuf, 31, "", "Coliseum Game" );
 		WriteAndDrawDialogTitle( hdlg, tempBuf );
 	}
 }
@@ -8491,7 +11216,7 @@ void __fastcall UnableInitConnection( HWND hdlg )
 
 	hdlg_1 = hdlg;
 	if( GetLastError() != ERROR_CANCELLED ){
-		LoadStringA( HInstance, STR_44_Unable_init_connection, errorText, 127 );
+		LoadStringL( STR_44_Unable_init_connection, errorText, 127, "\n\n", "Unable to initialize selected connection method." );
 		SelectOk_2( hdlg_1, errorText, 0, 0 );
 	}
 }
@@ -8569,7 +11294,7 @@ void __fastcall SelectProvider( HWND hdlg )
 	}else{
 		provider = GetProvider();
 		if( (provider == 'IPXN' || provider == 'MODM' || provider == 'SCBL') && GetLastError() != ERROR_CANCELLED ){
-			LoadStringA( HInstance, STR_44_Unable_init_connection, Buffer, 127 );
+			LoadStringL( STR_44_Unable_init_connection, Buffer, 127, "\n\n", "Unable to initialize selected connection method." );
 			SelectOk_2( hdlg_1, Buffer, 0, 0 );
 		}
 	}
@@ -9090,19 +11815,3263 @@ void __fastcall ClearHeroInfoText( HWND parent )
     struct tagRECT rect;
 	InvalidateRect( portraitWin, 0, 0 );
 	GetClientRect( portraitWin, &rect );
-	Portrait portrait = PcxHeros[GameMode == GM_CLASSIC ? 2 : 5];
+	Portrait portrait = PcxTraits[GameMode == GM_CLASSIC ? 2 : 5];
 	AdjustScrollRect( &rect, 0, portrait.id * rect.bottom );
 	SDlgSetBitmap( portraitWin, 0, "Static", -1, 1, portrait.pcx->data, &rect, portrait.pcx->size.cx, portrait.pcx->size.cy, -1 );
-	DrawTextToElemList( parent, CharParamValueList, 1 );
+	// (th4) Every paint of ID_PLAYER_PORTRAIT must report, including the sheets that
+	// have no true-colour strip: all five sites share ONE control, so a site that
+	// stays silent leaves the previous sheet on screen over its own art.
+	MenuPortrait_Set( portrait.pcx ? portrait.pcx->name : 0, portrait.id, portraitWin, portrait.pcx ? portrait.pcx->data : 0, portrait.pcx ? (int) portrait.pcx->size.cx : 0 );
+	DrawTextToElemList( parent, CharParamValueList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 
     ShowWindowList( parent, CharParamNameList, SW_SHOW );
     ShowWindowList( parent, CharParamValueList, SW_SHOW );
     ShowWindowList( parent, ClassDescriptionList, SW_HIDE );
-    DrawTextToElemList( parent, CharParamNameList, 1 );
+    DrawTextToElemList( parent, CharParamNameList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+}
+
+//----- (th4) -------------------------------------------------------------
+// Russian overlay for the New Hero menu. Dialog captions/buttons/class
+// descriptions live in thehell4.rc STRINGTABLE and are drawn with DiabloFont
+// atlas glyphs, so we can't put CP1251 in the .rc (resource compiler eats
+// bytes 0x80-0x9F). Instead we override at runtime, like the title menu.
+// The ui_art font atlases lay glyphs out as sequential frames:
+// An uppercase Cyrillic byte = CP1251 - 0x40 (same as the working main menu).
+// Returns nullptr when nothing is translated -> English text is kept.
+const char* LocalizedHeroString( int strId )
+{
+	// (th4) DARK CAMPAIGN: the villain's own descriptions, in Diablo's voice. Checked FIRST
+	// so it wins over every language block below. One switch per language, English last as
+	// the fallback -- same structure as the language blocks that follow.
+	if( GameMode == GM_DARK_CAMPAIGN ){
+		if( GameLanguage == LANG_RU ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\x8F\x8E\x84\x86\x88\x83\x80\x92\x85\x8B\x88 \x82\x8E\x89\x8D\x9B \x8D\x85 \x87\x80\x99\x88\x99\x80\x9E\x92. \x8E\x8D\x88 \x8B\x8E\x8C\x80\x9E\x92 \x91\x92\x90\x8E\x89, \x8B\x8E\x8C\x80\x9E\x92 \x82\x8E\x90\x8E\x92\x80 \x88 \x8B\x8E\x8C\x80\x9E\x92 \x8B\x9E\x84\x85\x89 \x87\x80 \x8D\x88\x8C\x88. \x8A\x93\x84\x80 \x8E\x8D\x88 \x88\x84\x93\x92, \x92\x93\x84\x80 \x8F\x90\x88\x95\x8E\x84\x88\x92 \x82\x8E\x89\x8D\x80.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\x8E\x95\x8E\x92\x8D\x88\x8A\x88 \x81\x85\x90\x93\x92 \x92\x85\x95, \x8A\x92\x8E \x8E\x92\x81\x88\x8B\x91\x9F. \x91\x92\x90\x85\x8B\x80 \x88\x87 \x92\x85\x8C\x8D\x8E\x92\x9B, \x92\x85\x8B\x8E, \x8A\x8E\x92\x8E\x90\x8E\x85 \x92\x80\x8A \x88 \x8D\x85 \x8D\x80\x98\x8B\x88, \x88 \x8E\x92\x90\x9F\x84, \x97\x92\x8E \x91 \x8A\x80\x86\x84\x8E\x89 \x8D\x8E\x97\x9C\x9E \x82\x91\x85 \x92\x88\x98\x85.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\x85\x90\x85\x92\x88\x8A\x88 \x97\x88\x92\x80\x9E\x92 \x92\x8E, \x97\x92\x8E \x91\x8E\x86\x83\x8B\x80 \x96\x85\x90\x8A\x8E\x82\x9C. \x91\x88\x8B\x9B \x87\x80 \x9D\x92\x88\x8C\x88 \x91\x92\x90\x80\x8D\x88\x96\x80\x8C\x88 \x8E\x92\x82\x85\x97\x80\x9E\x92 \x8E\x95\x8E\x92\x8D\x8E, \x80 \x96\x85\x8D\x93 \x8D\x80\x87\x9B\x82\x80\x9E\x92 \x8F\x8E\x87\x86\x85.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\x94\x80\x8D\x80\x92\x88\x8A\x88 \x91\x84\x85\x90\x86\x80\x8B\x88 \x82\x91\x85 \x8E\x81\x85\x92\x9B, \x8A\x90\x8E\x8C\x85 \x8E\x84\x8D\x8E\x83\x8E. \x88\x95 \x84\x88\x91\x96\x88\x8F\x8B\x88\x8D\x80 \x81\x85\x87\x93\x8F\x90\x85\x97\x8D\x80, \x8F\x90\x85\x84\x80\x8D\x8D\x8E\x91\x92\x9C \x80\x81\x91\x8E\x8B\x9E\x92\x8D\x80. \x91\x8C\x85\x8D\x88\x8B\x91\x9F \x8B\x88\x98\x9C \x95\x8E\x87\x9F\x88\x8D.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\x8E\x92\x91\x92\x93\x8F\x8D\x88\x96\x9B \x8F\x90\x8E\x84\x80\x8B\x88 \x8A\x80\x90\x92\x93, \x8F\x80\x90\x8E\x8B\x9C \x88 \x88\x8C\x9F \x8A\x80\x86\x84\x8E\x83\x8E \x84\x90\x93\x83\x80. \x8E\x8D\x88 \x8D\x88 \x8E \x97\x85\x8C \x8D\x85 \x86\x80\x8B\x85\x9E\x92, \x88 \x88\x8C \x82\x91\x85\x83\x84\x80 \x8F\x8B\x80\x92\x9F\x92.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\x83\x8E\x8B\x8E\x82\x8E\x90\x85\x87\x80\x8C \x8D\x85 \x8D\x93\x86\x8D\x9B \x8D\x88 \x87\x8D\x80\x8C\x9F, \x8D\x88 \x8F\x90\x88\x97\x88\x8D\x80. \x93\x8A\x80\x86\x88\x92\x85 \x8D\x80 \x84\x85\x90\x85\x82\x8D\x9E, \x88 \x8A\x90\x88\x8A\x88 \x84\x8E\x82\x85\x90\x98\x80\x92 \x8E\x91\x92\x80\x8B\x9C\x8D\x8E\x85.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\x97\x85\x8C\x8F\x88\x8E\x8D, \x82\x87\x9F\x82\x98\x88\x89 \x8C\x8E\x8D\x85\x92\x93 \x82\x8B\x80\x84\x9B\x8A\x88 \x93\x86\x80\x91\x80. \x92\x8E \x86\x85 \x8E\x90\x93\x86\x88\x85, \x92\x80 \x86\x85 \x92\x80\x8A\x92\x88\x8A\x80, \x92\x8E \x86\x85 \x8C\x80\x91\x92\x85\x90\x91\x92\x82\x8E \x81\x8B\x8E\x8A\x80, \x8D\x80\x8F\x90\x80\x82\x8B\x85\x8D\x8D\x9B\x85 \x8D\x80 \x92\x85\x95, \x8A\x8E\x83\x8E \x8E\x8D \x8E\x95\x90\x80\x8D\x9F\x8B.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\x8E\x8D \x82\x91\x85 \x85\x99\x85 \x82\x9B\x86\x88\x83\x80\x85\x92 \x85\x90\x85\x91\x9C \x8E\x83\x8D\x85\x8C. \x88\x87\x8C\x85\x8D\x88\x8B\x8E\x91\x9C \x8B\x88\x98\x9C \x8E\x8F\x90\x85\x84\x85\x8B\x85\x8D\x88\x85 \x85\x90\x85\x91\x88. \x8C\x80\x91\x92\x85\x90 \x91\x92\x88\x95\x88\x89\x8D\x8E\x83\x8E \x93\x90\x8E\x8D\x80 \x88 \x82\x8E\x8F\x90\x8E\x91\x80, \x8D\x80 \x8A\x8E\x92\x8E\x90\x9B\x89 \x8D\x85\x92 \x82\x85\x90\x8D\x8E\x83\x8E \x8E\x92\x82\x85\x92\x80.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\x91\x92\x85\x8D\x80 \x97\x85\x90\x8D\x8E\x89 \x91\x92\x80\x8B\x88 \x91 \x8C\x85\x97\x8E\x8C, \x8C\x8E\x8B\x8E\x92\x8E\x8C \x88 \x80\x90\x81\x80\x8B\x85\x92\x8E\x8C. \x8E\x8D \x81\x8E\x8B\x9C\x98\x85 \x8D\x88\x97\x85\x83\x8E \x8D\x85 \x8E\x95\x90\x80\x8D\x9F\x85\x92, \x8E\x8D \x8F\x90\x8E\x91\x92\x8E \x8D\x85 \x8F\x90\x8E\x8F\x93\x91\x8A\x80\x85\x92 \x8D\x88\x8A\x8E\x83\x8E.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\x8E\x8D\x80 \x81\x85\x90\x85\x92 \x97\x93\x86\x8E\x85 \x88\x87\x84\x80\x8B\x85\x8A\x80 \x88 \x93\x95\x8E\x84\x88\x92, \x8F\x8E\x8A\x80 \x92\x85\x8B\x8E \x8D\x85 \x8E\x91\x92\x9B\x8B\x8E. \x81\x9B\x91\x92\x90\x9B\x89 \x93\x90\x8E\x8D \x88\x87 \x81\x85\x87\x8E\x8F\x80\x91\x8D\x8E\x91\x92\x88 \x88 \x8D\x88\x8A\x80\x8A\x88\x95 \x91\x82\x88\x84\x85\x92\x85\x8B\x85\x89.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\x8E\x8D\x80 \x88\x84\x85\x92 \x87\x80 \x8E\x92\x90\x9F\x84\x8E\x8C \x84\x8D\x9F\x8C\x88, \x8F\x90\x85\x86\x84\x85 \x97\x85\x8C \x91\x84\x85\x8B\x80\x92\x9C \x8F\x85\x90\x82\x9B\x89 \x82\x9B\x91\x92\x90\x85\x8B. \x81\x85\x87 \x8A\x90\x88\x92\x8E\x82, \x8D\x8E \x85\x85 \x91\x92\x88\x95\x88\x89\x8D\x9B\x85 \x91\x92\x90\x85\x8B\x9B \x91\x92\x8E\x9F\x92 \x8E\x86\x88\x84\x80\x8D\x88\x9F.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\x8E\x84\x88\x8D \x82\x9B\x91\x92\x90\x85\x8B, \x8E\x84\x8D\x8E \x88\x8C\x9F \x82\x9B\x97\x85\x90\x8A\x8D\x93\x92\x8E \x88\x87 \x91\x8F\x88\x91\x8A\x80. \x8C\x85\x84\x8B\x85\x8D\x8D\x80\x9F, \x92\x85\x90\x8F\x85\x8B\x88\x82\x80\x9F, \x81\x85\x87\x93\x8F\x90\x85\x97\x8D\x8E \x92\x8E\x97\x8D\x80\x9F, \x80 \x85\x85 \x8A\x90\x88\x92\x9B \x87\x80\x8A\x80\x8D\x97\x88\x82\x80\x9E\x92 \x91\x8F\x8E\x90\x9B \x8D\x80\x82\x91\x85\x83\x84\x80.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\x8E\x8D\x80 \x8D\x85 \x8F\x90\x85\x91\x8B\x85\x84\x93\x85\x92. \x8E\x8D\x80 \x83\x8E\x92\x8E\x82\x88\x92 \x87\x85\x8C\x8B\x9E \x88 \x86\x84\x85\x92, \x8F\x8E\x8A\x80 \x83\x85\x90\x8E\x88 \x91\x80\x8C\x88 \x82 \x8D\x85\x85 \x82\x8E\x89\x84\x93\x92. \x90\x80\x81\x8E\x92\x93 \x84\x85\x8B\x80\x9E\x92 \x8B\x8E\x82\x93\x98\x8A\x88, \x85\x89 \x8E\x91\x92\x80\x85\x92\x91\x9F \x91\x8E\x81\x90\x80\x92\x9C.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\x87\x8D\x80\x92\x8E\x8A \x87\x80\x8F\x90\x85\x92\x8D\x8E\x83\x8E, \x82\x8B\x80\x84\x85\x9E\x99\x88\x89 \x92\x80\x89\x8D\x9B\x8C \x87\x8D\x80\x8D\x88\x85\x8C, \x8A\x8E\x92\x8E\x90\x8E\x8C\x93 \x8D\x85 \x93\x97\x88\x92 \x8D\x88 \x8E\x84\x88\x8D \x84\x8E\x87\x82\x8E\x8B\x85\x8D\x8D\x9B\x89 \x8E\x90\x84\x85\x8D. \x93\x87\x8D\x80\x8D\x8D\x8E\x85 \x93\x86\x85 \x8D\x85 \x87\x80\x81\x9B\x92\x9C.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\x8E\x8D \x8F\x8E\x84\x8F\x88\x91\x80\x8B \x8A\x90\x8E\x82\x9C\x9E \x88 \x8D\x88 \x90\x80\x87\x93 \x8D\x85 \x8F\x8E\x86\x80\x8B\x85\x8B. \x97\x85\x90\x8D\x8E\x85 \x8A\x8E\x8B\x84\x8E\x82\x91\x92\x82\x8E \x88 \x8A\x88\x91\x8B\x8E\x92\x80 \x8E\x92\x82\x85\x97\x80\x9E\x92 \x8D\x80 \x85\x83\x8E \x87\x8E\x82. \x91\x82\x9F\x92\x80\x9F \x8C\x80\x83\x88\x9F - \x8D\x85\x92.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\x8E\x8D \x8E\x92\x90\x85\x8A\x91\x9F \x8E\x92 \x8E\x90\x84\x85\x8D\x80, \x8D\x8E \x8D\x85 \x8E\x92 \x82\x9B\x93\x97\x8A\x88. \x81\x9B\x91\x92\x90\x9B\x89, \x83\x88\x81\x8A\x88\x89, \x91\x8C\x85\x90\x92\x8E\x8D\x8E\x91\x8D\x9B\x89 \x91 \x8F\x8E\x91\x8E\x95\x8E\x8C, \x88 \x81\x9C\x85\x92 \x8D\x85\x91\x8A\x8E\x8B\x9C\x8A\x88\x95 \x82\x90\x80\x83\x8E\x82 \x90\x80\x87\x8E\x8C.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\x88\x91\x92\x88\x8D\x8D\x9B\x89 \x8C\x80\x91\x92\x85\x90 \x8A\x8B\x88\x8D\x8A\x80, \x91\x97\x88\x92\x80\x9E\x99\x88\x89 \x93\x81\x88\x89\x91\x92\x82\x8E \x88\x91\x8A\x93\x91\x91\x92\x82\x8E\x8C. \x85\x8C\x93 \x8F\x90\x8E\x91\x92\x8E \x91\x92\x80\x8B\x8E \x82\x91\x85 \x90\x80\x82\x8D\x8E, \x97\x92\x8E \x91\x8B\x93\x86\x88\x92 \x95\x8E\x8B\x91\x92\x8E\x8C.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\x83\x88\x83\x80\x8D\x92 \x82 \x92\x9F\x86\x85\x8B\x8E\x89 \x81\x90\x8E\x8D\x85 \x91 \x84\x90\x85\x82\x8A\x8E\x82\x9B\x8C \x8E\x90\x93\x86\x88\x85\x8C, \x88 \x8D\x85\x97\x92\x8E, \x8D\x8E\x91\x9F\x99\x85\x85 \x85\x83\x8E \x8B\x88\x96\x8E. \x93 \x91\x92\x80\x90\x9B\x95 \x8F\x90\x85\x84\x80\x8D\x88\x89 \x81\x9B\x8B\x8E \x88\x8C\x9F \x84\x8B\x9F \x92\x8E\x83\x8E, \x97\x85\x8C \x8E\x8D \x91\x92\x80\x8B.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\x8E\x8D \x8F\x8E\x90\x82\x80\x8B \x91 \x8A\x8B\x80\x8D\x8E\x8C \x88 \x8E\x92\x82\x85\x97\x80\x85\x92 \x8B\x88\x98\x9C \x8F\x85\x90\x85\x84 \x82\x8B\x80\x84\x9B\x8A\x8E\x89 \x93\x86\x80\x91\x80. \x8F\x8E\x84\x95\x8E\x84\x88\x92 \x81\x8B\x88\x87\x8A\x8E, \x8A\x8E\x8D\x97\x80\x85\x92 \x81\x9B\x91\x92\x90\x8E \x88 \x88\x91\x97\x85\x87\x80\x85\x92.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\x8B\x8E\x82\x8A\x80\x9F, \x91 \x84\x82\x93\x8C\x9F \x8A\x8B\x88\x8D\x8A\x80\x8C\x88, \x81\x9B\x91\x92\x90\x80 \x82 \x93\x84\x80\x90\x85 \x88 \x85\x99\x85 \x81\x9B\x91\x92\x90\x85\x85 \x82 \x81\x85\x83\x91\x92\x82\x85. \x95\x90\x93\x8F\x8A\x80\x9F \x82 \x97\x85\x91\x92\x8D\x8E\x8C \x81\x8E\x9E, \x8F\x8E\x92\x8E\x8C\x93 \x8E\x8D\x80 \x82 \x8D\x85\x83\x8E \x8D\x85 \x82\x91\x92\x93\x8F\x80\x85\x92.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\x8A\x8E\x83\x92\x88, \x91\x8C\x8E\x97\x85\x8D\x8D\x9B\x85 \x8A\x88\x91\x8B\x8E\x92\x8E\x89, \x90\x80\x81\x8E\x92\x80 \x91\x8E \x91\x8F\x88\x8D\x9B. \x93 \x8D\x85\x85 \x85\x91\x92\x9C \x96\x85\x8D\x80, \x88 \x8A\x80\x86\x84\x9B\x89 \x83\x85\x90\x8E\x89 \x8D\x80\x82\x85\x90\x95\x93 \x91\x92\x8E\x88\x92 \x90\x8E\x82\x8D\x8E \x91\x92\x8E\x8B\x9C\x8A\x8E.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\x85\x85 \x81\x90\x8E\x8D\x9F \x88 \x85\x91\x92\x9C \x8E\x90\x93\x86\x88\x85. \x8A\x80\x86\x84\x9B\x89 \x83\x8B\x93\x8F\x85\x96, \x93\x84\x80\x90\x88\x82\x98\x88\x89 \x85\x85, \x91\x80\x8C \x82\x91\x8A\x90\x9B\x82\x80\x85\x92 \x91\x85\x81\x85 \x82\x85\x8D\x9B \x8E \x98\x88\x8F\x9B. \x81\x9B\x91\x92\x90\x9B\x85 \x80\x90\x81\x80\x8B\x85\x92\x9B \x84\x8B\x9F \x8E\x91\x92\x8E\x90\x8E\x86\x8D\x9B\x95.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x86\x88\x87\x8D\x9C \x8F\x90\x8E\x91\x92\x80. \x8E\x8D\x80 \x81\x90\x8E\x91\x80\x85\x92 \x8E\x83\x8E\x8D\x9C \x82 \x92\x8E\x8B\x8F\x93 \x88 \x91\x8C\x8E\x92\x90\x88\x92, \x97\x92\x8E \x82\x9B\x81\x85\x86\x88\x92. \x8E\x81\x9B\x97\x8D\x8E \x8E\x8D\x8E \x82\x9B\x81\x85\x83\x80\x85\x92 \x91 \x8A\x90\x88\x8A\x8E\x8C.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\x91\x88\x8B\x80 \x81\x85\x87 \x93\x87\x84\x9B \x88 \x8D\x88\x8A\x80\x8A\x8E\x83\x8E \x86\x85\x8B\x80\x8D\x88\x9F \x85\x85 \x8E\x81\x90\x85\x91\x92\x88. \x8E\x8D \x88\x84\x85\x92 \x82 \x8D\x80\x81\x85\x83 \x8D\x85 \x87\x80 \x84\x8E\x81\x9B\x97\x85\x89. \x8E\x8D \x88\x84\x85\x92 \x82 \x8D\x80\x81\x85\x83, \x8F\x8E\x92\x8E\x8C\x93 \x97\x92\x8E \x8E\x8D \x92\x80\x8A\x8E\x89.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\x9F\x90\x8E\x91\x92\x9C \x81\x9B\x8B\x80 \x82\x91\x85\x83\x84\x80, \x82\x8B\x80\x84\x9B\x8A\x80 \x93\x86\x80\x91\x80 \x8B\x88\x98\x9C \x8F\x85\x90\x85\x91\x92\x80\x8B \x92\x90\x85\x81\x8E\x82\x80\x92\x9C \x85\x85 \x91\x84\x85\x90\x86\x88\x82\x80\x92\x9C. \x8E\x8D \x81\x9C\x85\x92\x91\x9F, \x8F\x8E\x8A\x80 \x8D\x85 \x8E\x91\x92\x80\x8D\x85\x92\x91\x9F \x8D\x88\x97\x85\x83\x8E \x91\x92\x8E\x9F\x99\x85\x83\x8E.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\x8E\x8D \x81\x9B\x8B \x8F\x8E\x91\x8B\x85\x84\x8D\x88\x8C \x8B\x88\x96\x8E\x8C, \x97\x92\x8E \x82\x88\x84\x85\x8B\x88 \x8E\x91\x93\x86\x84\x85\x8D\x8D\x9B\x85, \x88 \x8E\x8D \x87\x8D\x80\x8B \x91\x82\x8E\x85 \x84\x85\x8B\x8E. \x87\x8D\x80\x85\x92 \x88 \x91\x85\x89\x97\x80\x91. \x8F\x90\x8E\x91\x92\x8E \x8F\x90\x88\x83\x8E\x82\x8E\x90\x9B \x92\x85\x8F\x85\x90\x9C \x85\x83\x8E \x91\x8E\x81\x91\x92\x82\x85\x8D\x8D\x9B\x85.";
+			case STR_1084_Druid_Description:
+				return "\x8E\x8D \x8E\x92\x84\x80\x8B \x91\x85\x81\x9F \x84\x88\x8A\x8E\x89 \x8F\x90\x88\x90\x8E\x84\x85, \x88 \x8E\x8D\x80 \x8E\x92\x84\x80\x8B\x80 \x8A\x8E\x85-\x97\x92\x8E \x82\x87\x80\x8C\x85\x8D. \x92\x85\x8F\x85\x90\x9C \x8E\x8D \x81\x8B\x88\x86\x85 \x8A \x87\x82\x85\x90\x9E, \x97\x85\x8C \x8A \x97\x85\x8B\x8E\x82\x85\x8A\x93, \x88 \x8A\x93\x84\x80 \x91\x97\x80\x91\x92\x8B\x88\x82\x85\x85.";
+			case STR_1085_Gladiatrix_Description:
+				return "\x80\x90\x85\x8D\x80 \x8D\x80\x93\x97\x88\x8B\x80 \x85\x85, \x97\x92\x8E \x92\x8E\x8B\x8F\x80 \x81\x93\x84\x85\x92 \x8B\x88\x8A\x8E\x82\x80\x92\x9C \x97\x85\x8C\x93 \x93\x83\x8E\x84\x8D\x8E. \x8E\x8D\x80 \x93\x81\x88\x82\x80\x85\x92 \x90\x80\x84\x88 \x98\x93\x8C\x80, \x80 \x82\x8B\x80\x84\x9B\x8A\x80 \x93\x86\x80\x91\x80 \x84\x80\x85\x92 \x85\x83\x8E \x82 \x88\x87\x81\x9B\x92\x8A\x85.";
+			}
+		}
+		else if( GameLanguage == LANG_UK ){ // (th4) Ukrainian: META atlas (CP1251-0x40), caps only
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\x8F\x80\x8BII \x82I\x89\x8D\x88 \x8D\x85 \x87\x80\x95\x88\x99\x80\x9E\x92\x9C. \x82\x8E\x8D\x88 \x8B\x80\x8C\x80\x9E\x92\x9C \x91\x92\x90I\x89, \x8B\x80\x8C\x80\x9E\x92\x9C \x82\x8E\x90\x8E\x92\x80 I \x8B\x80\x8C\x80\x9E\x92\x9C \x8B\x9E\x84\x85\x89 \x87\x80 \x8D\x88\x8C\x88. \x8A\x93\x84\x88 \x82\x8E\x8D\x88 \x89\x84\x93\x92\x9C, \x92\x93\x84\x88 \x8F\x90\x88\x95\x8E\x84\x88\x92\x9C \x82I\x89\x8D\x80.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\x8C\x88\x91\x8B\x88\x82\x96I \x81\x85\x90\x93\x92\x9C \x92\x88\x95, \x95\x92\x8E \x82I\x84\x81\x88\x82\x91\x9F. \x91\x92\x90I\x8B\x80 \x87 \x92\x85\x8C\x90\x9F\x82\x88, \x92I\x8B\x8E, \x9F\x8A\x85 \x92\x80\x8A I \x8D\x85 \x87\x8D\x80\x89\x98\x8B\x88, I \x87\x80\x83I\x8D, \x99\x8E \x87 \x8A\x8E\x86\x8D\x8E\x9E \x8DI\x97\x97\x9E \x82\x91\x85 \x92\x88\x95\x98\x88\x89.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\x85\x90\x85\x92\x88\x8A\x88 \x97\x88\x92\x80\x9E\x92\x9C \x92\x85, \x99\x8E \x91\x8F\x80\x8B\x88\x8B\x80 \x96\x85\x90\x8A\x82\x80. \x91\x88\x8B\x88 \x87\x80 \x96\x88\x8C\x88 \x91\x92\x8E\x90I\x8D\x8A\x80\x8C\x88 \x82I\x84\x8F\x8E\x82I\x84\x80\x9E\x92\x9C \x8E\x95\x8E\x97\x85, \x80 \x96I\x8D\x93 \x8D\x80\x87\x88\x82\x80\x9E\x92\x9C \x8FI\x87\x8DI\x98\x85.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\x94\x80\x8D\x80\x92\x88\x8A\x88 \x84\x8E\x92\x90\x88\x8C\x80\x8B\x88 \x82\x91I\x95 \x8E\x81I\x92\x8D\x88\x96\x9C, \x8A\x90I\x8C \x8E\x84\x8DI\x85I. I\x95\x8D\x9F \x84\x88\x91\x96\x88\x8F\x8BI\x8D\x80 \x81\x85\x87\x84\x8E\x83\x80\x8D\x8D\x80, \x82I\x84\x84\x80\x8DI\x91\x92\x9C \x80\x81\x91\x8E\x8B\x9E\x92\x8D\x80. \x87\x8CI\x8D\x88\x82\x91\x9F \x8B\x88\x98\x85 \x83\x8E\x91\x8F\x8E\x84\x80\x90.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\x82I\x84\x91\x92\x93\x8F\x8D\x88\x96I \x8F\x90\x8E\x84\x80\x8B\x88 \x8A\x80\x90\x92\x93, \x8F\x80\x90\x8E\x8B\x9C I I\x8C'\x9F \x8A\x8E\x86\x8D\x8E\x83\x8E \x84\x90\x93\x83\x80. \x82\x8E\x8D\x88 \x8DI \x8F\x90\x8E \x99\x8E \x8D\x85 \x98\x8A\x8E\x84\x93\x9E\x92\x9C, I I\x8C \x87\x80\x82\x86\x84\x88 \x8F\x8B\x80\x92\x9F\x92\x9C.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\x83\x8E\x8B\x8E\x82\x8E\x90I\x87\x80\x8C \x8D\x85 \x8F\x8E\x92\x90I\x81\x8DI \x8DI \x8F\x90\x80\x8F\x8E\x90, \x8DI \x8F\x90\x88\x97\x88\x8D\x80. \x82\x8A\x80\x86I\x92\x9C \x8D\x80 \x91\x85\x8B\x8E, I \x8A\x90\x88\x8A\x88 \x84\x8E\x82\x85\x90\x98\x80\x92\x9C \x90\x85\x98\x92\x93.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\x97\x85\x8C\x8FI\x8E\x8D, \x99\x8E \x82\x87\x9F\x82 \x8C\x8E\x8D\x85\x92\x93 \x82\x8E\x8B\x8E\x84\x80\x90\x9F \x86\x80\x95\x93. \x92\x80 \x91\x80\x8C\x80 \x87\x81\x90\x8E\x9F, \x92\x80 \x91\x80\x8C\x80 \x92\x80\x8A\x92\x88\x8A\x80, \x92\x80 \x91\x80\x8C\x80 \x8C\x80\x89\x91\x92\x85\x90\x8DI\x91\x92\x9C \x81\x8B\x8E\x8A\x93, \x91\x8F\x90\x9F\x8C\x8E\x82\x80\x8DI \x8D\x80 \x92\x88\x95, \x8A\x8E\x83\x8E \x82I\x8D \x8E\x95\x8E\x90\x8E\x8D\x9F\x82.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\x82I\x8D \x84\x8E\x91I \x82\x88\x8F\x80\x8B\x9E\x85 \x85\x90\x85\x91\x9C \x82\x8E\x83\x8D\x85\x8C. \x87\x8CI\x8D\x88\x8B\x8E\x91\x9F \x8B\x88\x98\x85 \x82\x88\x87\x8D\x80\x97\x85\x8D\x8D\x9F \x85\x90\x85\x91I. \x8C\x80\x89\x91\x92\x85\x90 \x91\x92\x88\x95I\x89\x8D\x8EI \x98\x8A\x8E\x84\x88 \x89 \x8F\x88\x92\x80\x8D\x8D\x9F, \x8D\x80 \x9F\x8A\x85 \x8D\x85\x8C\x80\x85 \x82I\x90\x8D\x8EI \x82I\x84\x8F\x8E\x82I\x84I.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\x91\x92I\x8D\x80 \x97\x8E\x90\x8D\x8EI \x91\x92\x80\x8BI \x87 \x8C\x85\x97\x85\x8C, \x8C\x8E\x8B\x8E\x92\x8E\x8C I \x80\x90\x81\x80\x8B\x85\x92\x8E\x8C. \x82I\x8D \x81I\x8B\x9C\x98\x85 \x8DI\x97\x8E\x83\x8E \x8D\x85 \x8E\x95\x8E\x90\x8E\x8D\x9F\x85, \x82I\x8D \x8F\x90\x8E\x91\x92\x8E \x8D\x85 \x8F\x90\x8E\x8F\x93\x91\x8A\x80\x85 \x8DI\x8A\x8E\x83\x8E.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\x82\x8E\x8D\x80 \x81\x85\x90\x85 \x97\x93\x86\x85 \x87\x84\x80\x8B\x85\x8A\x93 \x89 I\x84\x85, \x8F\x8E\x8A\x88 \x92I\x8B\x8E \x8D\x85 \x8E\x95\x8E\x8B\x8E\x8B\x8E. \x98\x82\x88\x84\x8A\x80 \x98\x8A\x8E\x84\x80 \x87 \x81\x85\x87\x8F\x85\x8A\x88 \x89 \x86\x8E\x84\x8D\x88\x95 \x91\x82I\x84\x8AI\x82.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\x82\x8E\x8D\x80 \x89\x84\x85 \x87\x80 \x87\x80\x83\x8E\x8D\x8E\x8C \x84\x8D\x9F\x8C\x88, \x8F\x85\x90\x98 \x8DI\x86 \x87\x90\x8E\x81\x88\x92\x88 \x8F\x85\x90\x98\x88\x89 \x8F\x8E\x91\x92\x90I\x8B. \x81\x85\x87 \x8A\x90\x88\x92I\x82, \x80\x8B\x85 II \x91\x92\x88\x95I\x89\x8DI \x91\x92\x90I\x8B\x88 \x82\x80\x90\x92I \x97\x85\x8A\x80\x8D\x8D\x9F.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\x8E\x84\x88\x8D \x8F\x8E\x91\x92\x90I\x8B, \x8E\x84\x8D\x85 I\x8C'\x9F \x82\x88\x8A\x90\x85\x91\x8B\x85\x8D\x8E \x87I \x91\x8F\x88\x91\x8A\x93. \x8F\x8E\x82I\x8B\x9C\x8D\x80, \x92\x85\x90\x8F\x8B\x9F\x97\x80, \x81\x85\x87\x84\x8E\x83\x80\x8D\x8D\x8E \x92\x8E\x97\x8D\x80, \x80 II \x8A\x90\x88\x92\x88 \x87\x80\x8AI\x8D\x97\x93\x9E\x92\x9C \x91\x93\x8F\x85\x90\x85\x97\x8A\x88 \x8D\x80\x87\x80\x82\x86\x84\x88.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\x82\x8E\x8D\x80 \x8D\x85 \x8F\x85\x90\x85\x91\x8BI\x84\x93\x85. \x82\x8E\x8D\x80 \x83\x8E\x92\x93\x85 \x87\x85\x8C\x8B\x9E \x89 \x97\x85\x8A\x80\x85, \x8F\x8E\x8A\x88 \x83\x85\x90\x8EI \x91\x80\x8CI \x82 \x8D\x85I \x87\x80\x89\x84\x93\x92\x9C. \x90\x8E\x81\x8E\x92\x93 \x90\x8E\x81\x8B\x9F\x92\x9C \x8F\x80\x91\x92\x8A\x88, I\x89 \x8B\x88\x98\x80\x85\x92\x9C\x91\x9F \x87I\x81\x90\x80\x92\x88.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\x87\x8D\x80\x82\x85\x96\x9C \x87\x80\x81\x8E\x90\x8E\x8D\x85\x8D\x8E\x83\x8E, \x99\x8E \x82\x8E\x8B\x8E\x84I\x85 \x92\x80\x85\x8C\x8D\x88\x8C \x87\x8D\x80\x8D\x8D\x9F\x8C, \x9F\x8A\x8E\x83\x8E \x8D\x85 \x82\x97\x88\x92\x9C \x86\x8E\x84\x85\x8D \x84\x8E\x87\x82\x8E\x8B\x85\x8D\x88\x89 \x8E\x90\x84\x85\x8D. \x8FI\x87\x8D\x80\x8D\x8E\x83\x8E \x82\x86\x85 \x8D\x85 \x87\x80\x81\x93\x92\x88.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\x82I\x8D \x8FI\x84\x8F\x88\x91\x80\x82 \x8A\x90\x8E\x82'\x9E I \x86\x8E\x84\x8D\x8E\x83\x8E \x90\x80\x87\x93 \x8D\x85 \x8F\x8E\x98\x8A\x8E\x84\x93\x82\x80\x82. \x97\x8E\x90\x8D\x85 \x97\x80\x8A\x8B\x93\x8D\x91\x92\x82\x8E \x89 \x8A\x88\x91\x8B\x8E\x92\x80 \x82I\x84\x8F\x8E\x82I\x84\x80\x9E\x92\x9C \x8D\x80 \x89\x8E\x83\x8E \x87\x8E\x82. \x91\x82\x9F\x92\x80 \x8C\x80\x83I\x9F - \x8DI.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\x82I\x8D \x87\x90I\x8A\x91\x9F \x8E\x90\x84\x85\x8D\x93, \x80\x8B\x85 \x8D\x85 \x82\x88\x98\x8A\x8E\x8B\x93. \x98\x82\x88\x84\x8A\x88\x89, \x83\x8D\x93\x97\x8A\x88\x89, \x91\x8C\x85\x90\x92\x8E\x8D\x8E\x91\x8D\x88\x89 I\x87 \x8F\x8E\x91\x8E\x95\x8E\x8C, I \x81'\x85 \x8AI\x8B\x9C\x8A\x8E\x95 \x82\x8E\x90\x8E\x83I\x82 \x82\x8E\x84\x8D\x8E\x97\x80\x91.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "I\x91\x92\x88\x8D\x8D\x88\x89 \x8C\x80\x89\x91\x92\x85\x90 \x8A\x8B\x88\x8D\x8A\x80, \x99\x8E \x82\x82\x80\x86\x80\x85 \x82\x81\x88\x82\x91\x92\x82\x8E \x8C\x88\x91\x92\x85\x96\x92\x82\x8E\x8C. \x89\x8E\x8C\x93 \x8F\x90\x8E\x91\x92\x8E \x91\x92\x80\x8B\x8E \x81\x80\x89\x84\x93\x86\x85, \x99\x8E \x91\x8B\x93\x83\x93\x85 \x8F\x8E\x8B\x8E\x92\x8D\x8E\x8C.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\x83I\x83\x80\x8D\x92 \x93 \x82\x80\x86\x8AI\x89 \x81\x90\x8E\x8DI \x87 \x84\x90\x85\x82\x8A\x8E\x82\x8E\x9E \x87\x81\x90\x8E\x85\x9E, I \x99\x8E\x91\x9C, \x99\x8E \x8D\x8E\x91\x88\x92\x9C \x89\x8E\x83\x8E \x8E\x81\x8B\x88\x97\x97\x9F. \x93 \x91\x92\x80\x90\x88\x95 \x8F\x85\x90\x85\x8A\x80\x87I\x82 \x81\x93\x8B\x8E I\x8C'\x9F \x84\x8B\x9F \x92\x8E\x83\x8E, \x97\x88\x8C \x82I\x8D \x91\x92\x80\x82.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\x82I\x8D \x8F\x8E\x90\x82\x80\x82 I\x87 \x8A\x8B\x80\x8D\x8E\x8C I \x82I\x84\x8F\x8E\x82I\x84\x80\x85 \x8B\x88\x98\x85 \x8F\x85\x90\x85\x84 \x82\x8E\x8B\x8E\x84\x80\x90\x85\x8C \x86\x80\x95\x93. \x8FI\x84\x95\x8E\x84\x88\x92\x9C \x81\x8B\x88\x87\x9C\x8A\x8E, \x8AI\x8D\x97\x80\x85 \x98\x82\x88\x84\x8A\x8E \x89 \x87\x8D\x88\x8A\x80\x85.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\x91\x8F\x90\x88\x92\x8D\x80, \x87 \x84\x82\x8E\x8C\x80 \x8A\x8B\x88\x8D\x8A\x80\x8C\x88, \x98\x82\x88\x84\x8A\x80 \x82 \x93\x84\x80\x90I \x89 \x99\x85 \x98\x82\x88\x84\x98\x80 \x93 \x82\x92\x85\x97I. \x8A\x90\x88\x95\x8A\x80 \x82 \x97\x85\x91\x8D\x8E\x8C\x93 \x81\x8E\x9E, \x92\x8E\x8C\x93 \x82\x8E\x8D\x80 \x82 \x8D\x9C\x8E\x83\x8E \x8D\x85 \x82\x91\x92\x93\x8F\x80\x85.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\x8AI\x83\x92I, \x87\x8C\x8E\x97\x85\x8DI \x8A\x88\x91\x8B\x8E\x92\x8E\x9E, \x90\x8E\x81\x8E\x92\x80 \x87I \x91\x8F\x88\x8D\x88. \x93 \x8D\x85I \x85 \x96I\x8D\x80, I \x8A\x8E\x86\x85\x8D \x83\x85\x90\x8E\x89 \x8D\x80\x83\x8E\x90I \x82\x80\x90\x92\x88\x89 \x90I\x82\x8D\x8E \x91\x92I\x8B\x9C\x8A\x88.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "II \x81\x90\x8E\x8D\x9F \x89 \x85 \x87\x81\x90\x8E\x9F. \x8A\x8E\x86\x85\x8D \x84\x93\x90\x85\x8D\x9C, \x99\x8E \x82\x84\x80\x90\x88\x82 II, \x91\x80\x8C \x90\x8E\x87\x92\x88\x8D\x80\x85 \x91\x8E\x81I \x82\x85\x8D\x88 \x8E\x81 \x98\x88\x8F\x88. \x98\x82\x88\x84\x8AI \x80\x90\x81\x80\x8B\x85\x92\x88 \x84\x8B\x9F \x8E\x81\x85\x90\x85\x86\x8D\x88\x95.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x86\x88\x92\x92\x9F \x8F\x90\x8E\x91\x92\x85. \x82\x8E\x8D\x80 \x8A\x88\x84\x80\x85 \x82\x8E\x83\x8E\x8D\x9C \x93 \x8D\x80\x92\x8E\x82\x8F I \x84\x88\x82\x88\x92\x9C\x91\x9F, \x99\x8E \x82\x88\x81I\x86\x88\x92\x9C. \x87\x80\x87\x82\x88\x97\x80\x89 \x82\x8E\x8D\x8E \x82\x88\x81I\x83\x80\x85 \x87 \x8A\x90\x88\x8A\x8E\x8C.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\x91\x88\x8B\x80 \x81\x85\x87 \x83\x8D\x93\x87\x84\x85\x97\x8A\x88 \x89 \x86\x8E\x84\x8D\x8E\x83\x8E \x81\x80\x86\x80\x8D\x8D\x9F II \x87\x84\x8E\x81\x93\x92\x88. \x82I\x8D I\x84\x85 \x82 \x8D\x80\x81I\x83 \x8D\x85 \x87\x80 \x87\x84\x8E\x81\x88\x97\x97\x9E. \x82I\x8D I\x84\x85 \x82 \x8D\x80\x81I\x83, \x81\x8E \x82I\x8D \x92\x80\x8A\x88\x89.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\x8B\x9E\x92\x9C \x81\x93\x8B\x80 \x87\x80\x82\x86\x84\x88, \x82\x8E\x8B\x8E\x84\x80\x90 \x86\x80\x95\x93 \x8B\x88\x98\x85 \x8F\x85\x90\x85\x91\x92\x80\x82 \x82\x88\x8C\x80\x83\x80\x92\x88 II \x91\x92\x90\x88\x8C\x93\x82\x80\x92\x88. \x82I\x8D \x81'\x85\x92\x9C\x91\x9F, \x8F\x8E\x8A\x88 \x8D\x85 \x8B\x88\x98\x88\x92\x9C\x91\x9F \x8DI\x97\x8E\x83\x8E \x82\x80\x90\x92\x8E\x83\x8E.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\x82I\x8D \x81\x93\x82 \x8E\x91\x92\x80\x8D\x8DI\x8C \x8E\x81\x8B\x88\x97\x97\x9F\x8C, \x99\x8E \x81\x80\x97\x88\x8B\x88 \x87\x80\x91\x93\x84\x86\x85\x8DI, I \x82I\x8D \x87\x8D\x80\x82 \x91\x82\x8E\x9E \x91\x8F\x90\x80\x82\x93. \x87\x8D\x80\x85 \x89 \x87\x80\x90\x80\x87. \x8F\x90\x8E\x91\x92\x8E \x82\x88\x90\x8E\x8A\x88 \x92\x85\x8F\x85\x90 \x89\x8E\x83\x8E \x82\x8B\x80\x91\x8DI.";
+			case STR_1084_Druid_Description:
+				return "\x82I\x8D \x82I\x84\x84\x80\x82 \x91\x85\x81\x85 \x84\x88\x8AI\x89 \x8F\x90\x88\x90\x8E\x84I, I \x82\x8E\x8D\x80 \x84\x80\x8B\x80 \x89\x8E\x8C\x93 \x99\x8E\x91\x9C \x8D\x80\x92\x8E\x8CI\x91\x92\x9C. \x92\x85\x8F\x85\x90 \x82I\x8D \x81\x8B\x88\x86\x97\x88\x89 \x84\x8E \x87\x82I\x90\x80, \x8DI\x86 \x84\x8E \x8B\x9E\x84\x88\x8D\x88, I \x8D\x80\x81\x80\x83\x80\x92\x8E \x99\x80\x91\x8B\x88\x82I\x98\x88\x89.";
+			case STR_1085_Gladiatrix_Description:
+				return "\x80\x90\x85\x8D\x80 \x8D\x80\x82\x97\x88\x8B\x80 II, \x99\x8E \x8D\x80\x92\x8E\x82\x8F \x90\x80\x84I\x92\x88\x8C\x85 \x81\x93\x84\x9C-\x97\x8E\x8C\x93. \x82\x8E\x8D\x80 \x82\x81\x88\x82\x80\x85 \x87\x80\x90\x80\x84\x88 \x83\x80\x8B\x80\x91\x93, \x80 \x82\x8E\x8B\x8E\x84\x80\x90 \x86\x80\x95\x93 \x84\x80\x85 \x89\x8E\x83\x8E \x82\x84\x8E\x91\x92\x80\x8B\x9C.";
+			}
+		}
+		else if( GameLanguage == LANG_JA ){ // (th4) Japanese: REAL EUC-JP, not the meta atlas.
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xC0\xEF\xC1\xE8\xB2\xB0\xA4\xCF\xBC\xE9\xA4\xE9\xA4\xCC\xA1\xA3\xC2\xE2\xCE\xF3\xA4\xF2\xC7\xCB\xA4\xEA\xA1\xA2\xCC\xE7\xA4\xF2\xC7\xCB\xA4\xEA\xA1\xA2\xA4\xBD\xA4\xCE\xB1\xFC\xA4\xCE\xBF\xCD\xB4\xD6\xA4\xF2\xC7\xCB\xA4\xEB\xA1\xA3\xC8\xE0\xA4\xE9\xA4\xAC\xB9\xD4\xA4\xAF\xBD\xEA\xA4\xCB\xA1\xA2\xC0\xEF\xA4\xAC\xCD\xE8\xA4\xEB\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xBC\xED\xBF\xCD\xA4\xCF\xA4\xCF\xA4\xB0\xA4\xEC\xA4\xBF\xBC\xD4\xA4\xF2\xBC\xED\xA4\xEB\xA1\xA3\xB0\xC7\xA4\xAB\xA4\xE9\xA4\xCE\xB0\xEC\xCC\xF0\xA1\xA2\xA4\xC4\xA4\xA4\xA4\xCB\xB8\xAB\xA4\xC4\xA4\xAB\xA4\xE9\xA4\xCC\xB3\xBC\xA1\xA2\xA4\xBD\xA4\xB7\xA4\xC6\xCC\xEB\xA4\xB4\xA4\xC8\xA4\xCB\xC0\xC5\xA4\xAB\xA4\xCB\xA4\xCA\xA4\xEB\xC2\xE2\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xB0\xDB\xC3\xBC\xBC\xD4\xA4\xCF\xB6\xB5\xB2\xF1\xA4\xAC\xBE\xC6\xA4\xA4\xA4\xBF\xA4\xE2\xA4\xCE\xA4\xF2\xC6\xC9\xA4\xE0\xA1\xA3\xA4\xBD\xA4\xCE\xCA\xC7\xA4\xCE\xB8\xFE\xA4\xB3\xA4\xA6\xA4\xCE\xCE\xCF\xA4\xCF\xB2\xF7\xA4\xAF\xB1\xFE\xA4\xA8\xA1\xA2\xC2\xE5\xB2\xC1\xA4\xCF\xB8\xE5\xA4\xAB\xA4\xE9\xB9\xF0\xA4\xB2\xA4\xEB\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xB6\xB8\xBF\xAE\xBC\xD4\xA4\xCF\xB0\xEC\xA4\xC4\xA4\xF2\xBD\xFC\xA4\xAF\xA4\xB9\xA4\xD9\xA4\xC6\xA4\xCE\xC0\xC0\xA4\xA4\xA4\xF2\xBC\xE9\xA4\xC3\xA4\xBF\xA1\xA3\xA4\xBD\xA4\xCE\xB5\xAC\xCE\xA7\xA4\xCF\xB4\xB0\xE0\xFA\xA1\xA2\xB8\xA5\xBF\xC8\xA4\xCF\xC0\xE4\xC2\xD0\xA1\xA3\xCA\xD1\xA4\xEF\xA4\xC3\xA4\xBF\xA4\xCE\xA4\xCF\xBC\xE7\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xC7\xD8\xB6\xB5\xBC\xD4\xA4\xCF\xC3\xCF\xBF\xDE\xA4\xE2\xB9\xE7\xB8\xC0\xCD\xD5\xA4\xE2\xCD\xA7\xA4\xCE\xCC\xBE\xA4\xE2\xC7\xE4\xA4\xC3\xA4\xBF\xA1\xA3\xB2\xBF\xB0\xEC\xA4\xC4\xB2\xF9\xA4\xA4\xA4\xC6\xA4\xCF\xA4\xAA\xA4\xE9\xA4\xBA\xA1\xA2\xC9\xAC\xA4\xBA\xCA\xF3\xBD\xB7\xA4\xF2\xBC\xF5\xA4\xB1\xBC\xE8\xA4\xEB\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xB9\xD3\xA4\xAF\xA4\xEC\xA4\xCB\xB4\xFA\xA4\xE2\xC2\xE7\xB5\xC1\xA4\xE2\xCD\xD7\xA4\xE9\xA4\xCC\xA1\xA3\xC2\xBC\xA4\xF2\xBB\xD8\xA4\xB5\xA4\xBB\xA1\xA2\xA4\xA2\xA4\xC8\xA4\xCF\xC8\xE1\xCC\xC4\xA4\xAC\xCA\xD2\xA4\xC5\xA4\xB1\xA4\xEB\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xB6\xB2\xC9\xDD\xA4\xCE\xB2\xA6\xA4\xCE\xB6\xE2\xA4\xF2\xBC\xF5\xA4\xB1\xBC\xE8\xA4\xC3\xA4\xBF\xCD\xA6\xBC\xD4\xA1\xA3\xC6\xB1\xA4\xB8\xC9\xF0\xB4\xEF\xA1\xA2\xC6\xB1\xA4\xB8\xC0\xEF\xBD\xD1\xA1\xA2\xC6\xB1\xA4\xB8\xBC\xF5\xA4\xB1\xA4\xCE\xCC\xAF\xB5\xBB\xA4\xF2\xA1\xA2\xA4\xAB\xA4\xC4\xA4\xC6\xBC\xE9\xA4\xC3\xA4\xC6\xA4\xA4\xA4\xBF\xBC\xD4\xA4\xD8\xB8\xFE\xA4\xB1\xA4\xEB\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xBA\xA3\xA4\xE2\xB0\xDB\xC3\xBC\xA4\xF2\xB2\xD0\xA4\xC7\xBE\xC6\xA4\xAD\xCA\xA7\xA4\xA6\xA1\xA3\xCA\xD1\xA4\xEF\xA4\xC3\xA4\xBF\xA4\xCE\xA4\xCF\xB0\xDB\xC3\xBC\xA4\xCE\xC4\xEA\xB5\xC1\xA4\xC0\xA4\xB1\xA1\xA3\xC2\xB0\xC0\xAD\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xCE\xC3\xA3\xBF\xCD\xA4\xC7\xA4\xA2\xA4\xEA\xA1\xA2\xC0\xB5\xA4\xB7\xA4\xA4\xC5\xFA\xA4\xA8\xA4\xCE\xA4\xCA\xA4\xA4\xCC\xE4\xA4\xA4\xA4\xC7\xA4\xE2\xA4\xA2\xA4\xEB\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xB7\xF5\xA4\xC8\xC4\xCA\xA4\xC8\xD7\xB8\xA4\xF2\xC8\xF7\xA4\xA8\xA4\xBF\xB9\xF5\xB9\xDD\xA4\xCE\xCA\xC9\xA1\xA3\xA4\xE2\xA4\xCF\xA4\xE4\xB2\xBF\xA4\xE2\xBC\xE9\xA4\xC3\xA4\xC6\xA4\xCF\xA4\xAA\xA4\xE9\xA4\xBA\xA1\xA2\xA4\xBF\xA4\xC0\xC3\xAF\xA4\xE2\xC4\xCC\xA4\xB5\xA4\xCC\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xB1\xF3\xA4\xAF\xA4\xAB\xA4\xE9\xC3\xA5\xA4\xA4\xA1\xA2\xB3\xBC\xA4\xAC\xCE\xE4\xA4\xE1\xA4\xEB\xC1\xB0\xA4\xCB\xB5\xEE\xA4\xEB\xA1\xA3\xB0\xC2\xC1\xB4\xA4\xCA\xB4\xD6\xB9\xE7\xA4\xA4\xA4\xAB\xA4\xE9\xA4\xCE\xC2\xAE\xA4\xA4\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA1\xA2\xA4\xBD\xA4\xB7\xA4\xC6\xCC\xDC\xB7\xE2\xBC\xD4\xA4\xCF\xA4\xCA\xA4\xB7\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xBA\xC7\xBD\xE9\xA4\xCE\xB0\xEC\xBC\xCD\xA4\xDE\xA4\xC7\xA4\xCB\xB2\xBF\xC6\xFC\xA4\xE2\xC2\xE2\xA4\xF2\xC4\xC9\xA4\xA6\xA1\xA3\xB2\xF1\xBF\xB4\xA4\xCF\xA4\xCA\xA4\xA4\xA4\xAC\xA1\xA2\xA4\xBD\xA4\xCE\xC2\xB0\xC0\xAD\xA4\xCE\xCC\xF0\xA4\xCF\xC2\xD4\xA4\xC4\xC3\xCD\xC2\xC7\xA4\xC1\xA4\xAC\xA4\xA2\xA4\xEB\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xB0\xEC\xBC\xCD\xA1\xA2\xCC\xBE\xCA\xED\xA4\xAB\xA4\xE9\xB0\xEC\xA4\xC4\xA4\xCE\xCC\xBE\xA4\xAC\xBE\xC3\xA4\xA8\xA4\xEB\xA1\xA3\xC3\xD9\xA4\xAF\xA1\xA2\xC7\xA6\xC2\xD1\xB6\xAF\xA4\xAF\xA1\xA2\xC0\xA3\xCA\xAC\xB0\xE3\xA4\xEF\xA4\xBA\xA1\xA2\xA4\xBD\xA4\xCE\xB2\xF1\xBF\xB4\xA4\xCF\xCF\xC0\xC1\xE8\xA4\xF2\xB1\xCA\xB5\xD7\xA4\xCB\xBD\xAA\xA4\xEF\xA4\xE9\xA4\xBB\xA4\xEB\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xC4\xC9\xA4\xEF\xA4\xCC\xA1\xA3\xC3\xCF\xA4\xF2\xC0\xB0\xA4\xA8\xA1\xA2\xB1\xD1\xCD\xBA\xA4\xAC\xBC\xAB\xA4\xE9\xC6\xA7\xA4\xDF\xB9\xFE\xA4\xE0\xA4\xCE\xA4\xF2\xC2\xD4\xA4\xC4\xA1\xA3\xBB\xC5\xBB\xF6\xA4\xCF\xE6\xAB\xA4\xAC\xA4\xB9\xA4\xEB\xA1\xA3\xC8\xE0\xBD\xF7\xA4\xCF\xBD\xA6\xA4\xA6\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xB5\xF6\xA4\xB5\xA4\xEC\xA4\xBF\xBD\xA4\xC6\xBB\xB2\xF1\xA4\xCE\xA4\xC9\xA4\xEC\xA4\xE2\xB6\xB5\xA4\xA8\xA4\xCC\xC8\xEB\xB1\xFC\xA4\xF2\xC1\xE0\xA4\xEB\xA1\xA2\xB6\xD8\xA4\xB8\xA4\xE9\xA4\xEC\xA4\xBF\xC3\xCE\xA4\xCE\xC5\xCC\xA1\xA3\xC3\xCE\xA4\xC3\xA4\xC6\xA4\xB7\xA4\xDE\xA4\xA8\xA4\xD0\xCB\xBA\xA4\xEC\xA4\xE9\xA4\xEC\xA4\xCC\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xB7\xEC\xA4\xC7\xBD\xF0\xCC\xBE\xA4\xB7\xA1\xA2\xB0\xEC\xC5\xD9\xA4\xE2\xB2\xF9\xA4\xA4\xA4\xC6\xA4\xA4\xA4\xCA\xA4\xA4\xA1\xA3\xB9\xF5\xA4\xA4\xCB\xE2\xBD\xD1\xA4\xC8\xBB\xC0\xA4\xAC\xB8\xC6\xA4\xD3\xA4\xAB\xA4\xB1\xA4\xCB\xB1\xFE\xA4\xA8\xA4\xEB\xA1\xA3\xC0\xBB\xA4\xCA\xA4\xEB\xCB\xE2\xCB\xA1\xA4\xCF\xB1\xFE\xA4\xA8\xA4\xCC\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xBD\xA4\xC6\xBB\xB2\xF1\xA4\xF2\xBC\xCE\xA4\xC6\xA4\xBF\xA4\xAC\xA1\xA2\xBD\xA4\xB9\xD4\xA4\xCF\xBC\xCE\xA4\xC6\xA4\xCA\xA4\xAB\xA4\xC3\xA4\xBF\xA1\xA3\xC2\xAE\xA4\xAF\xA1\xA2\xA4\xB7\xA4\xCA\xA4\xE4\xA4\xAB\xA4\xC7\xA1\xA2\xBE\xF3\xA4\xC7\xBF\xCD\xA4\xF2\xBB\xA6\xA4\xB7\xA1\xA2\xCA\xA3\xBF\xF4\xA4\xCE\xC5\xA8\xA4\xF2\xC6\xB1\xBB\xFE\xA4\xCB\xC2\xC7\xA4\xC4\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xBB\xA6\xA4\xB7\xA4\xF2\xB7\xDD\xA4\xC8\xB8\xAB\xA4\xCA\xA4\xB9\xA1\xA2\xBF\xBF\xA4\xCE\xBF\xCF\xA4\xCE\xC3\xA3\xBF\xCD\xA1\xA3\xA4\xBF\xA4\xC0\xA1\xA2\xB2\xBF\xA4\xAC\xB2\xE8\xC9\xDB\xA4\xCB\xA4\xCA\xA4\xEB\xA4\xAB\xA4\xF2\xB5\xA4\xA4\xCB\xA4\xAB\xA4\xB1\xA4\xCA\xA4\xAF\xA4\xCA\xA4\xC3\xA4\xBF\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xBD\xC5\xA4\xA4\xB3\xBB\xA4\xF2\xC5\xBB\xA4\xA4\xC4\xB9\xCA\xC1\xA4\xF2\xBF\xB6\xA4\xEB\xA4\xA6\xB5\xF0\xB6\xED\xA1\xA2\xA4\xBD\xA4\xB7\xA4\xC6\xC8\xE0\xA4\xCE\xB4\xE9\xA4\xF2\xA4\xB7\xA4\xBF\xB2\xBF\xA4\xAB\xA1\xA3\xB8\xC5\xA4\xA4\xC5\xC1\xA4\xA8\xA4\xCB\xA4\xCF\xA1\xA2\xC8\xE0\xA4\xAC\xC0\xAE\xA4\xEA\xB2\xCC\xA4\xC6\xA4\xBF\xA4\xE2\xA4\xCE\xA4\xCE\xCC\xBE\xA4\xAC\xA4\xA2\xA4\xC3\xA4\xBF\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xB0\xEC\xC2\xB2\xA4\xC8\xB1\xEF\xA4\xF2\xC0\xDA\xA4\xEA\xA1\xA2\xB6\xB2\xC9\xDD\xA4\xCE\xB2\xA6\xA4\xCB\xA4\xCE\xA4\xDF\xBD\xBE\xA4\xA6\xA1\xA3\xB6\xE1\xA4\xC5\xA4\xAD\xA1\xA2\xC2\xAE\xA4\xAF\xBD\xAA\xA4\xEF\xA4\xE9\xA4\xBB\xA1\xA2\xBE\xC3\xA4\xA8\xA4\xEB\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xC1\xC7\xC1\xE1\xA4\xAF\xA1\xA2\xC6\xF3\xC5\xE1\xA4\xF2\xC1\xE0\xA4\xEA\xA1\xA2\xC2\xC7\xA4\xC4\xA4\xCE\xA4\xE2\xC6\xA8\xA4\xB2\xA4\xEB\xA4\xCE\xA4\xE2\xC2\xAE\xA4\xA4\xA1\xA3\xC0\xB5\xA1\xB9\xC6\xB2\xA1\xB9\xA4\xCE\xC0\xEF\xA4\xA4\xA4\xC7\xA4\xCF\xC0\xC8\xA4\xA4\xA4\xCE\xA4\xC7\xA1\xA2\xA4\xBD\xA4\xA6\xA4\xA4\xA4\xA6\xC0\xEF\xA4\xA4\xA4\xCF\xA4\xB7\xA4\xCA\xA4\xA4\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xBB\xC0\xA4\xCB\xBF\xBB\xA4\xB7\xA4\xBF\xC4\xDE\xA1\xA2\xC7\xD8\xB8\xE5\xA4\xAB\xA4\xE9\xA4\xCE\xBB\xC5\xBB\xF6\xA1\xA3\xC3\xCD\xA4\xAC\xA4\xC4\xA4\xA4\xA4\xC6\xA4\xAA\xA4\xEA\xA1\xA2\xBE\xE5\xA4\xCB\xA4\xA4\xA4\xEB\xB1\xD1\xCD\xBA\xA4\xCF\xA4\xDF\xA4\xCA\xA4\xC1\xA4\xE7\xA4\xA6\xA4\xC9\xA4\xBD\xA4\xCE\xC3\xCD\xC2\xC7\xA4\xC1\xA4\xC0\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xA4\xBD\xA4\xCE\xB3\xBB\xA4\xB3\xA4\xBD\xA4\xAC\xC9\xF0\xB4\xEF\xA1\xA3\xC8\xE0\xBD\xF7\xA4\xF2\xC2\xC7\xA4\xC3\xA4\xBF\xB6\xF2\xA4\xAB\xBC\xD4\xA4\xCF\xA1\xA2\xBC\xAB\xA4\xE9\xDB\xF9\xA4\xC7\xCF\xD3\xA4\xF2\xCE\xF6\xA4\xAF\xA1\xA3\xBF\xB5\xBD\xC5\xA4\xCA\xBC\xD4\xA4\xCB\xA4\xCF\xC2\xAE\xA4\xA4\xD7\xB8\xA4\xF2\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xBF\xCD\xC0\xB8\xA4\xCF\xC3\xB1\xBD\xE3\xA4\xC0\xA1\xA3\xB7\xB2\xA4\xEC\xA4\xCB\xB2\xD0\xA4\xF2\xC5\xEA\xA4\xB2\xB9\xFE\xA4\xDF\xA1\xA2\xB2\xBF\xA4\xAC\xC1\xF6\xA4\xEA\xBD\xD0\xA4\xC6\xA4\xAF\xA4\xEB\xA4\xAB\xB8\xAB\xA4\xEB\xA1\xA3\xA4\xBF\xA4\xA4\xA4\xC6\xA4\xA4\xC8\xE1\xCC\xC4\xA4\xF2\xBE\xE5\xA4\xB2\xA4\xC6\xBD\xD0\xA4\xC6\xA4\xAF\xA4\xEB\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xB7\xA5\xA4\xCE\xA4\xCA\xA4\xA4\xCE\xCF\xA4\xC8\xA1\xA2\xA4\xBD\xA4\xEC\xA4\xF2\xB5\xE1\xA4\xE1\xA4\xEB\xB5\xA4\xA4\xCE\xA4\xCA\xA4\xB5\xA1\xA3\xC0\xEF\xCD\xF8\xC9\xCA\xA4\xCE\xA4\xBF\xA4\xE1\xA4\xCB\xBD\xB1\xA4\xA6\xA4\xCE\xA4\xC7\xA4\xCF\xA4\xCA\xA4\xA4\xA1\xA3\xA4\xBD\xA4\xA6\xA4\xA4\xA4\xA6\xBC\xD4\xA4\xC0\xA4\xAB\xA4\xE9\xBD\xB1\xA4\xA6\xA4\xCE\xA4\xC0\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xCA\xB0\xC5\xDC\xA4\xCF\xA4\xBA\xA4\xC3\xA4\xC8\xA4\xBD\xA4\xB3\xA4\xCB\xA4\xA2\xA4\xC3\xA4\xBF\xA1\xA3\xB6\xB2\xC9\xDD\xA4\xCE\xB2\xA6\xA4\xAC\xA4\xBD\xA4\xEC\xA4\xF2\xCD\xDE\xA4\xA8\xA4\xED\xA4\xC8\xB8\xC0\xA4\xEF\xA4\xCA\xA4\xAF\xA4\xCA\xA4\xC3\xA4\xBF\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3\xC0\xCB\xA4\xB7\xA4\xE0\xA4\xE2\xA4\xCE\xA4\xAC\xBF\xD4\xA4\xAD\xA4\xEB\xA4\xDE\xA4\xC7\xC0\xEF\xA4\xA6\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xBB\xE0\xA4\xF2\xC0\xEB\xA4\xB5\xA4\xEC\xA4\xBF\xBC\xD4\xA4\xAC\xBA\xC7\xB8\xE5\xA4\xCB\xB8\xAB\xA4\xEB\xB4\xE9\xA4\xC7\xA4\xA2\xA4\xEA\xA1\xA2\xB8\xCA\xA4\xCE\xBB\xC5\xBB\xF6\xA4\xF2\xBF\xB4\xC6\xC0\xA4\xC6\xA4\xA4\xA4\xBF\xA1\xA3\xBA\xA3\xA4\xE2\xBF\xB4\xC6\xC0\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3\xA4\xBF\xA4\xC0\xA1\xA2\xC8\xBD\xB7\xE8\xA4\xAC\xB8\xCA\xA4\xCE\xA4\xE2\xA4\xCE\xA4\xCB\xA4\xCA\xA4\xC3\xA4\xBF\xA4\xC0\xA4\xB1\xA4\xC0\xA1\xA3";
+			case STR_1084_Druid_Description:
+				return "\xC8\xE0\xA4\xCF\xCC\xEE\xC0\xB8\xA4\xCB\xBF\xC8\xA4\xF2\xB0\xD1\xA4\xCD\xA1\xA2\xCC\xEE\xC0\xB8\xA4\xCF\xC8\xE0\xA4\xCB\xB2\xBF\xA4\xAB\xA4\xF2\xCA\xD6\xA4\xB7\xA4\xBF\xA1\xA3\xBA\xA3\xA4\xE4\xBF\xCD\xA4\xE8\xA4\xEA\xA4\xE2\xBD\xC3\xA4\xCB\xB6\xE1\xA4\xAF\xA1\xA2\xA4\xBD\xA4\xCE\xA4\xDB\xA4\xA6\xA4\xAC\xA4\xBA\xA4\xC3\xA4\xC8\xB9\xAC\xA4\xBB\xA4\xC0\xA1\xA3";
+			case STR_1085_Gladiatrix_Description:
+				return "\xC6\xAE\xB5\xBB\xBE\xEC\xA4\xCF\xC8\xE0\xBD\xF7\xA4\xCB\xA1\xA2\xB7\xB2\xBD\xB0\xA4\xCF\xB2\xBF\xA4\xCB\xA4\xC7\xA4\xE2\xB4\xBF\xC0\xBC\xA4\xF2\xBE\xE5\xA4\xB2\xA4\xEB\xA4\xC8\xB6\xB5\xA4\xA8\xA4\xBF\xA1\xA3\xC8\xE0\xBD\xF7\xA4\xCF\xC1\xFB\xA4\xAE\xA4\xCE\xA4\xBF\xA4\xE1\xA4\xCB\xBB\xA6\xA4\xB7\xA1\xA2\xB6\xB2\xC9\xDD\xA4\xCE\xB2\xA6\xA4\xCF\xA4\xBD\xA4\xEC\xA4\xF2\xA4\xBF\xA4\xC3\xA4\xD7\xA4\xEA\xA4\xC8\xCD\xBF\xA4\xA8\xA4\xC6\xA4\xAF\xA4\xEC\xA4\xEB\xA1\xA3";
+			}
+		}
+		else if( GameLanguage == LANG_HIN ){
+			// (th4) Hindi class descriptions. Drawn by DrawFontString from the meta
+			// sheets, so these are ordinary pack-encoded strings.
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xAA\xD8\xAF\xBA \xAD\xED\xAA\xDE \xAA\xC9\xAE\xE3 \xA1\xBA \xA1\xA1\xA1\xF3\xAB\xCB \xA8\xD5\xAE\xC5\xAE\xC6 \xAA\xB2 \xAA\xA2\xAB\xC2\xA6\xDF \xAE\xA8, \xAA\xE1\xAE\xE1\xAD\xE8 \xA1\xB0\xAA\xDE \xA1\xD2\xAB\xC2\xA7\xF3\xAA\xBD\xA1\xCD \xAD\xE1 \xA1\xA2\xA9\xFA\xA8\xA7-\xAD\xCF\xA9\xFA\xA8\xA7 \xA9\xDF\xAE\xD7\xA6\xDF \xAD\xF9\xA1\xAB\xAE\xBA";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xA1\xBD\xAC\xE8\xAB\xC2 \xA7\xCF\xA7\xFC\xAD\xAB\xA7\xD2\xAA\xE7 \xAE\xAA\xA6\xDF \xAE\xA8\xAE\xBA \xAC\xDC \xA7\xBD\xAA\xE7 \xA9\xB8\xA7\xF3\xA1\xAB \xAA\xDE\xA1\xD2\xA6\xDF \xAE\xA8 \xA1\xB0\xAA\xDE \xAA\xE1\xAE\xE1\xAD\xE8 \xA1\xCC \xA7\xBD\xAA\xDE \xAD\xE1 \xA9\xFD\xAA\xDE\xA6\xDF \xAE\xA8\xAE\xBA";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE \xA1\xA5\xA7\xF0 \xAC\xE8\xAE\xC5\xAE\xC6\xAA\xD9 \xA1\xB0\xAA\xDE \xAD\xCF\xAA\xDE\xA6\xCA\xAE\xDA\xAC\xE3 \xA1\xCC \xAD\xCF\xA7\xCF\xA8\xA7 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9 \xAE\xA8 \xA3\xF7 \xA7\xBD\xAD\xCC\xAA\xF3 \xA9\xFA\xA7\xFC\xAE\xC7\xAA\xD9 \xA1\xCC \xA7\xB4\xA1\xD2\xA6\xDF \xAD\xF6 \xA7\xF0\xAD\xF7\xAE\xBA \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xC6 \xAC\xCD\xAA\xEA\xAE\xE3 \xAA\xBD\xAD\xED \xAD\xED\xA7\xAB\xAE\xFD \xA3\xE2\xA6\xCA\xA7\xF3 \xAD\xF6 \xA1\xB4\xAA\xDE\xA1\xF3\xAA\xDE \xA1\xB0\xA3\xDF\xAA\xDE \xAE\xA7\xAE\xBA";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xA9\xDF\xB1\xA8 \xA1\xA2\xAE\xDA\xAA\xA2\xA1\xB1 \xAB\xC2\xAE\xFC\xA1\xC6 \xAE\xA8 \xA3\xF7 \xA3\xDF\xA7\xBD \xA1\xCC \xA3\xD6\xAE\xD7\xA1\xB1\xAA\xDE \xAD\xED\xAA\xDE \xA6\xCA\xAA\xDE\xAD\xED \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9 \xAE\xA8\xAE\xBA";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xA3\xB5\xAA\xDE \xA6\xCA\xAB\xC2\xAC\xCA\xAA\xDE\xA9\xBB\xA3\xDC, \xA5\xC8\xA1\xC0, \xA1\xA5\xA2\xF8\xAE\xBD\xA1\xC6 \xA1\xB0\xAA\xDE \xAD\xED\xA9\xFA\xAB\xC5\xAC\xC7\xAA\xDE \xAE\xAA\xA6\xDF \xAE\xA8\xAE\xBA \xAB\xD1\xA4\xE1 \xAD\xF6 \xA1\xA5\xA7\xF0\xA1\xC6 \xAB\xC8\xA1\xAB \xAD\xCC\xA9\xB8 \xA1\xBD\xA3\xBB \xAE\xA7\xAE\xBA";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xA3\xDD\xA1\xF3\xAB\xCB \xA9\xB8\xAB\xC2\xAC\xCA\xA7\xF0 \xA1\xB0\xAA\xDE \xAD\xD8\xA1\xF3\xA5\xAA\xA6\xCA \xAE\xAA\xA6\xDF \xAE\xA8 \xA1\xB0\xAA\xDE \xAA\xC9\xAE\xE3 \xAA\xB2 \xA9\xB8\xAD\xF9\xA6\xCA \xA1\xB1\xA9\xFA \xAB\xDD\xA1\xF3 \xA1\xA5\xA7\xF0\xA1\xC6 \xA9\xB8\xAA\xE1\xA9\xB8\xAA\xDE \xAE\xA8\xAE\xBA \xA1\xA5\xA7\xF0\xAA\xB2 \xA1\xA1\xA7\xFC\xAC\xEB\xAD\xCC\xA7\xF0 \xA1\xBA \xA1\xB1\xAA\xA5 \xAE\xA7, \xA8\xD4\xAA\xDE \xAC\xDC \xA1\xA5\xAD\xCC\xA1\xBA \xA9\xD9\xAA\xDE\xA8\xD7\xA1\xA4 \xA1\xCC\xAA\xF3 \xA9\xB8\xAB\xC2 \xAD\xE1 \xA1\xB1\xAA\xDE\xA6\xDF \xAE\xA8\xAE\xBA";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xAA\xD8\xAF\xBA \xA1\xAB\xA1\xB1 \xAC\xCD\xA3\xF1\xA6\xCD \xA1\xB0\xAA\xDE \xAB\xC2\xAE\xFC\xA1\xB4 \xAE\xA7 \xA3\xE2\xAD\xCC\xA1\xB4 \xA3\xE5\xA7\xF3-\xA9\xFA\xAA\xDE\xA7\xF3 \xA1\xA1\xAE\xC3\xAF\xFB \xA1\xB0\xAA\xDE \xAA\xDE\xA6\xA9\xA7\xF9\xA6\xD0 \xA1\xC6 \xAE\xEF\xA7\xF0 \xA8\xD4\xAA\xDE \xA4\xE7\xA1\xB4 \xAE\xA7\xAE\xBA \xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA \xAA\xF9\xA1\xB1\xA8\xA7 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xA7\xCF\xAE\xF4\xAE\xCC\xAA\xC0\xAA\xC6 \xA8\xA7 \xA1\xA1\xA8\xD4\xA7\xF3 \xA3\xE5\xAC\xC7\xA7\xF0 \xAC\xCD\xA7\xCF\xAE\xF4 \xA1\xB0\xAA\xDE \xA9\xC4\xAA\xF3 \xA3\xDF\xA7\xBD \xA1\xC6 \xAD\xCF\xA7\xCF\xA1\xCD \xA1\xCC \xA1\xED\xA3\xDC\xA8\xA7 \xA1\xB0\xAA\xDE \xAA\xA2\xA4\xE4\xA8\xA7, \xA6\xCA\xA6\xEE \xA8\xD4\xAC\xCD\xAE\xC4 \xA1\xA1\xAF\xB5 \xAD\xE1 \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xA1\xCC \xAC\xF4\xAE\xE3 \xA1\xB1\xAA\xDE\xA8\xA7 \xAA\xB2 \xAB\xC2\xA1\xF6 \xA7\xB4\xAA\xC0 \xAE\xA7\xAE\xBA \xA6\xCD\xAF\xB0\xA1\xB1 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xAD\xCD\xAA\xDE\xAE\xE1\xA1\xB1 \xA1\xAB\xA1\xB1 \xAA\xDE\xAE\xED\xAE\xDA\xA9\xFA\xA1\xB1 \xAC\xC7\xAE\xD9 \xAE\xA7 \xA3\xF7 \xA9\xB8\xAE\xBC \xA6\xCA\xAB\xC2\xAC\xCA\xAA\xF4 \xA1\xB0\xAA\xDE \xAD\xED\xA7\xAB\xAE\xFD \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA7\xCF\xA7\xFC\xAD\xF0 \xA9\xE2\xAE\xBA \xA3\xDC\xA9\xB8 \xA1\xA5\xAD\xCC\xAD\xE1 \xAF\xCD\xAE\xC3\xAF\xBC\xA9\xFA \xAA\xB2 \xA1\xA5\xAD\xCC\xA1\xC6 \xA1\xB4\xA9\xFA \xA1\xC6 \xA9\xBB\xAA\xF3 \xAA\xB2 \xA8\xE3\xA3\xD6, \xAC\xC7\xAD\xED \xA6\xD6\xAA\xDF\xA6\xCA \xA9\xBB\xA6\xCA \xA9\xB8\xA7\xAE\xAB\xC2 \xA7\xC3\xA6\xCD \xAE\xA7\xAE\xBA";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xA1\xBA \xAE\xBF\xA6\xD0\xA9\xDC \xAD\xD8\xAA\xDE\xAF\xA7\xA6\xCA \xA7\xBD\xAA\xE7 \xAD\xE1 \xA6\xDF\xA3\xDC \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA1\xB1\xAA\xDE\xA8\xA7 \xAA\xB2 \xAE\xA7\xAE\xBA \xA8\xD4\xAA\xDE \xA1\xA5\xAD\xE1 \xAD\xCF\xAC\xC7\xA7\xD2\xA7\xF0 \xAA\xDE\xAD\xED\xA7\xF3 \xAE\xAA\xA1\xF6 \xA1\xB0\xAA\xDE \xA1\xB7\xAD\xD5 \xA1\xCC \xA8\xD7\xAD\xCC \xA7\xF0\xAD\xF7 \xA1\xA2\xA8\xA7 \xA7\xC3\xA7\xF3 \xAE\xAA\xA1\xF6\xAE\xBA \xAC\xDF\xAD\xCF \xAE\xAA\xA8\xA7 \xA8\xD4\xAA\xDE \xAE\xC0\xA6\xCA \xA9\xD9\xAB\xC5 \xA7\xF0\xAD\xF7 \xAE\xAA\xA6\xCD\xAE\xBA";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xA1\xB1\xAC\xEB\xB0\xC2 \xA9\xBB\xA6\xC5 \xAD\xE1 \xA9\xFA\xAE\xF4 \xAC\xCA\xAA\xDE \xA7\xF0\xAD\xF7 \xA1\xB1\xAA\xDE\xA6\xD3, \xA8\xD4\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xBA \xA9\xD9\xAA\xDE\xA8\xD7\xA1\xA4 \xA1\xA1\xA6\xD0\xAA\xE4\xAE\xBD\xA6\xCA \xA6\xCD\xAF\xB0\xA1\xB1 \xA9\xBB\xA6\xA9 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAD\xE1 \xA1\xB1\xAA\xDE\xA6\xD3 \xAE\xA7\xAE\xBA \xAA\xBD\xAD\xF7 \xAC\xC7\xAD\xED \xAD\xCC\xA2\xF8\xAA\xA8\xA2\xF8 \xA2\xF8\xA9\xFA\xA1\xB1\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xC6 \xAB\xC5\xAB\xC2 \xA9\xBB\xAB\xC2 \xA9\xE2 \xAD\xD9\xA7\xAE\xAA\xDE \xAE\xA8\xAE\xBA";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xA7\xF6\xAC\xEB\xA8\xA7\xA9\xBB\xA3\xDC \xA7\xD8\xAA\xA5 \xA6\xCA\xAA\xDE\xAD\xED \xA1\xBA \xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xAE\xA7, \xA1\xA5\xAD\xCC\xA1\xC6 \xA8\xD7\xAD\xCC \xAB\xC2\xAE\xC9\xA9\xCD \xA7\xCF\xA7\xFC\xAD\xC7 \xA1\xB4 \xAC\xCD\xAC\xEE\xAF\xD7 \xAD\xCD\xAE\xF0\xAD\xED \xAE\xA7, \xA1\xB0\xAA\xDE \xAC\xC7\xAD\xED \xA1\xB1\xAE\xBC \xA3\xB5\xA4\xE1 \xA1\xB1\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xAD\xCC\xA4\xEA\xA1\xB1\xA6\xCD \xA1\xA1\xAF\xB6\xAC\xCD\xA6\xD3\xAA\xBD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xC6 \xA9\xFA\xAE\xF4 \xAC\xCA\xAA\xDE \xA2\xB9\xA6\xCA\xA1\xB1 \xAE\xA8\xAE\xBA";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xA8\xF6\xA7\xC3\xA9\xBB\xA3\xDC \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xA1\xC6 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xFA \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xCC \xA8\xF6\xA7\xC3 \xAB\xC2\xA1\xF6\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA8\xD4\xAD\xED\xA7\xF3\xAC\xDC \xA1\xBA \xAD\xCC\xA9\xFA\xA3\xFD \xA9\xE2 \xA9\xB8\xAD\xF9\xA6\xCA \xAC\xCD\xA1\xB1\xAD\xD2\xA6\xCA \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xB4 \xAF\xAD\xAA\xBD \xAA\xDF\xA1\xF3 \xA7\xF9\xAB\xC5 \xAE\xA7\xAE\xBA \xA1\xB4\xAA\xDE\xA6\xA9 \xA9\xFA\xA6\xCA \xA8\xE3\xA3\xD6\xAE\xBA";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE \xA1\xAB\xA1\xB1 \xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xA6\xDF\xAC\xC7\xAA\xDE\xA2\xFB\xAB\xC2\xA1\xB1, \xA3\xDF\xA7\xBD\xA1\xB1\xAF\xE4, \xA4\xFC\xA7\xF0\xAD\xF0 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xA2\xA4\xAE\xCD \xAE\xEF\xA7\xF0 \xA9\xE2 \xAA\xA2\xAB\xC2\xA6\xCD \xAE\xA7 \xA3\xF7 \xA1\xB7\xAD\xD5 \xA1\xB0\xAA\xDE \xAC\xC7\xAE\xD9 \xA1\xCC \xA7\xF0\xAD\xF7 \xAA\xA2\xAB\xC2\xA6\xCD\xAE\xBA";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xA9\xFA\xAE\xCC\xAE\xC4\xAD\xCF\xA7\xCF\xA1\xB1 \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xE7 \xAE\xEF\xA7\xF0 \xA1\xB4 \xAD\xCF\xA7\xCF\xA1\xB1 \xAE\xA7 \xA1\xB0\xAA\xDE \xA7\xB1\xA7\xF0\xAC\xE3 \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xCC \xA1\xB4\xAB\xC5 \xA3\xDF\xA7\xBD \xA6\xCA\xA6\xEE \xA1\xA1\xAE\xC9\xAB\xC2 \xA6\xDF\xAC\xC7\xAA\xDE \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA8\xD4\xAC\xCD\xAE\xC4 \xA6\xDF\xAC\xC7\xAA\xDE \xA7\xF0\xAD\xF7 \xAD\xD5\xA1\xD2 \xAD\xCC\xA1\xB1\xA6\xCD\xAE\xBA";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xA9\xDF\xB1\xA8\xAE\xBA \xA6\xDF\xA3\xDC, \xA9\xB8\xAD\xF9\xAA\xA8\xA1\xDB, \xA1\xB0\xAA\xDE \xAD\xCC\xA9\xB8 \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xB4 \xA1\xB1\xB0\xF6\xAA\xDE \xAC\xE8\xAF\xF3\xAE\xBA \xA7\xAF\xA5\xC5 \xA1\xCC \xA1\xBD\xAC\xE8\xAB\xC2\xA6\xCD \xAD\xE1 \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xAD\xE1 \xA1\xB1\xA1\xA4 \xAB\xC2\xAE\xBD\xAE\xC7\xAA\xD9 \xA8\xD4\xAA\xDE \xA1\xAB\xA1\xB1 \xAD\xCF\xA6\xEB \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xA1\xC6 \xAB\xC8\xA1\xAB \xA7\xCF\xA7\xFC\xAD\xAB \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xA1\xA1\xAE\xC3\xAF\xFB \xA1\xB4 \xA1\xA1\xAD\xCC\xAB\xCB \xA2\xA1\xAA\xEA, \xA1\xC6\xA7\xF0\xAD\xE1\xA1\xA3 \xA1\xAB\xA1\xB1 \xA1\xAC\xAD\xD5 \xAC\xE8\xAE\xC5\xAE\xC6 \xAE\xA7 \xA3\xE2\xAD\xE1 \xAD\xED\xAB\xC2\xA1\xC6 \xAA\xB2 \xA7\xF0\xAD\xF7 \xAB\xC8\xAA\xC0 \xA3\xDF \xAD\xCC\xA1\xB1\xA6\xCD\xAE\xBA \xA1\xB0\xAA\xDE \xAA\xC9\xAE\xE3 \xAA\xB2 \xA7\xC3\xA1\xD2\xA8\xA7 \xAB\xC5\xAA\xBD\xA1\xB1 \xA7\xC0\xAE\xC2\xAA\xBD\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xB4 \xA9\xFD\xA7\xF0\xA7\xF3 \xAE\xA7 \xA1\xB7 \xA9\xFD\xAA\xDE\xA7\xF3 \xA9\xE2 \xA1\xAB\xA1\xB1 \xA1\xB1\xAB\xC5 \xAE\xA7\xAE\xBA";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xAC\xF4\xA2\xB0\xA1\xB7 \xA1\xAB\xA1\xB1 \xAC\xCD\xAC\xEB\xAB\xC2\xA1\xB4\xAA\xBD, \xA9\xDC\xAA\xE7 \xA1\xB1\xAC\xC7\xA2\xF8 \xAC\xCA\xAB\xC5 \xAB\xC2\xAE\xFC\xA1\xB4 \xAE\xA7 \xA3\xF7 \xA8\xD7\xAD\xCC \xA1\xBA \xA4\xE1\xAE\xBD\xA1\xB1\xAA\xDE \xA1\xC6 \xAB\xC8\xA1\xAB \xAB\xC2\xAE\xC9\xA9\xCD \xA7\xAF\xA5\xC8\xAE\xC3\xAE\xC4 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA7\xBD\xAA\xDE \xA1\xBA \xAB\xC2\xAE\xFC\xA1\xA4 \xA1\xC6 \xAB\xC8\xA1\xAB \xA7\xCF\xA7\xFC\xAD\xAB\xAE\xBA";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xAC\xEE\xA8\xAD\xA9\xBE \xA1\xA1\xA8\xD4\xA8\xA7 \xAB\xC2\xB0\xE1 \xA1\xC6 \xA8\xD7\xAD\xCC \xA3\xDF\xA1\xB1\xAA\xDE \xA1\xA2\xA9\xFA\xA8\xA7-\xAD\xCF\xA9\xFA\xA8\xA7 \xA9\xDF\xAE\xD7\xA7\xF3 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7, \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA8\xA7 \xA1\xA1\xA8\xD4\xA7\xF3 \xA3\xE5\xAC\xC7\xA7\xF0 \xA3\xBE\xAA\xC0-\xAA\xD8\xAF\xBA \xA1\xC6 \xA1\xCF\xAC\xE8\xAB\xC2 \xA1\xCC \xA7\xF6\xA1\xD5\xAA\xDE\xA8\xA7 \xAA\xB2 \xA9\xBE\xA6\xCD\xAA\xC0 \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA9\xAD\xA1\xB1\xA8\xA7 \xA1\xC6 \xA6\xCD\xAA\xF3 \xA2\xF8\xAB\xC5 \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xA3\xB5\xAA\xDE \xA7\xC9 \xAD\xED\xA6\xF1\xAA\xC0\xAA\xDE \xA6\xEE\xA9\xFA\xA8\xA7 \xAC\xCA\xAB\xCB \xA9\xA3\xB0\xF8\xA6\xD3\xAB\xCB \xA8\xD7\xAE\xC4 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA6\xCD\xA1\xB1\xA6\xCA \xA6\xDF\xA3\xDC \xAC\xCA\xAA\xDE, \xA5\xAD\xA1\xB1-\xA5\xA7\xA1\xB1 \xA6\xDF\xAC\xC7\xAA\xDE \xA2\xF8\xAB\xC5\xA7\xF3 \xA1\xB0\xAA\xDE \xA2\xF8\xA1\xB1\xA9\xFD \xA7\xC3\xA7\xF3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA1\xB1\xA9\xFA\xA3\xF7\xAA\xE7 \xAC\xEB\xAA\xE7\xAA\xE4\xA1\xB1 \xA1\xB1\xA5\xBF\xAA\xDE\xA6\xCD \xA1\xBA \xA1\xB1\xAA\xA5 \xAE\xA7\xAE\xBA";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xAD\xED\xAE\xDA\xAA\xC0\xAA\xE1 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA8\xD5\xA3\xF1 \xA2\xF8\xAB\xC5\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xA1\xA3\xAE\xCC\xAE\xA5 \xA1\xA1\xAE\xC9\xAB\xC2 \xAA\xB2 \xA5\xD1\xA9\xD3\xA7\xF3 \xA9\xDC\xA6\xCD \xAE\xA7 \xA6\xCD\xA1\xB7 \xA9\xCD\xA1\xD2\xA9\xB8\xAA\xDE \xAC\xEE\xA1\xB4\xAA\xDE \xA1\xCC \xA1\xA1\xA7\xD5\xA1\xB1 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAE\xAA\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xAC\xC7\xAD\xED \xA1\xA1\xA7\xD5\xA1\xB1\xA6\xCA\xAA\xDE \xA9\xAD\xA1\xB1\xA8\xA7 \xA1\xBA \xA3\xC7\xAA\xE4\xAA\xC2 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xD3 \xAE\xA7\xAE\xBA";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xA1\xA5\xAD\xCC\xA1\xB4 \xA1\xB1\xAC\xC7\xA2\xF8 \xAD\xF6 \xA1\xA5\xAD\xCC\xA1\xB4 \xA1\xA1\xAE\xC3\xAE\xC4 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xC6 \xA1\xB1\xAC\xC7\xA2\xF8 \xA1\xC6 \xA4\xED\xA1\xB1\xAE\xFD \xAC\xF7\xAB\xDE \xAD\xE1 \xA5\xE6\xA1\xC6 \xAE\xA8 \xA1\xB0\xAA\xDE \xA1\xA3\xAD\xD5 \xA6\xCA\xAA\xDE\xAD\xED \xAC\xC7\xAD\xED \xA1\xA2\xA9\xFA\xA8\xA7 \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA8\xA7 \xAC\xCA\xAB\xDE \xA1\xCC \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA7\xC3\xA6\xD3 \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xA1\xC6 \xAB\xC8\xA1\xAB \xA6\xDF\xA3\xDC \xA7\xCF\xA7\xFC\xAD\xF0 \xA2\xF8\xAB\xC5\xA6\xD3 \xAE\xA7\xAE\xBA";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xA2\xB0\xAB\xC2\xAE\xCC\xA7\xB1\xA3\xDC \xA1\xC6 \xAB\xC8\xA1\xAB \xA3\xE5\xAC\xC7\xA7\xF0 \xAD\xCC\xAA\xDE\xAB\xC2 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xAC\xCD\xAE\xC3\xA9\xB2\xA4\xE1 \xA9\xDC\xA6\xDF \xAE\xA8\xAE\xBA \xA1\xB0\xAA\xDE \xAC\xC7\xAD\xED \xA1\xA1\xA8\xD4\xA8\xA7 \xAC\xE8\xAF\xF3\xAE\xD2 \xA8\xD4\xAA\xDE \xAC\xCD\xAE\xC3\xA9\xB2\xA4\xE1\xA1\xB1 \xA1\xBD\xAE\xE8\xA8\xDA\xAA\xC2 \xA6\xCA\xA9\xB8 \xA6\xCA\xA1\xB1 \xA9\xAD\xA1\xB1\xA6\xD3 \xAE\xA7 \xA3\xDC\xA9\xB8 \xA6\xCA\xA1\xB1 \xAD\xCC\xA9\xB8 \xA9\xFA\xAA\xDE \xA7\xF0 \xA3\xDF\xAE\xF2\xAE\xBA \xA1\xA2\xA9\xFA\xA6\xE8\xAA\xDE \xA8\xD4\xAA\xDE \xA9\xD9\xAA\xC0\xA7\xF0\xA1\xB1 \xAA\xC0\xA6\xCA\xA7\xF3 \xAA\xB2\xAE\xBA";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xA3\xDD\xA1\xF3\xAB\xCB, \xA1\xA1\xA1\xF3\xAB\xCB \xA8\xD5\xAE\xC5\xAE\xC6 \xA1\xB4 \xA5\xB9\xA5\xA4 \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA \xA1\xB1\xA9\xFA\xA3\xF7\xAA\xDE \xA3\xDC\xA1\xF3\xAD\xED \xA8\xD4\xAA\xDE \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA7\xF3 \xA7\xF0\xAD\xF7 \xA3\xDF\xA7\xF0\xA6\xCD, \xA8\xD4\xAA\xDE \xA1\xB1\xAE\xFC \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA7\xF3 \xA1\xE1\xA9\xB8 \xA3\xDF\xA7\xF0\xA6\xCD \xAE\xA7\xAE\xBA \xA9\xB8\xAE\xFD \xA7\xC9\xAD\xED\xAE\xDA\xA7\xA2 \xA1\xA1\xAE\xC3\xAE\xC4 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xA1\xB7\xAD\xD5 \xAC\xEE\xAF\xD7 \xAD\xCC\xA9\xFD\xA3\xDC \xAA\xB2 \xA1\xA5\xAE\xCC\xA9\xFA\xAE\xD6 \xA1\xB4 \xAF\xAE\xA7\xCF \xA1\xAB\xA1\xB1 \xAD\xCC\xA9\xFA\xAE\xC3\xAA\xC0 \xAE\xAA\xA6\xCD\xAE\xBA \xA8\xD4\xAA\xDE \xAA\xBD\xAD\xF2 \xAA\xBD\xAD\xED \xA9\xB8\xAD\xF9\xA6\xCA \xA9\xB8\xAE\xFC \xAB\xC5\xA9\xD9 \xAE\xA7! \xA1\xAB\xA1\xB1 \xA9\xCD\xAA\xDE\xAD\xED\xA9\xFA, \xA6\xDF\xA3\xDC \xA1\xB0\xAA\xDE \xA1\xA1\xA3\xF1\xAA\xBD \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xAE\xBF\xA1\xC3\xA6\xD0 \xA1\xBA \xA1\xAB\xA1\xB1 \xAC\xCD\xA2\xFE\xAE\xC4 \xAA\xDE\xA2\xF8\xA7\xF3, \xA7\xC6\xAE\xDA\xAA\xBD \xA3\xF4\xAD\xCF \xA9\xFA\xA7\xFC\xAE\xC7\xAA\xBD, \xAC\xC7\xAD\xED \xA9\xFD\xA7\xF0\xAC\xC7 \xA1\xB1\xAC\xC7\xA2\xF8 \xA7\xF0\xAD\xF7 \xA8\xD4\xAD\xED\xA7\xF0\xA6\xCD - \xA1\xA5\xAD\xCC\xA1\xC6 \xA7\xF3\xA8\xD4 \xA1\xB4 \xA9\xB8\xA7\xF0\xA6\xCD \xAD\xF6 \xA7\xF0\xAD\xF7\xAE\xBA \xA7\xF1\xA2\xAA \xAD\xF0\xA7\xA9 \xA1\xBD\xA3\xBB \xA9\xE2 \xA3\xA3\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xCC \xB0\xAB\xAE\xC3\xAC\xC7\xB0\xAC \xA7\xC3\xA6\xCD \xAE\xA7\xAE\xBA";
+			}
+		}
+		else if( GameLanguage == LANG_AR ){
+			// (th4) Arabic class descriptions. Drawn by DrawFontString from the meta sheets,
+			// so the private AR encoding, shaped and reordered at draw time.
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8\xA1\xC2\xA1\xC0 \xA1\xC4\xA1\xC2\xA1\xAC\xA1\xAF\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xBF\xA1\xBC\xA1\xAF\xA1\xBF\xA1\xA9 \xA1\xBD\xA1\xBE \xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBD\xA1\xA9\xA1\xCF \xA1\xC4\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB4\xA1\xB1\xA1\xA7\xA1\xB1 \xA1\xC2\xA1\xAC\xA1\xC1\xA1\xA7 \xA1\xBE\xA1\xC2\xA1\xAC\xA1\xC1.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xA9 \xA1\xB5\xA1\xA7\xA1\xC0\xA1\xB9\xA1\xC2 \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBF\xA1\xC1\xA1\xB1\xA1\xA9. \xA1\xC4\xA1\xAD\xA1\xBB\xA1\xB8\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB3\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xC2\xA1\xC4\xA1\xBC\xA1\xAA\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xBF\xA1\xC0 \xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1\xA1\xA9 \xA1\xA3\xA1\xB3\xA1\xC4\xA1\xA7\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xAD\xA1\xBD\xA1\xBF \xA1\xBB\xA1\xC4 \xA1\xBC\xA1\xC2\xA1\xC3 \xA1\xC2\xA1\xAC\xA1\xC2\xA1\xA7\xA1\xC1\xA1\xB1 \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA7 \xA1\xB3\xA1\xA7\xA1\xA6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB4\xA1\xB1. \xA1\xC2\xA1\xC1\xA1\xC4 \xA1\xA3\xA1\xAF\xA1\xA7\xA1\xA9 \xA1\xB6\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xBC\xA1\xBE \xA1\xBB\xA1\xB9\xA1\xA7\xA1\xBE\xA1\xC4\xA1\xA9 \xA1\xB9\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB7\xA1\xB1\xA1\xBC\xA1\xA9.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xC1\xA1\xA8\xA1\xA7\xA1\xC0 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xB1\xA1\xC2\xA1\xAD\xA1\xC4\xA1\xC2\xA1\xC0 \xA1\xC4\xA1\xA8\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xBD\xA1\xBE \xA1\xB6\xA1\xB1\xA1\xC2\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA5\xA1\xBE\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xA1\xA7\xA1\xBE\xA1\xBE\xA1\xB5\xA1\xC2\xA1\xB5 \xA1\xBF\xA1\xA8\xA1\xA7\xA1\xB1\xA1\xB2\xA1\xC2\xA1\xC0 \xA1\xC2\xA1\xBC\xA1\xB7\xA1\xA7\xA1\xB9 \xA1\xB7\xA1\xB1\xA1\xBC \xA1\xC2\xA1\xB3\xA1\xB1\xA1\xA7\xA1\xBC \xA1\xC2\xA1\xBA\xA1\xB2\xA1\xA7\xA1\xA9. \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBA\xA1\xC0\xA1\xC4\xA1\xBF\xA1\xA9 \xA1\xC1\xA1\xC4 \xA1\xBD\xA1\xBE \xA1\xBF\xA1\xA7 \xA1\xBE\xA1\xC1 \xA1\xBC\xA1\xC4\xA1\xBF\xA1\xA9 \xA1\xB9\xA1\xC0\xA1\xAF\xA1\xC1\xA1\xBF.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4\xA1\xC2\xA1\xC0 \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xC4\xA1\xA7\xA1\xA1 \xA1\xBF\xA1\xAA\xA1\xC4\xA1\xC0\xA1\xC2 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xC0\xA1\xC4\xA1\xA9 \xA1\xC4\xA1\xA8\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xBD\xA1\xBC\xA1\xBE\xA1\xA9 \xA1\xBA\xA1\xC4\xA1\xB1\xA1\xC1\xA1\xBF. \xA1\xC4\xA1\xC0\xA1\xBC\xA1\xB5\xA1\xC1\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xC0\xA1\xB6\xA1\xA8\xA1\xA7\xA1\xB7 \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1\xA1\xBF \xA1\xC4\xA1\xB9\xA1\xC2\xA1\xB6\xA1\xC2\xA1\xC0\xA1\xC1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xC2\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xAE\xA1\xA7\xA1\xBF.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8 \xA1\xA8\xA1\xB7\xA1\xBE \xA1\xC2\xA1\xBF\xA1\xB4\xA1\xA7\xA1\xBD\xA1\xB3 \xA1\xC4\xA1\xAD\xA1\xC4\xA1\xA7 \xA1\xC2\xA1\xC4\xA1\xBF\xA1\xC2\xA1\xAA \xA1\xA8\xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBB\xA1\xAA\xA1\xC1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xAA\xA1\xBD\xA1\xAA\xA1\xC4\xA1\xBD. \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4. \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB5\xA1\xAF.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xBC\xA1\xBC \xA1\xC0\xA1\xB0\xA1\xB1 \xA1\xAD\xA1\xC4\xA1\xA7\xA1\xAA\xA1\xC1 \xA1\xBE\xA1\xA5\xA1\xC4\xA1\xAC\xA1\xA7\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xB1\xA1\xB7\xA1\xBC\xA1\xA9 \xA1\xC2\xA1\xBF\xA1\xBF\xA1\xA7\xA1\xB1\xA1\xB3\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xB1\xA1\xC4\xA1\xB1 \xA1\xC2\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xA6\xA1\xB5\xA1\xA7\xA1\xBE\xA1\xC1\xA1\xBF \xA1\xC2\xA1\xAA\xA1\xB7\xA1\xC1\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE\xA1\xA7\xA1\xBF \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xC0\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBC\xA1\xAF\xA1\xB3\xA1\xA9. \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xB3 \xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9 \xA1\xAF\xA1\xBB\xA1\xA7\xA1\xB9\xA1\xC4\xA1\xA9 \xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC4\xA1\xC2\xA1\xBB \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xA8\xA1\xC4\xA1\xB1\xA1\xA9 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB7\xA1\xA7\xA1\xB1\xA1\xBC. \xA1\xC2\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xC0\xA1\xB4\xA1\xA7\xA1\xA8. \xA1\xC2\xA1\xAD\xA1\xC4\xA1\xC0 \xA1\xC4\xA1\xB3\xA1\xA3\xA1\xBE \xA1\xB9\xA1\xC0 \xA1\xBF\xA1\xC1\xA1\xBF\xA1\xAA\xA1\xC1 \xA1\xBB\xA1\xC4 \xA1\xAA\xA1\xB1\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xBF \xA1\xC4\xA1\xBA\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xC2\xA1\xB6\xA1\xC2\xA1\xB9 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA7.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xA1\xBF\xA1\xC2\xA1\xC1\xA1\xA8\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xA7\xA1\xBF\xA1\xC4\xA1\xA9 \xA1\xBB\xA1\xC4 \xA1\xA5\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xBC \xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xBF\xA1\xC0 \xA1\xBF\xA1\xB3\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xA2\xA1\xBF\xA1\xC0\xA1\xA9. \xA1\xBE\xA1\xBD\xA1\xC0 \xA1\xB9\xA1\xBE\xA1\xC4\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC0 \xA1\xAA\xA1\xAD\xA1\xB0\xA1\xB1 \xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xAF\xA1\xB9 \xA1\xA3\xA1\xAD\xA1\xAF\xA1\xA7 \xA1\xC4\xA1\xBC\xA1\xAA\xA1\xB1\xA1\xA8. \xA1\xBB\xA1\xB0\xA1\xBE\xA1\xBD \xA1\xC0\xA1\xA7\xA1\xAF\xA1\xB1\xA1\xA7 \xA1\xBF\xA1\xA7 \xA1\xC4\xA1\xC0\xA1\xAA\xA1\xC1\xA1\xC4 \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xAE\xA1\xC4\xA1\xB1.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xA1\xA7\xA1\xBE\xA1\xBD\xA1\xB4\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xAD\xA1\xB1\xA1\xB2 \xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA7\xA1\xAA \xA1\xAD\xA1\xA7\xA1\xB3\xA1\xBF\xA1\xA9 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC1\xA1\xA7\xA1\xBF \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xAA\xA1\xB9\xA1\xC2\xA1\xB6 \xA1\xB0\xA1\xBE\xA1\xBD \xA1\xA8\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4 \xA1\xA5\xA1\xB6\xA1\xA7\xA1\xBB\xA1\xC4 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC1\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xC1\xA1\xC0\xA1\xA7 \xA1\xAA\xA1\xAA\xA1\xA3\xA1\xBE\xA1\xBC \xA1\xAD\xA1\xBC\xA1\xA7. \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xB4\xA1\xB9\xA1\xB1 \xA1\xA3\xA1\xAD\xA1\xBF\xA1\xB1 \xA1\xAC\xA1\xBF\xA1\xC4\xA1\xBE.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xA9 \xA1\xC0\xA1\xC2\xA1\xB9 \xA1\xA3\xA1\xA8\xA1\xB7\xA1\xA3 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xA9\xA1\xCF \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xAA\xA1\xB4\xA1\xBD\xA1\xC4\xA1\xBE\xA1\xA9 \xA1\xBB\xA1\xB1\xA1\xC4\xA1\xAF\xA1\xA9 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xC2\xA1\xC4\xA1\xBE\xA1\xA9\xA1\xCF \xA1\xC2\xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA3\xA1\xC0 \xA1\xAA\xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA9 \xA1\xBF\xA1\xC2\xA1\xAC\xA1\xB9\xA1\xA9. \xA1\xAF\xA1\xBC\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xB6\xA1\xA7\xA1\xC1\xA1\xC3. \xA1\xC2\xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA7\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xB3\xA1\xBF\xA1\xA9 \xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xA9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xA8\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xAE\xA1\xA7\xA1\xAE \xA1\xAA\xA1\xC0\xA1\xB4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xAE\xA1\xA7\xA1\xAE \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA3\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xB9 \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xB0\xA1\xC2\xA1\xBC \xA1\xB1\xA1\xBB\xA1\xC4\xA1\xB9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB2\xA1\xC4\xA1\xA7\xA1\xA1. \xA1\xC2\xA1\xBE\xA1\xC2\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB2\xA1\xB1\xA1\xBC. \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xB3\xA1\xA3\xA1\xBE \xA1\xBE\xA1\xBF\xA1\xA7\xA1\xB0\xA1\xA7.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1 \xA1\xBF\xA1\xBE\xA1\xBC \xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4\xA1\xCF \xA1\xBF\xA1\xB4\xA1\xB9\xA1\xC2\xA1\xB0 \xA1\xC2\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1. \xA1\xC2\xA1\xC4\xA1\xC0\xA1\xA7\xA1\xBE \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xC2\xA1\xB5\xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xA5\xA1\xBE\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xAE\xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB0\xA1\xC4 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xC0\xA1\xA7\xA1\xBE\xA1\xC1 \xA1\xA3\xA1\xC4 \xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9 \xA1\xA3\xA1\xAE\xA1\xB1\xA1\xC3.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB4\xA1\xB9\xA1\xC2\xA1\xB0 \xA1\xB6\xA1\xBE\xA1\xC4\xA1\xB9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB8\xA1\xBE\xA1\xBF \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xC2\xA1\xAF \xA1\xC2\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBF\xA1\xB6 \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xAA\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBC\xA1\xAF\xA1\xB3\xA1\xA9.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4. \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xC2\xA1\xBF\xA1\xAA\xA1\xB9\xA1\xAF\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xC1\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA \xA1\xC2\xA1\xB9\xA1\xAF\xA1\xC2 \xA1\xBE\xA1\xAF\xA1\xC2\xA1\xAF \xA1\xBE\xA1\xBD\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0. \xA1\xC4\xA1\xAA\xA1\xBC\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xB5\xA1\xA7 \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA3\xA1\xC0 \xA1\xC4\xA1\xB5\xA1\xC4\xA1\xA8 \xA1\xA8\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC1\xA1\xAF\xA1\xA7\xA1\xBB\xA1\xA7 \xA1\xBF\xA1\xAA\xA1\xB9\xA1\xAF\xA1\xAF\xA1\xA9. \xA1\xC2\xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xA1\xA7\xA1\xBE\xA1\xBD\xA1\xC4\xA1\xC0\xA1\xB3\xA1\xC4 \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xAD\xA1\xBC\xA1\xC4\xA1\xBC\xA1\xC4 \xA1\xBE\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9\xA1\xCF \xA1\xBC\xA1\xC2\xA1\xA9 \xA1\xC4\xA1\xAD\xA1\xB3\xA1\xA8 \xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xAD\xA1\xB3\xA1\xA7\xA1\xA8. \xA1\xC2\xA1\xBF\xA1\xB4\xA1\xC1\xA1\xAF \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xBC \xA1\xA7\xA1\xBE\xA1\xC0\xA1\xB8\xA1\xB1 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBD\xA1\xA9. \xA1\xC4\xA1\xA4\xA1\xBF\xA1\xC0 \xA1\xA3\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xBE \xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xC0.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC2\xA1\xBA\xA1\xC2\xA1\xBD\xA1\xC4 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xB9\xA1\xBF\xA1\xBE\xA1\xA7\xA1\xBC \xA1\xAB\xA1\xBC\xA1\xC4\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xAF\xA1\xB1\xA1\xB9 \xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xAD \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xB4\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xBD \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xB1\xA1\xC4\xA1\xA8. \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xC0\xA1\xC2\xA1\xA8\xA1\xC4 \xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xBC\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xA8 \xA1\xBF\xA1\xC0 \xA1\xC1\xA1\xAF\xA1\xBB\xA1\xC1\xA1\xCF \xA1\xC2\xA1\xBC\xA1\xAF \xA1\xA3\xA1\xBB\xA1\xC0\xA1\xC3 \xA1\xAD\xA1\xC4\xA1\xA7\xA1\xAA\xA1\xC1 \xA1\xBB\xA1\xC4 \xA1\xA5\xA1\xAA\xA1\xBC\xA1\xA7\xA1\xC0 \xA1\xBF\xA1\xC1\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE. \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xA7\xA1\xBE \xA1\xC0\xA1\xAC\xA1\xC2\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xA1\xA7\xA1\xBE\xA1\xBE\xA1\xB5\xA1\xA9 \xA1\xB4\xA1\xAE\xA1\xB5\xA1\xC4\xA1\xA9 \xA1\xB1\xA1\xB4\xA1\xC4\xA1\xBC\xA1\xA9 \xA1\xAA\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xA8\xA1\xB3\xA1\xBE\xA1\xA7\xA1\xAD\xA1\xC4\xA1\xC0. \xA1\xBC\xA1\xC2\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xAC\xA1\xBF\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA9 \xA1\xC2\xA1\xA5\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xA1 \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xAA\xA1\xA8\xA1\xB1 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB1\xA1\xA7\xA1\xC2\xA1\xBA\xA1\xA9. \xA1\xC2\xA1\xB6\xA1\xB9\xA1\xBB\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xBC\xA1\xBE\xA1\xA9 \xA1\xB5\xA1\xBE\xA1\xA7\xA1\xA8\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xAC\xA1\xB3\xA1\xAF\xA1\xC4\xA1\xA9.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xA9 \xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAE\xA1\xA7\xA1\xBE\xA1\xA8 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE. \xA1\xC2\xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xBA\xA1\xBF\xA1\xB3\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBF\xA1\xB6 \xA1\xBE\xA1\xA5\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xBC \xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA3\xA1\xBD\xA1\xA8\xA1\xB1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xB6\xA1\xAD\xA1\xA7\xA1\xC4\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xBA\xA1\xA7\xA1\xBB\xA1\xBE\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF \xA1\xAA\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xB3\xA1\xBD\xA1\xA7\xA1\xBD\xA1\xC4\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBA\xA1\xA7\xA1\xBE\xA1\xA8\xA1\xA7.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xA1\xAF\xA1\xB1\xA1\xB9\xA1\xC1\xA1\xA7 \xA1\xB3\xA1\xBE\xA1\xA7\xA1\xAD\xA1\xC1\xA1\xA7. \xA1\xBE\xA1\xAF\xA1\xC4\xA1\xC1\xA1\xA7 \xA1\xBC\xA1\xB7\xA1\xB9 \xA1\xAF\xA1\xB1\xA1\xB9 \xA1\xBF\xA1\xBA\xA1\xB7\xA1\xA7\xA1\xA9 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xC0\xA1\xA9 \xA1\xAA\xA1\xBE\xA1\xAD\xA1\xBC \xA1\xA8\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA8\xA1\xBF\xA1\xC1\xA1\xA7\xA1\xAC\xA1\xBF\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xBE\xA1\xAA\xA1\xAD\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xC0\xA1\xB4\xA1\xA7\xA1\xA8 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xC4\xA1\xA7\xA1\xA9 \xA1\xA8\xA1\xB3\xA1\xC4\xA1\xB7\xA1\xA9 \xA1\xB9\xA1\xC0\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xB0\xA1\xBB\xA1\xA9. \xA1\xBB\xA1\xC1\xA1\xC4 \xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xC0\xA1\xBB\xA1\xAC\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA. \xA1\xC2\xA1\xAA\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB1\xA1\xC4\xA1\xB1 \xA1\xBF\xA1\xAA\xA1\xBB\xA1\xAC\xA1\xB1\xA1\xA9 \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xA3\xA1\xB9\xA1\xAF\xA1\xA7\xA1\xA6\xA1\xC1\xA1\xA7 \xA1\xAD\xA1\xAA\xA1\xC3 \xA1\xC4\xA1\xBF\xA1\xC2\xA1\xAA\xA1\xC2\xA1\xA7 \xA1\xAC\xA1\xBF\xA1\xC4\xA1\xB9\xA1\xA7. \xA1\xBB\xA1\xC4 \xA1\xB9\xA1\xB0\xA1\xA7\xA1\xA8 \xA1\xBB\xA1\xB8\xA1\xC4\xA1\xB9 \xA1\xB9\xA1\xA7\xA1\xAF\xA1\xA9.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xB5\xA1\xBB \xA1\xA3\xA1\xC2\xA1\xBE \xA1\xC0\xA1\xBF\xA1\xB7\xA1\xC4. \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xB5\xA1\xC4\xA1\xA8 \xA1\xBF\xA1\xBC\xA1\xAA\xA1\xBE\xA1\xA7\xA1\xCF \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1 \xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xA8\xA1\xBC\xA1\xC2\xA1\xA9. \xA1\xC2\xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xA8\xA1\xC4\xA1\xB1\xA1\xA9 \xA1\xB0\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xC4\xA1\xAF\xA1\xC4\xA1\xC0.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xA1\xBB\xA1\xC4 \xA1\xBF\xA1\xAC\xA1\xAA\xA1\xBF\xA1\xB9 \xA1\xBF\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xC4\xA1\xBD\xA1\xC2\xA1\xC0 \xA1\xB3\xA1\xAE\xA1\xB7 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xB4\xA1\xC4\xA1\xB7 \xA1\xBF\xA1\xB4\xA1\xBD\xA1\xBE\xA1\xA9. \xA1\xA3\xA1\xBF\xA1\xA7 \xA1\xC1\xA1\xC0\xA1\xA7 \xA1\xBB\xA1\xC1\xA1\xC2 \xA1\xBF\xA1\xC4\xA1\xB2\xA1\xA9 \xA1\xC1\xA1\xA7\xA1\xA6\xA1\xBE\xA1\xA9! \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xBC\xA1\xA7\xA1\xB3 \xA1\xC2\xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xC2\xA1\xBC\xA1\xBB.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xA1\xBF\xA1\xB3\xA1\xAE \xA1\xBF\xA1\xC0 \xA1\xBF\xA1\xB3\xA1\xC2\xA1\xAE \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xA8\xA1\xC4\xA1\xB9\xA1\xA9\xA1\xCF \xA1\xB1\xA1\xAC\xA1\xBE \xA1\xB9\xA1\xBF\xA1\xBE\xA1\xA7\xA1\xBC \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB1\xA1\xAA\xA1\xAF\xA1\xC4 \xA1\xAF\xA1\xB1\xA1\xC2\xA1\xB9 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB4\xA1\xB1 - \xA1\xBB\xA1\xC1\xA1\xBF \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB5\xA1\xC0\xA1\xB9\xA1\xC2\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xA8\xA1\xBF\xA1\xBC\xA1\xA7\xA1\xB3\xA1\xC1. \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xAA\xA1\xBF\xA1\xB2\xA1\xC4\xA1\xBC \xA1\xA3\xA1\xC4 \xA1\xB4\xA1\xC4\xA1\xA1 \xA1\xA8\xA1\xC4\xA1\xAF\xA1\xC4\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAC\xA1\xB1\xA1\xAF\xA1\xAA\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xC4\xA1\xB1\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xBB\xA1\xC4\xA1\xC1 \xA1\xBD\xA1\xC2\xA1\xA7\xA1\xA8\xA1\xC4\xA1\xB3\xA1\xC1\xA1\xA7.";
+			case STR_1084_Druid_Description:
+				return "\xA1\xC2\xA1\xC1\xA1\xA8 \xA1\xC0\xA1\xBB\xA1\xB3\xA1\xC1 \xA1\xBE\xA1\xBE\xA1\xA8\xA1\xB1\xA1\xC4\xA1\xA9 \xA1\xBB\xA1\xB1\xA1\xAF\xA1\xAA \xA1\xBE\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB1\xA1\xC4\xA1\xA9 \xA1\xB4\xA1\xC4\xA1\xA6\xA1\xA7. \xA1\xB5\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA2\xA1\xC0 \xA1\xA3\xA1\xBC\xA1\xB1\xA1\xA8 \xA1\xA5\xA1\xBE\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xB4 \xA1\xBF\xA1\xC0\xA1\xC1 \xA1\xA5\xA1\xBE\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xA5\xA1\xC0\xA1\xB3\xA1\xA7\xA1\xC0\xA1\xCF \xA1\xC2\xA1\xA3\xA1\xB3\xA1\xB9\xA1\xAF \xA1\xA8\xA1\xBD\xA1\xAB\xA1\xC4\xA1\xB1.";
+			case STR_1085_Gladiatrix_Description:
+				return "\xA1\xB9\xA1\xBE\xA1\xBF\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBE\xA1\xA8\xA1\xA9 \xA1\xA3\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xAC\xA1\xBF\xA1\xC1\xA1\xC2\xA1\xB1 \xA1\xC4\xA1\xC1\xA1\xAA\xA1\xBB \xA1\xBE\xA1\xA3\xA1\xC4 \xA1\xB4\xA1\xC4\xA1\xA1. \xA1\xA5\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xAA\xA1\xBC\xA1\xAA\xA1\xBE \xA1\xBF\xA1\xC0 \xA1\xA3\xA1\xAC\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xAC\xA1\xC4\xA1\xAC\xA1\xCF \xA1\xC2\xA1\xBF\xA1\xBE\xA1\xBD \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xB9\xA1\xA8 \xA1\xC4\xA1\xC2\xA1\xBB\xA1\xB1 \xA1\xBF\xA1\xC0\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xAB\xA1\xC4\xA1\xB1.";
+			}
+		}
+// (th4) Bulgarian, cloned from the Russian block above. These menu strings are
+// hardcoded here rather than in LocalizationBG.cpp and use the META atlas
+// (0x80-0x9F, caps-only), not CP1251. Without this block BG fell through to the
+// English fallback -- which the meta atlas CAN render, so the menu showed English.
+if( GameLanguage == LANG_BG ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\x8f\x8e\x84\x8f\x80\x8b\x82\x80\x97\x88\x92\x85 \x8d\x80 \x82\x8e\x89\x8d\x80 \x8d\x85 \x87\x80\x99\x88\x92\x80\x82\x80\x92. \x92\x85 \x97\x93\x8f\x9f\x92 \x91\x92\x90\x8e\x9f, \x97\x93\x8f\x9f\x92 \x8f\x8e\x90\x92\x88\x92\x85 \x88 \x97\x93\x8f\x9f\x92 \x95\x8e\x90\x80\x92\x80 \x87\x80\x84 \x92\x9f\x95. \x8a\x9a\x84\x85\x92\x8e \x8e\x92\x88\x84\x80\x92, \x92\x80\x8c \x88\x84\x82\x80 \x82\x8e\x89\x8d\x80\x92\x80.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\x8b\x8e\x82\x96\x88\x92\x85 \x82\x87\x85\x8c\x80\x92 \x88\x87\x8e\x91\x92\x80\x8d\x80\x8b\x88\x92\x85. \x91\x92\x90\x85\x8b\x80 \x8e\x92 \x8c\x90\x80\x8a\x80, \x92\x9f\x8b\x8e, \x8a\x8e\x85\x92\x8e \x92\x80\x8a\x80 \x88 \x8d\x85 \x8d\x80\x8c\x85\x90\x88\x95\x80, \x88 \x8e\x92\x90\x9f\x84, \x8a\x8e\x89\x92\x8e \x91 \x82\x91\x9f\x8a\x80 \x8d\x8e\x99 \x91\x92\x80\x82\x80 \x8f\x8e-\x92\x88\x95.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\x85\x90\x85\x92\x88\x96\x88\x92\x85 \x97\x85\x92\x80\x92 \x92\x8e\x82\x80, \x8a\x8e\x85\x92\x8e \x96\x9a\x90\x8a\x82\x80\x92\x80 \x88\x87\x83\x8e\x90\x88. \x91\x88\x8b\x88\x92\x85 \x87\x80\x84 \x92\x85\x87\x88 \x91\x92\x90\x80\x8d\x88\x96\x88 \x91\x85 \x8e\x92\x87\x8e\x82\x80\x82\x80\x92 \x8e\x95\x8e\x92\x8d\x8e, \x80 \x96\x85\x8d\x80\x92\x80 \x8d\x80\x87\x8e\x82\x80\x82\x80\x92 \x8f\x8e-\x8a\x9a\x91\x8d\x8e.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\x94\x80\x8d\x80\x92\x88\x96\x88\x92\x85 \x91\x8f\x80\x87\x88\x95\x80 \x82\x91\x88\x97\x8a\x88 \x8e\x81\x85\x92\x88 \x8e\x91\x82\x85\x8d \x85\x84\x88\x8d. \x84\x88\x91\x96\x88\x8f\x8b\x88\x8d\x80\x92\x80 \x88\x8c \x85 \x81\x85\x87\x93\x8f\x90\x85\x97\x8d\x80, \x8f\x90\x85\x84\x80\x8d\x8e\x91\x92\x92\x80 - \x80\x81\x91\x8e\x8b\x9e\x92\x8d\x80. \x91\x8c\x85\x8d\x88 \x91\x85 \x91\x80\x8c\x8e \x83\x8e\x91\x8f\x8e\x84\x80\x90\x9f\x92.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\x8e\x92\x91\x92\x9a\x8f\x8d\x88\x96\x88\x92\x85 \x8f\x90\x8e\x84\x80\x84\x8e\x95\x80 \x8a\x80\x90\x92\x80\x92\x80, \x8f\x80\x90\x8e\x8b\x80\x92\x80 \x88 \x88\x8c\x85\x92\x8e \x8d\x80 \x82\x91\x85\x8a\x88 \x8f\x90\x88\x9f\x92\x85\x8b. \x92\x85 \x8d\x85 \x91\x9a\x86\x80\x8b\x9f\x82\x80\x92 \x87\x80 \x8d\x88\x99\x8e \x88 \x82\x88\x8d\x80\x83\x88 \x88\x8c \x8f\x8b\x80\x99\x80\x92.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\x8d\x80 \x83\x8b\x80\x82\x8e\x90\x85\x87\x88\x92\x85 \x8d\x85 \x88\x8c \x92\x90\x9f\x81\x82\x80 \x8d\x88\x92\x8e \x87\x8d\x80\x8c\x85, \x8d\x88\x92\x8e \x8f\x90\x88\x97\x88\x8d\x80. \x8f\x8e\x91\x8e\x97\x85\x92\x85 \x91\x85\x8b\x8e \x88 \x82\x88\x8a\x8e\x82\x85\x92\x85 \x99\x85 \x84\x8e\x82\x9a\x90\x98\x80\x92 \x8e\x91\x92\x80\x8d\x80\x8b\x8e\x92\x8e.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\x98\x80\x8c\x8f\x88\x8e\x8d, \x82\x87\x85\x8b \x8c\x8e\x8d\x85\x92\x80\x92\x80 \x8d\x80 \x82\x8b\x80\x84\x85\x92\x85\x8b\x9f \x8d\x80 \x93\x86\x80\x91\x80. \x91\x9a\x99\x8e\x92\x8e \x8e\x90\x9a\x86\x88\x85, \x91\x9a\x99\x80\x92\x80 \x92\x80\x8a\x92\x88\x8a\x80, \x91\x9a\x99\x8e\x92\x8e \x8c\x80\x89\x91\x92\x8e\x90\x91\x92\x82\x8e \x8d\x80 \x81\x8b\x8e\x8a\x80, \x8d\x80\x91\x8e\x97\x85\x8d\x88 \x91\x90\x85\x99\x93 \x92\x85\x87\x88, \x8a\x8e\x88\x92\x8e \x85 \x8f\x80\x87\x88\x8b.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\x92\x8e\x89 \x82\x91\x85 \x8e\x99\x85 \x88\x87\x83\x80\x90\x9f \x85\x90\x85\x91\x92\x80 \x91 \x8e\x83\x9a\x8d. \x8f\x90\x8e\x8c\x85\x8d\x88 \x91\x85 \x91\x80\x8c\x8e \x8e\x8f\x90\x85\x84\x85\x8b\x85\x8d\x88\x85\x92\x8e \x87\x80 \x85\x90\x85\x91. \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x91\x92\x88\x95\x88\x89\x8d\x80\x92\x80 \x99\x85\x92\x80 \x88 \x8d\x80 \x82\x9a\x8f\x90\x8e\x91\x80, \x8d\x80 \x8a\x8e\x89\x92\x8e \x8d\x9f\x8c\x80 \x82\x85\x90\x85\x8d \x8e\x92\x83\x8e\x82\x8e\x90.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\x91\x92\x85\x8d\x80 \x8e\x92 \x97\x85\x90\x8d\x80 \x91\x92\x8e\x8c\x80\x8d\x80 \x91 \x8c\x85\x97, \x97\x93\x8a \x88 \x80\x90\x81\x80\x8b\x85\x92. \x92\x8e\x89 \x82\x85\x97\x85 \x8d\x88\x99\x8e \x8d\x85 \x8f\x80\x87\x88, \x8f\x90\x8e\x91\x92\x8e \x8d\x85 \x8f\x90\x8e\x8f\x93\x91\x8a\x80 \x8d\x88\x8a\x8e\x83\x8e.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\x92\x9f \x82\x87\x85\x8c\x80 \x97\x93\x86\x84\x8e\x92\x8e \x8e\x92\x84\x80\x8b\x85\x97 \x88 \x91\x88 \x92\x90\x9a\x83\x82\x80, \x84\x8e\x8a\x80\x92\x8e \x92\x9f\x8b\x8e\x92\x8e \x8e\x99\x85 \x8d\x85 \x85 \x88\x87\x91\x92\x88\x8d\x80\x8b\x8e. \x81\x9a\x90\x87\x80 \x99\x85\x92\x80 \x8e\x92 \x81\x85\x87\x8e\x8f\x80\x91\x8d\x8e \x90\x80\x87\x91\x92\x8e\x9f\x8d\x88\x85 \x88 \x8d\x88\x8a\x80\x8a\x82\x88 \x91\x82\x88\x84\x85\x92\x85\x8b\x88.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\x92\x9f \x82\x9a\x90\x82\x88 \x91\x8b\x85\x84 \x8e\x92\x90\x9f\x84\x80 \x91 \x84\x8d\x88, \x8f\x90\x85\x84\x88 \x84\x80 \x8d\x80\x8f\x90\x80\x82\x88 \x8f\x9a\x90\x82\x88\x9f \x88\x87\x91\x92\x90\x85\x8b. \x81\x85\x87 \x8a\x90\x88\x92\x8e\x82\x85, \x8d\x8e \x91\x92\x88\x95\x88\x89\x8d\x88\x92\x85 \x88 \x91\x92\x90\x85\x8b\x88 \x91\x88 \x91\x92\x90\x93\x82\x80\x92 \x97\x80\x8a\x80\x8d\x85\x92\x8e.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\x85\x84\x88\x8d \x88\x87\x91\x92\x90\x85\x8b, \x85\x84\x8d\x8e \x88\x8c\x85 \x87\x80\x97\x85\x90\x92\x80\x8d\x8e \x8e\x92 \x91\x8f\x88\x91\x9a\x8a\x80. \x81\x80\x82\x8d\x80, \x92\x9a\x90\x8f\x85\x8b\x88\x82\x80, \x81\x85\x87\x93\x8f\x90\x85\x97\x8d\x8e \x92\x8e\x97\x8d\x80, \x80 \x8a\x90\x88\x92\x8e\x82\x85\x92\x85 \x88 \x91\x8b\x80\x83\x80\x92 \x8a\x90\x80\x89 \x8d\x80 \x91\x8f\x8e\x90\x8e\x82\x85\x92\x85 \x87\x80\x82\x88\x8d\x80\x83\x88.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\x92\x9f \x8d\x85 \x8f\x90\x85\x91\x8b\x85\x84\x82\x80. \x92\x9f \x8f\x8e\x84\x83\x8e\x92\x82\x9f \x87\x85\x8c\x9f\x92\x80 \x88 \x97\x80\x8a\x80 \x83\x85\x90\x8e\x88\x92\x85 \x91\x80\x8c\x88 \x84\x80 \x82\x8b\x9f\x87\x80\x92 \x82 \x8d\x85\x9f. \x90\x80\x81\x8e\x92\x80\x92\x80 \x9f \x82\x9a\x90\x98\x80\x92 \x8a\x80\x8f\x80\x8d\x88\x92\x85, \x8d\x80 \x8d\x85\x9f \x88 \x8e\x91\x92\x80\x82\x80 \x84\x80 \x91\x9a\x81\x85\x90\x85.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\x8f\x8e\x87\x8d\x80\x82\x80\x97 \x8d\x80 \x87\x80\x81\x90\x80\x8d\x85\x8d\x8e\x92\x8e, \x82\x8b\x80\x84\x85\x85\x99 \x92\x80\x89\x8d\x8e \x87\x8d\x80\x8d\x88\x85, \x8d\x80 \x8a\x8e\x85\x92\x8e \x8d\x85 \x93\x97\x88 \x8d\x88\x92\x8e \x85\x84\x88\x8d \x8f\x8e\x87\x82\x8e\x8b\x85\x8d \x8e\x90\x84\x85\x8d. \x8d\x80\x93\x97\x85\x8d\x8e\x92\x8e \x82\x85\x97\x85 \x8d\x85 \x91\x85 \x87\x80\x81\x90\x80\x82\x9f.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\x92\x8e\x89 \x91\x85 \x8f\x8e\x84\x8f\x88\x91\x80 \x91 \x8a\x90\x9a\x82 \x88 \x8d\x88\x92\x8e \x82\x85\x84\x8d\x9a\x86 \x8d\x85 \x91\x9a\x86\x80\x8b\x88. \x97\x85\x90\x8d\x8e\x92\x8e \x82\x85\x99\x85\x90\x91\x92\x82\x8e \x88 \x8a\x88\x91\x85\x8b\x88\x8d\x80\x92\x80 \x91\x85 \x8e\x92\x87\x8e\x82\x80\x82\x80\x92 \x8d\x80 \x87\x8e\x82\x80 \x8c\x93. \x91\x82\x9f\x92\x80\x92\x80 \x8c\x80\x83\x88\x9f - \x8d\x85.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\x92\x8e\x89 \x91\x85 \x8e\x92\x90\x85\x97\x85 \x8e\x92 \x8e\x90\x84\x85\x8d\x80, \x8d\x8e \x8d\x85 \x8e\x92 \x8e\x81\x93\x97\x85\x8d\x88\x85\x92\x8e. \x81\x9a\x90\x87, \x83\x9a\x82\x8a\x80\x82, \x91\x8c\x9a\x90\x92\x8e\x8d\x8e\x91\x85\x8d \x91 \x86\x85\x87\x9a\x8b, \x88 \x93\x84\x90\x9f \x8d\x9f\x8a\x8e\x8b\x8a\x8e \x82\x90\x80\x83\x80 \x8d\x80\x82\x85\x84\x8d\x9a\x86.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\x88\x91\x92\x88\x8d\x91\x8a\x88 \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x8e\x91\x92\x90\x88\x85\x92\x8e, \x8a\x8e\x89\x92\x8e \x91\x8c\x9f\x92\x80 \x93\x81\x88\x89\x91\x92\x82\x8e\x92\x8e \x87\x80 \x88\x87\x8a\x93\x91\x92\x82\x8e. \x8f\x90\x8e\x91\x92\x8e \x82\x85\x97\x85 \x8d\x85 \x83\x8e \x85 \x83\x90\x88\x86\x80 \x8a\x80\x8a\x82\x8e \x91\x8b\x93\x86\x88 \x87\x80 \x8f\x8b\x80\x92\x8d\x8e.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\x83\x88\x83\x80\x8d\x92 \x82 \x92\x85\x86\x8a\x80 \x81\x90\x8e\x8d\x9f \x91 \x8f\x90\x9a\x92\x8e\x82\x8e \x8e\x90\x9a\x86\x88\x85 \x88 \x8d\x85\x99\x8e, \x8a\x8e\x85\x92\x8e \x8d\x8e\x91\x88 \x8b\x88\x96\x85\x92\x8e \x8c\x93. \x91\x92\x80\x90\x88\x92\x85 \x8f\x90\x85\x84\x80\x8d\x88\x9f \x88\x8c\x80\x95\x80 \x88\x8c\x85 \x87\x80 \x92\x8e\x82\x80, \x82 \x8a\x8e\x85\x92\x8e \x91\x85 \x85 \x8f\x90\x85\x82\x9a\x90\x8d\x80\x8b.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\x92\x8e\x89 \x91\x8a\x9a\x91\x80 \x91 \x8a\x8b\x80\x8d\x80 \x88 \x8e\x92\x83\x8e\x82\x80\x90\x9f \x91\x80\x8c\x8e \x8f\x90\x85\x84 \x82\x8b\x80\x84\x85\x92\x85\x8b\x9f \x8d\x80 \x93\x86\x80\x91\x80. \x8f\x90\x88\x81\x8b\x88\x86\x80\x82\x80 \x91\x85, \x91\x82\x9a\x90\x98\x82\x80 \x81\x9a\x90\x87\x8e \x88 \x88\x87\x97\x85\x87\x82\x80.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\x8b\x8e\x82\x8a\x80, \x91 \x84\x82\x85 \x8e\x91\x92\x90\x88\x85\x92\x80, \x81\x9a\x90\x87\x80 \x82 \x93\x84\x80\x90\x80 \x88 \x8e\x99\x85 \x8f\x8e-\x81\x9a\x90\x87\x80 \x82 \x81\x9f\x83\x91\x92\x82\x8e\x92\x8e. \x8a\x90\x85\x95\x8a\x80 \x82 \x97\x85\x91\x92\x85\x8d \x81\x8e\x89, \x87\x80\x92\x8e\x82\x80 \x8d\x85 \x82\x8b\x88\x87\x80 \x82 \x92\x80\x8a\x9a\x82.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\x8d\x8e\x8a\x92\x88, \x8d\x80\x8f\x8e\x85\x8d\x88 \x91 \x8a\x88\x91\x85\x8b\x88\x8d\x80, \x90\x80\x81\x8e\x92\x80 \x82 \x83\x9a\x90\x81\x80. \x92\x9f \x88\x8c\x80 \x96\x85\x8d\x80 \x88 \x82\x91\x85\x8a\x88 \x83\x85\x90\x8e\x89 \x83\x8e\x90\x85 \x91\x92\x90\x93\x82\x80 \x92\x8e\x97\x8d\x8e \x92\x8e\x8b\x8a\x8e\x82\x80.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\x81\x90\x8e\x8d\x9f\x92\x80 \x88 \x85 \x8e\x90\x9a\x86\x88\x85\x92\x8e. \x82\x91\x85\x8a\x88 \x83\x8b\x93\x8f\x80\x8a, \x93\x84\x80\x90\x88\x8b \x9f, \x91\x80\x8c \x91\x88 \x90\x80\x87\x90\x9f\x87\x82\x80 \x82\x85\x8d\x88\x92\x85 \x8e \x98\x88\x8f\x8e\x82\x85\x92\x85. \x81\x9a\x90\x87\x88 \x80\x90\x81\x80\x8b\x85\x92\x88 \x87\x80 \x8f\x90\x85\x84\x8f\x80\x87\x8b\x88\x82\x88\x92\x85.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x86\x88\x82\x8e\x92\x9a\x92 \x85 \x8f\x90\x8e\x91\x92. \x92\x9f \x95\x82\x9a\x90\x8b\x9f \x8e\x83\x9a\x8d \x82 \x92\x9a\x8b\x8f\x80\x92\x80 \x88 \x83\x8b\x85\x84\x80 \x8a\x80\x8a\x82\x8e \x99\x85 \x88\x87\x81\x9f\x83\x80. \x8e\x81\x88\x8a\x8d\x8e\x82\x85\x8d\x8e \x88\x87\x81\x9f\x83\x82\x80 \x91 \x8a\x90\x9f\x91\x9a\x8a.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\x91\x88\x8b\x80 \x81\x85\x87 \x9e\x87\x84\x80 \x88 \x8d\x88\x8a\x80\x8a\x82\x8e \x86\x85\x8b\x80\x8d\x88\x85 \x84\x80 \x9f \x8f\x90\x88\x84\x8e\x81\x88\x85. \x92\x8e\x89 \x92\x90\x9a\x83\x82\x80 \x8d\x80 \x8d\x80\x81\x85\x83 \x8d\x85 \x87\x80 \x8f\x8b\x9f\x97\x8a\x80. \x92\x90\x9a\x83\x82\x80 \x8d\x80 \x8d\x80\x81\x85\x83, \x87\x80\x99\x8e\x92\x8e \x92\x80\x8a\x9a\x82 \x85.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\x9f\x90\x8e\x91\x92\x92\x80 \x82\x88\x8d\x80\x83\x88 \x9f \x85 \x88\x8c\x80\x8b\x8e, \x82\x8b\x80\x84\x85\x92\x85\x8b\x9f\x92 \x8d\x80 \x93\x86\x80\x91\x80 \x8f\x90\x8e\x91\x92\x8e \x8f\x90\x85\x91\x92\x80\x8d\x80 \x84\x80 \x88\x91\x8a\x80 \x84\x80 \x91\x85 \x91\x84\x9a\x90\x86\x80. \x92\x8e\x89 \x91\x85 \x81\x88\x85, \x84\x8e\x8a\x80\x92\x8e \x8d\x85 \x8e\x91\x92\x80\x8d\x85 \x8d\x88\x99\x8e \x88\x87\x8f\x90\x80\x82\x85\x8d\x8e.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\x92\x8e\x89 \x81\x85\x98\x85 \x8f\x8e\x91\x8b\x85\x84\x8d\x8e\x92\x8e \x8b\x88\x96\x85, \x8a\x8e\x85\x92\x8e \x8e\x91\x9a\x84\x85\x8d\x88\x92\x85 \x82\x88\x86\x84\x80\x95\x80, \x88 \x91\x88 \x87\x8d\x80\x85\x98\x85 \x90\x80\x81\x8e\x92\x80\x92\x80. \x87\x8d\x80\x85 \x9f \x88 \x91\x85\x83\x80. \x8f\x90\x8e\x91\x92\x8e \x8f\x90\x88\x91\x9a\x84\x88\x92\x85 \x82\x85\x97\x85 \x91\x80 \x8d\x85\x83\x8e\x82\x88 \x91\x8e\x81\x91\x92\x82\x85\x8d\x88.";
+			case STR_1084_Druid_Description:
+				return "\x92\x8e\x89 \x91\x85 \x8e\x92\x84\x80\x84\x85 \x8d\x80 \x84\x88\x82\x80\x92\x80 \x8f\x90\x88\x90\x8e\x84\x80 \x88 \x92\x9f \x8c\x93 \x84\x80\x84\x85 \x8d\x85\x99\x8e \x82 \x87\x80\x8c\x9f\x8d\x80. \x91\x85\x83\x80 \x85 \x8f\x8e-\x81\x8b\x88\x87\x8e \x84\x8e \x87\x82\x9f\x90\x80, \x8e\x92\x8a\x8e\x8b\x8a\x8e\x92\x8e \x84\x8e \x97\x8e\x82\x85\x8a\x80, \x88 \x8c\x8d\x8e\x83\x8e \x8f\x8e-\x99\x80\x91\x92\x8b\x88\x82.";
+			case STR_1085_Gladiatrix_Description:
+				return "\x80\x90\x85\x8d\x80\x92\x80 \x9f \x8d\x80\x93\x97\x88, \x97\x85 \x92\x9a\x8b\x8f\x80\x92\x80 \x99\x85 \x8b\x88\x8a\x93\x82\x80 \x87\x80 \x8a\x80\x8a\x82\x8e\x92\x8e \x88 \x84\x80 \x85. \x92\x9f \x93\x81\x88\x82\x80 \x87\x80\x90\x80\x84\x88 \x98\x93\x8c\x80, \x80 \x82\x8b\x80\x84\x85\x92\x85\x8b\x9f\x92 \x8d\x80 \x93\x86\x80\x91\x80 \x83\x8e \x84\x80\x82\x80 \x82 \x88\x87\x8e\x81\x88\x8b\x88\x85.";
+			}
+		}
+		if( GameLanguage == LANG_ES ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Los Belicistas no defienden. Rompen l\xEDneas, rompen puertas y rompen a los hombres que hay detr\xE1s. Por donde pasan, la guerra los sigue.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Los Cazadores toman a los que se apartan. Una flecha en la oscuridad, un cuerpo que nunca aparece, y una partida m\xE1s silenciosa cada noche.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Los Herejes leen lo que la Iglesia quem\xF3. Los poderes tras esas p\xE1ginas responden con gusto, y cobran su precio despu\xE9s.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Los Fan\xE1ticos cumplieron todos sus votos menos uno. Su disciplina sigue intacta y su devoci\xF3n es absoluta; solo cambi\xF3 el amo.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Las Renegadas vendieron el mapa, la contrase\xF1""a y el nombre de cada amigo. No se arrepienten de nada, y siempre cobran.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Los Brutos no necesitan causa, estandarte ni raz\xF3n. Se\xF1\xE1lales una aldea y los gritos har\xE1n el resto.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Un campe\xF3n que acept\xF3 la moneda del Se\xF1or del Terror. Las mismas armas, la misma t\xE1""ctica, el mismo dominio del bloqueo, vueltos contra quienes proteg\xED""a.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "A\xFAn caza la herej\xED""a con fuego. Solo cambi\xF3 la definici\xF3n de herej\xED""a. Maestro del da\xF1o elemental y de la pregunta sin respuesta correcta.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Un muro de acero negro con espada, martillo y ballesta. Ya no guarda nada; simplemente no deja pasar a nadie.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Toma lo que no es suyo, desde lejos, y se marcha antes de que el cuerpo se enfr\xED""e. Da\xF1o r\xE1pido desde la seguridad, y sin testigos.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Sigue a un grupo durante d\xED""as antes del primer disparo. Sin cr\xEDticos, pero sus flechas elementales hacen que la espera valga la pena.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Un disparo, un nombre tachado de la lista. Lenta, paciente, de punter\xED""a inigualable, y sus cr\xEDticos terminan las discusiones para siempre.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "No persigue. Prepara el terreno y deja que los h\xE9roes entren en \xE9l. Las trampas hacen el trabajo; ella solo recoge.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Un erudito de lo prohibido que empu\xF1""a el saber Arcano que ninguna orden autorizada ense\xF1""a. Lo que sabe ya no puede olvidarse.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Firm\xF3 con sangre y jam\xE1s lo ha lamentado. La hechicer\xED""a negra y el \xE1""cido acuden a su llamada. La magia sagrada, no.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Renunci\xF3 a su orden, no a su entrenamiento. R\xE1pido, vers\xE1til, letal con el bast\xF3n, y golpea a varios enemigos a la vez.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Un verdadero maestro de la hoja que cree que matar es un arte. Simplemente ha dejado de importarle qui\xE9n es el lienzo.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Un gigante con armadura pesada y arma de asta, y algo que lleva su rostro. Las viejas historias ten\xED""an un nombre para aquello en lo que se ha convertido.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Rompi\xF3 con su clan y no responde ante nadie salvo ante el Se\xF1or del Terror. Se acerca, termina r\xE1pido y desaparece.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xC1gil, con dos armas, r\xE1pida al golpear y m\xE1s r\xE1pida al desvanecerse. Fr\xE1gil en un combate justo, por eso nunca lo acepta.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Garras ba\xF1""adas en \xE1""cido, trabajo hecho por la espalda. Tiene un precio, y cada h\xE9roe de la superficie vale exactamente eso.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Su armadura es el arma. Cada necio que la golpea se abre las venas en las p\xFA""as. Ballestas r\xE1pidas para los cautelosos.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vida es simple. Lanza fuego a la multitud y observa qu\xE9 sale corriendo. Normalmente, sale gritando.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Fuerza sin freno y ning\xFAn inter\xE9s en adquirirlo. No saquea por el bot\xEDn. Saquea porque eso es lo que es.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "La furia siempre estuvo ah\xED; el Se\xF1or del Terror solo dej\xF3 de pedirle que la contuviera. Pelea hasta que nada queda en pie.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Fue el \xFAltimo rostro que vieron los condenados, y era bueno en su oficio. A\xFAn lo es. Solo que las sentencias ahora son suyas.";
+			case STR_1084_Druid_Description:
+				return "Se entreg\xF3 a lo salvaje y lo salvaje le devolvi\xF3 algo. Ahora est\xE1 m\xE1s cerca de la bestia que del hombre, y mucho m\xE1s feliz.";
+			case STR_1085_Gladiatrix_Description:
+				return "La arena le ense\xF1\xF3 que una multitud aclamar\xE1 cualquier cosa. Mata por el ruido, y el Se\xF1or del Terror lo provee en abundancia.";
+			}
+		}
+		if( GameLanguage == LANG_PT ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Os Belicistas nao defendem. Quebram linhas, quebram portoes e quebram os homens atras deles. Por onde passam, a guerra os segue.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Os Cacadores levam os que se afastam. Uma flecha vinda do escuro, um corpo jamais encontrado, e um bando mais silencioso a cada noite.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Os Hereges leem o que a Igreja queimou. Os poderes por tras daquelas paginas respondem de bom grado, e cobram o preco depois.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Os Fanaticos cumpriram todos os votos menos um. A disciplina segue intacta, a devocao absoluta; apenas o senhor mudou.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "As Renegadas venderam o mapa, a senha e o nome de cada amigo. Nao se arrependem de nada, e sempre recebem.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Os Brutos nao precisam de causa, bandeira ou motivo. Aponte-os para uma aldeia e os gritos fazem o resto.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Um campeao que aceitou a moeda do Senhor do Terror. As mesmas armas, a mesma tatica, o mesmo dominio do bloqueio, voltados contra quem ele guardava.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Ele ainda caca heresia com fogo. So mudou a definicao de heresia. Mestre do dano elemental e da pergunta sem resposta certa.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Um muro de aco negro com espada, martelo e besta. Nao guarda mais nada; apenas se recusa a deixar alguem passar.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Ela toma o que nao e seu, a distancia, e parte antes que o corpo esfrie. Dano rapido em seguranca, e sem testemunhas.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Ela segue um grupo por dias antes do primeiro tiro. Sem criticos, mas suas flechas elementais fazem a espera valer.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Um tiro, um nome riscado da lista. Lenta, paciente, de pontaria incomparavel, e seus criticos encerram discussoes para sempre.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Ela nao persegue. Prepara o terreno e deixa os herois entrarem nele. As armadilhas fazem o trabalho; ela apenas recolhe.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Um estudioso do proibido, empunhando o saber Arcano que nenhuma ordem autorizada ensina. O que ele sabe nao pode ser desaprendido.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Assinou com sangue e nunca se arrependeu. Feiticaria negra e acido atendem ao seu chamado. Magia sagrada, nao.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Renunciou a ordem, nao ao treinamento. Rapido, versatil, letal com o bastao, e atinge varios inimigos de uma vez.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Um verdadeiro mestre da lamina que acredita que matar e uma arte. Simplesmente deixou de se importar com quem e a tela.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Um gigante de armadura pesada com uma lanca, e algo vestindo o rosto dele. As velhas historias tinham um nome para o que ele se tornou.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Rompeu com o cla e responde apenas ao Senhor do Terror. Chega perto, termina rapido e some.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Agil, com duas armas, rapida no golpe e mais rapida em sumir. Fragil num combate justo, por isso nunca aceita um.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Garras mergulhadas em acido, servico feito pelas costas. Ela tem um preco, e cada heroi la em cima vale exatamente isso.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "A armadura dela e a arma. Todo tolo que a golpeia abre as proprias veias nos espinhos. Bestas rapidas para os cautelosos.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "A vida e simples. Ela joga fogo na multidao e observa o que sai correndo. Geralmente, sai gritando.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Forca sem freio e nenhum interesse em adquiri-lo. Ele nao pilha pelo saque. Ele pilha porque e o que ele e.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "A furia sempre esteve la; o Senhor do Terror apenas parou de pedir que a contivesse. Ele luta ate nada restar de pe.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Foi o ultimo rosto que os condenados viram, e era bom no que fazia. Ainda e. So que as sentencas agora sao dele.";
+			case STR_1084_Druid_Description:
+				return "Entregou-se ao selvagem e o selvagem devolveu algo. Agora esta mais perto da fera que do homem, e bem mais feliz.";
+			case STR_1085_Gladiatrix_Description:
+				return "A arena lhe ensinou que uma multidao aplaude qualquer coisa. Ela mata pelo barulho, e o Senhor do Terror fornece bastante.";
+			}
+		}
+		if( GameLanguage == LANG_DE ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Kriegstreiber verteidigen nicht. Sie brechen Linien, brechen Tore und brechen die Menschen dahinter. Wo sie gehen, folgt der Krieg.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Jaeger holen sich jene, die abseits gehen. Ein Pfeil aus dem Dunkel, ein nie gefundener Leichnam, und ein Kriegstrupp, der jede Nacht stiller wird.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Ketzer lesen, was die Kirche verbrannte. Die Maechte hinter jenen Seiten antworten gern -- und fordern spaeter ihren Preis.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Eiferer hielten jeden Schwur bis auf einen. Ihre Disziplin ist ungebrochen, ihre Hingabe absolut; nur der Meister hat gewechselt.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Abtruennige verkauften die Karte, das Losungswort und den Namen jedes Freundes. Sie bereuen nichts, und sie werden stets bezahlt.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Rohlinge brauchen weder Sache noch Banner noch Grund. Weist sie auf ein Dorf, und das Schreien erledigt den Rest.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Ein Champion, der die Muenze des Herrn des Schreckens nahm. Dieselben Waffen, dieselbe Taktik, dasselbe Geschick im Blocken -- gerichtet gegen jene, die er einst bewachte.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Er jagt Ketzerei noch immer mit Feuer. Nur die Bedeutung von Ketzerei hat sich geaendert. Meister des Elementarschadens und der Frage, die keine rechte Antwort hat.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Eine Wand aus schwarzem Stahl mit Schwert, Hammer und Armbrust. Er bewacht nun nichts mehr -- er weigert sich schlicht, jemanden vorbeizulassen.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Sie nimmt, was nicht ihr gehoert, aus der Ferne, und geht, ehe der Leib erkaltet. Rascher Schaden aus Sicherheit -- und keine Zeugen.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Sie folgt einem Trupp tagelang vor dem ersten Schuss. Keine kritischen Treffer -- doch ihre Elementarpfeile machen das Warten lohnend.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Ein Schuss, ein Name von der Liste gestrichen. Langsam, geduldig, unuebertroffen in der Treffsicherheit, und ihre kritischen Treffer beenden Streit fuer immer.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Sie jagt nicht. Sie bereitet den Boden und laesst die Helden hineinlaufen. Die Fallen tun die Arbeit; sie sammelt nur ein.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Ein Gelehrter des Verbotenen, der das arkane Wissen fuehrt, das kein anerkannter Orden lehrt. Was er weiss, kann nicht verlernt werden.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Er unterschrieb in Blut und hat es nie ein einziges Mal bereut. Schwarze Zauberei und Saeure folgen seinem Ruf. Heilige Magie nicht.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Er entsagte seinem Orden, nicht seinem Training. Schnell, vielseitig, toedlich mit dem Stab -- und er trifft mehrere Feinde zugleich.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Ein wahrer Meister der Klinge, der glaubt, Toeten sei eine Kunstform. Es ist ihm nur gleichgueltig geworden, wer die Leinwand ist.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Ein Riese in schwerer Ruestung mit einer Stangenwaffe, und etwas traegt sein Gesicht. Die alten Geschichten hatten einen Namen fuer das, was er geworden ist.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Er brach mit seinem Clan und gehorcht niemandem ausser dem Herrn des Schreckens. Kommt nah heran, beendet es rasch, und ist fort.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Flink, mit zwei Waffen, schnell im Zuschlagen und schneller im Verschwinden. Zerbrechlich im fairen Kampf -- also fuehrt sie nie einen.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Klauen, in Saeure getaucht, Arbeit von hinten erledigt. Sie hat einen Preis, und jeder Held an der Oberflaeche ist genau so viel wert.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Ihre Ruestung ist die Waffe. Jeder Narr, der nach ihr schlaegt, oeffnet sich die eigenen Adern an den Dornen. Rasche Armbrueste fuer die Vorsichtigen.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Das Leben ist einfach. Sie wirft Feuer in die Menge und sieht zu, was herausrennt. Meist rennt es schreiend heraus.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Kraft ohne Zuegel und kein Interesse daran, welchen zu erwerben. Er pluendert nicht der Beute wegen. Er pluendert, weil er ist, was er ist.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Die Wut war stets da; der Herr des Schreckens hoerte nur auf, ihn zu bitten, sie zurueckzuhalten. Er kaempft, bis nichts mehr steht.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Er war das letzte Gesicht, das Verurteilte je sahen, und er war gut in seiner Arbeit. Er ist es noch. Nur sind die Urteile jetzt die seinen.";
+			case STR_1084_Druid_Description:
+				return "Er gab sich der Wildnis hin, und die Wildnis gab etwas zurueck. Naeher der Bestie als dem Menschen nun, und weit gluecklicher damit.";
+			case STR_1085_Gladiatrix_Description:
+				return "Die Arena lehrte sie, dass eine Menge fuer alles jubelt. Sie toetet des Laerms wegen, und der Herr des Schreckens liefert reichlich davon.";
+			}
+		}
+		// (th4) Danish: Dark Campaign class descriptions. ASCII-folded (ae/oe/aa) because this
+		// dialog draws from the meta atlas, which Codepage_Danish does not reach. Anything not
+		// listed returns nullptr -> English fallback, exactly as the other locs behave.
+		if( GameLanguage == LANG_DA ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Krigsmagere forsvarer ikke. De bryder linjer, bryder porte og bryder maendene bag dem. Hvor de gaar, foelger krigen.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Jaegere tager dem, der gaar for sig selv. En pil fra moerket, et lig der aldrig findes, og en krigerflok der bliver mere stille for hver nat.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Kaettere laeser det, kirken braendte. Magterne bag de sider svarer gerne - og kraever deres pris senere.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Fanatikere holdt hvert loefte paa naer et. Deres disciplin er ubrudt, deres hengivenhed absolut; kun herren er skiftet ud.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Renegater solgte kortet, feltraabet og navnet paa hver eneste ven. De angrer intet, og de faar altid deres betaling.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Bulderbasser behoever hverken sag, banner eller grund. Peg dem mod en landsby, saa klarer skrigene resten.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "En mester, der tog Raedslens Herres moent. Samme vaaben, samme taktik, samme kunnen i at blokere - rettet mod de maend, han engang vogtede.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Han jager stadig kaetteri med ild. Kun betydningen af kaetteri har aendret sig. Mester i elementskade og i spoergsmaalet, der ikke har noget rigtigt svar.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "En mur af sort staal med svaerd, hammer og armboerst. Han vogter intet nu - han naegter blot at lade nogen komme forbi.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Hun tager, hvad der ikke er hendes, paa afstand, og gaar, foer liget er koldt. Hurtig skade fra sikkerhed - og ingen vidner.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Hun foelger en flok i dagevis foer det foerste skud. Ingen kritiske traef - men hendes elementpile goer ventetiden vaerd.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Et skud, et navn streget af listen. Langsom, taalmodig, uden lige i traefsikkerhed, og hendes kritiske traef afslutter enhver diskussion for altid.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Hun jager ikke. Hun forbereder terraenet og lader heltene gaa ind i det. Faelderne goer arbejdet; hun samler blot ind.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "En laerd i forbudte ting, der raader over den arkane viden, ingen godkendt orden vil undervise i. Det, han ved, kan ikke glemmes igen.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Han skrev under med blod og har ikke fortrudt det et eneste oejeblik. Sort trolddom og syre adlyder hans kald. Hellig magi goer ikke.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Han forsagede sin orden, ikke sin traening. Hurtig, alsidig, doedbringende med en stav - og han rammer flere fjender paa en gang.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "En sand klingemester, der mener, at draeb er en kunstart. Han er blot holdt op med at bekymre sig om, hvem laerredet er.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "En kaempe i tung rustning med et stagevaaben, og noget der baerer hans ansigt. De gamle fortaellinger havde et navn for det, han er blevet til.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Han broed med sin klan og staar kun til ansvar over for Raedslens Herre. Kommer taet paa, goer det hurtigt af med det, og er vaek.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Adraet, foerer to vaaben, hurtig til at slaa og hurtigere til at forsvinde. Skroebelig i en fair kamp - saa hun tager aldrig en.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Kloer dyppet i syre, arbejdet gjort bagfra. Hun har en pris, og hver eneste helt paa overfladen er praecis saa meget vaerd.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Hendes rustning er vaabnet. Hver taabe, der slaar efter hende, aabner sine egne aarer paa piggene. Hurtige armboerster til de forsigtige.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Livet er enkelt. Hun kaster ild ind i menneskemaengder og ser, hvad der loeber ud. Som regel loeber det skrigende ud.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Styrke uden taemning og ingen interesse i at faa nogen. Han plyndrer ikke for byttets skyld. Han plyndrer, fordi det er, hvad han er.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Raseriet var der altid; Raedslens Herre holdt blot op med at bede ham holde det tilbage. Han kaemper, til intet staar tilbage.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Han var det sidste ansigt, de doemte nogensinde saa, og han var god til sit arbejde. Det er han stadig. Dommene er blot hans egne nu.";
+			case STR_1084_Druid_Description:
+				return "Han gav sig hen til det vilde, og det vilde gav noget igen. Naermere baestet end mennesket nu, og langt lykkeligere for det.";
+			case STR_1085_Gladiatrix_Description:
+				return "Arenaen laerte hende, at en maengde jubler over hvad som helst. Hun draeber for larmen, og Raedslens Herre leverer rigeligt af den.";
+			}
+		}
+		// (th4) Swahili: Dark Campaign class descriptions, in the villain's voice.
+		// Pure ASCII -- nothing needs folding for the meta atlas, unlike NL/DE/DA.
+		// Class wording matches the SW_Ui / SW_Menu rows and the class-select dialog
+		// above, so the three screens never disagree. Anything not listed returns
+		// nullptr -> English fallback, as the other locs behave.
+		if( GameLanguage == LANG_SW ){
+			switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Wachochezi Vita hawatetei. Wanavunja safu, wanavunja malango, na kuwavunja watu walio nyuma yake. Waendako, vita hufuata.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Wawindaji huwachukua wanaotangatanga. Mshale kutoka gizani, mwili usiopatikana kamwe, na kikosi cha vita kinachozidi kunyamaza kila usiku.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Wazushi husoma kile Kanisa lilichokichoma. Nguvu zilizo nyuma ya kurasa hizo hujibu kwa furaha -- na kudai bei yake baadaye.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Washupavu walishika kila nadhiri isipokuwa moja. Nidhamu yao haijavunjika, kujitoa kwao ni kamili; ni bwana wao tu aliyebadilika.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Wasaliti waliuza ramani, neno la siri na jina la kila rafiki. Hawajutii lolote, nao hulipwa daima.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Majitu hayahitaji sababu, wala bendera, wala kisingizio. Waelekeze kijijini na vilio vitafanya yaliyobaki.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Bingwa aliyepokea fedha za Bwana wa Tisho. Silaha zilezile, mbinu zilezile, ustadi uleule wa kuzuia -- sasa umeelekezwa kwa watu aliowahi kuwalinda.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Bado anawinda uzushi kwa moto. Ni maana ya uzushi tu iliyobadilika. Bingwa wa uharibifu wa asili, na wa swali lisilo na jibu sahihi.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Ukuta wa pua nyeusi wenye upanga, nyundo na uta wa msalaba. Halindi kitu sasa -- anakataa tu kumruhusu yeyote apite.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Huchukua kisicho chake, kwa mbali, na kuondoka kabla mwili haujapoa. Uharibifu wa haraka kutoka mahali salama -- na hakuna mashahidi.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Hufuata kikosi kwa siku kadhaa kabla ya risasi ya kwanza. Hakuna mapigo makali -- lakini mishale yake ya asili hufanya kusubiri kustahili.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Risasi moja, jina moja lafutwa orodhani. Wa polepole, mvumilivu, asiye na kifani kwa usahihi, na mapigo yake makali humaliza mabishano milele.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Hafukuzi. Huandaa ardhi na kuwaacha mashujaa waingie wenyewe. Mitego hufanya kazi; yeye hukusanya tu.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Msomi wa mambo yaliyokatazwa, akitumia maarifa ya Siri ambayo hakuna chama halali kitakachoyafundisha. Ajualo hawezi kulisahau.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Alitia saini kwa damu wala hajajutia hata mara moja. Ulozi mweusi na tindikali hujibu mwito wake. Uchawi mtakatifu hautajibu.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Alikataa chama chake, si mafunzo yake. Mwepesi, mwenye ustadi wa aina nyingi, muuaji kwa fimbo -- naye hupiga maadui kadhaa kwa wakati mmoja.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Bingwa wa kweli wa bapa anayeamini kuua ni sanaa. Ameacha tu kujali turubai ni nani.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Jitu lenye deraya nzito na mkuki wa nguzo, na kitu fulani kimevaa uso wake. Hadithi za kale zilikuwa na jina la kile alichokuwa.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Alivunja na kabila lake wala hamjibu yeyote isipokuwa Bwana wa Tisho. Hukaribia, humaliza haraka, na hutoweka.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Mwepesi, ashikaye silaha mbili, wa haraka kupiga na wa haraka zaidi kutoweka. Dhaifu katika pambano la haki -- kwa hiyo halifanyi kamwe.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Makucha yaliyochovywa tindikali, kazi ifanywayo kwa nyuma. Ana bei yake, na kila shujaa wa juu anastahili kiasi hicho hasa.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Deraya yake ndiyo silaha. Kila mpumbavu ampigaye hujifungua mishipa yake mwenyewe kwenye michokoo. Uta wa msalaba wa kasi kwa wale wenye tahadhari.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Maisha ni rahisi. Hurusha moto ndani ya umati na kutazama kinachotoka mbio. Kwa kawaida, hutoka kikipiga kelele.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Nguvu bila kizuizi na bila hamu ya kupata kizuizi chochote. Havamii kwa ajili ya nyara. Huvamia kwa sababu ndivyo alivyo.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "Ghadhabu ilikuwepo daima; Bwana wa Tisho aliacha tu kumwomba aizuie. Hupigana hadi hakuna kilichosimama.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Alikuwa uso wa mwisho waliouona watu waliohukumiwa, naye alikuwa hodari katika kazi yake. Bado yuko hivyo. Ni hukumu tu ambazo sasa ni zake mwenyewe.";
+		case STR_1084_Druid_Description:
+			return "Alijitoa kwa mwitu nao mwitu ukampa kitu. Yuko karibu na mnyama kuliko mwanadamu sasa, na ana furaha zaidi kwa hilo.";
+		case STR_1085_Gladiatrix_Description:
+			return "Uwanja ulimfundisha kwamba umati utashangilia kitu chochote. Huua kwa ajili ya kelele, na Bwana wa Tisho hutoa kelele nyingi mno.";
+			}
+		}
+		// (th4) Dutch: Dark Campaign class descriptions. ASCII-folded because this dialog
+		// draws from the meta atlas, which has NO accented glyphs -- the diaeresis and acute
+		// Dutch uses elsewhere would draw blank here. nl/fold.py raises if a folded string
+		// still holds a non-ASCII byte, so an unfoldable character cannot slip through.
+		// Anything not listed returns nullptr -> English fallback, as the other locs behave.
+		if( GameLanguage == LANG_NL ){
+			switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Oorlogshitsers verdedigen niet. Zij breken linies, breken poorten en breken de mannen erachter. Waar zij gaan, volgt de oorlog.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Jagers nemen hen die afdwalen. Een pijl uit het duister, een lichaam dat nooit gevonden wordt, en een krijgsbende die elke nacht stiller wordt.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Ketters lezen wat de Kerk verbrandde. De machten achter die bladzijden antwoorden graag -- en vragen hun prijs later.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Dwepers hielden elke gelofte op een na. Hun discipline is ongebroken, hun toewijding absoluut; alleen de meester is veranderd.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Afvalligen verkochten de kaart, het wachtwoord en de naam van elke vriend. Zij hebben nergens spijt van, en zij worden altijd betaald.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Bruten hebben geen zaak, geen banier en geen reden nodig. Wijs hen een dorp aan en het gegil doet de rest.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Een kampioen die de munt van de Heer van Verschrikking aannam. Dezelfde wapens, dezelfde tactiek, dezelfde blokkeerkunst -- gericht op de mannen die hij ooit bewaakte.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Hij jaagt nog steeds met vuur op ketterij. Alleen de definitie van ketterij is veranderd. Meester van elementaire schade, en van de vraag zonder juist antwoord.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Een muur van zwart staal met zwaard, hamer en kruisboog. Hij bewaakt nu niets meer -- hij weigert eenvoudigweg iemand door te laten.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Zij neemt wat niet van haar is, van een afstand, en vertrekt voordat het lichaam koud is. Snelle schade vanuit veiligheid -- en geen getuigen.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Zij volgt een gezelschap dagenlang voor het eerste schot. Geen kritieke treffers -- maar haar elementaire pijlen maken het wachten de moeite waard.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Een schot, een naam van de lijst geschrapt. Traag, geduldig, ongeevenaard in nauwkeurigheid, en haar kritieke treffers beeindigen discussies voorgoed.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Zij jaagt niet. Zij bereidt het terrein voor en laat de helden erin lopen. De vallen doen het werk; zij haalt alleen op.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Een geleerde van verboden zaken, die de Arcane kennis hanteert die geen erkende orde onderwijst. Wat hij weet kan niet ontleerd worden.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Hij tekende met bloed en heeft daar geen moment spijt van gehad. Zwarte toverkunst en zuur geven gehoor aan zijn roep. Heilige magie niet.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Hij verzaakte zijn orde, niet zijn training. Snel, veelzijdig, dodelijk met een staf -- en hij treft meerdere vijanden tegelijk.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Een ware meester van de kling die gelooft dat doden een kunstvorm is. Het kan hem eenvoudigweg niet meer schelen wie het doek is.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Een reus in zwaar harnas met een stokwapen, en iets dat zijn gezicht draagt. De oude verhalen hadden een naam voor wat hij geworden is.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Hij brak met zijn clan en verantwoordt zich aan niemand dan de Heer van Verschrikking. Komt dichtbij, maakt het snel af, en is weg.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Behendig, met twee wapens, snel in de aanval en sneller in het verdwijnen. Kwetsbaar in een eerlijk gevecht -- dus gaat zij er nooit een aan.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Klauwen gedoopt in zuur, het werk van achteren gedaan. Zij heeft een prijs, en elke held aan de oppervlakte is precies zoveel waard.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Haar harnas is het wapen. Elke dwaas die naar haar uithaalt opent zijn eigen aderen op de punten. Snelle kruisbogen voor de voorzichtigen.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Het leven is eenvoudig. Zij werpt vuur in menigten en kijkt wat eruit rent. Meestal rent het gillend weg.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Kracht zonder rem en geen enkele wens er een te verwerven. Hij plundert niet om de buit. Hij plundert omdat hij dat is.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "De razernij was er altijd al; de Heer van Verschrikking vroeg hem enkel niet langer haar in te houden. Hij vecht tot er niets meer overeind staat.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Hij was het laatste gezicht dat veroordeelden ooit zagen, en hij was goed in zijn werk. Dat is hij nog. De vonnissen zijn nu eenvoudigweg de zijne.";
+		case STR_1084_Druid_Description:
+			return "Hij gaf zich over aan het wilde en het wilde gaf iets terug. Nu dichter bij het beest dan bij de mens, en veel gelukkiger daarom.";
+		case STR_1085_Gladiatrix_Description:
+			return "De arena leerde haar dat een menigte voor alles juicht. Zij doodt om het lawaai, en de Heer van Verschrikking levert daar rijkelijk van.";
+			}
+		}
+		if( GameLanguage == LANG_IT ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "I Guerrafondai non difendono. Spezzano le linee, spezzano le porte e spezzano gli uomini dietro di esse. Dove passano, arriva la guerra.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "I Cacciatori prendono chi si allontana. Una freccia dal buio, un corpo mai ritrovato, e una compagnia piu silenziosa ogni notte.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Gli Eretici leggono cio che la Chiesa ha bruciato. I poteri dietro quelle pagine rispondono volentieri, e chiedono il prezzo dopo.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "I Fanatici hanno mantenuto ogni voto tranne uno. La disciplina e intatta, la devozione assoluta; e cambiato solo il padrone.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Le Rinnegate hanno venduto la mappa, la parola d'ordine e il nome di ogni amico. Non rimpiangono nulla, e vengono sempre pagate.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "I Bruti non hanno bisogno di causa, bandiera o motivo. Indicate loro un villaggio e le urla faranno il resto.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Un campione che ha preso la moneta del Signore del Terrore. Stesse armi, stessa tattica, stessa maestria nella parata, rivolte a chi proteggeva.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Caccia ancora l'eresia col fuoco. E cambiata solo la definizione di eresia. Maestro del danno elementale e della domanda senza risposta giusta.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Un muro d'acciaio nero con spada, martello e balestra. Non protegge piu nulla; si rifiuta soltanto di far passare qualcuno.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Prende cio che non e suo, da lontano, e se ne va prima che il corpo si raffreddi. Danno rapido al sicuro, e nessun testimone.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Segue un gruppo per giorni prima del primo tiro. Niente critici, ma le sue frecce elementali ripagano l'attesa.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Un colpo, un nome cancellato dalla lista. Lenta, paziente, di mira impareggiabile, e i suoi critici chiudono le discussioni per sempre.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Non insegue. Prepara il terreno e lascia che gli eroi ci entrino. Le trappole fanno il lavoro; lei si limita a raccogliere.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Uno studioso del proibito che impugna il sapere Arcano che nessun ordine autorizzato insegna. Cio che sa non si puo disimparare.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Ha firmato col sangue e non se n'e mai pentito. Stregoneria nera e acido rispondono al suo richiamo. La magia sacra no.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Ha rinnegato l'ordine, non l'addestramento. Rapido, versatile, letale col bastone, e colpisce piu nemici insieme.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Un vero maestro della lama che crede che uccidere sia un'arte. Ha solo smesso di curarsi di chi sia la tela.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Un gigante in armatura pesante con un'arma inastata, e qualcosa che ne indossa il volto. Le vecchie storie avevano un nome per cio che e diventato.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Ha rotto col suo clan e risponde solo al Signore del Terrore. Si avvicina, chiude in fretta e sparisce.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Agile, con due armi, rapida a colpire e piu rapida a svanire. Fragile in uno scontro leale, percio non ne accetta mai uno.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Artigli intinti nell'acido, lavoro fatto alle spalle. Ha un prezzo, e ogni eroe in superficie vale esattamente quello.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "La sua armatura e l'arma. Ogni sciocco che la colpisce si apre le vene sulle punte. Balestre rapide per i piu prudenti.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vita e semplice. Getta fuoco nella folla e guarda cosa ne esce correndo. Di solito ne esce urlando.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Forza senza freni e nessun interesse ad averne. Non razzia per il bottino. Razzia perche e cio che e.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "La rabbia c'e sempre stata; il Signore del Terrore ha solo smesso di chiedergli di trattenerla. Combatte finche nulla resta in piedi.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Fu l'ultimo volto che i condannati videro, ed era bravo nel suo lavoro. Lo e ancora. Solo che le sentenze ora sono sue.";
+			case STR_1084_Druid_Description:
+				return "Si e dato al selvaggio e il selvaggio gli ha dato qualcosa in cambio. Ora e piu vicino alla bestia che all'uomo, e assai piu felice.";
+			case STR_1085_Gladiatrix_Description:
+				return "L'arena le ha insegnato che la folla applaude qualunque cosa. Uccide per il rumore, e il Signore del Terrore ne fornisce parecchio.";
+			}
+		}
+		if( GameLanguage == LANG_FR ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Les Va-t-en-guerre ne defendent pas. Ils brisent les lignes, les portes et les hommes derriere. La ou ils passent, la guerre suit.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Les Chasseurs prennent ceux qui s'ecartent. Une fleche venue du noir, un corps jamais retrouve, et une troupe plus silencieuse chaque nuit.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Les Heretiques lisent ce que l'Eglise a brule. Les puissances derriere ces pages repondent volontiers, et reclament leur prix plus tard.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Les Fanatiques ont tenu tous leurs voeux sauf un. La discipline est intacte, la devotion absolue; seul le maitre a change.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Les Renegates ont vendu la carte, le mot de passe et le nom de chaque ami. Elles ne regrettent rien, et sont toujours payees.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Les Brutes n'ont besoin ni de cause, ni de banniere, ni de raison. Designez-leur un village et les cris feront le reste.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Un champion qui a pris la piece du Seigneur de la Terreur. Memes armes, meme tactique, meme maitrise de la parade, tournees contre ceux qu'il gardait.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Il traque encore l'heresie par le feu. Seule la definition de l'heresie a change. Maitre des degats elementaires et de la question sans bonne reponse.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Un mur d'acier noir avec epee, marteau et arbalete. Il ne garde plus rien; il refuse simplement de laisser passer quiconque.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Elle prend ce qui n'est pas a elle, de loin, et part avant que le corps refroidisse. Degats rapides en securite, et aucun temoin.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Elle suit un groupe des jours avant le premier tir. Pas de critiques, mais ses fleches elementaires valent l'attente.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Un tir, un nom raye de la liste. Lente, patiente, d'une precision sans egale, et ses critiques closent les debats pour de bon.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Elle ne poursuit pas. Elle prepare le terrain et laisse les heros y entrer. Les pieges font le travail; elle ne fait que ramasser.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Un erudit de l'interdit, maniant le savoir Arcane qu'aucun ordre autorise n'enseigne. Ce qu'il sait ne peut plus etre oublie.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Il a signe de son sang et ne l'a jamais regrette. La sorcellerie noire et l'acide repondent a son appel. La magie sacree, non.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Il a renie son ordre, pas son entrainement. Rapide, polyvalent, mortel au baton, et il frappe plusieurs ennemis a la fois.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Un veritable maitre de la lame qui croit que tuer est un art. Il a simplement cesse de se soucier de la toile.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Un geant en armure lourde avec une arme d'hast, et quelque chose qui porte son visage. Les vieux recits avaient un nom pour ce qu'il est devenu.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Il a rompu avec son clan et ne repond qu'au Seigneur de la Terreur. Il s'approche, termine vite et disparait.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Agile, deux armes en main, prompte a frapper et plus prompte encore a disparaitre. Fragile en combat loyal, alors elle n'en livre jamais.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Des griffes trempees dans l'acide, le travail fait de dos. Elle a un prix, et chaque heros en surface vaut exactement cela.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Son armure est son arme. Chaque imbecile qui la frappe s'ouvre les veines sur les pointes. Arbaletes rapides pour les prudents.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vie est simple. Elle jette du feu dans la foule et regarde ce qui en sort. D'habitude, cela en sort en hurlant.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "La force sans retenue et aucune envie d'en acquerir. Il ne pille pas pour le butin. Il pille parce que c'est ce qu'il est.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "La rage a toujours ete la; le Seigneur de la Terreur a seulement cesse de lui demander de la contenir. Il se bat jusqu'a ce que rien ne tienne debout.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Il fut le dernier visage que virent les condamnes, et il etait bon a sa tache. Il l'est toujours. Seules les sentences sont desormais les siennes.";
+			case STR_1084_Druid_Description:
+				return "Il s'est donne au sauvage et le sauvage lui a rendu quelque chose. Il est plus pres de la bete que de l'homme, et bien plus heureux.";
+			case STR_1085_Gladiatrix_Description:
+				return "L'arene lui a appris qu'une foule acclame n'importe quoi. Elle tue pour le bruit, et le Seigneur de la Terreur en fournit beaucoup.";
+			}
+		}
+		if( GameLanguage == LANG_PL ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Podzegacze nie bronia. Lamia szyki, lamia bramy i lamia ludzi za nimi. Gdzie ida, tam przychodzi wojna.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Lowcy biora tych, ktorzy sie oddalili. Strzala z ciemnosci, cialo, ktorego nigdy nie znaleziono, i oddzial coraz cichszy z kazda noca.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Heretycy czytaja to, co Kosciol spalil. Moce za tymi stronicami odpowiadaja chetnie, a cene podaja pozniej.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Fanatycy dochowali wszystkich slubow procz jednego. Dyscyplina nienaruszona, oddanie absolutne; zmienil sie tylko pan.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Renegatki sprzedaly mape, haslo i imie kazdego przyjaciela. Niczego nie zaluja i zawsze dostaja zaplate.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Brutale nie potrzebuja sprawy, sztandaru ani powodu. Wskaz im wioske, a krzyki zrobia reszte.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Mistrz, ktory wzial monete Wladcy Grozy. Ta sama bron, ta sama taktyka, to samo mistrzostwo bloku, wymierzone w tych, ktorych strzegl.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Nadal tropi herezje ogniem. Zmienila sie tylko definicja herezji. Mistrz obrazen zywiolow i pytania bez dobrej odpowiedzi.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Sciana z czarnej stali z mieczem, mlotem i kusza. Niczego juz nie strzeze; po prostu nie przepuszcza nikogo.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Bierze to, co nie jej, z dystansu, i odchodzi, zanim cialo ostygnie. Szybkie obrazenia z bezpiecznej odleglosci i zadnych swiadkow.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Idzie za druzyna calymi dniami przed pierwszym strzalem. Bez trafien krytycznych, ale jej strzaly zywiolow wynagradzaja czekanie.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Jeden strzal, jedno imie skreslone z listy. Powolna, cierpliwa, niezrownana w celnosci, a jej krytyki koncza spory na zawsze.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Nie sciga. Przygotowuje teren i pozwala bohaterom w niego wejsc. Pulapki robia robote; ona tylko zbiera.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Znawca rzeczy zakazanych, wladajacy Tajemna wiedza, ktorej nie naucza zaden uznany zakon. Tego, co wie, nie da sie zapomniec.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Podpisal krwia i nigdy nie zalowal. Czarna magia i kwas odpowiadaja na jego wezwanie. Swieta magia nie.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Wyrzekl sie zakonu, nie wyszkolenia. Szybki, wszechstronny, zabojczy z kosturem, i uderza kilku wrogow naraz.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Prawdziwy mistrz ostrza, ktory wierzy, ze zabijanie jest sztuka. Po prostu przestal dbac o to, kto jest plotnem.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Olbrzym w ciezkiej zbroi z drzewcem i cos, co nosi jego twarz. Stare opowiesci mialy nazwe dla tego, czym sie stal.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Zerwal z klanem i odpowiada tylko przed Wladca Grozy. Podchodzi blisko, konczy szybko i znika.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Zwinna, walczaca dwiema bronmi, szybka w ciosie i jeszcze szybsza w znikaniu. Krucha w uczciwej walce, wiec nigdy jej nie podejmuje.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Pazury maczane w kwasie, robota od tylu. Ma swoja cene, a kazdy bohater na powierzchni wart jest dokladnie tyle.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Jej zbroja jest bronia. Kazdy glupiec, ktory ja uderzy, sam otwiera sobie zyly na kolcach. Szybkie kusze dla ostrozniejszych.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Zycie jest proste. Rzuca ogien w tlum i patrzy, co z niego wybiegnie. Zwykle wybiega z krzykiem.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Sila bez hamulcow i zadnej checi, by je zdobyc. Nie najezdza dla lupu. Najezdza, bo taki wlasnie jest.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Wscieklosc byla zawsze; Wladca Grozy jedynie przestal go prosic, by ja powstrzymywal. Walczy, poki nic nie stoi.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Byl ostatnia twarza, jaka widzieli skazani, i byl dobry w swoim fachu. Nadal jest. Tyle ze wyroki sa teraz jego wlasne.";
+			case STR_1084_Druid_Description:
+				return "Oddal sie dziczy, a dzicz oddala mu cos w zamian. Blizej mu teraz do bestii niz do czlowieka, i jest znacznie szczesliwszy.";
+			case STR_1085_Gladiatrix_Description:
+				return "Arena nauczyla ja, ze tlum bedzie wiwatowal na wszystko. Zabija dla halasu, a Wladca Grozy dostarcza go w nadmiarze.";
+			}
+		}
+		if( GameLanguage == LANG_ID ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Penghasut tidak bertahan. Mereka mematahkan barisan, mematahkan gerbang, dan mematahkan orang di baliknya. Ke mana mereka melangkah, perang mengikuti.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Pemburu mengambil mereka yang tersesat. Anak panah dari kegelapan, mayat yang tak pernah ditemukan, dan rombongan yang makin sunyi tiap malam.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Bidah membaca apa yang dibakar Gereja. Kekuatan di balik halaman itu menjawab dengan senang hati, dan menagih harganya kemudian.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Fanatik menepati semua sumpah kecuali satu. Disiplin mereka utuh, pengabdian mutlak; hanya tuannya yang berganti.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Pembelot menjual peta, kata sandi, dan nama setiap kawan. Mereka tak menyesal, dan selalu dibayar.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Bengis tak butuh alasan, panji, atau tujuan. Tunjuk sebuah desa dan jeritan akan menyelesaikan sisanya.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Seorang juara yang menerima keping emas Sang Penguasa Teror. Senjata sama, taktik sama, keahlian menangkis sama, kini diarahkan pada yang dulu ia jaga.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Ia masih memburu bidah dengan api. Hanya definisi bidah yang berubah. Ahli damage elemen, dan ahli pertanyaan yang tak punya jawaban benar.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Dinding baja hitam dengan pedang, palu, dan busur silang. Ia tak lagi menjaga apa pun; ia hanya menolak siapa pun lewat.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Ia mengambil yang bukan miliknya, dari jauh, dan pergi sebelum mayatnya dingin. Damage cepat dari tempat aman, tanpa saksi.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Ia mengikuti rombongan berhari-hari sebelum tembakan pertama. Tanpa kritikal, tapi panah elemennya sepadan dengan penantian.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Satu tembakan, satu nama dicoret dari daftar. Lambat, sabar, akurasinya tak tertandingi, dan kritikalnya mengakhiri perdebatan selamanya.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Ia tidak mengejar. Ia menyiapkan medan dan membiarkan para pahlawan masuk sendiri. Jebakan yang bekerja; ia hanya memungut.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Cendekiawan hal terlarang, penguasa pengetahuan Arcane yang tak diajarkan ordo mana pun. Yang ia tahu tak bisa dilupakan.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Ia menandatangani dengan darah dan tak pernah menyesal. Sihir hitam dan asam menjawab panggilannya. Sihir suci tidak.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Ia meninggalkan ordonya, bukan latihannya. Cepat, serba bisa, mematikan dengan tongkat, dan memukul beberapa musuh sekaligus.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Ahli bilah sejati yang percaya membunuh adalah seni. Ia hanya berhenti peduli siapa kanvasnya.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Raksasa berbaju zirah berat dengan tombak panjang, dan sesuatu yang mengenakan wajahnya. Kisah lama punya nama untuk apa yang kini ia jadi.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Ia memutus ikatan dengan klannya dan hanya tunduk pada Sang Penguasa Teror. Mendekat, menuntaskan cepat, lalu lenyap.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Gesit, bersenjata ganda, cepat menyerang dan lebih cepat menghilang. Rapuh dalam duel adil, maka ia tak pernah menerimanya.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Cakar dicelup asam, pekerjaan dilakukan dari belakang. Ia punya harga, dan tiap pahlawan di atas sana bernilai persis segitu.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Zirahnya adalah senjatanya. Setiap pandir yang menebasnya merobek urat sendiri di duri-duri itu. Busur silang cepat untuk yang berhati-hati.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Hidup itu sederhana. Ia melempar api ke kerumunan dan menonton apa yang berlari keluar. Biasanya, keluar sambil menjerit.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Kekuatan tanpa kekangan dan tanpa minat memilikinya. Ia tidak merampok demi jarahan. Ia merampok karena memang begitulah dia.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Amarah itu selalu ada; Sang Penguasa Teror hanya berhenti memintanya menahan diri. Ia bertarung sampai tak ada yang berdiri.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Ia wajah terakhir yang dilihat para terpidana, dan ia mahir dalam pekerjaannya. Masih. Hanya saja vonisnya kini miliknya sendiri.";
+			case STR_1084_Druid_Description:
+				return "Ia menyerahkan diri pada alam liar dan alam liar membalas sesuatu. Kini ia lebih dekat pada binatang daripada manusia, dan jauh lebih bahagia.";
+			case STR_1085_Gladiatrix_Description:
+				return "Arena mengajarinya bahwa kerumunan akan bersorak untuk apa saja. Ia membunuh demi kebisingan, dan Sang Penguasa Teror menyediakannya berlimpah.";
+			}
+		}
+		if( GameLanguage == LANG_CHI ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xD5\xBD\xD5\xF9\xB7\xB7\xD7\xD3\xB4\xD3\xB2\xBB\xB7\xC0\xCA\xD8\xA1\xA3\xCB\xFB\xC3\xC7\xBB\xF7\xC0\xA3\xD5\xF3\xCF\xDF\xA1\xA2\xD7\xB2\xBF\xAA\xB3\xC7\xC3\xC5\xA1\xA2\xC4\xEB\xCB\xE9\xC3\xC5\xBA\xF3\xB5\xC4\xC8\xCB\xA1\xA3\xCB\xFB\xC3\xC7\xD7\xDF\xB5\xBD\xC4\xC4\xC0\xEF\xA3\xAC\xD5\xBD\xD5\xF9\xBE\xCD\xB8\xFA\xB5\xBD\xC4\xC4\xC0\xEF\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xC1\xD4\xCA\xD6\xD7\xA8\xC8\xA1\xB5\xF4\xB6\xD3\xD6\xAE\xC8\xCB\xA1\xA3\xD2\xBB\xD6\xA7\xC0\xB4\xD7\xD4\xBA\xDA\xB0\xB5\xB5\xC4\xBC\xFD\xA3\xAC\xD2\xBB\xBE\xDF\xD4\xD9\xCE\xB4\xD1\xB0\xBB\xD8\xB5\xC4\xCA\xAC\xCC\xE5\xA3\xAC\xBB\xB9\xD3\xD0\xD2\xBB\xD6\xA7\xC3\xBF\xD2\xB9\xB6\xBC\xB8\xFC\xB0\xB2\xBE\xB2\xB5\xC4\xB6\xD3\xCE\xE9\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xD2\xEC\xB6\xCB\xD4\xC4\xB6\xC1\xBD\xCC\xBB\xE1\xB7\xD9\xBB\xD9\xD6\xAE\xCE\xEF\xA1\xA3\xCA\xE9\xD2\xB3\xB1\xB3\xBA\xF3\xB5\xC4\xC1\xA6\xC1\xBF\xC0\xD6\xD3\xDA\xBB\xD8\xD3\xA6\xA3\xAC\xCB\xF7\xBC\xDB\xD4\xF2\xD4\xDA\xC6\xE4\xBA\xF3\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xBF\xF1\xD0\xC5\xD5\xDF\xCA\xD8\xD7\xA1\xC1\xCB\xB3\xFD\xD2\xBB\xCC\xF5\xD6\xAE\xCD\xE2\xB5\xC4\xCB\xF9\xD3\xD0\xCA\xC4\xD1\xD4\xA1\xA3\xBD\xE4\xC2\xC9\xCE\xB4\xC6\xC6\xA3\xAC\xF2\xAF\xB3\xCF\xBE\xF8\xB6\xD4\xA3\xAC\xD6\xBB\xCA\xC7\xD6\xF7\xC8\xCB\xBB\xBB\xC1\xCB\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xC5\xD1\xCD\xBD\xC2\xF4\xB5\xF4\xC1\xCB\xB5\xD8\xCD\xBC\xA1\xA2\xBF\xDA\xC1\xEE\xBA\xCD\xC3\xBF\xD2\xBB\xCE\xBB\xCD\xAC\xB0\xE9\xB5\xC4\xC3\xFB\xD7\xD6\xA1\xA3\xCB\xFD\xC3\xC7\xBA\xC1\xCE\xDE\xBB\xDA\xD2\xE2\xA3\xAC\xB6\xF8\xC7\xD2\xB4\xD3\xB2\xBB\xB0\xD7\xB8\xC9\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xB1\xA9\xCD\xBD\xB2\xBB\xD0\xE8\xD2\xAA\xC0\xED\xD3\xC9\xA1\xA2\xC6\xEC\xBA\xC5\xBB\xF2\xD4\xB5\xD3\xC9\xA1\xA3\xD6\xB8\xB8\xF8\xCB\xFB\xC3\xC7\xD2\xBB\xD7\xF9\xB4\xE5\xD7\xAF\xA3\xAC\xC6\xE4\xD3\xE0\xB5\xC4\xBC\xE2\xBD\xD0\xBB\xE1\xD7\xD4\xD0\xD0\xCD\xEA\xB3\xC9\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xD2\xBB\xCE\xBB\xCA\xD5\xCF\xC2\xBF\xD6\xBE\xE5\xD6\xAE\xCD\xF5\xC7\xAE\xB1\xD2\xB5\xC4\xD3\xC2\xCA\xBF\xA1\xA3\xCD\xAC\xD1\xF9\xB5\xC4\xB1\xF8\xC6\xF7\xA1\xA2\xCD\xAC\xD1\xF9\xB5\xC4\xD5\xBD\xCA\xF5\xA1\xA2\xCD\xAC\xD1\xF9\xB5\xC4\xB8\xF1\xB5\xB2\xD4\xEC\xD2\xE8\xA3\xAC\xC8\xE7\xBD\xF1\xD6\xB8\xCF\xF2\xCB\xFB\xD4\xF8\xCA\xD8\xBB\xA4\xB5\xC4\xC8\xCB\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xCB\xFB\xC8\xD4\xD2\xD4\xBB\xF0\xD1\xE6\xD7\xB7\xC1\xD4\xD2\xEC\xB6\xCB\xA3\xAC\xD6\xBB\xCA\xC7\xD2\xEC\xB6\xCB\xB5\xC4\xB6\xA8\xD2\xE5\xB1\xE4\xC1\xCB\xA1\xA3\xD4\xAA\xCB\xD8\xC9\xCB\xBA\xA6\xB5\xC4\xB4\xF3\xCA\xA6\xA3\xAC\xD2\xB2\xCA\xC7\xCE\xDE\xBD\xE2\xD6\xAE\xCE\xCA\xB5\xC4\xB4\xF3\xCA\xA6\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xCA\xD6\xB3\xD6\xBD\xA3\xA1\xA2\xB4\xB8\xD3\xEB\xCA\xAE\xD7\xD6\xB9\xAD\xB5\xC4\xBA\xDA\xB8\xD6\xD6\xAE\xC7\xBD\xA1\xA3\xCB\xFB\xB2\xBB\xD4\xD9\xCA\xD8\xBB\xA4\xCA\xB2\xC3\xB4\xA3\xAC\xD6\xBB\xCA\xC7\xB2\xBB\xC8\xC3\xC8\xCE\xBA\xCE\xC8\xCB\xCD\xA8\xB9\xFD\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xCB\xFD\xB4\xD3\xD4\xB6\xB4\xA6\xC8\xA1\xD7\xDF\xB2\xBB\xCA\xF4\xD3\xDA\xD7\xD4\xBC\xBA\xB5\xC4\xB6\xAB\xCE\xF7\xA3\xAC\xD4\xDA\xCA\xAC\xCC\xE5\xB1\xE4\xC0\xE4\xC7\xB0\xC0\xEB\xC8\xA5\xA1\xA3\xB0\xB2\xC8\xAB\xBE\xE0\xC0\xEB\xB5\xC4\xD1\xB8\xBD\xDD\xC9\xCB\xBA\xA6\xA3\xAC\xC3\xBB\xD3\xD0\xC4\xBF\xBB\xF7\xD5\xDF\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xB5\xDA\xD2\xBB\xBC\xFD\xD6\xAE\xC7\xB0\xA3\xAC\xCB\xFD\xBB\xE1\xCE\xB2\xCB\xE6\xB6\xD3\xCE\xE9\xCA\xFD\xC8\xD5\xA1\xA3\xC3\xBB\xD3\xD0\xB1\xA9\xBB\xF7\xA3\xAC\xB5\xAB\xCB\xFD\xB5\xC4\xD4\xAA\xCB\xD8\xBC\xFD\xCA\xB8\xD6\xB5\xB5\xC3\xD5\xE2\xB7\xDD\xB5\xC8\xB4\xFD\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xD2\xBB\xBC\xFD\xA3\xAC\xC3\xFB\xB5\xA5\xC9\xCF\xBB\xAE\xC8\xA5\xD2\xBB\xB8\xF6\xC3\xFB\xD7\xD6\xA1\xA3\xBB\xBA\xC2\xFD\xA1\xA2\xC4\xCD\xD0\xC4\xA1\xA2\xBE\xAB\xD7\xBC\xCE\xDE\xCB\xAB\xA3\xAC\xCB\xFD\xB5\xC4\xB1\xA9\xBB\xF7\xC8\xC3\xD5\xF9\xC2\xDB\xD3\xC0\xD4\xB6\xBD\xE1\xCA\xF8\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xCB\xFD\xB2\xBB\xD7\xB7\xB8\xCF\xA1\xA3\xCB\xFD\xB2\xBC\xD6\xC3\xB5\xD8\xD0\xCE\xA3\xAC\xC8\xCE\xD3\xC9\xD3\xA2\xD0\xDB\xD7\xD4\xD0\xD0\xD7\xDF\xC8\xEB\xA1\xA3\xCF\xDD\xDA\xE5\xB8\xBA\xD4\xF0\xB6\xAF\xCA\xD6\xA3\xAC\xCB\xFD\xD6\xBB\xB8\xBA\xD4\xF0\xCA\xD5\xC8\xA1\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xBD\xFB\xBC\xC9\xD6\xAE\xD1\xA7\xB5\xC4\xD7\xEA\xD1\xD0\xD5\xDF\xA3\xAC\xD5\xC6\xCE\xD5\xC8\xCE\xBA\xCE\xD5\xFD\xCD\xB3\xBD\xCC\xCD\xC5\xB6\xBC\xB2\xBB\xBB\xE1\xB4\xAB\xCA\xDA\xB5\xC4\xB0\xC2\xC3\xD8\xD6\xAA\xCA\xB6\xA1\xA3\xD2\xD1\xD6\xAA\xD6\xAE\xCA\xC2\xCE\xDE\xB7\xA8\xD4\xD9\xCD\xFC\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xCB\xFB\xD2\xD4\xD1\xAA\xC7\xA9\xC3\xFB\xA3\xAC\xB4\xD3\xCE\xB4\xBA\xF3\xBB\xDA\xA1\xA3\xBA\xDA\xB0\xB5\xCE\xD7\xCA\xF5\xD3\xEB\xC7\xBF\xCB\xE1\xD3\xA6\xD5\xD9\xB6\xF8\xC0\xB4\xA3\xAC\xC9\xF1\xCA\xA5\xC4\xA7\xB7\xA8\xD4\xF2\xB2\xBB\xBB\xE1\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xCB\xFB\xB1\xB3\xC6\xFA\xC1\xCB\xBD\xCC\xCD\xC5\xA3\xAC\xC8\xB4\xC3\xBB\xD3\xD0\xB1\xB3\xC6\xFA\xD0\xDE\xD0\xD0\xA1\xA3\xD1\xB8\xBD\xDD\xA1\xA2\xB6\xE0\xC4\xDC\xA1\xA2\xB7\xA8\xD5\xC8\xD6\xC2\xC3\xFC\xA3\xAC\xC7\xD2\xC4\xDC\xD2\xBB\xBB\xF7\xC3\xFC\xD6\xD0\xCA\xFD\xB5\xD0\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xD5\xE6\xD5\xFD\xB5\xC4\xBD\xA3\xD6\xAE\xB4\xF3\xCA\xA6\xA3\xAC\xC8\xCF\xB6\xA8\xC9\xB1\xC2\xBE\xCA\xC7\xD2\xBB\xC3\xC5\xD2\xD5\xCA\xF5\xA1\xA3\xCB\xFB\xD6\xBB\xCA\xC7\xB2\xBB\xD4\xD9\xD4\xDA\xD2\xE2\xBB\xAD\xB2\xBC\xCA\xC7\xCB\xAD\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xC9\xED\xC5\xFB\xD6\xD8\xBC\xD7\xCA\xD6\xB3\xD6\xB3\xA4\xB1\xFA\xB1\xF8\xC6\xF7\xB5\xC4\xBE\xDE\xBA\xBA\xA3\xAC\xBB\xB9\xD3\xD0\xC4\xB3\xD6\xD6\xC5\xFB\xD7\xC5\xCB\xFB\xC3\xE6\xBF\xD7\xB5\xC4\xB6\xAB\xCE\xF7\xA1\xA3\xB9\xC5\xC0\xCF\xB4\xAB\xCB\xB5\xCE\xAA\xCB\xFB\xC8\xE7\xBD\xF1\xCB\xF9\xB1\xE4\xB3\xC9\xB5\xC4\xB6\xAB\xCE\xF7\xC1\xF4\xB9\xFD\xC3\xFB\xD7\xD6\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xCB\xFB\xD3\xEB\xD7\xDA\xD7\xE5\xBE\xF6\xC1\xD1\xA3\xAC\xD6\xBB\xCC\xFD\xC3\xFC\xD3\xDA\xBF\xD6\xBE\xE5\xD6\xAE\xCD\xF5\xA1\xA3\xBF\xBF\xBD\xFC\xA3\xAC\xCB\xD9\xBE\xF6\xA3\xAC\xC8\xBB\xBA\xF3\xCF\xFB\xCA\xA7\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xC3\xF4\xBD\xDD\xA1\xA2\xCB\xAB\xB3\xD6\xA1\xA2\xB3\xF6\xCA\xD6\xBF\xEC\xA3\xAC\xCF\xFB\xCA\xA7\xB5\xC3\xB8\xFC\xBF\xEC\xA1\xA3\xB9\xAB\xC6\xBD\xBD\xBB\xB7\xE6\xCA\xB1\xB4\xE0\xC8\xF5\xA3\xAC\xCB\xF9\xD2\xD4\xCB\xFD\xB4\xD3\xB2\xBB\xB9\xAB\xC6\xBD\xBD\xBB\xB7\xE6\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xBD\xFE\xB9\xFD\xCB\xE1\xD2\xBA\xB5\xC4\xC0\xFB\xD7\xA6\xA3\xAC\xB4\xD3\xB1\xB3\xBA\xF3\xCD\xEA\xB3\xC9\xB5\xC4\xBB\xEE\xBC\xC6\xA1\xA3\xCB\xFD\xD3\xD0\xBC\xDB\xC2\xEB\xA3\xAC\xB5\xD8\xC3\xE6\xC9\xCF\xB5\xC4\xC3\xBF\xB8\xF6\xD3\xA2\xD0\xDB\xB6\xBC\xC7\xA1\xBA\xC3\xD6\xB5\xD5\xE2\xB8\xF6\xCA\xFD\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xCB\xFD\xB5\xC4\xBB\xA4\xBC\xD7\xBE\xCD\xCA\xC7\xCE\xE4\xC6\xF7\xA1\xA3\xC3\xBF\xB8\xF6\xBB\xD3\xB5\xB6\xBF\xB3\xCB\xFD\xB5\xC4\xB4\xC0\xBB\xF5\xB6\xBC\xD4\xDA\xBC\xE2\xB4\xCC\xC9\xCF\xB8\xEE\xBF\xAA\xD7\xD4\xBC\xBA\xB5\xC4\xD1\xAA\xB9\xDC\xA1\xA3\xBD\xF7\xC9\xF7\xD5\xDF\xD4\xF2\xBD\xBB\xB8\xF8\xBF\xEC\xCB\xD9\xCA\xAE\xD7\xD6\xB9\xAD\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xC8\xCB\xC9\xFA\xBA\xDC\xBC\xF2\xB5\xA5\xA1\xA3\xCB\xFD\xB0\xD1\xBB\xF0\xD1\xE6\xC8\xD3\xBD\xF8\xC8\xCB\xC8\xBA\xA3\xAC\xBF\xB4\xD7\xC5\xCA\xB2\xC3\xB4\xB6\xAB\xCE\xF7\xC5\xDC\xB3\xF6\xC0\xB4\xA1\xA3\xCD\xA8\xB3\xA3\xCA\xC7\xBC\xE2\xBD\xD0\xD7\xC5\xC5\xDC\xB3\xF6\xC0\xB4\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xBA\xC1\xCE\xDE\xBD\xDA\xD6\xC6\xB5\xC4\xC1\xA6\xC1\xBF\xA3\xAC\xD2\xB2\xBA\xC1\xCE\xDE\xBB\xF1\xB5\xC3\xBD\xDA\xD6\xC6\xB5\xC4\xD0\xCB\xC8\xA4\xA1\xA3\xCB\xFB\xBD\xD9\xC2\xD3\xB2\xBB\xCE\xAA\xB2\xC6\xCE\xEF\xA3\xAC\xCB\xFB\xBD\xD9\xC2\xD3\xD6\xBB\xD2\xF2\xCB\xFB\xC9\xFA\xC0\xB4\xC8\xE7\xB4\xCB\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xC5\xAD\xBB\xF0\xD2\xBB\xD6\xB1\xB6\xBC\xD4\xDA\xA3\xAC\xBF\xD6\xBE\xE5\xD6\xAE\xCD\xF5\xD6\xBB\xCA\xC7\xB2\xBB\xD4\xD9\xD2\xAA\xC7\xF3\xCB\xFB\xD1\xB9\xD6\xC6\xA1\xA3\xCB\xFB\xBB\xE1\xD2\xBB\xD6\xB1\xD5\xBD\xB5\xBD\xCE\xDE\xCE\xEF\xD5\xBE\xC1\xA2\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xCB\xFB\xD4\xF8\xCA\xC7\xCB\xC0\xC7\xF4\xBC\xFB\xB5\xBD\xB5\xC4\xD7\xEE\xBA\xF3\xD2\xBB\xD5\xC5\xC3\xE6\xBF\xD7\xA3\xAC\xC7\xD2\xBC\xBC\xD2\xD5\xE6\xB5\xCA\xEC\xA1\xA3\xC8\xE7\xBD\xF1\xD2\xC0\xBE\xC9\xA3\xAC\xD6\xBB\xCA\xC7\xC5\xD0\xBE\xF6\xBB\xBB\xB3\xC9\xC1\xCB\xCB\xFB\xD7\xD4\xBC\xBA\xB5\xC4\xA1\xA3";
+			case STR_1084_Druid_Description:
+				return "\xCB\xFB\xB0\xD1\xD7\xD4\xBC\xBA\xBD\xBB\xB8\xF8\xBB\xC4\xD2\xB0\xA3\xAC\xBB\xC4\xD2\xB0\xD2\xB2\xBB\xD8\xD4\xF9\xC1\xCB\xD0\xA9\xCA\xB2\xC3\xB4\xA1\xA3\xC8\xE7\xBD\xF1\xCB\xFB\xB8\xFC\xBD\xFC\xD3\xDA\xD2\xB0\xCA\xDE\xB6\xF8\xB7\xC7\xC8\xCB\xA3\xAC\xC7\xD2\xD4\xB6\xB1\xC8\xB4\xD3\xC7\xB0\xBF\xEC\xBB\xEE\xA1\xA3";
+			case STR_1085_Gladiatrix_Description:
+				return "\xBE\xBA\xBC\xBC\xB3\xA1\xBD\xCC\xBB\xE1\xCB\xFD\xA3\xAC\xC8\xCB\xC8\xBA\xBB\xE1\xCE\xAA\xC8\xCE\xBA\xCE\xB6\xAB\xCE\xF7\xBB\xB6\xBA\xF4\xA1\xA3\xCB\xFD\xCE\xAA\xD4\xEB\xD2\xF4\xB6\xF8\xC9\xB1\xA3\xAC\xB6\xF8\xBF\xD6\xBE\xE5\xD6\xAE\xCD\xF5\xB9\xA9\xD3\xA6\xB3\xE4\xD7\xE3\xA1\xA3";
+			}
+		}
+		if( GameLanguage == LANG_TR ){ // (th4) Turkish: ASCII-folded (meta DiabloFont has no accents)
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Savas kiskirticilari savunma yapmaz. Hatlari kirar, kapilari kirar ve arkalarindaki adamlari kirarlar. Yurudukleri yerde savas onlari izler.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Avcilar surunun disina cikanlari alir. Karanliktan gelen bir ok, asla bulunamayan bir ceset ve her gece biraz daha sessizlesen bir savas mufrezesi.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Kafirler Kilise'nin yaktigini okur. O sayfalarin ardindaki guclar seve seve yanit verir -- bedelini sonra ister.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Bagnazlar biri disinda her yemini tuttu. Disiplinleri sarsilmamis, bagliliklari mutlaktir; yalnizca efendileri degisti.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Donekler haritayi, parolayi ve her dostun adini satti. Hicbir sey icin pisman degiller ve paralari hep odenir.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Kaba kuvvetin davaya, sancaga ya da gerekceye ihtiyaci yoktur. Onlari bir koye dogrultun, gerisini cigliklar halleder.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Dehset Efendisi'nin parasini alan bir sampiyon. Ayni silahlar, ayni taktikler, ayni bloklama becerisi -- bir zamanlar korudugu adamlara cevrilmis.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Hala kafirligi atesle avliyor. Yalnizca kafirligin tanimi degisti. Element hasarinin ve dogru yaniti olmayan sorunun ustasi.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Kilic, cekic ve tatar yayiyla kara celikten bir duvar. Artik hicbir seyi korumuyor -- sadece kimseyi gecirmeyi reddediyor.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Kendinin olmayani uzaktan alir ve ceset sogumadan gider. Guvenli mesafeden hizli hasar -- ve hic tanik yok.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Ilk atistan once bir mufrezeyi gunlerce izler. Kritik vurus yok -- ama element oklari beklemeye deger kilar.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Tek atis, listeden silinen tek ad. Yavas, sabirli, isabette essiz ve kritik vuruslari tartismalari kalici olarak bitirir.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Kovalamaz. Zemini hazirlar ve kahramanlarin icine yurumesini bekler. Isi tuzaklar yapar; o yalnizca toplar.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Yasak seylerin bir alimi; hicbir mesru tarikatin ogretmeyecegi Gizemli bilgiyi kullanir. Bildigi sey unutulamaz.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Kanla imza atti ve bir kez bile pisman olmadi. Kara buyu ve asit cagrisina yanit verir. Kutsal buyu vermez.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Tarikatindan vazgecti, egitiminden degil. Hizli, cok yonlu, asayla olumcul -- ve ayni anda birkac dusmana vurur.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Oldurmenin bir sanat bicimi oldugune inanan gercek bir kilic ustasi. Yalnizca tuvalin kim oldugunu umursamayi birakti.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Agir zirhli, kargili dev bir adam ve yuzunu takinan bir sey. Eski hikayelerin, onun donustugu seye verdigi bir ad vardi.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Klaniyla yollarini ayirdi ve Dehset Efendisi'nden baskasina hesap vermiyor. Yaklasir, isi cabuk bitirir ve yok olur.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Cevik, cift silah kullanan, vurmakta hizli ve kaybolmakta daha hizli. Adil bir dovuste kirilgan -- bu yuzden hic adil dovusmez.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Aside batirilmis pencelerle, is arkadan halledilir. Bir fiyati var ve yukaridaki her kahraman tam olarak o kadar eder.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Zirhi silahtir. Ona savuran her ahmak, dikenlerde kendi damarlarini acar. Temkinliler icin hizli tatar yaylari.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Hayat basittir. Kalabaligin icine ates atar ve disari ne kacacak diye bakar. Genellikle cigliklar atarak kacar.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Dizginsiz guc ve dizgin edinmeye hicbir ilgi yok. Ganimet icin baskin yapmaz. Ne ise o oldugu icin baskin yapar.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Ofke hep oradaydi; Dehset Efendisi yalnizca onu tutmasini istemeyi birakti. Ayakta bir sey kalmayana dek dovusur.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Mahkumlarin gordugu son yuzdu ve isinde iyiydi. Hala oyle. Yalnizca hukumler artik ona ait.";
+			case STR_1084_Druid_Description:
+				return "Kendini vahsete birakti ve vahset ona bir sey geri verdi. Artik insandan cok canavara yakin ve bundan cok daha mutlu.";
+			case STR_1085_Gladiatrix_Description:
+				return "Arena ona kalabaligin her seye tezahurat edecegini ogretti. Gurultu icin oldurur ve Dehset Efendisi bol bol saglar.";
+			}
+		}
+		// (th4) Korean villain descriptions, in Diablo's voice. Real EUC-KR -- the class
+		// dialog draws through Font16/24/30, which carry the Korean grid sheet. 28 arms:
+		// 6 villain classes + 22 subclasses. Anything unlisted falls through to English.
+		if( GameLanguage == LANG_KO ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xC0\xFC\xC0\xEF\xB1\xA4\xC0\xBA \xB9\xE6\xBE\xEE\xC7\xCF\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9. \xB1\xD7\xB5\xE9\xC0\xBA \xC0\xFC\xBF\xAD\xC0\xBB \xBA\xCE\xBC\xF6\xB0\xED, \xBC\xBA\xB9\xAE\xC0\xBB \xBA\xCE\xBC\xF6\xB8\xE7, \xB1\xD7 \xB5\xDA\xC0\xC7 \xBB\xE7\xB6\xF7\xB5\xE9\xC0\xBB \xBA\xCE\xBC\xF8\xB4\xD9. \xB1\xD7\xB5\xE9\xC0\xCC \xB0\xC8\xB4\xC2 \xB0\xF7\xBF\xA1 \xC0\xFC\xC0\xEF\xC0\xCC \xB5\xDA\xB5\xFB\xB8\xA5\xB4\xD9.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xBB\xE7\xB3\xC9\xB2\xDB\xC0\xBA \xB9\xAB\xB8\xAE\xBF\xA1\xBC\xAD \xB6\xB3\xBE\xEE\xC1\xF8 \xC0\xDA\xB8\xA6 \xB3\xEB\xB8\xB0\xB4\xD9. \xBE\xEE\xB5\xD2\xBF\xA1\xBC\xAD \xB3\xAF\xBE\xC6\xBF\xC2 \xC8\xAD\xBB\xEC \xC7\xD1 \xB4\xEB, \xB3\xA1\xB3\xBB \xC3\xA3\xC1\xF6 \xB8\xF8\xC7\xD1 \xBD\xC3\xBD\xC5, \xB1\xD7\xB8\xAE\xB0\xED \xB9\xE3\xB8\xB6\xB4\xD9 \xC1\xB6\xBF\xEB\xC7\xD8\xC1\xF6\xB4\xC2 \xBF\xF8\xC1\xA4\xB4\xEB.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xC0\xCC\xB4\xDC\xC0\xDA\xB4\xC2 \xB1\xB3\xC8\xB8\xB0\xA1 \xBA\xD2\xC5\xC2\xBF\xEE \xB0\xCD\xC0\xBB \xC0\xD0\xB4\xC2\xB4\xD9. \xB1\xD7 \xC3\xA5\xC0\xE5 \xB5\xDA\xC0\xC7 \xC8\xFB\xC0\xBA \xB1\xE2\xB2\xA8\xC0\xCC \xC0\xC0\xB4\xE4\xC7\xCF\xB0\xED, \xB4\xEB\xB0\xA1\xB4\xC2 \xB3\xAA\xC1\xDF\xBF\xA1 \xC3\xBB\xB1\xB8\xC7\xD1\xB4\xD9.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xB1\xA4\xBD\xC5\xC0\xDA\xB4\xC2 \xB4\xDC \xC7\xCF\xB3\xAA\xB8\xA6 \xBB\xAB \xB8\xF0\xB5\xE7 \xBC\xAD\xBE\xE0\xC0\xBB \xC1\xF6\xC4\xD7\xB4\xD9. \xB1\xD7 \xBC\xF6\xB7\xC3\xC0\xBA \xC8\xE7\xB5\xE9\xB8\xB2\xC0\xCC \xBE\xF8\xB0\xED \xC7\xE5\xBD\xC5\xC0\xBA \xC0\xFD\xB4\xEB\xC0\xFB\xC0\xCC\xB4\xD9. \xB9\xD9\xB2\xEF \xB0\xCD\xC0\xBA \xC1\xD6\xC0\xCE\xBB\xD3\xC0\xCC\xB4\xD9.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xB9\xE8\xB1\xB3\xC0\xDA\xB4\xC2 \xC1\xF6\xB5\xB5\xBF\xCD \xBE\xCF\xC8\xA3\xBF\xCD \xB8\xF0\xB5\xE7 \xB9\xFE\xC0\xC7 \xC0\xCC\xB8\xA7\xC0\xBB \xC6\xC8\xBE\xD2\xB4\xD9. \xB1\xD7\xB5\xE9\xC0\xBA \xBE\xC6\xB9\xAB\xB0\xCD\xB5\xB5 \xC8\xC4\xC8\xB8\xC7\xCF\xC1\xF6 \xBE\xCA\xC0\xB8\xB8\xE7, \xBE\xF0\xC1\xA6\xB3\xAA \xB4\xEB\xB0\xA1\xB8\xA6 \xB9\xDE\xB4\xC2\xB4\xD9.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xBE\xDF\xB8\xB8\xBC\xF6\xBF\xA1\xB0\xD4\xB4\xC2 \xB4\xEB\xC0\xC7\xB5\xB5 \xB1\xEA\xB9\xDF\xB5\xB5 \xC0\xCC\xC0\xAF\xB5\xB5 \xC7\xCA\xBF\xE4 \xBE\xF8\xB4\xD9. \xB8\xB6\xC0\xBB\xC0\xBB \xB0\xA1\xB8\xAE\xC5\xB0\xB1\xE2\xB8\xB8 \xC7\xCF\xB8\xE9 \xB3\xAA\xB8\xD3\xC1\xF6\xB4\xC2 \xBA\xF1\xB8\xED\xC0\xCC \xC7\xD8\xB0\xE1\xC7\xD1\xB4\xD9.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xB0\xF8\xC6\xF7\xC0\xC7 \xB1\xBA\xC1\xD6\xC0\xC7 \xB5\xB7\xC0\xBB \xB9\xDE\xC0\xBA \xBF\xEB\xBB\xE7. \xB0\xB0\xC0\xBA \xB9\xAB\xB1\xE2, \xB0\xB0\xC0\xBA \xC0\xFC\xBC\xFA, \xB0\xB0\xC0\xBA \xB8\xB7\xB1\xE2 \xBC\xD8\xBE\xBE - \xB4\xD9\xB8\xB8 \xC7\xD1\xB6\xA7 \xC1\xF6\xC5\xB0\xB4\xF8 \xC0\xCC\xB5\xE9\xC0\xBB \xB0\xDC\xB4\xAB\xB4\xD9.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xB1\xD7\xB4\xC2 \xBF\xA9\xC0\xFC\xC8\xF7 \xBA\xD2\xB7\xCE \xC0\xCC\xB4\xDC\xC0\xBB \xBB\xE7\xB3\xC9\xC7\xD1\xB4\xD9. \xB9\xD9\xB2\xEF \xB0\xCD\xC0\xBA \xC0\xCC\xB4\xDC\xC0\xC7 \xC1\xA4\xC0\xC7\xBB\xD3\xC0\xCC\xB4\xD9. \xBC\xD3\xBC\xBA \xC7\xC7\xC7\xD8\xC0\xC7 \xB4\xDE\xC0\xCE\xC0\xCC\xC0\xDA, \xC1\xA4\xB4\xE4\xC0\xCC \xBE\xF8\xB4\xC2 \xB9\xB0\xC0\xBD\xC0\xC7 \xB4\xDE\xC0\xCE.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xB0\xCB\xB0\xFA \xB8\xC1\xC4\xA1\xBF\xCD \xBC\xAE\xB1\xC3\xC0\xBB \xB5\xE7 \xB0\xCB\xC0\xBA \xB0\xAD\xC3\xB6\xC0\xC7 \xBA\xAE. \xC0\xCC\xC1\xA6 \xB1\xD7\xB4\xC2 \xBE\xC6\xB9\xAB\xB0\xCD\xB5\xB5 \xC1\xF6\xC5\xB0\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9 - \xB1\xD7\xC0\xFA \xB4\xA9\xB1\xB8\xB5\xB5 \xC1\xF6\xB3\xAA\xB0\xA1\xC1\xF6 \xB8\xF8\xC7\xCF\xB0\xD4 \xC7\xD2 \xBB\xD3\xC0\xCC\xB4\xD9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xB1\xD7\xB3\xE0\xB4\xC2 \xC1\xA6 \xB0\xCD\xC0\xCC \xBE\xC6\xB4\xD1 \xB0\xCD\xC0\xBB \xB8\xD5 \xB0\xC5\xB8\xAE\xBF\xA1\xBC\xAD \xBB\xA9\xBE\xD1\xB0\xED, \xBD\xC3\xBD\xC5\xC0\xCC \xBD\xC4\xB1\xE2 \xC0\xFC\xBF\xA1 \xB6\xB0\xB3\xAD\xB4\xD9. \xBE\xC8\xC0\xFC\xC7\xD1 \xB0\xF7\xBF\xA1\xBC\xAD \xBF\xC0\xB4\xC2 \xBA\xFC\xB8\xA5 \xC7\xC7\xC7\xD8 - \xB1\xD7\xB8\xAE\xB0\xED \xB8\xF1\xB0\xDD\xC0\xDA\xB4\xC2 \xBE\xF8\xB4\xD9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xB1\xD7\xB3\xE0\xB4\xC2 \xC3\xB9 \xB9\xDF\xC0\xBB \xBD\xEE\xB1\xE2\xB1\xEE\xC1\xF6 \xB8\xE7\xC4\xA5\xC0\xBB \xB5\xFB\xB6\xF3\xBA\xD9\xB4\xC2\xB4\xD9. \xC4\xA1\xB8\xED\xC5\xB8\xB4\xC2 \xBE\xF8\xB4\xD9 - \xB1\xD7\xB7\xAF\xB3\xAA \xBC\xD3\xBC\xBA \xC8\xAD\xBB\xEC\xC0\xCC \xB1\xD7 \xB1\xE2\xB4\xD9\xB8\xB2\xC0\xBB \xB0\xAA\xC1\xF6\xB0\xD4 \xB8\xB8\xB5\xE7\xB4\xD9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xC7\xD1 \xB9\xDF\xBF\xA1 \xB8\xED\xB4\xDC\xBF\xA1\xBC\xAD \xC0\xCC\xB8\xA7 \xC7\xCF\xB3\xAA. \xB4\xC0\xB8\xAE\xB0\xED \xC2\xFC\xC0\xBB\xBC\xBA \xC0\xD6\xC0\xB8\xB8\xE7 \xC1\xA4\xC8\xAE\xB5\xB5\xBF\xA1 \xB0\xDF\xC1\xD9 \xC0\xDA\xB0\xA1 \xBE\xF8\xB0\xED, \xB1\xD7\xB3\xE0\xC0\xC7 \xC4\xA1\xB8\xED\xC5\xB8\xB4\xC2 \xB3\xED\xC0\xEF\xC0\xBB \xBF\xB5\xBF\xF8\xC8\xF7 \xB3\xA1\xB3\xBD\xB4\xD9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xB1\xD7\xB3\xE0\xB4\xC2 \xC2\xD1\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9. \xC0\xDA\xB8\xAE\xB8\xA6 \xC1\xD8\xBA\xF1\xC7\xD8 \xB5\xCE\xB0\xED \xBF\xB5\xBF\xF5\xB5\xE9\xC0\xCC \xB0\xC9\xBE\xEE \xB5\xE9\xBE\xEE\xBF\xC0\xB0\xD4 \xC7\xD1\xB4\xD9. \xC0\xCF\xC0\xBA \xC7\xD4\xC1\xA4\xC0\xCC \xC7\xCF\xB0\xED, \xB1\xD7\xB3\xE0\xB4\xC2 \xB0\xC5\xB5\xCE\xB1\xE2\xB8\xB8 \xC7\xD1\xB4\xD9.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xB1\xDD\xC1\xF6\xB5\xC8 \xB0\xCD\xB5\xE9\xC0\xC7 \xC7\xD0\xC0\xDA, \xBE\xEE\xB6\xB2 \xB0\xF8\xC0\xCE\xB5\xC8 \xB1\xB3\xB4\xDC\xB5\xB5 \xB0\xA1\xB8\xA3\xC4\xA1\xC1\xF6 \xBE\xCA\xB4\xC2 \xBA\xF1\xC0\xFC \xC1\xF6\xBD\xC4\xC0\xBB \xC8\xD6\xB5\xCE\xB8\xA5\xB4\xD9. \xB1\xD7\xB0\xA1 \xBE\xC6\xB4\xC2 \xB0\xCD\xC0\xBA \xB5\xC7\xB5\xB9\xB8\xB1 \xBC\xF6 \xBE\xF8\xB4\xD9.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xB1\xD7\xB4\xC2 \xC7\xC7\xB7\xCE \xBC\xAD\xB8\xED\xC7\xDF\xB0\xED \xB4\xDC \xC7\xD1 \xB9\xF8\xB5\xB5 \xC8\xC4\xC8\xB8\xC7\xCF\xC1\xF6 \xBE\xCA\xBE\xD2\xB4\xD9. \xC8\xE6\xC1\xD6\xBC\xFA\xB0\xFA \xBB\xEA\xBC\xBA\xC0\xCC \xB1\xD7\xC0\xC7 \xBA\xCE\xB8\xA7\xBF\xA1 \xC0\xC0\xB4\xE4\xC7\xD1\xB4\xD9. \xBD\xC5\xBC\xBA \xB8\xB6\xB9\xFD\xC0\xBA \xB1\xD7\xB7\xAF\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xB1\xD7\xB4\xC2 \xB1\xB3\xB4\xDC\xC0\xBB \xB9\xF6\xB7\xC8\xC0\xB8\xB3\xAA \xBC\xF6\xB7\xC3\xC0\xBA \xB9\xF6\xB8\xAE\xC1\xF6 \xBE\xCA\xBE\xD2\xB4\xD9. \xBA\xFC\xB8\xA3\xB0\xED \xB4\xD9\xC0\xE7\xB4\xD9\xB4\xC9\xC7\xCF\xB8\xE7 \xC1\xF6\xC6\xCE\xC0\xCC\xB7\xCE \xC4\xA1\xB8\xED\xC0\xFB\xC0\xCC\xB4\xD9 - \xB0\xD4\xB4\xD9\xB0\xA1 \xBF\xA9\xB7\xB5\xC0\xBB \xC7\xD1 \xB9\xF8\xBF\xA1 \xC4\xA3\xB4\xD9.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xBB\xEC\xC0\xCE\xC0\xBB \xBF\xB9\xBC\xFA\xB7\xCE \xBF\xA9\xB1\xE2\xB4\xC2 \xC1\xF8\xC1\xA4\xC7\xD1 \xB0\xCB\xC0\xC7 \xB4\xDE\xC0\xCE. \xB1\xD7\xC0\xFA \xC8\xAD\xC6\xF8\xC0\xCC \xB4\xA9\xB1\xB8\xC0\xCE\xC1\xF6 \xB4\xF5\xB4\xC2 \xB0\xB3\xC0\xC7\xC4\xA1 \xBE\xCA\xB0\xD4 \xB5\xC7\xBE\xFA\xC0\xBB \xBB\xD3\xC0\xCC\xB4\xD9.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xC0\xE5\xBA\xB4\xB1\xE2\xB8\xA6 \xB5\xE7 \xC1\xDF\xB0\xA9\xC0\xC7 \xB0\xC5\xC0\xCE, \xB1\xD7\xB8\xAE\xB0\xED \xB1\xD7\xC0\xC7 \xBE\xF3\xB1\xBC\xC0\xBB \xBE\xB4 \xB9\xAB\xBE\xF0\xB0\xA1. \xBF\xBE\xC0\xCC\xBE\xDF\xB1\xE2\xBF\xA1\xB4\xC2 \xB1\xD7\xB0\xA1 \xB5\xC8 \xB0\xCD\xC0\xBB \xBA\xCE\xB8\xA3\xB4\xC2 \xC0\xCC\xB8\xA7\xC0\xCC \xC0\xD6\xBE\xFA\xB4\xD9.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xB1\xD7\xB4\xC2 \xBE\xBE\xC1\xB7\xB0\xFA \xC0\xFD\xBF\xAC\xC7\xCF\xB0\xED \xB0\xF8\xC6\xF7\xC0\xC7 \xB1\xBA\xC1\xD6 \xBF\xDC\xBF\xA1\xB4\xC2 \xB4\xA9\xB1\xB8\xBF\xA1\xB0\xD4\xB5\xB5 \xB4\xE4\xC7\xCF\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9. \xB0\xA1\xB1\xEE\xC0\xCC \xBA\xD9\xBE\xEE \xBA\xFC\xB8\xA3\xB0\xD4 \xB3\xA1\xB3\xBB\xB0\xED \xBB\xE7\xB6\xF3\xC1\xF8\xB4\xD9.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xB3\xAF\xB7\xC6\xC7\xCF\xB0\xED \xBD\xD6\xBC\xF6\xB8\xA6 \xBE\xB2\xB8\xE7, \xC4\xA1\xB1\xE2\xB4\xC2 \xBA\xFC\xB8\xA3\xB0\xED \xBB\xE7\xB6\xF3\xC1\xF6\xB1\xE2\xB4\xC2 \xB4\xF5 \xBA\xFC\xB8\xA3\xB4\xD9. \xC1\xA4\xC1\xA4\xB4\xE7\xB4\xE7\xC7\xD1 \xBD\xCE\xBF\xF2\xBF\xA1\xBC\xAD\xB4\xC2 \xBE\xE0\xC7\xCF\xB4\xD9 - \xB1\xD7\xB7\xA1\xBC\xAD \xB0\xE1\xC4\xDA \xB1\xD7\xB7\xB1 \xBD\xCE\xBF\xF2\xC0\xBB \xC7\xCF\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xBB\xEA\xBC\xBA\xBF\xA1 \xB4\xE3\xB1\xD9 \xB9\xDF\xC5\xE9, \xB5\xEE \xB5\xDA\xBF\xA1\xBC\xAD \xB3\xA1\xB3\xBB\xB4\xC2 \xC0\xCF. \xB1\xD7\xB3\xE0\xBF\xA1\xB0\xD4\xB4\xC2 \xB0\xAA\xC0\xCC \xC0\xD6\xB0\xED, \xC1\xF6\xBB\xF3\xC0\xC7 \xB8\xF0\xB5\xE7 \xBF\xB5\xBF\xF5\xC0\xCC \xB5\xFC \xB1\xD7\xB8\xB8\xC5\xAD\xC0\xC7 \xB0\xAA\xBE\xEE\xC4\xA1\xB4\xD9.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xB1\xD7\xB3\xE0\xC0\xC7 \xB0\xA9\xBF\xCA\xC0\xCC \xB0\xF0 \xB9\xAB\xB1\xE2\xB4\xD9. \xB1\xD7\xB3\xE0\xBF\xA1\xB0\xD4 \xC8\xD6\xB5\xCE\xB8\xA3\xB4\xC2 \xB8\xDB\xC3\xBB\xC0\xCC\xB8\xB6\xB4\xD9 \xC1\xA6 \xC7\xCD\xC1\xD9\xC0\xBB \xB0\xA1\xBD\xC3\xBF\xA1 \xB0\xAE\xB4\xD9 \xB4\xED\xB4\xD9. \xBD\xC5\xC1\xDF\xC7\xD1 \xC0\xDA\xBF\xA1\xB0\xD4\xB4\xC2 \xBA\xFC\xB8\xA5 \xBC\xAE\xB1\xC3\xC0\xCC \xC0\xD6\xB4\xD9.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xBB\xEE\xC0\xBA \xB4\xDC\xBC\xF8\xC7\xCF\xB4\xD9. \xB1\xD7\xB3\xE0\xB4\xC2 \xB1\xBA\xC1\xDF \xBC\xD3\xC0\xB8\xB7\xCE \xBA\xD2\xC0\xBB \xB4\xF8\xC1\xF6\xB0\xED \xB9\xAB\xBE\xF9\xC0\xCC \xB6\xD9\xC3\xC4\xB3\xAA\xBF\xC0\xB4\xC2\xC1\xF6 \xC1\xF6\xC4\xD1\xBA\xBB\xB4\xD9. \xB4\xEB\xB0\xB3\xB4\xC2 \xBA\xF1\xB8\xED\xC0\xBB \xC1\xF6\xB8\xA3\xB8\xE7 \xB6\xD9\xC3\xC4\xB3\xAA\xBF\xC2\xB4\xD9.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xB0\xC5\xB8\xAE\xB3\xA6 \xBE\xF8\xB4\xC2 \xC8\xFB, \xB1\xD7\xB8\xAE\xB0\xED \xB1\xD7\xB0\xCD\xC0\xBB \xB4\xD9\xBD\xBA\xB8\xB1 \xBB\xFD\xB0\xA2\xB5\xB5 \xBE\xF8\xB4\xD9. \xB1\xD7\xB4\xC2 \xBE\xE0\xC5\xBB\xC7\xCF\xB7\xC1\xB0\xED \xBD\xC0\xB0\xDD\xC7\xCF\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9. \xB1\xD7\xB0\xCD\xC0\xCC \xB0\xF0 \xB1\xD7\xC0\xCC\xB1\xE2\xBF\xA1 \xBD\xC0\xB0\xDD\xC7\xD1\xB4\xD9.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xBA\xD0\xB3\xEB\xB4\xC2 \xB4\xC3 \xB0\xC5\xB1\xE2 \xC0\xD6\xBE\xFA\xB4\xD9. \xB0\xF8\xC6\xF7\xC0\xC7 \xB1\xBA\xC1\xD6\xB4\xC2 \xB1\xD7\xC0\xFA \xC2\xFC\xC0\xB8\xB6\xF3\xB4\xC2 \xBF\xE4\xB1\xB8\xB8\xA6 \xB8\xD8\xC3\xDF\xBE\xFA\xC0\xBB \xBB\xD3\xC0\xCC\xB4\xD9. \xB1\xD7\xB4\xC2 \xBC\xAD \xC0\xD6\xB4\xC2 \xB0\xCD\xC0\xCC \xBE\xF8\xC0\xBB \xB6\xA7\xB1\xEE\xC1\xF6 \xBD\xCE\xBF\xEE\xB4\xD9.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xB1\xD7\xB4\xC2 \xBB\xE7\xC7\xFC\xBC\xF6\xB0\xA1 \xB8\xB6\xC1\xF6\xB8\xB7\xC0\xB8\xB7\xCE \xBA\xBB \xBE\xF3\xB1\xBC\xC0\xCC\xBE\xFA\xB0\xED, \xC1\xA6 \xC0\xCF\xBF\xA1 \xB4\xC9\xC7\xDF\xB4\xD9. \xC1\xF6\xB1\xDD\xB5\xB5 \xB1\xD7\xB7\xB8\xB4\xD9. \xB4\xD9\xB8\xB8 \xC0\xCC\xC1\xA6 \xC6\xC7\xB0\xE1\xC0\xBA \xB1\xD7 \xC0\xDA\xBD\xC5\xC0\xC7 \xB0\xCD\xC0\xCC\xB4\xD9.";
+			case STR_1084_Druid_Description:
+				return "\xB1\xD7\xB4\xC2 \xBE\xDF\xBB\xFD\xBF\xA1 \xC0\xDA\xBD\xC5\xC0\xBB \xB3\xBB\xC1\xD6\xBE\xFA\xB0\xED \xBE\xDF\xBB\xFD\xC0\xBA \xB9\xAB\xBE\xF0\xB0\xA1\xB8\xA6 \xB5\xB9\xB7\xC1\xC1\xD6\xBE\xFA\xB4\xD9. \xC0\xCC\xC1\xA6 \xC0\xCE\xB0\xA3\xBA\xB8\xB4\xD9 \xC1\xFC\xBD\xC2\xBF\xA1 \xB0\xA1\xB1\xF5\xB0\xED, \xB1\xD7\xB7\xA1\xBC\xAD \xC8\xCE\xBE\xC0 \xC7\xE0\xBA\xB9\xC7\xCF\xB4\xD9.";
+			case STR_1085_Gladiatrix_Description:
+				return "\xC5\xF5\xB1\xE2\xC0\xE5\xC0\xBA \xB1\xBA\xC1\xDF\xC0\xCC \xB9\xAB\xBE\xF9\xBF\xA1\xB5\xE7 \xC8\xAF\xC8\xA3\xC7\xD1\xB4\xD9\xB4\xC2 \xB0\xCD\xC0\xBB \xB1\xD7\xB3\xE0\xBF\xA1\xB0\xD4 \xB0\xA1\xB8\xA3\xC3\xC6\xB4\xD9. \xB1\xD7\xB3\xE0\xB4\xC2 \xB1\xD7 \xBC\xD2\xB8\xAE\xB8\xA6 \xC0\xA7\xC7\xD8 \xC1\xD7\xC0\xCC\xB0\xED, \xB0\xF8\xC6\xF7\xC0\xC7 \xB1\xBA\xC1\xD6\xB4\xC2 \xB1\xD7\xB0\xCD\xC0\xBB \xBE\xC6\xB3\xA6\xBE\xF8\xC0\xCC \xB3\xBB\xBE\xEE\xC1\xD8\xB4\xD9.";
+			}
+		}
+		// (th4) Croatian: Dark Campaign villain descriptions, in Diablo's voice (meta atlas cells in TH4loc_hrv.mor).
+		// Class names match HR_Menu. Unlisted -> nullptr -> English.
+		if( GameLanguage == LANG_HR ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Ratni hu\x9Aka\xE8i ne brane. Lome bojne redove, lome vrata i lome ljude iza njih. Kamo krenu, rat ide za njima.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Lovkinje odnose one koji zalutaju. Strijela iz mraka, tijelo koje nitko nikad ne na\xF0""e i ratna dru\x9Eina koja je svake no\xE6i sve ti\x9A""a.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Heretici \xE8itaju ono \x9Ato je Crkva spalila. Sile iza tih stranica rado odgovaraju -- a cijenu tra\x9E""e poslije.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Fanatici su odr\x9E""ali svaki zavjet osim jednoga. Stega im je neslomljena, odanost potpuna; promijenio se samo gospodar.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Otpadnice su prodale kartu, lozinku i ime svakog prijatelja. Ni za \xE8im ne \x9E""ale, a uvijek naplate.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Grubijanima ne treba ni cilj, ni stijeg, ni razlog. Poka\x9Ei im selo, a vri\x9Atanje \xE6""e obaviti ostalo.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Prvak koji je uzeo novac Gospodara U\x9E""asa. Isto oru\x9Eje, ista taktika, ista vje\x9Atina blokiranja -- sve upereno u ljude koje je neko\xE6 \xE8uvao.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "I dalje vatrom progoni krivovjerje. Promijenila se samo definicija krivovjerja. Majstor elementarne \x9Atete i pitanja na koje nema pravog odgovora.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Zid od crnog \xE8""elika s ma\xE8""em, \xE8""eki\xE6""em i samostrelom. Vi\x9A""e ni\x9Ata ne \xE8uva -- jednostavno nikoga ne pu\x9Ata da pro\xF0""e.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Uzima ono \x9Ato nije njezino, iz daljine, i odlazi prije nego \x9Ato se tijelo ohladi. Brza \x9Ateta iz sigurnosti -- i bez svjedoka.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Danima prati dru\x9Einu prije prvog hica. Nema kriti\xE8nih pogodaka -- ali zbog njezinih elementarnih strijela \xE8""ekanje se isplati.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Jedan hitac, jedno ime precrtano s popisa. Spora, strpljiva, nenadma\x9Ane preciznosti, a njezini kriti\xE8ni pogoci zauvijek zavr\x9A""avaju svaku raspravu.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Ona ne goni. Pripremi teren i pusti junake da u njega u\xF0u. Zamke odrade posao; ona samo ubire.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "U\xE8""enjak zabranjenih stvari, vlada arkanskim znanjem kojem ne pou\xE8""ava nijedan priznati red. Ono \x9Ato zna ne mo\x9E""e se odu\xE8iti.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Potpisao je krvlju i ni jednom nije po\x9E""alio. Crna magija i kiselina odazivaju se njegovu zovu. Sveta magija ne.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Odrekao se svog reda, ne i svoje obuke. Brz, svestran, smrtonosan sa \x9Atapom -- i udara vi\x9A""e neprijatelja odjednom.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Pravi majstor o\x9Atrice koji vjeruje da je ubijanje umjetnost. Samo ga je prestalo zanimati tko mu je platno.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Div u te\x9Akom oklopu s motkastim oru\x9Ejem, i ne\x9Ato \x9Ato nosi njegovo lice. Stare pri\xE8""e imale su ime za ono \x9Ato je postao.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Raskinuo je sa svojim klanom i ne odgovara nikome osim Gospodaru U\x9E""asa. Pri\xF0""e blizu, brzo zavr\x9Ai i nestane.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Okretna, s dva oru\x9Eja, brza u napadu i jo\x9A br\x9E""a u nestajanju. Krhka u po\x9Atenoj borbi -- zato njezina borba nikad nije po\x9Atena.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Pand\x9E""e umo\xE8""ene u kiselinu, posao obavljen s le\xF0""a. Ima svoju cijenu, a svaki junak na povr\x9Aini vrijedi to\xE8no toliko.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Njezin oklop je oru\x9Eje. Svaka budala koja zamahne na nju sama si otvara \x9Eile na \x9Ailjcima. Brzi samostreli za one opreznije.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x8Eivot je jednostavan. Baca vatru u gomilu i gleda \x9Ato \xE6""e istr\xE8""ati. Obi\xE8no istr\xE8i vri\x9Ate\xE6i.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Snaga bez ko\xE8nica i bez ikakve \x9E""elje da ih stekne. Ne pusto\x9Ai radi plijena. Pusto\x9Ai jer je to ono \x9Ato jest.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Bijes je oduvijek bio u njemu; Gospodar U\x9E""asa samo je prestao tra\x9Eiti da ga obuzdava. Bori se dok ni\x9Ata ne ostane stajati.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Bio je posljednje lice koje su osu\xF0""enici ikad vidjeli, i bio je dobar u svom poslu. I dalje jest. Samo su presude sada njegove.";
+			case STR_1084_Druid_Description:
+				return "Predao se divljini, a divljina mu je ne\x9Ato uzvratila. Sada je bli\x9Ei zvijeri nego \xE8ovjeku, i zbog toga daleko sretniji.";
+			case STR_1085_Gladiatrix_Description:
+				return "Arena ju je nau\xE8ila da \xE6""e gomila klicati bilo \xE8""emu. Ubija zbog buke, a Gospodar U\x9E""asa pobrine se da je bude napretek.";
+			}
+		}
+		// (th4) Czech: Dark Campaign villain descriptions, in Diablo's voice. Full CP1250 diacritics
+		// (meta atlas cells in TH4loc_cze.mor). Class names match CS_Menu. Unlisted -> nullptr -> English.
+		if( GameLanguage == LANG_CS ){
+			switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\x8Atv\xE1\xE8i nikoho nebr\xE1n\xED. L\xE1mou \x9Aiky, l\xE1mou br\xE1ny a l\xE1mou mu\x9E""e za nimi. Kudy projdou, tam je n\xE1sleduje v\xE1lka.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Lovci berou ty, kdo se zatoulaj\xED. \x8A\xEDp ze tmy, t\xEClo, kter\xE9 se nikdy nenajde, a v\xE1le\xE8n\xE1 dru\x9Eina, je\x9E je ka\x9E""dou noc\xED ti\x9A\x9A\xED.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Kac\xED\xF8i \xE8tou, co C\xEDrkev sp\xE1lila. Moci za t\xECmi str\xE1nkami odpov\xED""daj\xED ochotn\xEC - a cenu si \xF8""eknou pozd\xECji.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Fanatici dodr\x9E""eli v\x9A""echny sliby krom\xEC jednoho. Jejich k\xE1ze\xF2 je nezlomen\xE1, jejich oddanost naprost\xE1; zm\xECnil se jen p\xE1n.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Reneg\xE1tky prodaly mapu, heslo i jm\xE9no ka\x9E""d\xE9ho p\xF8\xEDtele. Ni\xE8""eho nelituj\xED a v\x9E""dy dostanou zaplaceno.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Surovci nepot\xF8""ebuj\xED ide\xE1ly, prapor ani d\xF9vod. Uka\x9E jim vesnici a o zbytek se postar\xE1 k\xF8ik.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\x8A""ampion, kter\xFD p\xF8ijal \x9Eold P\xE1na hr\xF9zy. Tyt\xE9\x9E zbran\xEC, t\xE1\x9E taktika, tot\xE9\x9E mistrovstv\xED v blokov\xE1n\xED - nam\xED\xF8""en\xE9 proti mu\x9E\xF9m, kter\xE9 kdysi chr\xE1nil.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "St\xE1le st\xEDh\xE1 kac\xED\xF8stv\xED ohn\xECm. Zm\xECnila se jen definice kac\xED\xF8stv\xED. Mistr \x9Eiveln\xE9ho po\x9Akozen\xED a ot\xE1zky, na kterou nen\xED spr\xE1vn\xE1 odpov\xEC\xEF.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Ze\xEF z \xE8""ern\xE9 oceli s me\xE8""em, kladivem a ku\x9A\xED. Nic u\x9E nest\xF8""e\x9E\xED - prost\xEC jen nikoho nepust\xED d\xE1l.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Bere, co j\xED nepat\xF8\xED, z d\xE1lky, a odch\xE1z\xED d\xF8\xEDv, ne\x9E t\xEClo vychladne. Rychl\xE9 po\x9Akozen\xED z bezpe\xE8\xED - a \x9E\xE1""dn\xED sv\xEC""dkov\xE9.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Sleduje dru\x9Einu cel\xE9 dny, ne\x9E poprv\xE9 vyst\xF8""el\xED. \x8E\xE1""dn\xE9 kritick\xE9 z\xE1sahy - ale d\xEDky jej\xEDm \x9Eiveln\xFDm \x9A\xEDp\xF9m se \xE8""ek\xE1n\xED vyplat\xED.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Jeden v\xFDst\xF8""el, jedno jm\xE9no \x9Akrtnut\xE9 ze seznamu. Pomal\xE1, trp\xECliv\xE1, v p\xF8""esnosti nep\xF8""ekonateln\xE1 a jej\xED kritick\xE9 z\xE1sahy ukon\xE8uj\xED spory natrvalo.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Nepron\xE1sleduje. P\xF8iprav\xED ter\xE9n a nech\xE1 hrdiny, a\x9D do n\xECj vejdou. Pr\xE1""ci odvedou pasti; ona jen skl\xEDz\xED.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Znalec zak\xE1zan\xE9ho, vl\xE1""dne ark\xE1nov\xFDm v\xEC""d\xECn\xEDm, kter\xE9 nevyu\xE8uje \x9E\xE1""dn\xFD uznan\xFD \xF8\xE1""d. To, co zn\xE1, se ned\xE1 odnau\xE8it.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Podepsal krv\xED a ani jednou toho nelitoval. \xC8""ern\xE1 magie a kyselina odpov\xED""daj\xED na jeho vol\xE1n\xED. Svat\xE1 magie ne.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Z\xF8""ekl se sv\xE9ho \xF8\xE1""du, ne sv\xE9ho v\xFD""cviku. Rychl\xFD, v\x9A""estrann\xFD, smrt\xED""c\xED s hol\xED - a zas\xE1hne n\xECkolik nep\xF8\xE1tel nar\xE1z.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Prav\xFD mistr \xE8""epele, kter\xFD v\xEC\xF8\xED, \x9E""e zab\xEDjen\xED je um\xECn\xED. Jen ho p\xF8""estalo zaj\xEDmat, kdo je pl\xE1tnem.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Obr v t\xEC\x9Ek\xE9 zbroji s d\xF8""evcovou zbran\xED - a n\xEC""co, co nos\xED jeho tv\xE1\xF8. Star\xE9 pov\xECsti m\xECly jm\xE9no pro to, \xE8\xEDm se stal.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Odvrhl sv\xF9j klan a neodpov\xED""d\xE1 se nikomu krom\xEC P\xE1na hr\xF9zy. P\xF8ibl\xED\x9E\xED se, rychle to skoncuje a zmiz\xED.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Hbit\xE1, se dv\xECma zbran\xECmi, rychl\xE1 v \xFAtoku a je\x9At\xEC rychlej\x9A\xED v mizen\xED. V poctiv\xE9m souboji je k\xF8""ehk\xE1 - proto se do \x9E\xE1""dn\xE9ho nepou\x9At\xED.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Dr\xE1py namo\xE8""en\xE9 v kyselin\xEC, pr\xE1""ce odveden\xE1 zezadu. M\xE1 svou cenu a ka\x9E""d\xFD hrdina na povrchu stoj\xED p\xF8""esn\xEC tolik.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Jej\xED zbroj je zbran\xED. Ka\x9E""d\xFD hlup\xE1k, kter\xFD se po n\xED o\x9E""ene, si na bodc\xED""ch s\xE1m otev\xF8""e \x9E\xEDly. Na ty opatrn\xECj\x9A\xED m\xE1 rychl\xE9 ku\x9A""e.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x8Eivot je prost\xFD. H\xE1z\xED ohe\xF2 do davu a sleduje, co z n\xECj vyb\xEChne. Obvykle to vyb\xEChne s k\xF8ikem.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "S\xEDla bez z\xE1""bran a nulov\xFD z\xE1jem n\xECjak\xE9 m\xEDt. Neplen\xED kv\xF9li ko\xF8isti. Plen\xED, proto\x9E""e takov\xFD prost\xEC je.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "B\xECs v n\xECm byl odjak\x9Eiva; P\xE1n hr\xF9zy ho jen p\xF8""estal \x9E\xE1""dat, aby ho dr\x9E""el na uzd\xEC. Bojuje, dokud nic nez\xF9stane st\xE1t.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Byl posledn\xED tv\xE1\xF8\xED, kterou odsouzenci kdy spat\xF8ili, a ve sv\xE9 pr\xE1""ci byl dobr\xFD. Po\xF8\xE1""d je. Jen rozsudky jsou te\xEF jeho vlastn\xED.";
+			case STR_1084_Druid_Description:
+				return "Oddal se divo\xE8in\xEC a divo\xE8ina mu n\xEC""co vr\xE1tila. Te\xEF m\xE1 bl\xED\x9E k \x9A""elm\xEC ne\x9E k \xE8lov\xECku - a je o to \x9A\x9D""astn\xECj\x9A\xED.";
+			case STR_1085_Gladiatrix_Description:
+				return "Ar\xE9na ji nau\xE8ila, \x9E""e dav bude j\xE1sat nad \xE8\xEDmkoli. Zab\xEDj\xED pro ten hluk a P\xE1n hr\xF9zy se postar\xE1, aby ho bylo dost.";
+			}
+		}
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Warmongers do not defend. They break lines, break gates, and break the men behind them. Where they walk, the war follows.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Hunters take the ones who wander. A shaft from the dark, a body never found, and a war party that grows quieter each night.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Heretics read what the Church burned. The powers behind those pages answer gladly -- and ask their price later.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Zealots kept every vow but one. Their discipline is unbroken, their devotion absolute; only the master has changed.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Renegades sold the map, the watchword and the name of every friend. They regret nothing, and they are always paid.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Brutes need no cause, no banner and no reason. Point them at a village and the screaming does the rest.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "A champion who took the Lord of Terror's coin. The same weapons, the same tactics, the same skill at blocking -- aimed at the men he once guarded.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "He still hunts heresy with fire. Only the definition of heresy has changed. Master of elemental damage, and of the question that has no right answer.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "A wall of black steel with sword, hammer and crossbow. He guards nothing now -- he simply refuses to let anyone past.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "She takes what is not hers, from a distance, and leaves before the body is cold. Fast damage from safety -- and no witnesses.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "She follows a party for days before the first shot. No critical hits -- but her elemental arrows make the waiting worth it.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "One shot, one name struck from the list. Slow, patient, unmatched in accuracy, and her critical hits end arguments permanently.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "She does not chase. She prepares the ground and lets the heroes walk into it. The traps do the work; she only collects.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "A scholar of forbidden things, wielding the Arcane knowledge no sanctioned order will teach. What he knows cannot be unlearned.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "He signed in blood and has never once regretted it. Black sorcery and acid answer his call. Holy magic will not.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "He renounced his order, not his training. Fast, versatile, deadly with a staff -- and he strikes several enemies at once.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "A true master of the blade who believes killing is an art form. He has simply stopped caring who the canvas is.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "A giant in heavy armour with a polearm, and something wearing his face. The old stories had a name for what he has become.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "He broke with his clan and answers to no one but the Lord of Terror. Gets close, ends it quickly, and is gone.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Nimble, dual-wielding, quick to strike and quicker to vanish. Fragile in a fair fight -- so she never has one.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Claws dipped in acid, work done from behind. She has a price, and every hero on the surface is worth exactly that much.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Her armour is the weapon. Every fool who swings at her opens his own veins on the spikes. Fast crossbows for the cautious ones.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Life is simple. She throws fire into crowds and watches what runs out. Usually, it runs out screaming.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Strength without restraint and no interest in acquiring any. He does not raid for plunder. He raids because it is what he is.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "The rage was always there; the Lord of Terror merely stopped asking him to hold it back. He fights until nothing is standing.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "He was the last face condemned men ever saw, and he was good at his work. He still is. The sentences are simply his own now.";
+		case STR_1084_Druid_Description:
+			return "He gave himself to the wild and the wild gave something back. Nearer the beast than the man now, and far happier for it.";
+		case STR_1085_Gladiatrix_Description:
+			return "The arena taught her that a crowd will cheer for anything. She kills for the noise, and the Lord of Terror provides a great deal of it.";
+		}
+	}
+
+	// (th4) Chinese: class, subclass and specialization descriptions.
+	// Real GB2312 bytes -- the dialog fonts carry the CJK grid sheet, so unlike LANG_ES
+	// (which ASCII-folds) nothing needs stripping. Anything not listed returns nullptr
+	// -> English fallback via LoadStringA, exactly as the other locs behave.
+	// The caller copies into char[256] with strncpy; every string here is well under it.
+	// NOTE: Druid (1084) and Gladiatrix (1085) are NOT base+offset like the other 37 --
+	// SetHeroInfoText special-cases them onto standalone ids. 39 cases total, as ES.
+	if( GameLanguage == LANG_DE ){
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Krieger finden sich an der Front jeder Schlacht, Mann gegen Mann mit Ungeheuern und Schurken.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Bogenschuetzen sind geschickte Bogner. Sie halten Abstand und toeten Ungeheuer aus der Ferne.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Magier sind Meister darin, Kraefte und Essenzen zu lenken, die anderen Menschen unsichtbar sind. Das ist eine ebenso wirksame Waffe gegen Daemonen wie ein Hammer.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Moenche sind spirituelle Kaempfer, die sich in jeder Art des Kampfes auszeichnen, mit Ausnahme der Magie.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Schurken sind Haudegen, Banditen, Diebe und Pluenderer. Die Beute ist alles, was fuer sie von Wert ist.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Wilde sind stark, kraeftig gebaut und zeichnen sich im Kampf aus wie wenige. Ihnen fehlt Disziplin, doch sie machen es mit roher Kraft wett.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Der Krieger ist ein Champion und Raufbold, dessen Leben oder Tod vom Wissen um Waffen und Taktik abhaengt. Klassischer Kaempfer. Meister des Blockens.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Der Inquisitor hat sein Leben dem Aufspueren und Ausmerzen von Ketzerei und boesen Magiern geweiht und laeutert die Finsternis mit heiligem Feuer. Meister des Elementarschadens.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Der Waechter ist eine defensive Klasse, die grosse Schwerter und Haemmer fuehrt. Und Armbrueste. Nach seiner Aufgabe in Tristram gefragt, wechselt er rasch das Thema.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "Der Templer ist ein heiliger Mann und edler Krieger, der schwor, die Schwachen zu verteidigen und das Boese zu bekaempfen. Spezialist im Ausmerzen von Untoten. Kann Wurfhaemmer nutzen.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Das Talent der Bogenschuetzin liegt darin, aus sicherer Entfernung raschen Schaden zu verursachen. Doch sie muss achtsam sein und niemanden nah heranlassen. Das endet oft nicht gut.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Die Spaeherin verursacht keine kritischen Treffer mit Pfeilen, macht das aber mit zusaetzlichem Elementar-Pfeilschaden wett. Hier glaenzt sie wahrhaft. Sie hat zudem schoenes rotes Haar.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Die Scharfschuetzin ist ein langsamerer Bogentyp, sie verfuegt ueber eine einzigartige Sammlung von Langboegen und kann kraeftig zuschlagen. Ihre Treffsicherheit ist ohnegleichen. Und ihre kritischen Treffer sind toedlich.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Die Fallenstellerin legt Fallen aus, um die Diener der Finsternis zu bekaempfen. Sie hat zudem einen ausgepraegten Modesinn. Ihre Lieblingsfarbe ist Blau. Fragt nicht, warum.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Der Magier ist ein klassischer Zauberkundiger, Hexer, Zauberer. Er erhaelt zudem Zugang zu arkanem Wissen, das keine andere Klasse besitzt.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "Der Elementalist hat ein Gespuer fuer Feuer-, Kaelte- und Blitzzauber. Ein Meister der Elemente. Seine Zauber haben eine ordentliche Chance, zusaetzlichen Schaden zu verursachen.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "Beschwoerer sind eine Unterart der Magier, die das Boese mit Hilfe von Kreaturen bekaempfen, die sie erwecken.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Der Hexenmeister ist ein Adept dunklen Wissens und nutzt schwarze Zauberei und Saeurezauber, um Daemonen zu bekaempfen. Kann keine heiligen Zauber erlernen.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Klassischer Moench. Schnell, vielseitig und ein geschworener Feind aller Daemonen. Fuehrt den Stab meisterhaft. Kann damit mehrere Ziele treffen. Bevorzugt Boegen fuer den Fernkampf.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Ein wahrer Meister der Waffen, der Kensei ist eine Macht, mit der zu rechnen ist. Und ein Anblick im Kampf. Er glaubt, dass Toeten eine Kunstform ist.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Der Shugoki ist ein riesiger, schwer gepanzerter Kaempfer, der Stangenwaffen fuer den Nahkampf bevorzugt. Und Boegen fuer den Fernkampf.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Der Shinobi kommt seinem Ziel lieber nah und persoenlich, und verbrachte sein Leben damit, die Faehigkeiten eines Schattenkaempfers zu vervollkommnen. Kann Wurfsterne im Fernkampf nutzen.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Die Schurkin ist eine flinke Kaempferin mit zwei Waffen. Ihre Staerken sind schnelle Angriffe, passables Zaubern und Ausweichen. Ihre Schwaeche ist mangelnde koerperliche Zaehigkeit.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Die Assassine nutzt Klauen im Kampf. Sie taucht diese gern in Saeure, um ahnungslosen Opfern mehr Schaden zuzufuegen. Fuer den Fernkampf bevorzugt sie meist Wurfmesser.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Ihre Ruestung ist ihre Waffe. Sie hat mit Dornen besetzte Ruestungsteile und fuegt Nahkampfangreifern so Schaden zu. Nutzt schnelle Armbrueste fuer den Fernkampf.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Fuer die Bombardiererin ist das Leben einfach. Sie liebt Explosionen. Und sie wirft explosive Phiolen auf ihre Feinde, bis sie alle sterben. Meist in furchtbarer Qual.";
+		case STR_1085_Gladiatrix_Description:
+			return "Die Gladiatorin ist gross. Nicht dick, nur GROSS. Sie schlaegt gern Dinge mit anderen Dingen, ziemlich fest. Nutzt gern Boegen. Was gibt es sonst zu sagen? Das war's. Gross. Stark. Dumm.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Der Wilde, ein typischer Frontkaempfer. Weiss nicht, wie man eine Schwachstelle trifft, aber weiss, wie man hart zuschlaegt. Bevorzugt grosse Zweihandwaffen.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "In einer zivilisierten Gesellschaft waere die Wut des Berserkers ein Problem. Doch hier ist sie ein gewaltiger Vorteil! Ein ruecksichtsloser, schneller und unaufhaltsamer Kaempfer.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Eine Laune der Natur, ein Huene von einem Mann, er nutzt keine menschliche Ruestung - man fertigt sie schlicht nicht in seiner Groesse. Kann alles mit bloszen Haenden zerreissen. Bereitet Daemonen Albtraeume.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "Durch vergangene Arena-Erfahrung geschult, setzen diese Maenner ihre Faehigkeiten nun gegen Daemonen ein, die Tristram in Besitz genommen haben.";
+		case STR_1084_Druid_Description:
+			return "Der Druide nimmt seine animalische Seite an und kommt Ungeheuern gern nah, um sie zu zerreissen. Ein wenig ungewaschen und streng riechend, doch niemand traut sich, es ihm zu sagen.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "Der Daemonologe beschwoert Daemonen aus allen Kreisen der Hoelle, um ihm zu dienen. Sein liebster Teil ist es, seinen Zoeglingen zuzusehen, wie sie alles auf ihrem Weg zerfetzen.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "Der Nekromant hat nie einer lebenden Kreatur wehgetan. Alles Leid, aller Schmerz und Tod wird von seiner unlebendigen, sadistischen Horde skelettierter Diener fuer ihn verursacht. Es ist ein Broterwerb.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "Der Bestienmeister ist ein Hexendoktor, der ungeschlachte Bestien der Natur nutzt, um die Finsternis zu bekaempfen. Reisst gern die Herzen gefallener Opfer heraus und isst sie, um ihre Kraft zu erlangen.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "Weiss, wie man die dickste Ruestung durchbohrt. Wirksam mit Klingen im Kampf gegen Untote. Zusaetzliche Schildangriffe erhoehen seinen Schaden.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "Rein defensiver Gladiatorentyp. Zaeh, kraftvoll, unzerbrechlich. Weiss, wie man den Gegner ermuedet, ehe man ihn erledigt.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "Unerreicht im Ansturm, opfert er Verteidigung fuer den Angriff. Spezialist im Kampfstil mit zwei Waffen. Ein wahrer Star der Grubenkaempfe.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "Der Secutor ist ein Gladiator, der sich auf das Ausweichen von Angriffen und ultraschnelle Treffererholung spezialisiert. Kurioserweise nutzt er halbschwere Ausruestung.";
+		default: return nullptr;
+		}
+	}
+	// (th4) Danish: class, subclass and specialization descriptions. ASCII-folded for the
+	// same reason as the Dark Campaign set above. 39 cases, as ES/DE. Note Druid (1084) and
+	// Gladiatrix (1085) are standalone ids, not base+offset like the other 37.
+	if( GameLanguage == LANG_DA ){
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Krigere findes forrest i ethvert slag, ansigt til ansigt med monstre og skurke.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Bueskytter er dygtige buemagere. De holder afstand og draeber monstre paa lang afstand.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Magikere er mestre i at styre kraefter og essenser, der er usynlige for andre mennesker. Det er et redskab, der er lige saa virksomt mod daemoner som en hammer.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Munke er aandelige kaempere, der udmaerker sig i alle former for kamp med undtagelse af magi.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Slyngler er fribyttere, banditter, tyve og roevere. Byttet er alt, hvad der har vaerdi for dem.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Vildmaend er staerke, kraftigt byggede og udmaerker sig i kamp som faa andre. De mangler disciplin, men opvejer det med raa kraft.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Krigeren er en mester og slagsbror, hvis liv eller doed afhaenger af hans viden om vaaben og taktik. Klassisk kaemper. Mester i at blokere.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Inkvisitoren har viet sit liv til at finde og udrydde kaetteri og udoevere af ond magi og til at rense moerket med hellig ild. Mester i elementskade.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Vogteren er en defensiv klasse, der bruger store svaerd og hamre. Og armboerster. Spoerger man til hans aerinde i Tristram, skifter han hurtigt emne.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "Tempelridderen er en hellig mand og en aedel kriger, der har svoret at forsvare de svage og bekaempe det onde. Specialist i at udrydde udoede. Kan bruge kastehamre.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Bueskyttens talent ligger i at goere hurtig skade fra sikker afstand. Men hun maa passe paa og ikke lade nogen komme taet paa. Det ender sjaeldent godt.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Spejderen rammer ikke kritisk med pile, men opvejer det med ekstra elementskade paa pilene. Det er der, hun for alvor straaler. Hun har ogsaa koent roedt haar.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Skarpskytten er en langsommere slags bueskytte; hun har et enestaaende udvalg af langbuer og kan slaa haardt. Hendes traefsikkerhed er uden lige. Og hendes kritiske traef er doedbringende.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Faeldefangeren udsaetter faelder for at bekaempe moerkets haandlangere. Hun har ogsaa en hoejt udviklet sans for mode. Hendes yndlingsfarve er blaa. Spoerg ikke hvorfor.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Magikeren er en klassisk formularkaster, troldmand, magiker. Han faar ogsaa adgang til arkan viden, som ingen anden klasse har.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "Elementalisten har taek paa formularer af ild, kulde og lyn. En mester over elementerne. Hans formularer har god chance for at goere ekstra skade.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "Hidkaldere er en undertype af magikere, der bekaemper det onde ved hjaelp af de vaesner, de rejser.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Troldkarlen er en adept i moerk viden og bruger sort trolddom og syreformularer til at bekaempe daemoner. Kan ikke laere hellige formularer.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Klassisk munk. Hurtig, alsidig og svoren fjende af alle daemoner. Bruger staven mesterligt. Kan ramme flere maal med den. Foretraekker buer paa afstand.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "En sand vaabenmester; Kensei er en kraft, man maa regne med. Og et syn at se i kamp. Han mener, at draeb er en kunstart.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Shugoki er en kaempestor, tungt pansret kaemper, der foretraekker stagevaaben i naerkamp. Og buer paa afstand.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Shinobi foretraekker at komme taet paa sit maal og har brugt sit liv paa at fuldende skyggekaemperens faerdigheder. Kan bruge kaststjerner paa afstand.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Slynglen er en adraet karakter, der foerer to vaaben. Hendes staerke sider er hurtige angreb, haederlig formularkast og undvigelse. Hendes svage side er manglende fysisk haardfoerhed.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Snigmorderen bruger kloer i kamp. Hun elsker at dyppe dem i syre for at goere mere skade paa intetanende ofre. Paa afstand foretraekker hun mest kastknive.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Hendes rustning er hendes vaaben. Hun har rustningsdele daekket af pigge og goer paa den maade skade paa naerkampsangribere. Bruger hurtige armboerster paa afstand.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Livet er enkelt for Bombarderen. Hun elsker eksplosioner. Og hun kaster eksplosive kolber efter sine fjender, indtil de alle doer. Som regel i frygtelig kval.";
+		case STR_1085_Gladiatrix_Description:
+			return "Gladiatrix er stor. Ikke tyk, bare STOR. Hun kan lide at slaa ting med andre ting, ret haardt. Kan lide at bruge buer. Hvad er der ellers at sige? Det er det. Stor. Staerk. Dum.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Vildmanden, en typisk frontkaemper. Ved ikke, hvordan man rammer et svagt punkt, men ved, hvordan man rammer haardt. Foretraekker store tohaandsvaaben.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "I et civiliseret samfund ville Baersaerkens raseri vaere et problem. Men her er det en enorm fordel! En skaanselloes, hurtig og ustoppelig kaemper.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Et naturens misfoster, en kaempe af en mand; han bruger ikke menneskerustning - den laves bare ikke i hans stoerrelse. Kan flaa alt fra hinanden med bare haender. Giver daemoner mareridt.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "Laert af tidligere arenaerfaring bruger disse maend nu deres faerdigheder mod de daemoner, der har overtaget Tristram.";
+		case STR_1084_Druid_Description:
+			return "Druiden omfavner sin dyriske side og kan lide at komme taet paa monstre og flaa dem fra hinanden. Lidt uvasket og lugtende, men ingen har lyst til at sige det til ham.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "Daemonologen hidkalder daemoner fra alle Helvedes kredse til at goere hans vilje. Han holder mest af at se sine kaeledyr flaa alt paa deres vej fra hinanden.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "Nekromantikeren har aldrig gjort et levende vaesen fortraed. Al fortraed, smerte og doed paafoeres af hans ulevende, sadistiske horde af skeletter for ham. Man skal jo leve.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "Baestemesteren er en medicinmand, der bruger naturens raa baester til at bekaempe moerket. Kan lide at rive hjerterne ud af sine faldne ofre og aede dem for at faa deres kraft.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "Ved, hvordan man gennemborer den tykkeste rustning. Effektiv med skarpe vaaben mod udoede. Ekstra skjoldangreb oeger hans skade.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "En rent defensiv slags gladiator. Haardfoer, kraftfuld, ubrydelig. Ved, hvordan man slider modstanderen op, foer man goer det af med ham.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "Uden lige i stormangreb ofrer han forsvar for angreb. Specialiseret i kampstil med to vaaben. En sand stjerne i hulekampe.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "Secutor er en gladiator, der specialiserer sig i at undvige angreb og i ultrahurtig traefrestitution. Maerkeligt nok bruger han halvtungt udstyr.";
+		}
+	}
+	// (th4) Swahili: class, subclass and specialization descriptions. Pure ASCII, so
+	// nothing needs folding for the meta atlas -- unlike NL/DE/DA. 39 cases, as ES/DE/DA.
+	// Note Druid (1084) and Gladiatrix (1085) are STANDALONE ids, not base+offset like
+	// the other 37. Class wording is kept identical to the SW_Menu / SW_Ui rows and to
+	// the class-select dialog above, so the creation menu, the character panel and this
+	// dialog never disagree.
+	// English for these lives in the thehell4.rc STRINGTABLE (ids 1046-1085), NOT in this
+	// function -- the normal half returns nullptr and lets the resource string stand.
+	if( GameLanguage == LANG_SW ){
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Mashujaa hupatikana mstari wa mbele wa kila vita, wakishindana ana kwa ana na mazimwi na wahalifu.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Wapiga Upinde ni wastadi wa pinde. Hujiweka mbali na kuua mazimwi kwa umbali.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Wachawi ni mabingwa wa kuendesha nguvu na asili zisizoonekana kwa wanadamu wengine. Hii ni nyenzo yenye ufanisi kama nyundo dhidi ya mashetani.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Watawa ni wapiganaji wa kiroho wanaofanya vyema katika kila aina ya mapigano, isipokuwa uchawi.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Wajanja ni wapiganaji wa panga, majambazi, wezi na waporaji. Nyara ndizo kila kitu chenye thamani kwao.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Wakatili wana nguvu, wamejengeka vyema na hufanya vyema vitani kuliko wengi. Wanakosa nidhamu, lakini hulipa hilo kwa nguvu ghafi.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Shujaa ni bingwa na mpiganaji anayeishi au kufa kwa maarifa ya silaha na mbinu. Mpiganaji wa kiasili. Bingwa wa kuzuia.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Mhukumu ameyatoa maisha yake kwa kutafuta na kuondoa uzushi, watendaji wa uchawi mbaya, na kulitakasa giza kwa moto mtakatifu. Bingwa wa uharibifu wa asili.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Mlinzi ni tabaka la ulinzi linalotumia panga kubwa na nyundo. Na uta wa msalaba. Akiulizwa kuhusu jukumu lake Tristram, hubadilisha mada haraka.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "Templari ni mtu mtakatifu na shujaa mwungwana, aliyeweka nadhiri ya kuwatetea wanyonge na kupigana na uovu. Bingwa wa kuangamiza Wafu Hai. Aweza kutumia nyundo za kurusha.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Kipaji cha Mpiga Upinde kiko katika kutoa uharibifu wa haraka kutoka mahali salama. Lakini lazima awe mwangalifu asimruhusu yeyote akaribie. Mara nyingi hilo haliishii vyema.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Mpelelezi hatoi pigo kali kwa mishale lakini hulipa hilo kwa uharibifu wa ziada wa asili. Hapa ndipo anapong'aa kweli. Pia ana nywele nyekundu za kupendeza.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Mlengaji ni aina ya mpiga upinde wa polepole, ana mkusanyo wa pekee wa pinde ndefu, naye aweza kutoa pigo kubwa. Usahihi wake hauna kifani. Na mapigo yake makali ni ya kuua.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Mtegaji hutega mitego kupigana na watumishi wa giza. Pia ana hisia iliyokuzwa sana ya mavazi. Rangi anayoipenda ni buluu. Usiulize kwa nini.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Mchawi ni mtamkaji wa kiasili, mwanamaarifa, mlozi. Pia hupata maarifa ya Siri ambayo hakuna tabaka lingine hupata.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "Mchawi wa Asili ana ustadi wa matamko ya moto, baridi na umeme. Bingwa wa asili. Matamko yake yana nafasi nzuri ya kutoa uharibifu wa ziada.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "Waitaji ni aina ya wachawi wanaopigana na uovu kwa msaada wa viumbe wanavyoviita.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Mlozi ni bingwa wa maarifa ya giza na hutumia ulozi mweusi na matamko ya tindikali kupigana na mashetani. Hawezi kujifunza matamko Matakatifu.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Mtawa wa kiasili. Mwepesi, mwenye ustadi wa aina nyingi, na adui wa kiapo wa mashetani wote. Hutumia fimbo kwa ubingwa. Aweza kupiga malengo mengi kwayo. Hupendelea pinde kwa mapigano ya mbali.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Bingwa wa kweli wa silaha, Kensei ni nguvu ya kuhesabiwa. Na ni jambo la kutazama vitani. Anaamini kuua ni aina ya sanaa.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Shugoki ni jitu, mpiganaji mwenye deraya nzito anayependelea mikuki ya nguzo kwa mapambano ya karibu. Na pinde kwa mapigano ya mbali.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Shinobi hupendelea kumkaribia lengwa lake, naye ametumia maisha yake kukamilisha ustadi wa mpiganaji wa kivuli. Aweza kutumia nyota za kurusha katika mapigano ya mbali.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Mjanja ni shujaa mwepesi ashikaye silaha mbili. Nguvu zake ni mashambulizi ya haraka, utamkaji mzuri wa matamko na kukwepa. Udhaifu wake ni kukosa ugumu wa mwili.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Muuaji hutumia makucha vitani. Hupenda kuyachovya katika tindikali ili kutoa uharibifu zaidi kwa wahanga wasiotarajia. Kwa mapigano ya mbali hupendelea zaidi visu vya kurusha.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Deraya yake ndiyo silaha yake. Ana vipande vya deraya vilivyofunikwa michokoo naye hutoa uharibifu kwa washambuliaji wa karibu kwa njia hiyo. Hutumia uta wa msalaba wa kasi kwa mapigano ya mbali.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Maisha ni rahisi kwa Mlipuaji. Hupenda milipuko. Naye hurusha chupa za mlipuko kwa maadui wake hadi wote wafe. Kwa kawaida, katika maumivu ya kutisha.";
+		case STR_1085_Gladiatrix_Description:
+			return "Gladiatrix ni mkubwa. Si mnene, ni MKUBWA tu. Hupenda kupiga vitu kwa vitu vingine, kwa nguvu kabisa. Hupenda kutumia pinde. Kuna la kusema zaidi? Ndiyo hilo. Mkubwa. Mwenye nguvu. Mjinga.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Mkatili, mpiganaji wa kawaida wa mstari wa mbele. Hajui jinsi ya kupiga sehemu dhaifu, lakini anajua jinsi ya kupiga kwa nguvu. Hupendelea silaha kubwa za mikono miwili.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "Katika jamii yenye ustaarabu, ghadhabu ya Mkali ingekuwa tatizo. Lakini hapa ni faida kubwa! Mpiganaji katili, mwepesi na asiyezuilika.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Kioja cha maumbile, jitu la mtu, hatumii deraya ya kibinadamu - hawaitengenezi kwa kimo chake. Aweza kurarua chochote, kwa mikono mitupu. Huwapa mashetani jinamizi.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "Wakifundishwa na uzoefu wa uwanja wa zamani, watu hawa sasa hutumia ustadi wao dhidi ya mashetani walioiteka Tristram.";
+		case STR_1084_Druid_Description:
+			return "Druidi hukumbatia upande wake wa kinyama na hupenda kuyakaribia mazimwi na kuyararua vipande. Hajaoga kidogo na ananuka lakini hakuna aliye tayari kumwambia.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "Mwitaji Pepo huita mashetani kutoka duara zote za Jehanamu wamtii. Sehemu anayoipenda zaidi ni kutazama vipenzi vyake vikirarua kila kitu njiani mwao.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "Mwamsha Wafu hajawahi kumdhuru kiumbe hai. Madhara yote, maumivu na kifo hutolewa kwa niaba yake na kundi lake katili la watumishi wa mifupa wasio hai. Ni riziki.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "Mfugaji Wanyama ni mganga anayetumia wanyama wakali wa asili kupigana na giza. Hupenda kung'oa mioyo ya wahanga wake walioanguka na kuila ili apate nguvu zao.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "Anajua jinsi ya kupenya deraya nene kuliko zote. Ana ufanisi kwa silaha kali anapopigana na Wafu Hai. Mashambulizi ya ziada ya ngao huongeza uharibifu wake.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "Aina ya gladiatori ya ulinzi mtupu. Mgumu, mwenye nguvu, asiyevunjika. Anajua jinsi ya kumchosha mpinzani kabla ya kummaliza.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "Asiye na kifani katika shambulio, hutoa ulinzi wake kwa ajili ya kushambulia. Ana utaalamu wa mtindo wa kupigana kwa silaha mbili. Nyota halisi wa mapambano ya shimoni.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "Secutor ni gladiatori mwenye utaalamu wa kukwepa mashambulizi na kupona haraka mno baada ya pigo. Cha ajabu, hutumia vifaa vya uzito wa kati.";
+		}
+	}
+	// (th4) Dutch: class, subclass and specialization descriptions. ASCII-folded for the
+	// same reason as the Dark Campaign set above. 39 cases, as ES/DE/DA. Note Druid (1084)
+	// and Gladiatrix (1085) are standalone ids, not base+offset like the other 37.
+	// Class wording is kept identical to the NL_Menu / NL_Ui rows so the creation menu,
+	// the character panel and this dialog never disagree.
+	if( GameLanguage == LANG_NL ){
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Krijgers bevinden zich aan het front van elke slag, van man tot man tegenover monsters en schurken.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Boogschutters zijn bedreven met de boog. Zij houden afstand en doden monsters van verre.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Magiers zijn meesters in het sturen van krachten en essenties die voor andere mensen onzichtbaar zijn. Dat is een even doeltreffend wapen tegen demonen als een hamer.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Monniken zijn spirituele strijders die uitblinken in elke vorm van gevecht, met uitzondering van magie.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Schurken zijn vechtersbazen, bandieten, dieven en plunderaars. De buit is alles wat voor hen waarde heeft.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Wildemannen zijn sterk, stevig gebouwd en blinken uit in de strijd als weinigen. Het ontbreekt hun aan discipline, maar dat maken zij goed met rauwe kracht.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "De Krijger is een kampioen en vechtersbaas wiens leven of dood afhangt van kennis van wapens en tactiek. Klassieke vechter. Meester van het blokkeren.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "De Inquisiteur heeft zijn leven gewijd aan het opsporen en uitroeien van ketterij en boze magiers, en loutert de duisternis met heilig vuur. Meester van elementaire schade.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "De Wachter is een defensieve klasse die grote zwaarden en hamers hanteert. En kruisbogen. Gevraagd naar zijn taak in Tristram verandert hij snel van onderwerp.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "De Tempelier is een heilig man en edel krijger die zwoer de zwakken te verdedigen en het kwaad te bestrijden. Specialist in het uitroeien van ondoden. Kan werphamers gebruiken.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Het talent van de Boogschutter ligt in het snel toebrengen van schade van veilige afstand. Maar zij moet oplettend zijn en niemand dichtbij laten komen. Dat loopt vaak slecht af.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "De Verkenner brengt geen kritieke treffers toe met pijlen, maar maakt dat goed met extra elementaire pijlschade. Daarin blinkt zij werkelijk uit. Zij heeft bovendien mooi rood haar.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "De Scherpschutter is een tragere boogsoort; zij beschikt over een unieke verzameling langbogen en kan stevig toeslaan. Haar trefzekerheid is weergaloos. En haar kritieke treffers zijn dodelijk.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "De Valzetter legt vallen om de dienaren van de duisternis te bestrijden. Zij heeft bovendien een uitgesproken gevoel voor mode. Haar lievelingskleur is blauw. Vraag niet waarom.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "De Magier is een klassieke spreukenkundige, heks, tovenaar. Hij krijgt bovendien toegang tot arcane kennis die geen andere klasse bezit.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "De Elementalist heeft aanleg voor vuur-, koude- en bliksemspreuken. Een meester van de elementen. Zijn spreuken hebben een behoorlijke kans om extra schade toe te brengen.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "Oproepers zijn een ondersoort van magiers die het kwaad bestrijden met behulp van wezens die zij opwekken.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "De Zwartkunstenaar is een adept van duistere kennis en gebruikt zwarte toverkunst en zuurspreuken om demonen te bestrijden. Kan geen heilige spreuken leren.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Klassieke Monnik. Snel, veelzijdig en een gezworen vijand van alle demonen. Hanteert de staf meesterlijk. Kan daarmee meerdere doelen treffen. Verkiest bogen voor het afstandsgevecht.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Een ware meester van de wapens; de Kensei is een macht om rekening mee te houden. En een schouwspel in de strijd. Hij gelooft dat doden een kunstvorm is.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "De Shugoki is een reusachtige, zwaar gepantserde strijder die stokwapens verkiest voor het slaggevecht. En bogen voor het afstandsgevecht.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "De Shinobi komt zijn doel liever dicht en persoonlijk nabij, en bracht zijn leven door met het vervolmaken van de vaardigheden van een schaduwstrijder. Kan werpsterren gebruiken in het afstandsgevecht.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "De Schurk is een vlugge strijdster met twee wapens. Haar sterke punten zijn snelle aanvallen, redelijke spreuken en ontwijking. Haar zwakte is een gebrek aan lichamelijke taaiheid.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "De Sluipmoordenaar gebruikt klauwen in de strijd. Zij doopt ze graag in zuur om nietsvermoedende slachtoffers meer schade toe te brengen. Voor het afstandsgevecht verkiest zij meestal werpmessen.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Haar harnas is haar wapen. Zij heeft met doornen bezette harnasdelen en brengt aanvallers in het slaggevecht zo schade toe. Gebruikt snelle kruisbogen voor het afstandsgevecht.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Voor de Bombardier is het leven eenvoudig. Zij houdt van explosies. En zij werpt explosieve flacons naar haar vijanden tot zij allen sterven. Meestal in vreselijke pijn.";
+		case STR_1085_Gladiatrix_Description:
+			return "De Gladiatrix is groot. Niet dik, gewoon GROOT. Zij slaat graag dingen met andere dingen, behoorlijk hard. Gebruikt graag bogen. Wat valt er verder te zeggen? Dat was het. Groot. Sterk. Dom.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "De Wildeman, een typische frontstrijder. Weet niet hoe je een zwakke plek raakt, maar weet wel hoe je hard toeslaat. Verkiest grote tweehandige wapens.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "In een beschaafde samenleving zou de woede van de Razende een probleem zijn. Maar hier is zij een geweldig voordeel! Een meedogenloze, snelle en onstuitbare strijder.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Een gril van de natuur, een reus van een man; hij gebruikt geen menselijk harnas - men maakt het eenvoudigweg niet in zijn maat. Kan alles met blote handen verscheuren. Bezorgt demonen nachtmerries.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "Geschoold door ervaring in de arena zetten deze mannen hun vaardigheden nu in tegen de demonen die Tristram in bezit hebben genomen.";
+		case STR_1084_Druid_Description:
+			return "De Druide aanvaardt zijn dierlijke kant en komt monsters graag nabij om ze te verscheuren. Een tikje ongewassen en streng ruikend, maar niemand durft het hem te zeggen.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "De Demonoloog roept demonen op uit alle kringen van de Hel om hem te dienen. Zijn liefste bezigheid is toekijken hoe zijn pupillen alles op hun weg verscheuren.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "De Necromant heeft nooit een levend wezen pijn gedaan. Al het leed, alle pijn en dood wordt voor hem veroorzaakt door zijn onlevende, sadistische horde skeletdienaren. Het is een broodwinning.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "De Beestenmeester is een medicijnman die logge beesten van de natuur gebruikt om de duisternis te bestrijden. Rukt graag de harten van gevallen slachtoffers uit en eet ze om hun kracht te verkrijgen.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "Weet hoe je het dikste harnas doorboort. Doeltreffend met klingen in de strijd tegen ondoden. Extra schildaanvallen verhogen zijn schade.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "Puur defensief gladiatorentype. Taai, krachtig, onbreekbaar. Weet hoe je de tegenstander vermoeit voordat je hem afmaakt.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "Ongeevenaard in de stormloop; hij offert verdediging op voor de aanval. Specialist in de gevechtsstijl met twee wapens. Een ware ster van de kuilgevechten.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "De Secutor is een gladiator die zich toelegt op het ontwijken van aanvallen en ultrasnel herstel na treffers. Merkwaardig genoeg gebruikt hij halfzware uitrusting.";
+		}
+		return nullptr;
+	}
+	if( GameLanguage == LANG_TR ){ // (th4) Turkish: ASCII-folded (meta DiabloFont has no accents)
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "Savascilar her savasin on safinda, canavarlar ve alcaklarla goguse gogus carpisirken bulunur.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "Okcular becerikli yay ustalaridir. Mesafelerini korur ve canavarlari uzaktan oldururler.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "Buyuculer, diger insanlarin goremedigi guclari ve ozleri yonlendirmenin ustalaridir. Bu, iblislere karsi bir cekic kadar etkili bir aractir.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "Kesisler, buyu disinda her tur dovuste ustun olan ruhani savascilardir.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "Haydutlar; kabadayilar, esikiyalar, hirsizlar ve yagmacilardir. Onlar icin degerli olan tek sey ganimettir.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "Vahsiler guclu, iri yapili ve dovuste az kisinin erisebilecegi kadar ustundur. Disiplinden yoksundurlar ama bunu ham kuvvetle telafi ederler.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "Savasci, silah ve taktik bilgisiyle yasayan ya da olen bir sampiyon ve kavgacidir. Klasik dovuscu. Bloklamanin ustasi.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "Engizisyoncu hayatini kafirligi ve kotu buyu yapanlari bulup yok etmeye, karanligi kutsal atesle aritmaya adamistir. Element hasarinin ustasi.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "Muhafiz, buyuk kiliclar ve cekicler kullanan savunma sinifidir. Bir de tatar yaylari. Tristram'daki gorevi sorulunca cabucak konuyu degistirir.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "Tapinak Sovalyesi, zayiflari savunmaya ve kotulukle savasmaya yemin etmis kutsal bir adam ve soylu bir savascidir. Olumsuzleri yok etmekte uzmandir. Firlatma cekici kullanabilir.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "Okcunun yetenegi, guvenli mesafeden hizli hasar vermekte yatar. Ama dikkatli olmali ve kimseyi yaklastirmamalidir. Bu cogu zaman iyi bitmez.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "Izci oklarla kritik vurus yapmaz ama bunu fazladan element ok hasariyla telafi eder. Asil burada parlar. Ayrica hos gorunumlu kizil saclari vardir.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "Keskin Nisanci daha yavas bir okcu turudur; essiz bir uzun yay koleksiyonu vardir ve epey sert vurabilir. Isabeti essizdir. Kritikleri ise olumculdur.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "Tuzakci, karanligin usaklariyla savasmak icin tuzaklar kurar. Ayrica cok gelismis bir moda anlayisi vardir. En sevdigi renk mavidir. Nedenini sormayin.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "Buyucu klasik bir buyu yapicidir; sihirbaz, efsuncu. Ayrica baska hicbir sinifin erisemedigi Gizemli bilgiye erisir.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "Elementalistin ates, soguk ve yildirim buyulerine yatkinligi vardir. Elementlerin ustasi. Buyulerinin fazladan hasar verme sansi epey yuksektir.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "Cagiricilar, kotulukle dirilttikleri yaratiklarin yardimiyla savasan bir buyucu alt turudur.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "Kara Buyucu karanlik bilginin bir adepti olup iblislerle savasmak icin kara buyu ve asit buyuleri kullanir. Kutsal buyuler ogrenemez.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "Klasik Kesis. Hizli, cok yonlu ve tum iblislerin yeminli dusmani. Asayi ustaca kullanir. Onunla birden cok hedefe vurabilir. Menzilli dovus icin yaylari yegler.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "Gercek bir silah ustasi olan Kensei, hesaba katilmasi gereken bir guctur. Ve savasta gorulmeye degerdir. Oldurmenin bir sanat bicimi oldugune inanir.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "Shugoki, yakin dovus icin kargilari yegleyen dev ve agir zirhli bir dovuscudur. Menzilli dovus icin de yaylari.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "Shinobi hedefine yakin ve dogrudan yaklasmayi yegler; hayatini bir golge dovuscusunun becerilerini kusursuzlestirmekle gecirmistir. Menzilli dovuste firlatma yildizlari kullanabilir.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "Haydut, cift silah kullanan cevik bir karakterdir. Guclu yanlari hizli saldirilar, iyi sayilir buyuculuk ve kacinmadir. Zayif yani bedensel dayanikliliginin azligidir.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "Suikastci dovuste penceler kullanir. Habersiz kurbanlara daha cok hasar vermek icin bunlari aside batirmayi sever. Menzilli dovus icin cogunlukla firlatma bicaklarini yegler.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "Zirhi onun silahidir. Dikenlerle kapli zirh parcalari vardir ve yakin dovus saldirganlarina bu yolla hasar verir. Menzilli dovus icin hizli tatar yaylari kullanir.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "Bombardimanci icin hayat basittir. Patlamalari sever. Ve dusmanlarina hepsi olene dek patlayici siseler firlatir. Genellikle korkunc bir istirap icinde.";
+		case STR_1085_Gladiatrix_Description:
+			return "Kadin Gladyator iridir. Sisman degil, sadece IRI. Bir seylere baska seylerle, epey sert vurmayi sever. Yay kullanmayi sever. Baska ne denir ki? Hepsi bu. Iri. Guclu. Aptal.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "Vahsi, tipik bir on saf dovuscusudur. Zayif noktaya nasil vurulacagini bilmez ama sert vurmayi bilir. Buyuk cift elli silahlari yegler.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "Medeni bir toplumda Cinnetcinin ofkesi bir sorun olurdu. Ama burada muazzam bir avantaj! Acimasiz, hizli ve durdurulamaz bir dovuscu.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "Bir doga garabeti, dev gibi bir adam; insan zirhi kullanmaz -- onun bedenine gore uretmiyorlar. Ciplak elle her seyi parcalayabilir. Iblislere kabus gordurur.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "Gecmis arena deneyimiyle egitilmis bu adamlar, becerilerini artik Tristram'i ele geciren iblislere karsi kullaniyor.";
+		case STR_1084_Druid_Description:
+			return "Druid hayvani yanini kucaklar ve canavarlara yaklasip onlari parcalamayi sever. Biraz yikanmamis ve agir kokar ama kimse bunu ona soylemeye cesaret edemez.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "Iblisbilimci, kendisine hizmet etmeleri icin Cehennem'in tum katmanlarindan iblisler cagirir. En sevdigi kisim, evcil hayvanlarinin yollarindaki her seyi parcalamasini izlemektir.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "Olubuyucu hicbir canliya zarar vermemistir. Tum aci, istirap ve olum, onun adina cansiz ve sadist iskelet usaklari ordusunca verilir. Bu bir ekmek parasidir.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "Canavar Ustasi, karanlikla savasmak icin doganin ic giciklayan canavarlarini kullanan bir buyucu hekimdir. Dusen kurbanlarinin kalplerini sokup guclerini kazanmak icin yemeyi sever.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "En kalin zirhi nasil delecegini bilir. Olumsuzlerle dovusurken kesici silahlarla etkilidir. Ek kalkan saldirilari hasarini artirir.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "Tumuyle savunma agirlikli gladyator turu. Sert, guclu, kirilmaz. Rakibi bitirmeden once nasil yoracagini bilir.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "Hucumda essizdir; saldiri ugruna savunmasini feda eder. Cift silah dovus tarzinda uzmandir. Cukur dovuslerinin gercek yildizi.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "Secutor, saldirilardan kacinmakta ve ultra hizli vurus toparlanmasinda uzmanlasmis bir gladyatordur. Ilginctir, yari agir techizat kullanir.";
+		}
+	}
+	// (th4) Korean: class, subclass and specialization descriptions. Real EUC-KR bytes
+	// (the dialog fonts carry the Korean grid sheet), emitted as \xNN escapes. Anything not
+	// listed returns nullptr -> English fallback via LoadStringA. 39 cases, as the other locs.
+	if( GameLanguage == LANG_KO ){
+		switch( strId ){
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\xC0\xFC\xBB\xE7\xB4\xC2 \xBE\xEE\xB4\xC0 \xC0\xFC\xC0\xE5\xBF\xA1\xBC\xAD\xB3\xAA \xC3\xD6\xC0\xFC\xBC\xB1\xBF\xA1 \xBC\xAD\xBC\xAD \xB1\xAB\xB9\xB0\xB0\xFA \xBE\xC7\xB4\xE7\xB5\xE9\xB0\xFA \xC1\xA4\xB8\xE9\xC0\xB8\xB7\xCE \xB8\xC2\xBA\xD9\xB4\xC2\xB4\xD9.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\xB1\xC3\xBC\xF6\xB4\xC2 \xBC\xF7\xB7\xC3\xB5\xC8 \xC8\xB0\xC0\xC7 \xB8\xED\xBC\xF6\xB4\xD9. \xB0\xC5\xB8\xAE\xB8\xA6 \xC0\xAF\xC1\xF6\xC7\xCF\xB8\xE7 \xB8\xD6\xB8\xAE\xBC\xAD \xB1\xAB\xB9\xB0\xC0\xBB \xBE\xB2\xB7\xAF\xB6\xDF\xB8\xB0\xB4\xD9.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\xB8\xB6\xB9\xFD\xBB\xE7\xB4\xC2 \xB4\xD9\xB8\xA5 \xC0\xCC\xB5\xE9\xBF\xA1\xB0\xD4\xB4\xC2 \xBA\xB8\xC0\xCC\xC1\xF6 \xBE\xCA\xB4\xC2 \xC8\xFB\xB0\xFA \xC1\xA4\xBC\xF6\xB8\xA6 \xB4\xD9\xB7\xE7\xB4\xC2 \xB4\xDE\xC0\xCE\xC0\xCC\xB4\xD9. \xBE\xC7\xB8\xB6\xB8\xA6 \xBB\xF3\xB4\xEB\xC7\xD2 \xB6\xA7 \xC0\xCC\xB4\xC2 \xB8\xC1\xC4\xA1\xB8\xB8\xC5\xAD\xC0\xCC\xB3\xAA \xC8\xBF\xB0\xFA\xC0\xFB\xC0\xCE \xB5\xB5\xB1\xB8\xB4\xD9.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\xBC\xF6\xB5\xB5\xBD\xC2\xC0\xBA \xB8\xB6\xB9\xFD\xC0\xBB \xC1\xA6\xBF\xDC\xC7\xD1 \xB8\xF0\xB5\xE7 \xC1\xBE\xB7\xF9\xC0\xC7 \xC0\xFC\xC5\xF5\xBF\xA1 \xB4\xC9\xC7\xD1 \xBF\xB5\xC0\xFB \xC0\xFC\xBB\xE7\xB4\xD9.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\xB5\xB5\xC0\xFB\xC0\xBA \xC7\xF9\xB0\xB4\xC0\xCC\xC0\xDA \xBB\xEA\xC0\xFB, \xB5\xB5\xB5\xCF, \xBE\xE0\xC5\xBB\xC0\xDA\xB4\xD9. \xB1\xD7\xB5\xE9\xBF\xA1\xB0\xD4 \xB0\xA1\xC4\xA1 \xC0\xD6\xB4\xC2 \xB0\xCD\xC0\xBA \xBF\xC0\xC1\xF7 \xC0\xFC\xB8\xAE\xC7\xB0\xBB\xD3\xC0\xCC\xB4\xD9.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\xBE\xDF\xB8\xB8\xC0\xCE\xC0\xBA \xB0\xAD\xC7\xCF\xB0\xED \xC3\xBC\xB0\xDD\xC0\xCC \xC1\xC1\xC0\xB8\xB8\xE7 \xB4\xA9\xB1\xB8\xBA\xB8\xB4\xD9 \xC0\xFC\xC5\xF5\xBF\xA1 \xB4\xC9\xC7\xCF\xB4\xD9. \xB1\xD4\xC0\xB2\xC0\xBA \xBA\xCE\xC1\xB7\xC7\xCF\xC1\xF6\xB8\xB8 \xBC\xF8\xBC\xF6\xC7\xD1 \xC8\xFB\xC0\xB8\xB7\xCE \xB1\xD7\xB0\xCD\xC0\xBB \xB8\xDE\xBF\xEE\xB4\xD9.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\xC0\xFC\xBB\xE7\xB4\xC2 \xB9\xAB\xB1\xE2\xBF\xCD \xC0\xFC\xBC\xFA\xBF\xA1 \xB4\xEB\xC7\xD1 \xC1\xF6\xBD\xC4\xC0\xB8\xB7\xCE \xBB\xEC\xB0\xED \xC1\xD7\xB4\xC2 \xBF\xEB\xBB\xE7\xC0\xCC\xC0\xDA \xBD\xCE\xBF\xF2\xB2\xDB\xC0\xCC\xB4\xD9. \xB0\xED\xC0\xFC\xC0\xFB\xC0\xCE \xC5\xF5\xBB\xE7. \xB8\xB7\xB1\xE2\xC0\xC7 \xB4\xDE\xC0\xCE.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\xBD\xC9\xB9\xAE\xB0\xFC\xC0\xBA \xC0\xCC\xB4\xDC\xB0\xFA \xBB\xE7\xBE\xC7\xC7\xD1 \xB8\xB6\xB9\xFD\xC0\xC7 \xBC\xF6\xC7\xE0\xC0\xDA\xB8\xA6 \xC3\xA3\xBE\xC6\xB3\xBB \xC1\xA6\xB0\xC5\xC7\xCF\xB0\xED, \xBD\xC5\xBC\xBA\xC7\xD1 \xBA\xD2\xB7\xCE \xBE\xEE\xB5\xD2\xC0\xBB \xC1\xA4\xC8\xAD\xC7\xCF\xB4\xC2 \xB5\xA5 \xC0\xCF\xBB\xFD\xC0\xBB \xB9\xD9\xC3\xC6\xB4\xD9. \xBC\xD3\xBC\xBA \xC7\xC7\xC7\xD8\xC0\xC7 \xB4\xDE\xC0\xCE.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\xBC\xF6\xC8\xA3\xB1\xE2\xBB\xE7\xB4\xC2 \xB4\xEB\xB0\xCB\xB0\xFA \xB8\xC1\xC4\xA1\xB8\xA6 \xBE\xB2\xB4\xC2 \xB9\xE6\xBE\xEE\xC7\xFC \xC1\xF7\xBE\xF7\xC0\xCC\xB4\xD9. \xBC\xAE\xB1\xC3\xB5\xB5 \xBE\xB4\xB4\xD9. \xC6\xAE\xB8\xAE\xBD\xBA\xC6\xAE\xB7\xB3\xBF\xA1\xBC\xAD\xC0\xC7 \xC0\xD3\xB9\xAB\xB8\xA6 \xB9\xB0\xC0\xB8\xB8\xE9 \xC0\xE7\xBB\xA1\xB8\xAE \xC8\xAD\xC1\xA6\xB8\xA6 \xB5\xB9\xB8\xB0\xB4\xD9.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\xBC\xBA\xC0\xFC\xBB\xE7\xB4\xC2 \xBE\xE0\xC0\xDA\xB8\xA6 \xC1\xF6\xC5\xB0\xB0\xED \xBE\xC7\xB0\xFA \xBD\xCE\xBF\xEC\xB1\xE2\xB7\xCE \xB8\xCD\xBC\xBC\xC7\xD1 \xBC\xBA\xC1\xF7\xC0\xDA\xC0\xCC\xC0\xDA \xB0\xED\xB0\xE1\xC7\xD1 \xC0\xFC\xBB\xE7\xB4\xD9. \xBE\xF0\xB5\xA5\xB5\xE5 \xBC\xB6\xB8\xEA\xBF\xA1 \xC6\xAF\xC8\xAD\xB5\xC7\xBE\xEE \xC0\xD6\xB4\xD9. \xC5\xF5\xC3\xB4 \xB8\xC1\xC4\xA1\xB8\xA6 \xBE\xB5 \xBC\xF6 \xC0\xD6\xB4\xD9.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\xB1\xC3\xBC\xF6\xC0\xC7 \xC0\xE7\xB4\xC9\xC0\xBA \xBE\xC8\xC0\xFC\xC7\xD1 \xB0\xC5\xB8\xAE\xBF\xA1\xBC\xAD \xBA\xFC\xB8\xA5 \xC7\xC7\xC7\xD8\xB8\xA6 \xC1\xD6\xB4\xC2 \xB5\xA5 \xC0\xD6\xB4\xD9. \xC7\xCF\xC1\xF6\xB8\xB8 \xB4\xA9\xB1\xB8\xB5\xB5 \xB0\xA1\xB1\xEE\xC0\xCC \xBF\xC0\xB0\xD4 \xC7\xD8\xBC\xAD\xB4\xC2 \xBE\xC8 \xB5\xC8\xB4\xD9. \xB1\xD7\xB7\xAF\xB8\xE9 \xB4\xEB\xB0\xB3 \xB0\xE1\xB8\xBB\xC0\xCC \xC1\xC1\xC1\xF6 \xBE\xCA\xB4\xD9.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\xC1\xA4\xC2\xFB\xBA\xB4\xC0\xBA \xC8\xAD\xBB\xEC\xB7\xCE \xC4\xA1\xB8\xED\xC5\xB8\xB8\xA6 \xB3\xBB\xC1\xF6 \xB8\xF8\xC7\xCF\xC1\xF6\xB8\xB8 \xC3\xDF\xB0\xA1 \xBC\xD3\xBC\xBA \xC8\xAD\xBB\xEC \xC7\xC7\xC7\xD8\xB7\xCE \xC0\xCC\xB8\xA6 \xB8\xDE\xBF\xEE\xB4\xD9. \xB9\xD9\xB7\xCE \xBF\xA9\xB1\xE2\xBC\xAD \xB1\xD7\xB3\xE0\xB0\xA1 \xC1\xF8\xC1\xA4\xC0\xB8\xB7\xCE \xBA\xFB\xB3\xAD\xB4\xD9. \xBA\xB8\xB1\xE2 \xC1\xC1\xC0\xBA \xBA\xD3\xC0\xBA \xB8\xD3\xB8\xAE\xB5\xB5 \xB0\xA1\xC1\xB3\xB4\xD9.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\xB8\xED\xBB\xE7\xBC\xF6\xB4\xC2 \xB4\xC0\xB8\xB0 \xC0\xAF\xC7\xFC\xC0\xC7 \xB1\xC3\xBC\xF6\xB7\xCE, \xB0\xED\xC0\xAF\xC7\xD1 \xC0\xE5\xB1\xC3\xB5\xE9\xC0\xBB \xB0\xAE\xC3\xDF\xB0\xED \xC0\xD6\xC0\xB8\xB8\xE7 \xBB\xF3\xB4\xE7\xC7\xD1 \xC7\xD1 \xB9\xE6\xC0\xBB \xB3\xAF\xB8\xB0\xB4\xD9. \xB1\xD7\xB3\xE0\xC0\xC7 \xC1\xA4\xC8\xAE\xB5\xB5\xB4\xC2 \xBA\xF1\xC7\xD2 \xB5\xA5\xB0\xA1 \xBE\xF8\xB4\xD9. \xC4\xA1\xB8\xED\xC5\xB8\xB4\xC2 \xC4\xA1\xB8\xED\xC0\xFB\xC0\xCC\xB4\xD9.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\xB5\xA3\xBB\xE7\xB3\xC9\xB2\xDB\xC0\xBA \xC7\xD4\xC1\xA4\xC0\xBB \xBC\xB3\xC4\xA1\xC7\xD8 \xBE\xEE\xB5\xD2\xC0\xC7 \xC1\xB9\xB0\xB3\xB5\xE9\xB0\xFA \xBD\xCE\xBF\xEE\xB4\xD9. \xC6\xD0\xBC\xC7 \xB0\xA8\xB0\xA2\xB5\xB5 \xB8\xC5\xBF\xEC \xB6\xD9\xBE\xEE\xB3\xAA\xB4\xD9. \xB0\xA1\xC0\xE5 \xC1\xC1\xBE\xC6\xC7\xCF\xB4\xC2 \xBB\xF6\xC0\xBA \xC6\xC4\xB6\xF5\xBB\xF6\xC0\xCC\xB4\xD9. \xC0\xCC\xC0\xAF\xB4\xC2 \xB9\xAF\xC1\xF6 \xB8\xB6\xB6\xF3.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\xB8\xB6\xB9\xFD\xBB\xE7\xB4\xC2 \xB0\xED\xC0\xFC\xC0\xFB\xC0\xCE \xBD\xC3\xC0\xFC\xC0\xDA, \xC0\xA7\xC0\xFA\xB5\xE5, \xBC\xD2\xBC\xAD\xB7\xAF\xB4\xD9. \xB4\xD9\xB8\xA5 \xBE\xEE\xB6\xB2 \xC1\xF7\xBE\xF7\xB5\xB5 \xBE\xF2\xC1\xF6 \xB8\xF8\xC7\xCF\xB4\xC2 \xBA\xF1\xC0\xFC \xC1\xF6\xBD\xC4\xBF\xA1\xB5\xB5 \xC1\xA2\xB1\xD9\xC7\xD2 \xBC\xF6 \xC0\xD6\xB4\xD9.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\xBF\xF8\xBC\xD2\xBC\xFA\xBB\xE7\xB4\xC2 \xC8\xAD\xBF\xB0, \xB3\xC3\xB1\xE2, \xB9\xF8\xB0\xB3 \xC1\xD6\xB9\xAE\xBF\xA1 \xC0\xE7\xB4\xC9\xC0\xCC \xC0\xD6\xB4\xD9. \xBF\xF8\xBC\xD2\xC0\xC7 \xB4\xDE\xC0\xCE. \xB1\xD7\xC0\xC7 \xC1\xD6\xB9\xAE\xC0\xBA \xBB\xF3\xB4\xE7\xC7\xD1 \xC8\xAE\xB7\xFC\xB7\xCE \xC3\xDF\xB0\xA1 \xC7\xC7\xC7\xD8\xB8\xA6 \xC0\xD4\xC8\xF9\xB4\xD9.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\xBC\xD2\xC8\xAF\xBC\xFA\xBB\xE7\xB4\xC2 \xC0\xDA\xBD\xC5\xC0\xCC \xBA\xD2\xB7\xAF\xB3\xBD \xC7\xC7\xC1\xB6\xB9\xB0\xC0\xC7 \xB5\xB5\xBF\xF2\xC0\xB8\xB7\xCE \xBE\xC7\xB0\xFA \xBD\xCE\xBF\xEC\xB4\xC2 \xB8\xB6\xB9\xFD\xBB\xE7\xC0\xC7 \xC7\xCF\xC0\xA7 \xC0\xAF\xC7\xFC\xC0\xCC\xB4\xD9.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\xC8\xE6\xB8\xB6\xB9\xFD\xBB\xE7\xB4\xC2 \xBE\xEE\xB5\xD2\xC0\xC7 \xC1\xF6\xBD\xC4\xBF\xA1 \xC5\xEB\xB4\xDE\xC7\xD1 \xC0\xDA\xB7\xCE, \xC8\xE6\xC1\xD6\xBC\xFA\xB0\xFA \xBB\xEA\xBC\xBA \xC1\xD6\xB9\xAE\xC0\xB8\xB7\xCE \xBE\xC7\xB8\xB6\xBF\xCD \xBD\xCE\xBF\xEE\xB4\xD9. \xBD\xC5\xBC\xBA \xC1\xD6\xB9\xAE\xC0\xBA \xB9\xE8\xBF\xEF \xBC\xF6 \xBE\xF8\xB4\xD9.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\xB0\xED\xC0\xFC\xC0\xFB\xC0\xCE \xBC\xF6\xB5\xB5\xBD\xC2. \xBA\xFC\xB8\xA3\xB0\xED \xB4\xD9\xC0\xE7\xB4\xD9\xB4\xC9\xC7\xCF\xB8\xE7 \xB8\xF0\xB5\xE7 \xBE\xC7\xB8\xB6\xC0\xC7 \xBC\xF7\xC0\xFB\xC0\xCC\xB4\xD9. \xC1\xF6\xC6\xCE\xC0\xCC\xB8\xA6 \xB4\xC9\xBC\xF7\xC7\xCF\xB0\xD4 \xB4\xD9\xB7\xE7\xB8\xE7, \xB1\xD7\xB0\xCD\xC0\xB8\xB7\xCE \xBF\xA9\xB7\xAF \xB4\xEB\xBB\xF3\xC0\xBB \xC7\xD1 \xB9\xF8\xBF\xA1 \xC4\xA5 \xBC\xF6 \xC0\xD6\xB4\xD9. \xBF\xF8\xB0\xC5\xB8\xAE \xC0\xFC\xC5\xF5\xBF\xA1\xB4\xC2 \xC8\xB0\xC0\xBB \xBC\xB1\xC8\xA3\xC7\xD1\xB4\xD9.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\xC1\xF8\xC1\xA4\xC7\xD1 \xB9\xAB\xB1\xE2\xC0\xC7 \xB4\xDE\xC0\xCE\xC0\xCE \xB0\xCB\xBC\xBA\xC0\xBA \xB9\xAB\xBD\xC3\xC7\xD2 \xBC\xF6 \xBE\xF8\xB4\xC2 \xC1\xB8\xC0\xE7\xB4\xD9. \xC0\xFC\xC0\xE5\xBF\xA1\xBC\xAD\xB4\xC2 \xC0\xE5\xB0\xFC\xC0\xCC\xB1\xE2\xB5\xB5 \xC7\xCF\xB4\xD9. \xB1\xD7\xB4\xC2 \xBB\xEC\xC0\xCE\xC0\xCC \xBF\xB9\xBC\xFA\xC0\xC7 \xC7\xD1 \xC7\xFC\xC5\xC2\xB6\xF3\xB0\xED \xB9\xCF\xB4\xC2\xB4\xD9.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\xBC\xF6\xC8\xA3\xB1\xCD\xB4\xC2 \xB1\xD9\xC1\xA2\xC0\xFC\xBF\xA1 \xC0\xE5\xBA\xB4\xB1\xE2\xB8\xA6 \xBC\xB1\xC8\xA3\xC7\xCF\xB4\xC2 \xC1\xDF\xB9\xAB\xC0\xE5\xC7\xD1 \xB0\xC5\xC0\xCE \xC0\xFC\xBB\xE7\xB4\xD9. \xBF\xF8\xB0\xC5\xB8\xAE \xC0\xFC\xC5\xF5\xBF\xA1\xB4\xC2 \xC8\xB0\xC0\xBB \xBE\xB4\xB4\xD9.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\xBD\xC3\xB3\xEB\xBA\xF1\xB4\xC2 \xC7\xA5\xC0\xFB\xBF\xA1 \xB9\xD9\xBD\xCF \xB4\xD9\xB0\xA1\xBC\xAD\xB1\xE2\xB8\xA6 \xBC\xB1\xC8\xA3\xC7\xCF\xB8\xE7, \xB1\xD7\xB8\xB2\xC0\xDA \xC0\xFC\xBB\xE7\xC0\xC7 \xB1\xE2\xBC\xFA\xC0\xBB \xB0\xA5\xB0\xED\xB4\xDB\xB4\xC2 \xB5\xA5 \xC6\xF2\xBB\xFD\xC0\xBB \xB9\xD9\xC3\xC6\xB4\xD9. \xBF\xF8\xB0\xC5\xB8\xAE \xC0\xFC\xC5\xF5\xBF\xA1 \xC7\xA5\xC3\xA2\xC0\xBB \xBE\xB5 \xBC\xF6 \xC0\xD6\xB4\xD9.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\xB5\xB5\xC0\xFB\xC0\xBA \xBD\xD6\xBC\xF6\xB8\xA6 \xBE\xB2\xB4\xC2 \xB3\xAF\xB7\xC6\xC7\xD1 \xC4\xB3\xB8\xAF\xC5\xCD\xB4\xD9. \xB0\xAD\xC1\xA1\xC0\xBA \xBA\xFC\xB8\xA5 \xB0\xF8\xB0\xDD, \xC1\xD8\xBC\xF6\xC7\xD1 \xC1\xD6\xB9\xAE \xBD\xC3\xC0\xFC, \xC8\xB8\xC7\xC7\xB4\xD9. \xBE\xE0\xC1\xA1\xC0\xBA \xBD\xC5\xC3\xBC\xC0\xFB \xB0\xAD\xC0\xCE\xC7\xD4\xC0\xC7 \xBA\xCE\xC1\xB7\xC0\xCC\xB4\xD9.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\xBE\xCF\xBB\xEC\xC0\xDA\xB4\xC2 \xC0\xFC\xC5\xF5\xBF\xA1 \xB9\xDF\xC5\xE9\xC0\xBB \xBE\xB4\xB4\xD9. \xB9\xE6\xBD\xC9\xC7\xD1 \xC8\xF1\xBB\xFD\xC0\xDA\xBF\xA1\xB0\xD4 \xB4\xF5 \xC5\xAB \xC7\xC7\xC7\xD8\xB8\xA6 \xC1\xD6\xB7\xC1\xB0\xED \xB9\xDF\xC5\xE9\xC0\xBB \xBB\xEA\xBC\xBA\xBF\xA1 \xB4\xE3\xB1\xD7\xB1\xE2\xB8\xA6 \xC1\xF1\xB1\xE4\xB4\xD9. \xBF\xF8\xB0\xC5\xB8\xAE \xC0\xFC\xC5\xF5\xBF\xA1\xB4\xC2 \xC1\xD6\xB7\xCE \xC5\xF5\xC3\xB4 \xB4\xDC\xB0\xCB\xC0\xBB \xBC\xB1\xC8\xA3\xC7\xD1\xB4\xD9.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\xB1\xD7\xB3\xE0\xC0\xC7 \xB0\xA9\xBF\xCA\xC0\xCC \xB0\xF0 \xB9\xAB\xB1\xE2\xB4\xD9. \xB0\xA1\xBD\xC3\xB7\xCE \xB5\xA4\xC0\xCE \xB0\xA9\xBF\xCA \xC1\xB6\xB0\xA2\xB5\xE9\xC0\xBB \xB0\xAE\xC3\xDF\xBE\xEE \xB1\xD9\xC1\xA2 \xB0\xF8\xB0\xDD\xC0\xDA\xBF\xA1\xB0\xD4 \xC7\xC7\xC7\xD8\xB8\xA6 \xC1\xD8\xB4\xD9. \xBF\xF8\xB0\xC5\xB8\xAE \xC0\xFC\xC5\xF5\xBF\xA1\xB4\xC2 \xBA\xFC\xB8\xA5 \xBC\xAE\xB1\xC3\xC0\xBB \xBE\xB4\xB4\xD9.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\xC6\xF8\xB0\xDD\xBA\xB4\xBF\xA1\xB0\xD4 \xBB\xEE\xC0\xBA \xB4\xDC\xBC\xF8\xC7\xCF\xB4\xD9. \xB1\xD7\xB3\xE0\xB4\xC2 \xC6\xF8\xB9\xDF\xC0\xBB \xBB\xE7\xB6\xFB\xC7\xD1\xB4\xD9. \xB1\xD7\xB8\xAE\xB0\xED \xC0\xFB\xC0\xCC \xB8\xF0\xB5\xCE \xC1\xD7\xC0\xBB \xB6\xA7\xB1\xEE\xC1\xF6 \xC6\xF8\xB9\xDF \xC7\xC3\xB6\xF3\xBD\xBA\xC5\xA9\xB8\xA6 \xB4\xF8\xC1\xF8\xB4\xD9. \xB4\xEB\xB0\xB3\xB4\xC2 \xB2\xFB\xC2\xEF\xC7\xD1 \xB0\xED\xC5\xEB \xBC\xD3\xBF\xA1\xBC\xAD.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\xBE\xDF\xB8\xB8\xC0\xCE, \xC0\xFC\xC7\xFC\xC0\xFB\xC0\xCE \xC3\xD6\xC0\xFC\xBC\xB1 \xC0\xFC\xBB\xE7. \xBE\xE0\xC1\xA1\xC0\xBB \xB3\xEB\xB8\xAE\xB4\xC2 \xB9\xFD\xC0\xBA \xB8\xF0\xB8\xA3\xC1\xF6\xB8\xB8 \xBC\xBC\xB0\xD4 \xC4\xA1\xB4\xC2 \xB9\xFD\xC0\xBA \xBE\xC8\xB4\xD9. \xC5\xAB \xBE\xE7\xBC\xD5 \xB9\xAB\xB1\xE2\xB8\xA6 \xBC\xB1\xC8\xA3\xC7\xD1\xB4\xD9.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\xB9\xAE\xB8\xED \xBB\xE7\xC8\xB8\xBF\xA1\xBC\xAD\xB6\xF3\xB8\xE9 \xB1\xA4\xC0\xFC\xBB\xE7\xC0\xC7 \xBA\xD0\xB3\xEB\xB4\xC2 \xB9\xAE\xC1\xA6\xB0\xA1 \xB5\xC7\xBE\xFA\xC0\xBB \xB0\xCD\xC0\xCC\xB4\xD9. \xC7\xCF\xC1\xF6\xB8\xB8 \xBF\xA9\xB1\xE2\xBC\xAD\xB4\xC2 \xBE\xF6\xC3\xBB\xB3\xAD \xC0\xCC\xC1\xA1\xC0\xCC\xB4\xD9! \xB9\xAB\xC0\xDA\xBA\xF1\xC7\xCF\xB0\xED \xBA\xFC\xB8\xA3\xB8\xE7 \xB8\xD8\xC3\xE2 \xBC\xF6 \xBE\xF8\xB4\xC2 \xC0\xFC\xBB\xE7.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\xC0\xDA\xBF\xAC\xC0\xC7 \xB1\xAB\xB9\xB0, \xB0\xC5\xC0\xCE \xB0\xB0\xC0\xBA \xBB\xE7\xB3\xBB. \xC0\xCE\xB0\xA3\xC0\xC7 \xB0\xA9\xBF\xCA\xC0\xBA \xBE\xB2\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9 - \xB1\xD7\xC0\xC7 \xB8\xF6\xBF\xA1 \xB8\xC2\xB4\xC2 \xB0\xCD\xC0\xBB \xB8\xB8\xB5\xE9\xC1\xF6 \xBE\xCA\xC0\xB8\xB4\xCF\xB1\xEE. \xB8\xC7\xBC\xD5\xC0\xB8\xB7\xCE \xB9\xAB\xBE\xF9\xC0\xCC\xB5\xE7 \xC2\xF5\xBE\xEE\xB9\xDF\xB1\xE6 \xBC\xF6 \xC0\xD6\xB4\xD9. \xBE\xC7\xB8\xB6\xB5\xE9\xBF\xA1\xB0\xD4 \xBE\xC7\xB8\xF9\xC0\xBB \xBC\xB1\xBB\xE7\xC7\xD1\xB4\xD9.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\xB0\xFA\xB0\xC5 \xC5\xF5\xB1\xE2\xC0\xE5\xBF\xA1\xBC\xAD\xC0\xC7 \xB0\xE6\xC7\xE8\xC0\xB8\xB7\xCE \xB4\xDC\xB7\xC3\xB5\xC8 \xC0\xCC \xBB\xE7\xB3\xBB\xB5\xE9\xC0\xBA \xC0\xCC\xC1\xA6 \xC6\xAE\xB8\xAE\xBD\xBA\xC6\xAE\xB7\xB3\xC0\xBB \xC1\xA1\xB7\xC9\xC7\xD1 \xBE\xC7\xB8\xB6\xB5\xE9\xC0\xBB \xBB\xF3\xB4\xEB\xB7\xCE \xB1\xD7 \xB1\xE2\xBC\xFA\xC0\xBB \xBE\xB4\xB4\xD9.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\xBE\xC7\xB8\xB6\xC7\xD0\xC0\xDA\xB4\xC2 \xC1\xF6\xBF\xC1\xC0\xC7 \xB8\xF0\xB5\xE7 \xB1\xC7\xBF\xAA\xBF\xA1\xBC\xAD \xBE\xC7\xB8\xB6\xB8\xA6 \xBC\xD2\xC8\xAF\xC7\xD8 \xB8\xED\xB7\xC9\xC0\xBB \xB5\xFB\xB8\xA3\xB0\xD4 \xC7\xD1\xB4\xD9. \xB1\xD7\xB0\xA1 \xB0\xA1\xC0\xE5 \xC1\xC1\xBE\xC6\xC7\xCF\xB4\xC2 \xBC\xF8\xB0\xA3\xC0\xBA \xBE\xD6\xBF\xCF \xBE\xC7\xB8\xB6\xB5\xE9\xC0\xCC \xBE\xD5\xC0\xBB \xB0\xA1\xB7\xCE\xB8\xB7\xB4\xC2 \xB8\xF0\xB5\xE7 \xB0\xCD\xC0\xBB \xC2\xF5\xBE\xEE\xB9\xDF\xB1\xE2\xB4\xC2 \xB0\xCD\xC0\xBB \xC1\xF6\xC4\xD1\xBA\xB8\xB4\xC2 \xB0\xCD\xC0\xCC\xB4\xD9.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\xB0\xAD\xB7\xC9\xBC\xFA\xBB\xE7\xB4\xC2 \xBB\xEC\xBE\xC6 \xC0\xD6\xB4\xC2 \xB0\xCD\xC0\xBB \xC7\xD8\xC4\xA3 \xC0\xFB\xC0\xCC \xBE\xF8\xB4\xD9. \xB8\xF0\xB5\xE7 \xBB\xF3\xC3\xB3\xBF\xCD \xB0\xED\xC5\xEB\xB0\xFA \xC1\xD7\xC0\xBD\xC0\xBA \xB1\xD7\xB8\xA6 \xB4\xEB\xBD\xC5\xC7\xD8 \xBB\xEC\xBE\xC6 \xC0\xD6\xC1\xF6 \xBE\xCA\xC0\xBA \xB0\xA1\xC7\xD0\xC0\xFB\xC0\xCE \xC7\xD8\xB0\xF1 \xBA\xCE\xC7\xCF \xB9\xAB\xB8\xAE\xB0\xA1 \xC0\xD4\xC8\xF9\xB4\xD9. \xB1\xD7\xB0\xC9\xB7\xCE \xB8\xD4\xB0\xED\xBB\xEA\xB4\xD9.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\xBE\xDF\xBC\xF6\xC1\xB6\xB7\xC3\xBB\xE7\xB4\xC2 \xC0\xDA\xBF\xAC\xC0\xC7 \xBB\xE7\xB3\xAA\xBF\xEE \xC1\xFC\xBD\xC2\xB5\xE9\xC0\xBB \xBA\xCE\xB7\xC1 \xBE\xEE\xB5\xD2\xB0\xFA \xBD\xCE\xBF\xEC\xB4\xC2 \xC1\xD6\xBC\xFA\xBB\xE7\xB4\xD9. \xBE\xB2\xB7\xAF\xC1\xF8 \xC8\xF1\xBB\xFD\xC0\xDA\xC0\xC7 \xBD\xC9\xC0\xE5\xC0\xBB \xB6\xE2\xBE\xEE\xB3\xBB\xBE\xEE \xB8\xD4\xB0\xED \xB1\xD7 \xC8\xFB\xC0\xBB \xBE\xF2\xB1\xE2\xB8\xA6 \xC1\xF1\xB1\xE4\xB4\xD9.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\xB0\xA1\xC0\xE5 \xB5\xCE\xB2\xA8\xBF\xEE \xB0\xA9\xBF\xCA\xB5\xB5 \xB2\xE7\xB6\xD5\xB4\xC2 \xB9\xFD\xC0\xBB \xBE\xC8\xB4\xD9. \xBE\xF0\xB5\xA5\xB5\xE5\xB8\xA6 \xBB\xF3\xB4\xEB\xC7\xD2 \xB6\xA7 \xB3\xAF\xBA\xD9\xC0\xCC \xB9\xAB\xB1\xE2\xB7\xCE \xC8\xBF\xB0\xFA\xC0\xFB\xC0\xCC\xB4\xD9. \xC3\xDF\xB0\xA1 \xB9\xE6\xC6\xD0 \xB0\xF8\xB0\xDD\xC0\xCC \xC7\xC7\xC7\xD8\xB8\xA6 \xB3\xF4\xC0\xCE\xB4\xD9.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\xBC\xF8\xBC\xF6\xC7\xD1 \xB9\xE6\xBE\xEE\xC7\xFC \xB0\xCB\xC5\xF5\xBB\xE7. \xB0\xAD\xC0\xCE\xC7\xCF\xB0\xED \xB0\xAD\xB7\xC2\xC7\xCF\xB8\xE7 \xB2\xAA\xC0\xCC\xC1\xF6 \xBE\xCA\xB4\xC2\xB4\xD9. \xBB\xF3\xB4\xEB\xB8\xA6 \xC1\xF6\xC4\xA1\xB0\xD4 \xC7\xD1 \xB5\xDA \xB3\xA1\xC0\xE5\xB3\xBB\xB4\xC2 \xB9\xFD\xC0\xBB \xBE\xC8\xB4\xD9.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\xB8\xCD\xB0\xF8\xBF\xA1\xBC\xAD\xB4\xC2 \xB0\xDF\xC1\xD9 \xC0\xDA\xB0\xA1 \xBE\xF8\xC0\xB8\xB8\xE7, \xB0\xF8\xB0\xDD\xC0\xBB \xC0\xA7\xC7\xD8 \xB9\xE6\xBE\xEE\xB8\xA6 \xC8\xF1\xBB\xFD\xC7\xD1\xB4\xD9. \xBD\xD6\xBC\xF6 \xC0\xFC\xC5\xF5 \xB9\xE6\xBD\xC4\xBF\xA1 \xC6\xAF\xC8\xAD\xB5\xC7\xBE\xEE \xC0\xD6\xB4\xD9. \xC1\xF8\xC1\xA4\xC7\xD1 \xC5\xF5\xB1\xE2\xC0\xE5\xC0\xC7 \xBD\xBA\xC5\xB8.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\xBC\xBC\xC4\xED\xC5\xE4\xB8\xA3\xB4\xC2 \xB0\xF8\xB0\xDD \xC8\xB8\xC7\xC7\xBF\xCD \xC3\xCA\xB0\xED\xBC\xD3 \xC7\xC7\xB0\xDD \xC8\xB8\xBA\xB9\xBF\xA1 \xC6\xAF\xC8\xAD\xB5\xC8 \xB0\xCB\xC5\xF5\xBB\xE7\xB4\xD9. \xB9\xA6\xC7\xCF\xB0\xD4\xB5\xB5 \xB9\xDD\xC1\xDF\xB0\xA9 \xC0\xE5\xBA\xF1\xB8\xA6 \xBE\xB4\xB4\xD9.";
+		case STR_1084_Druid_Description:
+			return "\xB5\xE5\xB7\xE7\xC0\xCC\xB5\xE5\xB4\xC2 \xC0\xDA\xBD\xC5\xC0\xC7 \xB5\xBF\xB9\xB0\xC0\xFB \xBA\xBB\xBC\xBA\xC0\xBB \xB9\xDE\xBE\xC6\xB5\xE9\xBF\xA9 \xB1\xAB\xB9\xB0\xBF\xA1\xB0\xD4 \xB0\xA1\xB1\xEE\xC0\xCC \xB4\xD9\xB0\xA1\xB0\xA1 \xC2\xF5\xBE\xEE\xB9\xDF\xB1\xE2\xB1\xE2\xB8\xA6 \xC1\xF1\xB1\xE4\xB4\xD9. \xC1\xBB \xBE\xC4\xC1\xF6 \xBE\xCA\xBE\xC6 \xB3\xBF\xBB\xF5\xB0\xA1 \xB3\xAA\xC1\xF6\xB8\xB8 \xBE\xC6\xB9\xAB\xB5\xB5 \xB1\xD7\xBF\xA1\xB0\xD4 \xB8\xBB\xC7\xD8 \xC1\xD9 \xBE\xF6\xB5\xCE\xB8\xA6 \xB8\xF8 \xB3\xBD\xB4\xD9.";
+		case STR_1085_Gladiatrix_Description:
+			return "\xBF\xA9\xB0\xCB\xC5\xF5\xBB\xE7\xB4\xC2 \xC5\xA9\xB4\xD9. \xB6\xD7\xB6\xD7\xC7\xD1 \xB0\xD4 \xBE\xC6\xB4\xCF\xB6\xF3 \xB1\xD7\xB3\xC9 \xC5\xA9\xB4\xD9. \xB9\xB0\xB0\xC7\xC0\xB8\xB7\xCE \xB4\xD9\xB8\xA5 \xB9\xB0\xB0\xC7\xC0\xBB \xB2\xCF \xBC\xBC\xB0\xD4 \xC4\xA1\xB1\xE2\xB8\xA6 \xC1\xC1\xBE\xC6\xC7\xD1\xB4\xD9. \xC8\xB0\xB5\xB5 \xC1\xF1\xB0\xDC \xBE\xB4\xB4\xD9. \xB4\xF5 \xB8\xBB\xC7\xD2 \xB0\xD4 \xC0\xD6\xC0\xBB\xB1\xEE? \xB1\xD7\xB0\xD4 \xC0\xFC\xBA\xCE\xB4\xD9. \xC5\xA9\xB4\xD9. \xB0\xAD\xC7\xCF\xB4\xD9. \xB8\xDB\xC3\xBB\xC7\xCF\xB4\xD9.";
+		default: return nullptr;
+		}
+	}
+	if( GameLanguage == LANG_CHI ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "\xD5\xBD\xCA\xBF\xD7\xDC\xCA\xC7\xC9\xED\xB4\xA6\xC3\xBF\xD2\xBB\xB3\xA1\xD5\xBD\xB6\xB7\xB5\xC4\xD7\xEE\xC7\xB0\xCF\xDF\xA3\xAC\xD3\xEB\xB9\xD6\xCE\xEF\xBA\xCD\xB6\xF1\xCD\xBD\xB6\xCC\xB1\xF8\xCF\xE0\xBD\xD3\xA1\xA2\xB4\xE7\xB2\xBD\xB2\xBB\xC8\xC3\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xB9\xAD\xBC\xFD\xCA\xD6\xCA\xC7\xE6\xB5\xCA\xEC\xB5\xC4\xB9\xAD\xCA\xF5\xB4\xF3\xCA\xA6\xA1\xA3\xCB\xFD\xC3\xC7\xB1\xA3\xB3\xD6\xBE\xE0\xC0\xEB\xA3\xAC\xD3\xDA\xD4\xB6\xB4\xA6\xC9\xE4\xC9\xB1\xB9\xD6\xCE\xEF\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xB7\xA8\xCA\xA6\xBE\xAB\xD3\xDA\xB2\xD9\xBF\xD8\xC4\xC7\xD0\xA9\xB3\xA3\xC8\xCB\xCE\xDE\xB7\xA8\xBF\xFA\xBC\xFB\xB5\xC4\xC1\xA6\xC1\xBF\xD3\xEB\xB1\xBE\xD4\xB4\xA1\xA3\xB6\xD4\xB8\xB6\xB6\xF1\xC4\xA7\xCA\xB1\xA3\xAC\xD5\xE2\xCA\xC7\xD3\xEB\xCC\xFA\xB4\xB8\xCD\xAC\xD1\xF9\xD3\xD0\xD0\xA7\xB5\xC4\xB9\xA4\xBE\xDF\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "\xCE\xE4\xC9\xAE\xCA\xC7\xBE\xAB\xC9\xF1\xB5\xC4\xB6\xB7\xCA\xBF\xA3\xAC\xB3\xFD\xC4\xA7\xB7\xA8\xD6\xAE\xCD\xE2\xA3\xAC\xCB\xFB\xC3\xC7\xC9\xC3\xB3\xA4\xB8\xF7\xC0\xE0\xD5\xBD\xB6\xB7\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xB5\xC1\xD4\xF4\xCA\xC7\xC3\xB0\xCF\xD5\xD5\xDF\xA1\xA2\xC7\xBF\xB5\xC1\xA1\xA2\xC7\xD4\xD4\xF4\xD3\xEB\xBD\xD9\xC2\xD3\xD5\xDF\xA1\xA3\xD5\xBD\xC0\xFB\xC6\xB7\xCA\xC7\xCB\xFB\xC3\xC7\xD1\xDB\xD6\xD0\xCE\xA8\xD2\xBB\xD3\xD0\xBC\xDB\xD6\xB5\xB5\xC4\xB6\xAB\xCE\xF7\xA1\xA3";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "\xD2\xB0\xC8\xCB\xC7\xBF\xD7\xB3\xB6\xF8\xBF\xFD\xCE\xE0\xA3\xAC\xC6\xE4\xD5\xBD\xB6\xB7\xB1\xBE\xC1\xEC\xC9\xD9\xD3\xD0\xC8\xCB\xBC\xB0\xA1\xA3\xCB\xFB\xC3\xC7\xC8\xB1\xB7\xA6\xBC\xCD\xC2\xC9\xA3\xAC\xC8\xB4\xD2\xD4\xC2\xF9\xC1\xA6\xC3\xD6\xB2\xB9\xD5\xE2\xD2\xBB\xB5\xE3\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "\xD5\xBD\xCA\xBF\xCA\xC7\xB6\xB7\xCA\xBF\xD3\xEB\xD3\xC2\xD5\xDF\xA3\xAC\xC6\xBE\xB6\xD4\xCE\xE4\xC6\xF7\xD3\xEB\xD5\xBD\xCA\xF5\xB5\xC4\xC0\xED\xBD\xE2\xBE\xF6\xB6\xA8\xC9\xFA\xCB\xC0\xA1\xA3\xBE\xAD\xB5\xE4\xB5\xC4\xBD\xFC\xD5\xBD\xD6\xB0\xD2\xB5\xA3\xAC\xB8\xF1\xB5\xB2\xB4\xF3\xCA\xA6\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "\xC9\xF3\xC5\xD0\xB9\xD9\xB1\xCF\xC9\xFA\xD6\xC2\xC1\xA6\xD3\xDA\xD1\xB0\xD5\xD2\xB2\xA2\xB2\xF9\xB3\xFD\xD2\xEC\xB6\xCB\xD3\xEB\xCA\xA9\xD0\xD0\xD0\xB0\xB7\xA8\xD6\xAE\xCD\xBD\xA3\xAC\xD2\xD4\xCA\xA5\xBB\xF0\xB5\xD3\xB5\xB4\xBA\xDA\xB0\xB5\xA1\xA3\xD4\xAA\xCB\xD8\xC9\xCB\xBA\xA6\xB4\xF3\xCA\xA6\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xCA\xD8\xBB\xA4\xD5\xDF\xCA\xC7\xCA\xB9\xD3\xC3\xBE\xDE\xBD\xA3\xD3\xEB\xD5\xBD\xB4\xB8\xB5\xC4\xB7\xC0\xD3\xF9\xD0\xCD\xD6\xB0\xD2\xB5\xA1\xA3\xD2\xB2\xD3\xC3\xE5\xF3\xA1\xA3\xC8\xF4\xCE\xCA\xC6\xF0\xCB\xFB\xD4\xDA\xB4\xDE\xCB\xB9\xCC\xD8\xC8\xF0\xC4\xB7\xB5\xC4\xCA\xB9\xC3\xFC\xA3\xAC\xCB\xFB\xBB\xE1\xD1\xB8\xCB\xD9\xB2\xED\xBF\xAA\xBB\xB0\xCC\xE2\xA1\xA3";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "\xCA\xA5\xB5\xEE\xC6\xEF\xCA\xBF\xCA\xC7\xCA\xA5\xD5\xDF\xA3\xAC\xD2\xE0\xCA\xC7\xB8\xDF\xB9\xF3\xB5\xC4\xD5\xBD\xCA\xBF\xA3\xAC\xC1\xA2\xCA\xC4\xBB\xA4\xD3\xD3\xC8\xF5\xD5\xDF\xA1\xA2\xCC\xD6\xB7\xA5\xD0\xB0\xB6\xF1\xA1\xA3\xD7\xA8\xBE\xAB\xD3\xDA\xBD\xCB\xC3\xF0\xCD\xF6\xC1\xE9\xA3\xAC\xBF\xC9\xCA\xB9\xD3\xC3\xCD\xB6\xD6\xC0\xD5\xBD\xB4\xB8\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "\xB9\xAD\xBC\xFD\xCA\xD6\xB5\xC4\xCC\xEC\xB8\xB3\xD4\xDA\xD3\xDA\xB4\xD3\xB0\xB2\xC8\xAB\xBE\xE0\xC0\xEB\xD1\xB8\xCB\xD9\xD4\xEC\xB3\xC9\xC9\xCB\xBA\xA6\xA1\xA3\xB5\xAB\xCB\xFD\xB1\xD8\xD0\xEB\xD0\xA1\xD0\xC4\xA3\xAC\xC7\xD0\xCE\xF0\xC8\xC3\xC8\xCE\xBA\xCE\xC8\xCB\xBD\xFC\xC9\xED\xA3\xAC\xC4\xC7\xCD\xF9\xCD\xF9\xB2\xBB\xBB\xE1\xD3\xD0\xBA\xC3\xCF\xC2\xB3\xA1\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\xB3\xE2\xBA\xF2\xB5\xC4\xBC\xFD\xCA\xB8\xB2\xBB\xBB\xE1\xD4\xEC\xB3\xC9\xB1\xA9\xBB\xF7\xA3\xAC\xB5\xAB\xD2\xD4\xB6\xEE\xCD\xE2\xB5\xC4\xD4\xAA\xCB\xD8\xBC\xFD\xC9\xCB\xBC\xD3\xD2\xD4\xC3\xD6\xB2\xB9\xA1\xA3\xD5\xE2\xD5\xFD\xCA\xC7\xCB\xFD\xD5\xE6\xD5\xFD\xB3\xF6\xB2\xCA\xD6\xAE\xB4\xA6\xA1\xA3\xCB\xFD\xBB\xB9\xD3\xD0\xD2\xBB\xCD\xB7\xBA\xC3\xBF\xB4\xB5\xC4\xBA\xEC\xB7\xA2\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "\xC9\xF1\xC9\xE4\xCA\xD6\xCA\xC7\xBD\xCF\xCE\xAA\xB3\xD9\xBB\xBA\xB5\xC4\xB9\xAD\xCA\xD6\xA3\xAC\xD3\xB5\xD3\xD0\xD2\xBB\xC5\xFA\xB6\xC0\xCC\xD8\xB5\xC4\xB3\xA4\xB9\xAD\xA3\xAC\xB3\xF6\xCA\xD6\xC6\xC4\xBE\xDF\xCD\xFE\xC1\xA6\xA1\xA3\xCB\xFD\xB5\xC4\xBE\xAB\xD7\xBC\xCE\xDE\xD3\xEB\xC2\xD7\xB1\xC8\xA3\xAC\xB1\xA9\xBB\xF7\xB8\xFC\xCA\xC7\xD6\xC2\xC3\xFC\xA1\xA3";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "\xCF\xDD\xDA\xE5\xCA\xA6\xB2\xBC\xC9\xE8\xCF\xDD\xDA\xE5\xD2\xD4\xB6\xD4\xBF\xB9\xBA\xDA\xB0\xB5\xB5\xC4\xD7\xA6\xD1\xC0\xA1\xA3\xCB\xFD\xBB\xB9\xD3\xD0\xD7\xC5\xB8\xDF\xB6\xC8\xB7\xA2\xB4\xEF\xB5\xC4\xCA\xB1\xC9\xD0\xC6\xB7\xCE\xB6\xA1\xA3\xCB\xFD\xD7\xEE\xB0\xAE\xC0\xB6\xC9\xAB\xA3\xAC\xB1\xF0\xCE\xCA\xCE\xAA\xCA\xB2\xC3\xB4\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xB7\xA8\xCA\xA6\xCA\xC7\xBE\xAD\xB5\xE4\xB5\xC4\xCA\xA9\xB7\xA8\xD5\xDF\xA1\xA2\xCA\xF5\xD5\xDF\xD3\xEB\xD6\xE4\xCA\xA6\xA1\xA3\xCB\xFB\xBB\xB9\xC4\xDC\xBB\xF1\xB5\xC3\xC6\xE4\xCB\xFB\xD6\xB0\xD2\xB5\xCE\xDE\xB4\xD3\xB4\xA5\xBC\xB0\xB5\xC4\xC3\xD8\xB7\xA8\xD6\xAA\xCA\xB6\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "\xD4\xAA\xCB\xD8\xCA\xA6\xC9\xC3\xB3\xA4\xBB\xF0\xD1\xE6\xA1\xA2\xBA\xAE\xB1\xF9\xD3\xEB\xC9\xC1\xB5\xE7\xB7\xA8\xCA\xF5\xA3\xAC\xCA\xC7\xD4\xAA\xCB\xD8\xB5\xC4\xB4\xF3\xCA\xA6\xA1\xA3\xCB\xFB\xB5\xC4\xB7\xA8\xCA\xF5\xD3\xD0\xBF\xC9\xB9\xDB\xB5\xC4\xBC\xB8\xC2\xCA\xD4\xEC\xB3\xC9\xB6\xEE\xCD\xE2\xC9\xCB\xBA\xA6\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "\xD5\xD9\xBB\xBD\xCA\xA6\xCA\xC7\xB7\xA8\xCA\xA6\xB5\xC4\xD2\xBB\xB8\xF6\xB7\xD6\xD6\xA7\xA3\xAC\xBD\xE8\xD6\xFA\xCB\xFB\xC3\xC7\xBB\xBD\xC6\xF0\xB5\xC4\xD4\xEC\xCE\xEF\xB6\xD4\xBF\xB9\xD0\xB0\xB6\xF1\xA1\xA3";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xCA\xF5\xCA\xBF\xCA\xC7\xBA\xDA\xB0\xB5\xD6\xAA\xCA\xB6\xB5\xC4\xD0\xD0\xBC\xD2\xA3\xAC\xD2\xD4\xBA\xDA\xCE\xD7\xCA\xF5\xD3\xEB\xCB\xE1\xD0\xD4\xB7\xA8\xCA\xF5\xB6\xD4\xBF\xB9\xB6\xF1\xC4\xA7\xA1\xA3\xCE\xDE\xB7\xA8\xD1\xA7\xCF\xB0\xC9\xF1\xCA\xA5\xC0\xE0\xB7\xA8\xCA\xF5\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "\xBE\xAD\xB5\xE4\xB5\xC4\xCE\xE4\xC9\xAE\xA1\xA3\xD1\xB8\xBD\xDD\xA1\xA2\xC8\xAB\xC4\xDC\xA3\xAC\xCA\xC7\xD2\xBB\xC7\xD0\xB6\xF1\xC4\xA7\xB5\xC4\xCB\xC0\xB5\xD0\xA1\xA3\xBE\xAB\xCD\xA8\xB3\xA4\xB9\xF7\xA3\xAC\xBF\xC9\xCD\xAC\xCA\xB1\xBB\xF7\xD6\xD0\xB6\xE0\xB8\xF6\xC4\xBF\xB1\xEA\xA1\xA3\xD4\xB6\xB3\xCC\xD7\xF7\xD5\xBD\xC6\xAB\xB0\xAE\xB9\xAD\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "\xBD\xA3\xCA\xA5\xCA\xC7\xD5\xE6\xD5\xFD\xB5\xC4\xB1\xF8\xC6\xF7\xB4\xF3\xCA\xA6\xA3\xAC\xCA\xC7\xB2\xBB\xC8\xDD\xD0\xA1\xEA\xEF\xB5\xC4\xC1\xA6\xC1\xBF\xA3\xAC\xD2\xB2\xCA\xC7\xD5\xBD\xB3\xA1\xC9\xCF\xC1\xEE\xC8\xCB\xCC\xBE\xCE\xAA\xB9\xDB\xD6\xB9\xB5\xC4\xBE\xB0\xCF\xF3\xA1\xA3\xCB\xFB\xBC\xE1\xD0\xC5\xC9\xB1\xC2\xBE\xCA\xC7\xD2\xBB\xD6\xD6\xD2\xD5\xCA\xF5\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "\xCA\xD8\xBB\xA4\xB9\xED\xCA\xC7\xC9\xED\xD0\xCE\xBE\xDE\xCB\xB6\xA1\xA2\xD6\xD8\xBC\xD7\xBC\xD3\xC9\xED\xB5\xC4\xB6\xB7\xCA\xBF\xA3\xAC\xBD\xFC\xC9\xED\xBD\xBB\xD5\xBD\xC6\xAB\xB0\xAE\xB3\xA4\xB1\xFA\xCE\xE4\xC6\xF7\xA3\xAC\xD4\xB6\xB3\xCC\xD7\xF7\xD5\xBD\xD4\xF2\xD3\xC3\xB9\xAD\xA1\xA3";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "\xC8\xCC\xD5\xDF\xC6\xAB\xBA\xC3\xD3\xEB\xC4\xBF\xB1\xEA\xBD\xFC\xC9\xED\xCF\xE0\xB2\xAB\xA3\xAC\xC7\xEE\xBE\xA1\xD2\xBB\xC9\xFA\xB4\xF2\xC4\xA5\xB0\xB5\xD3\xB0\xD6\xAE\xD5\xBD\xB5\xC4\xBC\xBC\xD2\xD5\xA1\xA3\xD4\xB6\xB3\xCC\xD7\xF7\xD5\xBD\xBF\xC9\xCA\xB9\xD3\xC3\xCA\xD6\xC0\xEF\xBD\xA3\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xB5\xC1\xD4\xF4\xCA\xC7\xCB\xAB\xB3\xD6\xB5\xC4\xC3\xF4\xBD\xDD\xBD\xC7\xC9\xAB\xA1\xA3\xCB\xFD\xB5\xC4\xB3\xA4\xB4\xA6\xCA\xC7\xBF\xEC\xCB\xD9\xB9\xA5\xBB\xF7\xA1\xA2\xC9\xD0\xBF\xC9\xB5\xC4\xCA\xA9\xB7\xA8\xD3\xEB\xC9\xC1\xB1\xDC\xA1\xA3\xC8\xF5\xB5\xE3\xD4\xF2\xCA\xC7\xC9\xED\xCC\xE5\xB2\xBB\xB9\xBB\xBC\xE1\xC8\xCD\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "\xB4\xCC\xBF\xCD\xD2\xD4\xD7\xA6\xC8\xD0\xD7\xF7\xD5\xBD\xA1\xA3\xCB\xFD\xCF\xB2\xBB\xB6\xBD\xAB\xC6\xE4\xBD\xFE\xC8\xEB\xCB\xE1\xD2\xBA\xA3\xAC\xBA\xC3\xC8\xC3\xBA\xC1\xCE\xDE\xB7\xC0\xB1\xB8\xB5\xC4\xC1\xD4\xCE\xEF\xB3\xD0\xCA\xDC\xB8\xFC\xB6\xE0\xC9\xCB\xBA\xA6\xA1\xA3\xD4\xB6\xB3\xCC\xD7\xF7\xD5\xBD\xB6\xE0\xD3\xC3\xB7\xC9\xB5\xB6\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "\xCB\xFD\xB5\xC4\xBB\xA4\xBC\xD7\xBC\xB4\xCA\xC7\xCB\xFD\xB5\xC4\xCE\xE4\xC6\xF7\xA1\xA3\xCB\xFD\xB5\xC4\xBC\xD7\xC6\xAC\xB1\xE9\xB2\xBC\xBC\xE2\xB4\xCC\xA3\xAC\xD2\xD4\xB4\xCB\xB6\xD4\xBD\xFC\xD5\xBD\xB9\xA5\xBB\xF7\xD5\xDF\xD4\xEC\xB3\xC9\xC9\xCB\xBA\xA6\xA1\xA3\xD4\xB6\xB3\xCC\xD7\xF7\xD5\xBD\xCA\xB9\xD3\xC3\xBF\xEC\xE5\xF3\xA1\xA3";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xB1\xAC\xC6\xC6\xCA\xD6\xB5\xC4\xC8\xCB\xC9\xFA\xBA\xDC\xBC\xF2\xB5\xA5\xA1\xA3\xCB\xFD\xC8\xC8\xB0\xAE\xB1\xAC\xD5\xA8\xA1\xA3\xCB\xFD\xB3\xAF\xB5\xD0\xC8\xCB\xCD\xB6\xD6\xC0\xB1\xAC\xC1\xD1\xC6\xBF\xA3\xAC\xD6\xB1\xB5\xBD\xCB\xFB\xC3\xC7\xC8\xAB\xB2\xBF\xCB\xC0\xC8\xA5\xA3\xAC\xCD\xA8\xB3\xA3\xCB\xC0\xB5\xC3\xBC\xAB\xC6\xE4\xCD\xB4\xBF\xE0\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "\xD2\xB0\xC8\xCB\xA3\xAC\xB5\xE4\xD0\xCD\xB5\xC4\xC7\xB0\xC5\xC5\xB6\xB7\xCA\xBF\xA1\xA3\xB2\xBB\xB6\xAE\xC8\xE7\xBA\xCE\xBB\xF7\xD6\xD0\xC8\xF5\xB5\xE3\xA3\xAC\xC8\xB4\xB6\xAE\xB5\xC3\xC8\xE7\xBA\xCE\xD6\xD8\xBB\xF7\xA1\xA3\xC6\xAB\xB0\xAE\xBE\xDE\xB4\xF3\xB5\xC4\xCB\xAB\xCA\xD6\xCE\xE4\xC6\xF7\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "\xD4\xDA\xCE\xC4\xC3\xF7\xC9\xE7\xBB\xE1\xC0\xEF\xA3\xAC\xBF\xF1\xD5\xBD\xCA\xBF\xB5\xC4\xB1\xA9\xC5\xAD\xBB\xE1\xCA\xC7\xB8\xF6\xC2\xE9\xB7\xB3\xA1\xA3\xB5\xAB\xD4\xDA\xD5\xE2\xC0\xEF\xC8\xB4\xCA\xC7\xBE\xDE\xB4\xF3\xB5\xC4\xD3\xC5\xCA\xC6\xA3\xA1\xC0\xE4\xBF\xE1\xA1\xA2\xD1\xB8\xBD\xDD\xA1\xA2\xCE\xDE\xBF\xC9\xD7\xE8\xB5\xB2\xB5\xC4\xB6\xB7\xCA\xBF\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "\xD7\xD4\xC8\xBB\xB5\xC4\xB9\xD6\xCC\xA5\xA3\xAC\xBE\xDE\xC8\xCB\xB0\xE3\xB5\xC4\xC4\xD0\xC8\xCB\xA3\xAC\xCB\xFB\xB2\xBB\xB4\xA9\xC8\xCB\xC0\xE0\xB5\xC4\xBB\xA4\xBC\xD7\xA3\xAC\xB8\xF9\xB1\xBE\xC3\xBB\xC8\xCB\xD7\xF6\xB5\xC3\xB3\xF6\xCB\xFB\xB5\xC4\xB3\xDF\xC2\xEB\xA1\xA3\xCD\xBD\xCA\xD6\xB1\xE3\xBF\xC9\xCB\xBA\xC1\xD1\xD2\xBB\xC7\xD0\xA1\xA3\xCB\xFB\xC1\xEE\xB6\xF1\xC4\xA7\xD7\xF6\xD8\xAC\xC3\xCE\xA1\xA3";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "\xCA\xDC\xBD\xCC\xD3\xDA\xCE\xF4\xC8\xD5\xBE\xBA\xBC\xBC\xB3\xA1\xB5\xC4\xC0\xFA\xC1\xB7\xA3\xAC\xD5\xE2\xD0\xA9\xC8\xCB\xC8\xE7\xBD\xF1\xD2\xD4\xC6\xE4\xBC\xBC\xD2\xD5\xB6\xD4\xBF\xB9\xD5\xBC\xBE\xDD\xC1\xCB\xB4\xDE\xCB\xB9\xCC\xD8\xC8\xF0\xC4\xB7\xB5\xC4\xB6\xF1\xC4\xA7\xA1\xA3";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "\xB6\xF1\xC4\xA7\xD1\xA7\xD5\xDF\xB4\xD3\xB5\xD8\xD3\xFC\xB8\xF7\xB2\xE3\xD5\xD9\xBB\xBD\xB6\xF1\xC4\xA7\xCE\xAA\xCB\xFB\xD0\xA7\xC3\xFC\xA1\xA3\xCB\xFB\xD7\xEE\xCF\xED\xCA\xDC\xB5\xC4\xA3\xAC\xCA\xC7\xBF\xB4\xD7\xC5\xD7\xD4\xBC\xBA\xB5\xC4\xB3\xE8\xCE\xEF\xCB\xBA\xCB\xE9\xD1\xD8\xCD\xBE\xB5\xC4\xD2\xBB\xC7\xD0\xA1\xA3";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "\xCB\xC0\xC1\xE9\xB7\xA8\xCA\xA6\xB4\xD3\xCE\xB4\xC9\xCB\xBA\xA6\xB9\xFD\xC8\xCE\xBA\xCE\xBB\xEE\xCE\xEF\xA1\xA3\xCB\xF9\xD3\xD0\xB5\xC4\xC9\xCB\xBA\xA6\xA1\xA2\xCD\xB4\xB3\xFE\xD3\xEB\xCB\xC0\xCD\xF6\xA3\xAC\xB6\xBC\xD3\xC9\xCB\xFB\xC4\xC7\xB2\xBB\xCB\xC0\xB5\xC4\xA1\xA2\xB2\xD0\xC5\xB0\xB5\xC4\xF7\xBC\xF7\xC3\xC6\xCD\xB4\xD3\xB4\xFA\xC0\xCD\xA1\xA3\xD5\xE2\xD2\xB2\xCA\xC7\xD2\xBB\xC3\xC5\xD3\xAA\xC9\xFA\xA1\xA3";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "\xD1\xB1\xCA\xDE\xCA\xA6\xCA\xC7\xCE\xD7\xD2\xBD\xA3\xAC\xC7\xFD\xCA\xB9\xD7\xD4\xC8\xBB\xBD\xE7\xD0\xD7\xC2\xF9\xB5\xC4\xD2\xB0\xCA\xDE\xB6\xD4\xBF\xB9\xBA\xDA\xB0\xB5\xA1\xA3\xCB\xFB\xCF\xB2\xBB\xB6\xCC\xCD\xB3\xF6\xB5\xB9\xCF\xC2\xC1\xD4\xCE\xEF\xB5\xC4\xD0\xC4\xD4\xE0\xB2\xA2\xCD\xCC\xCA\xB3\xA3\xAC\xD2\xD4\xBB\xF1\xC8\xA1\xCB\xFC\xC3\xC7\xB5\xC4\xC1\xA6\xC1\xBF\xA1\xA3";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "\xB6\xAE\xB5\xC3\xC8\xE7\xBA\xCE\xB4\xCC\xB4\xA9\xD7\xEE\xBA\xF1\xD6\xD8\xB5\xC4\xBB\xA4\xBC\xD7\xA1\xA3\xB6\xD4\xBF\xB9\xCD\xF6\xC1\xE9\xCA\xB1\xD3\xC3\xC8\xF1\xC6\xF7\xB8\xF1\xCD\xE2\xD3\xD0\xD0\xA7\xA1\xA3\xB6\xEE\xCD\xE2\xB5\xC4\xB6\xDC\xBB\xF7\xBB\xE1\xCC\xE1\xC9\xFD\xCB\xFB\xB5\xC4\xC9\xCB\xBA\xA6\xA1\xA3";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "\xB4\xBF\xB4\xE2\xB7\xC0\xD3\xF9\xD0\xCD\xB5\xC4\xBD\xC7\xB6\xB7\xCA\xBF\xA1\xA3\xBC\xE1\xC8\xCD\xA1\xA2\xC7\xBF\xBA\xB7\xA1\xA2\xC0\xCE\xB2\xBB\xBF\xC9\xC6\xC6\xA1\xA3\xB6\xAE\xB5\xC3\xC8\xE7\xBA\xCE\xBA\xC4\xBE\xA1\xB6\xD4\xCA\xD6\xA3\xAC\xD4\xD9\xD3\xE8\xD2\xD4\xC1\xCB\xBD\xE1\xA1\xA3";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "\xB3\xE5\xB7\xE6\xD6\xAE\xCA\xC6\xCE\xDE\xC8\xCB\xC4\xDC\xB5\xD0\xA3\xAC\xCB\xFB\xC9\xE1\xB7\xC0\xD3\xF9\xB6\xF8\xBE\xCD\xBD\xF8\xB9\xA5\xA1\xA3\xD7\xA8\xBE\xAB\xCB\xAB\xCE\xE4\xC6\xF7\xD5\xBD\xB6\xB7\xB7\xE7\xB8\xF1\xA1\xA3\xB5\xD8\xCF\xC2\xBD\xC7\xB6\xB7\xB3\xA1\xD5\xE6\xD5\xFD\xB5\xC4\xC3\xF7\xD0\xC7\xA1\xA3";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "\xD7\xB7\xBB\xF7\xB6\xB7\xCA\xBF\xD7\xA8\xBE\xAB\xD3\xDA\xC9\xC1\xB1\xDC\xB9\xA5\xBB\xF7\xD3\xEB\xBC\xAB\xCB\xD9\xB5\xC4\xCA\xDC\xBB\xF7\xBB\xD6\xB8\xB4\xA1\xA3\xD3\xD0\xC8\xA4\xB5\xC4\xCA\xC7\xA3\xAC\xCB\xFB\xCA\xB9\xD3\xC3\xB5\xC4\xCA\xC7\xB0\xEB\xD6\xD8\xD0\xCD\xD7\xB0\xB1\xB8\xA1\xA3";
+			case STR_1084_Druid_Description:
+				return "\xB5\xC2\xC2\xB3\xD2\xC1\xD3\xB5\xB1\xA7\xD7\xD4\xBC\xBA\xD2\xB0\xCA\xDE\xB5\xC4\xD2\xBB\xC3\xE6\xA3\xAC\xCF\xB2\xBB\xB6\xCC\xF9\xBD\xFC\xB9\xD6\xCE\xEF\xD4\xD9\xBD\xAB\xCB\xFC\xC3\xC7\xCB\xBA\xCB\xE9\xA1\xA3\xD3\xD0\xB5\xE3\xB2\xBB\xD0\xDE\xB1\xDF\xB7\xF9\xA3\xAC\xBB\xB9\xD3\xD0\xCE\xB6\xB5\xC0\xA3\xAC\xB5\xAB\xC3\xBB\xC8\xCB\xD4\xB8\xD2\xE2\xC8\xA5\xB8\xE6\xCB\xDF\xCB\xFB\xA1\xA3";
+			case STR_1085_Gladiatrix_Description:
+				return "\xC5\xAE\xBD\xC7\xB6\xB7\xCA\xBF\xBA\xDC\xB4\xF3\xD6\xBB\xA1\xA3\xB2\xBB\xCA\xC7\xC5\xD6\xA3\xAC\xBE\xCD\xCA\xC7\xB4\xF3\xA1\xA3\xCB\xFD\xCF\xB2\xBB\xB6\xD3\xC3\xB6\xAB\xCE\xF7\xD4\xD2\xB6\xAB\xCE\xF7\xA3\xAC\xD4\xD2\xB5\xC3\xCF\xE0\xB5\xB1\xBA\xDD\xA1\xA3\xCF\xB2\xBB\xB6\xD3\xC3\xB9\xAD\xA1\xA3\xBB\xB9\xD3\xD0\xCA\xB2\xC3\xB4\xBA\xC3\xCB\xB5\xB5\xC4\xA3\xBF\xBE\xCD\xD5\xE2\xD1\xF9\xA1\xA3\xB4\xF3\xA1\xA3\xC7\xBF\xD7\xB3\xA1\xA3\xB4\xC0\xA1\xA3";
+		}
+	}
+	// (th4) Spanish: class, subclass and specialization descriptions. ASCII-folded
+	// (the meta DiabloFont atlas has no accented glyphs). Anything not listed returns
+	// nullptr -> English fallback.
+	//
+	// The caller copies into a char[256]; every string here is kept under 255 bytes,
+	// and the copy at the call site is now bounded (strncpy) as a second guard.
+	if( GameLanguage == LANG_ES ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Los Guerreros se sit\xFA""an al frente de cualquier batalla, enfrent\xE1ndose cuerpo a cuerpo a monstruos y villanos.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Los Arqueros son diestros con el arco. Mantienen la distancia y abaten monstruos desde lejos.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Los Magos dominan fuerzas y esencias invisibles para los dem\xE1s. Es una herramienta tan eficaz como un martillo contra los demonios.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Los Monjes son luchadores espirituales que destacan en todo tipo de combate, salvo en la magia.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Las P\xED""caras son aventureras, bandidas, ladronas y saqueadoras. El bot\xEDn es lo \xFAnico que tiene valor para ellas.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Los Salvajes son fuertes, corpulentos y destacan en combate como pocos. Les falta disciplina, pero lo compensan con fuerza bruta.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "El Guerrero es un campe\xF3n y un peleador que vive o muere por su dominio de las armas y la t\xE1""ctica. Luchador cl\xE1sico. Maestro del bloqueo.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "El Inquisidor ha dedicado su vida a hallar y erradicar la herej\xED""a y a los practicantes de magia maligna, purgando la oscuridad con fuego sagrado. Maestro del da\xF1o elemental.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "El Guardi\xE1n es una clase defensiva que usa grandes espadas y martillos. Y ballestas. Cuando se le pregunta por su misi\xF3n en Tristram, cambia de tema enseguida.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "El Templario es un hombre santo y un noble guerrero que ha jurado defender al d\xE9""bil y combatir el mal. Se especializa en erradicar no-muertos. Puede usar martillos arrojadizos.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "El talento de la Arquera reside en causar da\xF1o r\xE1pido desde una distancia segura. Pero ha de tener cuidado y no dejar que nadie se acerque. Eso rara vez acaba bien.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "La Exploradora no asesta cr\xEDticos con las flechas, pero lo compensa con da\xF1o elemental adicional. Ah\xED es donde de verdad brilla. Adem\xE1s luce un bonito pelo rojo.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "La Tiradora es un tipo de arquera m\xE1s lenta, con un surtido \xFAnico de arcos largos, y golpea con fuerza. Su punter\xED""a no tiene rival. Y sus cr\xEDticos son mort\xED""feros.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "La Trampera despliega trampas para combatir a los esbirros de la oscuridad. Tambi\xE9n tiene un gusto muy refinado. Su color favorito es el azul. No preguntes por qu\xE9.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "El Mago es un conjurador cl\xE1sico, hechicero y brujo. Adem\xE1s obtiene acceso a un saber Arcano que ninguna otra clase posee.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "El Elementalista tiene mano para los hechizos de fuego, fr\xEDo y rayo. Un maestro de los elementos. Sus hechizos tienen buena probabilidad de causar da\xF1o extra.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Los Invocadores son un subtipo de magos que combaten el mal con la ayuda de criaturas que alzan.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "El Brujo es un adepto del saber oscuro y usa hechicer\xED""a negra y hechizos de \xE1""cido para combatir demonios. No puede aprender hechizos sagrados.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Monje cl\xE1sico. R\xE1pido, vers\xE1til y enemigo jurado de todos los demonios. Domina el bast\xF3n con maestr\xED""a. Puede golpear a varios objetivos con \xE9l. Prefiere los arcos a distancia.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Verdadero maestro de las armas, el Kensei es una fuerza a tener en cuenta. Y un espect\xE1""culo en la batalla. Cree que matar es una forma de arte.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "El Shugoki es un luchador gigantesco y muy acorazado que prefiere las armas de asta en el combate cercano. Y los arcos para la lucha a distancia.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "El Shinobi prefiere acercarse a su objetivo y ha dedicado su vida a perfeccionar las artes del luchador de las sombras. Puede usar estrellas arrojadizas a distancia.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "La P\xED""cara es un personaje \xE1gil que empu\xF1""a dos armas. Sus puntos fuertes son los ataques r\xE1pidos, unos hechizos decentes y la evasi\xF3n. Su debilidad es su poca resistencia f\xEDsica.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "La Asesina usa garras en combate. Le encanta ba\xF1""arlas en \xE1""cido para causar m\xE1s da\xF1o a sus v\xED""ctimas desprevenidas. Para el combate a distancia prefiere los cuchillos arrojadizos.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Su armadura es su arma. Lleva piezas cubiertas de p\xFA""as y as\xED da\xF1""a a quienes la atacan cuerpo a cuerpo. Usa ballestas r\xE1pidas en el combate a distancia.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vida es sencilla para la Bombardera. Le encantan las explosiones. Y lanza frascos explosivos a sus enemigos hasta que todos mueren. Normalmente, en terrible agon\xED""a.";
+			case STR_1085_Gladiatrix_Description:
+				return "La Gladiatriz es grande. No gorda, solo GRANDE. Le gusta golpear cosas con otras cosas, y bastante fuerte. Le gustan los arcos. \xBFQu\xE9 m\xE1s se puede decir? Eso es todo. Grande. Fuerte. Tonta.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "El Salvaje, un t\xEDpico luchador de primera l\xEDnea. No sabe golpear un punto d\xE9""bil, pero sabe golpear fuerte. Prefiere las armas grandes a dos manos.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "En una sociedad civilizada, la ira del Berserker ser\xED""a un problema. \xA1Pero aqu\xED es una enorme ventaja! Un luchador despiadado, veloz e imparable.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Un fen\xF3meno de la naturaleza, un hombre gigantesco; no usa armadura humana, sencillamente no la hacen de su talla. Puede despedazar cualquier cosa con las manos desnudas. Da pesadillas a los demonios.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Adiestrados por su pasada experiencia en la arena, estos hombres usan ahora sus destrezas contra los demonios que se han apoderado de Tristram.";
+			case STR_1084_Druid_Description:
+				return "El Druida abraza su lado animal y le gusta acercarse a los monstruos para despedazarlos. Un poco sucio y maloliente, pero nadie se atreve a dec\xEDrselo.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "El Demon\xF3logo invoca demonios de todos los c\xEDrculos del Infierno para que cumplan sus \xF3rdenes. Lo que m\xE1s le gusta es ver a sus mascotas despedazar todo a su paso.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "El Nigromante jam\xE1s ha herido a una criatura viva. Todo el dolor, el sufrimiento y la muerte los inflige por \xE9l su horda s\xE1""dica y no-viva de esbirros esquel\xE9ticos. Hay que ganarse la vida.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "El Amo de Bestias es un brujo curandero que usa bestias viscerales de la naturaleza para combatir la oscuridad. Le gusta arrancar los corazones de sus v\xED""ctimas y comerlos para obtener su poder.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Sabe c\xF3mo perforar la m\xE1s gruesa de las armaduras. Eficaz con armas afiladas al luchar contra no-muertos. Los ataques adicionales de escudo aumentan su da\xF1o.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Tipo de gladiador puramente defensivo. Duro, poderoso, irrompible. Sabe c\xF3mo agotar al oponente antes de rematarlo.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Sin igual en la embestida, sacrifica la defensa por el ataque. Se especializa en el estilo de lucha con dos armas. Una verdadera estrella de las peleas de foso.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "El Secutor es un gladiador que se especializa en esquivar ataques y en una recuperaci\xF3n ultrarr\xE1pida. Curiosamente, usa un equipo semipesado.";
+			default: return nullptr;
+		}
+	}
+	// (th4) Italian: class / subclass / specialization descriptions (full parity
+	// with the LANG_ES block above). ASCII-folded, each string kept under 255 bytes.
+	if( GameLanguage == LANG_IT ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "I Guerrieri si pongono in prima linea in ogni battaglia, affrontando corpo a corpo mostri e criminali.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Gli Arcieri sono abili con l'arco. Mantengono la distanza e abbattono i mostri da lontano.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "I Maghi dominano forze ed essenze invisibili agli altri. Uno strumento efficace quanto un martello contro i demoni.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "I Monaci sono combattenti spirituali che eccellono in ogni tipo di combattimento, tranne la magia.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Le Furfanti sono avventuriere, banditi, ladre e saccheggiatrici. Il bottino e l'unica cosa che conta per loro.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "I Selvaggi sono forti, corpulenti ed eccellono in combattimento come pochi. Manca loro disciplina, ma la compensano con la forza bruta.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Il Guerriero e un campione e un lottatore che vive o muore per la sua padronanza delle armi e della tattica. Combattente classico. Maestro della parata.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "L'Inquisitore ha dedicato la vita a scovare ed estirpare l'eresia e chi pratica la magia malvagia, purgando l'oscurita col fuoco sacro. Maestro del danno elementale.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Il Guardiano e una classe difensiva che usa grandi spade e martelli. E balestre. Quando gli si chiede della sua missione a Tristram, cambia subito argomento.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Il Templare e un uomo santo e un nobile guerriero che ha giurato di difendere i deboli e combattere il male. Si specializza nell'estirpare i non-morti. Puo usare martelli da lancio.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Il talento dell'Arciera sta nell'infliggere danno rapido da distanza sicura. Ma deve fare attenzione a non lasciar avvicinare nessuno. Raramente finisce bene.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "L'Esploratrice non infligge critici con le frecce, ma lo compensa con danno elementale extra. E li che brilla davvero. E sfoggia dei bei capelli rossi.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "La Tiratrice Scelta e un tipo di arciera piu lenta, con un assortimento unico di archi lunghi, e colpisce forte. La sua mira non ha rivali. E i suoi critici sono letali.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "La Trappolatrice dispiega trappole per combattere i servitori dell'oscurita. Ha anche un gusto molto raffinato. Il suo colore preferito e il blu. Non chiedere perche.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Il Mago e un evocatore classico, incantatore e stregone. Ottiene inoltre accesso a un sapere Arcano che nessun'altra classe possiede.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "L'Elementalista ha mano per gli incantesimi di fuoco, freddo e fulmine. Un maestro degli elementi. I suoi incantesimi hanno buona probabilita di infliggere danno extra.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Gli Evocatori sono un sottotipo di maghi che combattono il male con l'aiuto delle creature che sollevano.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Lo Stregone e un adepto del sapere oscuro e usa magia nera e incantesimi acidi per combattere i demoni. Non puo imparare incantesimi sacri.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Monaco classico. Rapido, versatile e nemico giurato di tutti i demoni. Padroneggia il bastone con maestria. Puo colpire piu bersagli con esso. Preferisce gli archi a distanza.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Vero maestro delle armi, il Kensei e una forza da non sottovalutare. E uno spettacolo in battaglia. Crede che uccidere sia una forma d'arte.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Lo Shugoki e un combattente gigantesco e molto corazzato che preferisce le armi in asta nel combattimento ravvicinato. E gli archi per la lotta a distanza.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Lo Shinobi preferisce avvicinarsi al bersaglio e ha dedicato la vita a perfezionare le arti del combattente delle ombre. Puo usare stelle da lancio a distanza.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "La Furfante e un personaggio agile che impugna due armi. I suoi punti forti sono attacchi rapidi, incantesimi discreti ed evasione. La sua debolezza e la scarsa resistenza fisica.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "L'Assassina usa artigli in combattimento. Ama intingerli nell'acido per infliggere piu danno alle vittime ignare. Per il combattimento a distanza preferisce i coltelli da lancio.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "La sua armatura e la sua arma. Indossa pezzi ricoperti di punte e cosi ferisce chi la attacca corpo a corpo. Usa balestre rapide nel combattimento a distanza.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vita e semplice per la Bombardiera. Adora le esplosioni. E lancia fiale esplosive contro i nemici finche non muoiono tutti. Di solito, in terribile agonia.";
+			case STR_1085_Gladiatrix_Description:
+				return "La Gladiatrice e grande. Non grassa, solo GRANDE. Le piace colpire cose con altre cose, e piuttosto forte. Le piacciono gli archi. Che altro dire? E tutto. Grande. Forte. Stupida.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Il Selvaggio, un tipico combattente di prima linea. Non sa colpire un punto debole, ma sa colpire forte. Preferisce le grandi armi a due mani.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "In una societa civilizzata, l'ira del Berserker sarebbe un problema. Ma qui e un enorme vantaggio! Un combattente spietato, veloce e inarrestabile.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Un fenomeno della natura, un uomo gigantesco; non usa armatura umana, semplicemente non la fanno della sua taglia. Puo fare a pezzi qualsiasi cosa a mani nude. Da incubi ai demoni.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Addestrati dalla loro passata esperienza nell'arena, questi uomini usano ora le loro abilita contro i demoni che si sono impadroniti di Tristram.";
+			case STR_1084_Druid_Description:
+				return "Il Druido abbraccia il suo lato animale e ama avvicinarsi ai mostri per farli a pezzi. Un po' sporco e puzzolente, ma nessuno osa dirglielo.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "Il Demonologo evoca demoni da ogni cerchio dell'Inferno perche eseguano i suoi ordini. Cio che ama di piu e vedere i suoi cuccioli fare a pezzi tutto sul loro cammino.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Il Negromante non ha mai ferito una creatura vivente. Tutto il dolore, la sofferenza e la morte li infligge per lui la sua orda sadica e non-viva di servitori scheletrici. Bisogna pur guadagnarsi da vivere.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "Il Domabestie e uno stregone guaritore che usa bestie viscerali della natura per combattere l'oscurita. Ama strappare i cuori delle vittime e mangiarli per ottenerne il potere.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Sa come perforare la piu spessa delle armature. Efficace con armi affilate contro i non-morti. Gli attacchi extra di scudo aumentano il suo danno.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Tipo di gladiatore puramente difensivo. Duro, potente, infrangibile. Sa come sfinire l'avversario prima di finirlo.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Senza pari nella carica, sacrifica la difesa per l'attacco. Si specializza nello stile di lotta con due armi. Una vera stella delle lotte nella fossa.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Il Secutor e un gladiatore che si specializza nello schivare gli attacchi e in un recupero ultrarapido. Curiosamente, usa un equipaggiamento semipesante.";
+			default: return nullptr;
+		}
+	}
+
+	// (th4) French: class / subclass / specialization descriptions (full parity with
+	// the LANG_ES/IT blocks above). ASCII-folded, each string kept under 255 bytes.
+	if( GameLanguage == LANG_FR ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Les Guerriers se placent en premiere ligne de chaque bataille, affrontant monstres et brigands au corps a corps.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Les Archers manient l'arc avec adresse. Ils gardent leurs distances et abattent les monstres de loin.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Les Mages dominent des forces et des essences invisibles aux autres. Un outil aussi efficace qu'un marteau contre les demons.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Les Moines sont des combattants spirituels qui excellent dans tout type de combat, sauf la magie.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Les Voleuses sont aventurieres, bandites, larronnes et pillardes. Le butin est la seule chose qui compte pour elles.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Les Sauvages sont forts, corpulents et excellent au combat comme peu d'autres. Ils manquent de discipline, mais compensent par la force brute.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Le Guerrier est un champion et un lutteur qui vit ou meurt par sa maitrise des armes et de la tactique. Combattant classique. Maitre de la parade.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "L'Inquisiteur a voue sa vie a traquer et extirper l'heresie et ceux qui pratiquent la magie noire, purgeant les tenebres par le feu sacre. Maitre des degats elementaires.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Le Gardien est une classe defensive qui manie grandes epees et marteaux. Et arbaletes. Quand on l'interroge sur sa mission a Tristram, il change vite de sujet.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Le Templier est un saint homme et un noble guerrier qui a jure de defendre les faibles et de combattre le mal. Il se specialise contre les morts-vivants. Peut lancer des marteaux.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Le talent de l'Archere est d'infliger des degats rapides a distance sure. Mais elle doit veiller a ne laisser personne approcher. Cela finit rarement bien.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "L'Eclaireuse n'inflige pas de critiques a l'arc, mais compense par des degats elementaires supplementaires. C'est la qu'elle brille. Et elle a de beaux cheveux roux.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "La Tireuse d'Elite est une archere plus lente, avec un assortiment unique d'arcs longs, et elle frappe fort. Sa visee n'a pas d'egale. Et ses critiques sont mortels.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "La Piegeuse deploie des pieges pour combattre les serviteurs des tenebres. Elle a aussi des gouts tres raffines. Sa couleur preferee est le bleu. Ne demandez pas pourquoi.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Le Mage est un evocateur classique, enchanteur et sorcier. Il accede en outre a un savoir Arcanique qu'aucune autre classe ne possede.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "L'Elementaliste a la main pour les sorts de feu, de froid et de foudre. Un maitre des elements. Ses sorts ont de bonnes chances d'infliger des degats supplementaires.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Les Invocateurs sont un sous-type de mages qui combattent le mal avec l'aide des creatures qu'ils relevent.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Le Sorcier est un adepte du savoir obscur et use de magie noire et de sorts acides pour combattre les demons. Il ne peut apprendre de sorts sacres.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Moine classique. Rapide, polyvalent et ennemi jure de tous les demons. Il maitrise le baton avec brio. Il peut frapper plusieurs cibles avec. Prefere les arcs a distance.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Veritable maitre des armes, le Kensei est une force a ne pas sous-estimer. Un spectacle en bataille. Il croit que tuer est une forme d'art.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Le Shugoki est un combattant gigantesque et tres cuirasse qui prefere les armes d'hast au corps a corps. Et les arcs pour la lutte a distance.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Le Shinobi prefere s'approcher de la cible et a voue sa vie a parfaire les arts du combattant de l'ombre. Il peut lancer des etoiles a distance.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "La Voleuse est un personnage agile qui manie deux armes. Ses points forts sont les attaques rapides, les sorts discrets et l'esquive. Sa faiblesse est sa faible resistance.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "L'Assassine use de griffes en combat. Elle aime les tremper dans l'acide pour infliger plus de degats aux victimes sans defense. A distance, elle prefere les couteaux de jet.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Son armure est son arme. Elle porte des pieces couvertes de pointes et blesse ainsi ceux qui l'attaquent au corps a corps. Elle use d'arbaletes rapides a distance.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "La vie est simple pour la Bombardiere. Elle adore les explosions. Et lance des fioles explosives sur les ennemis jusqu'a ce qu'ils meurent tous. En general, dans une terrible agonie.";
+			case STR_1085_Gladiatrix_Description:
+				return "La Gladiatrice est grande. Pas grosse, juste GRANDE. Elle aime frapper des choses avec d'autres choses, et elle est plutot forte. Elle aime les arcs. Quoi d'autre? C'est tout. Grande. Forte. Bete.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Le Sauvage, un combattant de premiere ligne typique. Il ne sait pas viser un point faible, mais il sait frapper fort. Prefere les grandes armes a deux mains.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Dans une societe civilisee, la rage du Berserker serait un probleme. Mais ici, c'est un enorme avantage! Un combattant impitoyable, rapide et irrepressible.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Un phenomene de la nature, un homme gigantesque; il n'use pas d'armure humaine, on n'en fait tout simplement pas a sa taille. Il peut tout mettre en pieces a mains nues. Il hante les cauchemars des demons.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Formes par leur experience passee dans l'arene, ces hommes usent desormais de leurs talents contre les demons qui se sont empares de Tristram.";
+			case STR_1084_Druid_Description:
+				return "Le Druide embrasse son cote animal et aime s'approcher des monstres pour les mettre en pieces. Un peu sale et malodorant, mais nul n'ose le lui dire.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "Le Demonologue invoque des demons de tous les cercles de l'Enfer pour executer ses ordres. Ce qu'il aime par-dessus tout, c'est voir ses proteges tout dechiqueter sur leur passage.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Le Necromancien n'a jamais blesse une creature vivante. Toute la douleur, la souffrance et la mort, c'est sa horde sadique et non-vivante de serviteurs squelettiques qui les inflige pour lui. Il faut bien gagner sa vie.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "Le Maitre des Betes est un sorcier guerisseur qui use de betes viscerales de la nature pour combattre les tenebres. Il aime arracher le coeur de ses victimes et le manger pour en obtenir le pouvoir.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Il sait percer la plus epaisse des armures. Efficace avec des armes affilees contre les morts-vivants. Les attaques de bouclier supplementaires augmentent ses degats.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Type de gladiateur purement defensif. Dur, puissant, incassable. Il sait epuiser l'adversaire avant de l'achever.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Sans egal dans la charge, il sacrifie la defense a l'attaque. Il se specialise dans le style de combat a deux armes. Une vraie vedette des combats de fosse.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Le Secutor est un gladiateur qui se specialise dans l'esquive des attaques et une recuperation ultrarapide. Curieusement, il use d'un equipement semi-lourd.";
+			default: return nullptr;
+		}
+	}
+
+	// (th4) Polish: class / subclass / specialization descriptions (full parity with the
+	// LANG_ES/IT/FR blocks above -- all 39 cases). REAL CP1250 diacritics; the meta atlas
+	// ships in TH4loc_pol.mor. Each string kept under 255 bytes.
+	if( GameLanguage == LANG_PL ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Wojownicy walcz\xB9 w pierwszym szeregu ka\xBF""dej bitwy, mierz\xB9""c si\xEA twarz\xB9 w twarz z potworami i zb\xF3jami.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "\xA3uczniczki po mistrzowsku w\xB3""adaj\xB9 \xB3ukiem. Trzymaj\xB9 dystans i zabijaj\xB9 potwory z oddali.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Magowie panuj\xB9 nad si\xB3""ami i esencjami niewidocznymi dla innych ludzi. To narz\xEA""dzie r\xF3wnie skuteczne przeciw demonom co m\xB3ot.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Mnisi to duchowi wojownicy, kt\xF3rzy celuj\xB9 w ka\xBF""dym rodzaju walki z wyj\xB9tkiem magii.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "\xA3otrzyce to awanturnice, bandytki, z\xB3odziejki i maruderki. \xA3up jest jedyn\xB9 rzecz\xB9, kt\xF3ra ma dla nich warto\x9C\xE6.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Dzikusy s\xB9 silne, pot\xEA\xBFnie zbudowane i celuj\xB9 w walce jak ma\xB3o kto. Brak im dyscypliny, lecz nadrabiaj\xB9 to czyst\xB9 si\xB3\xB9.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Wojownik to mistrz i zabijaka, kt\xF3ry \xBFyje lub ginie dzi\xEAki znajomo\x9C""ci broni i taktyki. Klasyczny wojak. Mistrz blokowania.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Inkwizytor po\x9Cwi\xEA""ci\xB3 \xBFycie tropieniu i t\xEApieniu herezji oraz praktyk\xF3w czarnej magii, wypalaj\xB9""c ciemno\x9C\xE6 \x9Cwi\xEAtym ogniem. Mistrz magii \x9Cwiat\xB3o\x9C""ci.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Stra\xBFnik to klasa obronna w\xB3""adaj\xB9""ca wielkimi mieczami i m\xB3otami. Oraz kuszami. Pytany o swoj\xB9 misj\xEA w Tristram, szybko zmienia temat.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Templariusz to m\xB9\xBF \x9Cwi\xEAty i szlachetny wojownik, kt\xF3ry \x9Clubowa\xB3 broni\xE6 s\xB3""abych i zwalcza\xE6 z\xB3o. Specjalizuje si\xEA w t\xEApieniu nieumar\xB3ych.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Talent \xA3uczniczki to szybkie obra\xBF""enia z bezpiecznego dystansu. Musi jednak uwa\xBF""a\xE6, by nikogo nie dopu\x9C""ci\xE6 blisko. To rzadko ko\xF1""czy si\xEA dobrze.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Zwiadowczyni nie zadaje trafie\xF1 krytycznych z \xB3uku, lecz nadrabia dodatkowymi obra\xBF""eniami \xBFywio\xB3\xF3w. W tym b\xB3yszczy naprawd\xEA. Ma te\xBF \xB3""adne rude w\xB3osy.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Snajperka to wolniejszy typ \xB3uczniczki, dysponuje unikalnym zestawem d\xB3ugich \xB3uk\xF3w i potrafi mocno przy\xB3o\xBFy\xE6. Jej celno\x9C\xE6 nie ma sobie r\xF3wnych.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Traperka rozstawia pu\xB3""apki, by walczy\xE6 ze s\xB3ugami ciemno\x9C""ci. Ma te\xBF wysoko rozwini\xEAte poczucie mody. Jej ulubiony kolor to niebieski. Nie pytaj czemu.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Mag to klasyczny czarodziej i zaklinacz. Zyskuje te\xBF dost\xEAp do wiedzy Arkan\xF3w, kt\xF3rej nie zna \xBF""adna inna klasa.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "Elementalista ma smyka\xB3k\xEA do zakl\xEA\xE6 ognia, zimna i b\xB3yskawic. Mistrz \xBFywio\xB3\xF3w. Jego zakl\xEA""cia maj\xB9 spor\xB9 szans\xEA zada\xE6 dodatkowe obra\xBF""enia.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Przyzywacze to podtyp mag\xF3w, kt\xF3rzy zwalczaj\xB9 z\xB3o z pomoc\xB9 stworze\xF1, jakie sami wskrzeszaj\xB9.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Czarnoksi\xEA\xBFnik to adept mrocznej wiedzy, kt\xF3ry zwalcza demony czarn\xB9 magi\xB9 i zakl\xEA""ciami kwasu. Nie potrafi uczy\xE6 si\xEA zakl\xEA\xE6 \x9Cwiat\xB3o\x9C""ci.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Klasyczny Mnich. Szybki, wszechstronny i zaprzysi\xEAg\xB3y wr\xF3g wszystkich demon\xF3w. Po mistrzowsku w\xB3""ada kosturem. Do walki na dystans woli \xB3uki.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Prawdziwy mistrz broni, Kensei to si\xB3""a, z kt\xF3r\xB9 trzeba si\xEA liczy\xE6. I widok nie z tej ziemi w boju. Wierzy, \xBF""e zabijanie jest form\xB9 sztuki.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Shugoki to olbrzymi, ci\xEA\xBFko opancerzony wojownik, kt\xF3ry w zwarciu woli bro\xF1 drzewcow\xB9. A do walki na dystans - \xB3uki.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Shinobi woli zbli\xBFy\xE6 si\xEA do celu na wyci\xB9gni\xEA""cie r\xEAki i ca\xB3""e \xBFycie doskonali\xB3 sztuk\xEA walki w cieniu. Na dystans u\xBFywa gwiazdek do rzucania.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "\xA3otrzyca to zwinna posta\xE6 walcz\xB9""ca dwiema broniami. Jej atuty to szybkie ataki, przyzwoita magia i uniki. S\xB3""abo\x9C""ci\xB9 jest brak fizycznej wytrzyma\xB3o\x9C""ci.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Asasynka walczy pazurami. Uwielbia macza\xE6 je w kwasie, by zada\xE6 wi\xEA""cej obra\xBF""e\xF1 niczego niepodejrzewaj\xB9""cym ofiarom. Na dystans woli zwykle \xB3uki.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Jej pancerz jest jej broni\xB9. Nosi elementy zbroi naje\xBFone kolcami i tak rani atakuj\xB9""cych wr\xEA""cz. Na dystans u\xBFywa szybkich kusz.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\xAFycie Bombardierki jest proste. Kocha wybuchy. I ciska w wrog\xF3w wybuchowymi flakonami, a\xBF wszyscy zgin\xB9. Zwykle w potwornych m\xEA""czarniach.";
+			case STR_1085_Gladiatrix_Description:
+				return "Gladiatorka jest du\xBF""a. Nie gruba, po prostu DU\xAF""A. Lubi uderza\xE6 w r\xF3\xBFne rzeczy innymi rzeczami, ca\xB3kiem mocno. Lubi \xB3uki. Co tu wi\xEA""cej doda\xE6? To tyle.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Dzikus, typowy wojownik pierwszej linii. Nie wie, jak trafi\xE6 w czu\xB3y punkt, ale wie, jak uderzy\xE6 mocno. Woli wielkie bronie dwur\xEA""czne.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "W cywilizowanym spo\xB3""ecze\xF1stwie sza\xB3 Berserkera by\xB3""by problemem. Ale tutaj to ogromna zaleta! Bezlitosny, szybki i nie do zatrzymania wojownik.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Wybryk natury, cz\xB3owiek olbrzym - nie nosi ludzkich zbroi, bo po prostu nie robi\xB9 ich w jego rozmiarze. Potrafi rozerwa\xE6 wszystko go\xB3ymi r\xEAkami.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Nauczeni dawnym do\x9Cwiadczeniem areny, m\xEA\xBFowie ci obracaj\xB9 teraz swoje umiej\xEAtno\x9C""ci przeciw demonom, kt\xF3re opanowa\xB3y Tristram.";
+			case STR_1084_Druid_Description:
+				return "Druid poddaje si\xEA swojej zwierz\xEA""cej stronie i lubi zbli\xBFy\xE6 si\xEA do potwor\xF3w, by je rozszarpa\xE6. Nieco niemyty i \x9Cmierdz\xB9""cy, ale nikt mu tego nie powie.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "Demonolog przyzywa demony ze wszystkich kr\xEAg\xF3w Piek\xB3""a, by spe\xB3nia\xB3y jego wol\xEA. Najbardziej lubi patrze\xE6, jak jego pupile rozrywaj\xB9 wszystko na drodze.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Nekromanta nigdy nie skrzywdzi\xB3 \xBFywego stworzenia. Ca\xB3y b\xF3l, cierpienie i \x9Cmier\xE6 zadaje za niego jego nie\xBFywa, sadystyczna horda szkieletowych s\xB3ug.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "W\xB3""adca Zwierz\xB9t to szaman u\xBFywaj\xB9""cy trzewnych bestii natury do walki z ciemno\x9C""ci\xB9. Lubi wyrywa\xE6 serca poleg\xB3ym ofiarom i je zjada\xE6.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Wie, jak przebi\xE6 najgrubszy pancerz. Skuteczny broni\xB9 sieczn\xB9 w walce z nieumar\xB3ymi. Dodatkowe ataki tarcz\xB9 zwi\xEAkszaj\xB9 jego obra\xBF""enia.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Czysto obronny typ gladiatora. Twardy, pot\xEA\xBFny, niez\xB3omny. Wie, jak zm\xEA""czy\xE6 przeciwnika, zanim go dobije.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Niezr\xF3wnany w natarciu, po\x9Cwi\xEA""ca obron\xEA dla ataku. Specjalizuje si\xEA w stylu walki dwiema broniami. Prawdziwa gwiazda walk na arenie.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Secutor to gladiator specjalizuj\xB9""cy si\xEA w unikach i b\xB3yskawicznym otrz\xB9saniu si\xEA z cios\xF3w. Co ciekawe, u\xBFywa p\xF3\xB3-ci\xEA\xBFkiego wyposa\xBF""enia.";
+			default: return nullptr;
+		}
+	}
+
+	// (th4) Croatian: class / subclass / specialization descriptions, all 39 cases (meta atlas cells in TH4loc_hrv.mor);
+	// each under 255 bytes (the caller copies into char[256]). English is the thehell4.rc STRINGTABLE.
+	if( GameLanguage == LANG_HR ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Ratnike \xE6""e\x9A na\xE6i u prvim redovima svake bitke, gdje se prsa o prsa bore s \xE8udovi\x9Atima i zlikovcima.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Strijelke su vrsne u baratanju lukom. Dr\x9E""e se na udaljenosti i ubijaju \xE8udovi\x9Ata izdaleka.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "\xC8""arobnjaci su majstori upravljanja silama i esencijama nevidljivima drugim ljudima. Protiv demona to je oru\xF0""e djelotvorno kao i \xE8""eki\xE6.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Redovnici su duhovni borci koji se isti\xE8u u svim vrstama borbe, osim u magiji.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Odmetnice su pustolovke, razbojnice, kradljivice i plja\xE8ka\x9Aice. Plijen je jedino \x9Ato im ne\x9Ato vrijedi.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Divljaci su sna\x9Eni, krupni i u borbi se isti\xE8u kao malo tko. Nedostaje im stege, ali to nadokna\xF0uju sirovom snagom.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Ratnik je prvak i razbija\xE8 kojemu \x9Eivot ovisi o poznavanju oru\x9Eja i taktike. Klasi\xE8ni borac. Majstor blokiranja.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Inkvizitor je \x9Eivot posvetio pronala\x9E""enju i iskorjenjivanju krivovjerja i \x9Atovatelja zle magije te \xE8i\x9A\xE6""enju tame svetim ognjem. Majstor elementarne \x9Atete.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "\xC8uvar je obrambena klasa koja koristi velike ma\xE8""eve i \xE8""eki\xE6""e. I samostrele. Kad ga pitaju o njegovoj misiji u Tristramu, brzo promijeni temu.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Templar je svet \xE8ovjek i plemenit ratnik koji se zavjetovao da \xE6""e \x9Atititi slabe i boriti se protiv zla. Specijaliziran za istrebljivanje nemrtvih. Mo\x9E""e koristiti \xE8""eki\xE6""e za bacanje.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Strijelkin talent je brzo nano\x9A""enje \x9Atete sa sigurne udaljenosti. No mora biti oprezna i ne pustiti nikoga blizu. To \xE8""esto ne zavr\x9Ai dobro.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Izvi\xF0""a\xE8ica ne zadaje kriti\xE8ne pogotke strijelama, ali to nadokna\xF0uje dodatnom elementarnom \x9Atetom strijela. Tu doista blista. Ima i lijepu ri\xF0u kosu.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Snajperistica je sporija vrsta strijelke, ima jedinstven izbor dugih lukova i zna \x9E""estoko udariti. Njezina preciznost nema premca. A kriti\xE8ni pogoci su smrtonosni.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Traperica postavlja zamke kako bi se borila protiv slugu tame. Ima i vrlo razvijen osje\xE6""aj za modu. Omiljena boja joj je plava. Ne pitaj za\x9Ato.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "\xC8""arobnjak je klasi\xE8ni baca\xE8 \xE8""arolija, mag, vra\xE8. Ima i pristup arkanskom znanju koje nema nijedna druga klasa.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "Elementalist ima dar za \xE8""arolije vatre, hladno\xE6""e i munje. Majstor elemenata. Njegove \xE8""arolije imaju solidnu \x9A""ansu nanijeti dodatnu \x9Atetu.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Priziva\xE8i su podvrsta \xE8""arobnjaka koji se bore protiv zla uz pomo\xE6 stvorenja koja sami prizovu.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Vje\x9Atac je adept mra\xE8nog znanja i protiv demona koristi crnu magiju i kiselinske \xE8""arolije. Ne mo\x9E""e nau\xE8iti svete \xE8""arolije.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Klasi\xE8ni Redovnik. Brz, svestran i zakleti neprijatelj svih demona. Majstorski rukuje \x9Atapom i njime mo\x9E""e pogoditi vi\x9A""e meta. Za borbu na daljinu radije bira lukove.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Pravi majstor oru\x9Eja, Kensei je sila s kojom treba ra\xE8unati. I prava pa\x9A""a za o\xE8i u boju. Vjeruje da je ubijanje oblik umjetnosti.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Shugoki je divovski borac u te\x9Akom oklopu koji za blisku borbu radije bira motkasto oru\x9Eje. A za borbu na daljinu lukove.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Shinobi se voli primaknuti meti na dohvat ruke, a \x9Eivot je proveo usavr\x9A""avaju\xE6i vje\x9Atine borca iz sjene. U borbi na daljinu mo\x9E""e koristiti zvijezde za bacanje.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Odmetnica je okretna borkinja s dva oru\x9Eja. Jake strane su joj brzi napadi, pristojno bacanje \xE8""arolija i izmicanje. Slaba strana joj je manjak tjelesne \x9Eilavosti.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Ubojica se u borbi slu\x9Ei pand\x9E""ama. Voli ih umakati u kiselinu kako bi nanijela vi\x9A""e \x9Atete \x9Ertvama koje ni\x9Ata ne slute. Za borbu na daljinu najradije bira no\x9E""eve za bacanje.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Njezin oklop je njezino oru\x9Eje. Nosi dijelove oklopa prekrivene \x9Ailjcima i tako nanosi \x9Atetu napada\xE8ima izbliza. Za borbu na daljinu koristi brze samostrele.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Bombarderki je \x9Eivot jednostavan. Voli eksplozije. I baca eksplozivne boce na neprijatelje dok svi ne pomru. Obi\xE8no u stra\x9Anim mukama.";
+			case STR_1085_Gladiatrix_Description:
+				return "Gladijatorica je velika. Ne debela, nego VELIKA. Voli udarati stvari drugim stvarima, i to prili\xE8no jako. Voli koristiti lukove. \x8Ato jo\x9A re\xE6i? To je to. Velika. Jaka. Glupa.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Divljak, tipi\xE8""an borac iz prvih redova. Ne zna pogoditi slabu to\xE8ku, ali zna jako udariti. Radije bira velika dvoru\xE8na oru\x9Eja.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "U civiliziranom dru\x9Atvu Berserkerov bijes bio bi problem. Ali ovdje je golema prednost! Nemilosrdan, brz i nezaustavljiv borac.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Hir prirode, div od \xE8ovjeka, ne nosi ljudski oklop - jednostavno ga ne rade u njegovoj veli\xE8ini. Golim rukama mo\x9E""e rastrgati bilo \x9Ato. Demonima je no\xE6na mora.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Pou\xE8""eni iskustvom iz arene, ti ljudi sada koriste svoje vje\x9Atine protiv demona koji su zauzeli Tristram.";
+			case STR_1084_Druid_Description:
+				return "Druid prihva\xE6""a svoju \x9Eivotinjsku stranu i voli se pribli\x9Eiti \xE8udovi\x9Atima da ih rastrga. Pomalo je neopran i smrdljiv, ali nitko mu to ne \x9E""eli re\xE6i.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "Demonolog priziva demone iz svih krugova Pakla da izvr\x9A""avaju njegove naloge. Najdra\x9E""e mu je gledati kako njegovi ljubimci rastr\x9Eu sve na svom putu.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Nekromant nikad nije naudio \x9Eivom bi\xE6u. Sve rane, bol i smrt umjesto njega nanosi njegova ne\x9Eiva, sadisti\xE8ka horda kosturskih slugu. Od ne\xE8""ega se mora \x9Eivjeti.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "Gospodar zvijeri je \x9A""aman koji se protiv tame bori krvolo\xE8nim zvijerima prirode. Voli vaditi srca palim \x9Ertvama i jesti ih kako bi stekao njihovu mo\xE6.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Zna probiti i najdeblji oklop. S o\x9Atrim oru\x9Ejem u\xE8inkovit je protiv nemrtvih. Dodatni napadi \x9Atitom pove\xE6""avaju mu \x9Atetu.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "\xC8isto obrambena vrsta gladijatora. \x8Eilav, mo\xE6""an, neslomljiv. Zna iscrpiti protivnika prije nego \x9Ato ga dokraj\xE8i.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Nenadma\x9A""an u navali, \x9Ertvuje obranu radi napada. Specijaliziran za borbu s dva oru\x9Eja. Prava zvijezda borbi u jami.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Secutor je gladijator specijaliziran za izmicanje napadima i ultrabrz oporavak od udarca. Zanimljivo, koristi polute\x9Aku opremu.";
+			default: return nullptr;
+		}
+	}
+
+	// (th4) Czech: class / subclass / specialization descriptions, all 39 cases. Full CP1250 diacritics
+	// (meta atlas cells in TH4loc_cze.mor); each under 255 bytes (the caller copies into char[256]). Class names =
+	// the glossary names CS_Ui / CS_Menu use. English lives in the thehell4.rc STRINGTABLE.
+	if( GameLanguage == LANG_CS ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "V\xE1le\xE8n\xEDky najde\x9A v prvn\xED linii ka\x9E""d\xE9 bitvy, kde se tv\xE1\xF8\xED v tv\xE1\xF8 utk\xE1vaj\xED s netvory a padouchy.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Lu\xE8i\x9Atnice mistrn\xEC ovl\xE1""daj\xED luk. Dr\x9E\xED si odstup a zab\xEDjej\xED netvory z d\xE1lky.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "M\xE1gov\xE9 jsou mistry v ovl\xE1""d\xE1n\xED sil a esenc\xED, kter\xE9 jsou pro ostatn\xED lidi neviditeln\xE9. Proti d\xE9mon\xF9m je to n\xE1stroj stejn\xEC \xFA\xE8inn\xFD jako kladivo.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Mni\x9Ai jsou duchovn\xED bojovn\xED""ci, kte\xF8\xED vynikaj\xED ve v\x9A""ech druz\xED""ch boje s v\xFDjimkou magie.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Lot\xF8ice jsou rv\xE1\xE8ky, banditky, zlod\xECjky a lupi\xE8ky. Ko\xF8ist je to jedin\xE9, co pro n\xEC m\xE1 cenu.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Divo\x9Ai jsou siln\xED, statn\xED a v boji vynikaj\xED jako m\xE1lokdo. Chyb\xED jim k\xE1ze\xF2, ale vynahrazuj\xED to hrubou silou.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "V\xE1le\xE8n\xEDk je \x9A""ampion a rv\xE1\xE8, jeho\x9E \x9Eivot \xE8i smrt z\xE1vis\xED na znalosti zbran\xED a taktiky. Klasick\xFD bojovn\xEDk. Mistr blokov\xE1n\xED.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Inkvizitor zasv\xECtil \x9Eivot hled\xE1n\xED a vym\xFD""cen\xED kac\xED\xF8stv\xED i vyznava\xE8\xF9 zl\xE9 magie a o\xE8i\x9A\x9Dov\xE1n\xED temnoty svat\xFDm ohn\xECm. Mistr \x9Eiveln\xE9ho po\x9Akozen\xED.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Str\xE1\x9E""ce je obrann\xE1 t\xF8\xED""da, kter\xE1 pou\x9E\xEDv\xE1 velk\xE9 me\xE8""e a kladiva. A ku\x9A""e. Kdy\x9E se ho zept\xE1\x9A na jeho posl\xE1n\xED v Tristramu, rychle zm\xECn\xED t\xE9ma.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Templ\xE1\xF8 je svat\xFD mu\x9E a \x9Alechetn\xFD v\xE1le\xE8n\xEDk, kter\xFD p\xF8\xEDsahal chr\xE1nit slab\xE9 a bojovat se zlem. Specializuje se na vym\xFD""cen\xED nemrtv\xFD""ch. Um\xED pou\x9E\xEDvat vrhac\xED kladiva.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Talent Lu\xE8i\x9Atnice spo\xE8\xEDv\xE1 v rychl\xE9m po\x9Akozen\xED z bezpe\xE8n\xE9 vzd\xE1lenosti. Mus\xED si ale d\xE1vat pozor a nikoho nepustit bl\xEDzko. To \xE8""asto nedopad\xE1 dob\xF8""e.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "\x8A\xEDpy Zv\xEC""dky nezp\xF9sobuj\xED kritick\xE9 z\xE1sahy, ale vynahrazuje to dodate\xE8n\xFDm \x9Eiveln\xFDm po\x9Akozen\xEDm \x9A\xEDp\xF9. V tom opravdu vynik\xE1. Tak\xE9 m\xE1 hezk\xE9 zrzav\xE9 vlasy.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Ostrost\xF8""elkyn\xEC je pomalej\x9A\xED typ lu\xE8i\x9Atnice, m\xE1 jedine\xE8n\xFD v\xFD""b\xECr dlouh\xFD""ch luk\xF9 a um\xED po\xF8\xE1""dn\xEC ude\xF8it. Jej\xED p\xF8""esnost nem\xE1 obdoby. A kritick\xE9 z\xE1sahy jsou smrt\xED""c\xED.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Traperka nastra\x9Euje pasti proti p\xF8isluhova\xE8\xF9m temnoty. M\xE1 tak\xE9 vysoce vyvinut\xFD smysl pro m\xF3""du. Jej\xED obl\xED""ben\xE1 barva je modr\xE1. Neptej se pro\xE8.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "M\xE1g je klasick\xFD sesilatel kouzel, \xE8""arod\xECj, kouzeln\xEDk. Nav\xED""c z\xEDsk\xE1v\xE1 p\xF8\xEDstup k ark\xE1nov\xE9mu v\xEC""d\xECn\xED, ke kter\xE9mu se \x9E\xE1""dn\xE1 jin\xE1 t\xF8\xED""da nedostane.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "Elementalista m\xE1 nad\xE1n\xED pro kouzla ohn\xEC, chladu a blesku. Mistr \x9Eivl\xF9. Jeho kouzla maj\xED slu\x9Anou \x9A""anci zp\xF9sobit po\x9Akozen\xED nav\xED""c.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Vyvol\xE1va\xE8i jsou podtyp m\xE1g\xF9, kte\xF8\xED bojuj\xED se zlem s pomoc\xED tvor\xF9, je\x9E sami vyvol\xE1vaj\xED.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "\xC8""ernokn\xEC\x9En\xEDk je adept temn\xE9ho v\xEC""d\xECn\xED a proti d\xE9mon\xF9m pou\x9E\xEDv\xE1 \xE8""ernou magii a kyselinov\xE1 kouzla. Nem\xF9\x9E""e se nau\xE8it svat\xE1 kouzla.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Klasick\xFD Mnich. Rychl\xFD, v\x9A""estrann\xFD a zap\xF8is\xE1hl\xFD nep\xF8\xEDtel v\x9A""ech d\xE9mon\xF9. Mistrn\xEC ovl\xE1""d\xE1 h\xF9l. Dok\xE1\x9E""e j\xED zas\xE1hnout v\xED""ce c\xEDl\xF9. Pro boj na d\xE1lku d\xE1v\xE1 p\xF8""ednost luk\xF9m.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Kensei, prav\xFD mistr zbran\xED, je s\xEDla, se kterou je t\xF8""eba po\xE8\xEDtat. A v boji je to pastva pro o\xE8i. V\xEC\xF8\xED, \x9E""e zab\xEDjen\xED je forma um\xECn\xED.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Shugoki je ob\xF8\xED, t\xEC\x9E""ce obrn\xECn\xFD bojovn\xEDk, kter\xFD v boji zbl\xEDzka d\xE1v\xE1 p\xF8""ednost d\xF8""evcov\xFDm zbran\xEDm. A v boji na d\xE1lku luk\xF9m.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Shinobi se r\xE1""d dostane ke sv\xE9mu c\xEDli hodn\xEC bl\xEDzko a cel\xFD \x9Eivot zdokonaloval um\xECn\xED bojovn\xEDka st\xEDn\xF9. V boji na d\xE1lku um\xED pou\x9E\xEDvat vrhac\xED hv\xECzdice.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Lot\xF8ice je hbit\xE1 postava, kter\xE1 bojuje dv\xECma zbran\xECmi. Jej\xED siln\xE9 str\xE1nky jsou rychl\xE9 \xFAtoky, slu\x9An\xE9 ses\xEDl\xE1n\xED kouzel a uh\xFD""b\xE1n\xED. Slabinou je nedostatek fyzick\xE9 odolnosti.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Asas\xEDnka bojuje dr\xE1py. R\xE1""da je nam\xE1\xE8\xED v kyselin\xEC, aby nic netu\x9A\xED""c\xEDm ob\xECtem zp\xF9sobila v\xECt\x9A\xED po\x9Akozen\xED. V boji na d\xE1lku nejrad\xECji pou\x9E\xEDv\xE1 vrhac\xED no\x9E""e.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Jej\xED zbroj je jej\xED zbran\xED. Nos\xED \xE8\xE1sti zbroje pokryt\xE9 bodci a tak zra\xF2uje ty, kdo na ni \xFAto\xE8\xED zbl\xEDzka. V boji na d\xE1lku pou\x9E\xEDv\xE1 rychl\xE9 ku\x9A""e.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "\x8Eivot Bombard\xE9rky je prost\xFD. Miluje v\xFD""buchy. A h\xE1z\xED po nep\xF8\xE1tel\xED""ch v\xFD""bu\x9An\xE9 ba\xF2ky, dokud v\x9Aichni nezem\xF8ou. Obvykle v hrozn\xFD""ch muk\xE1""ch.";
+			case STR_1085_Gladiatrix_Description:
+				return "Gladi\xE1torka je velk\xE1. Ne tlust\xE1, prost\xEC VELK\xC1. R\xE1""da ml\xE1t\xED do v\xEC""c\xED jin\xFDmi v\xEC""cmi, a po\xF8\xE1""dn\xEC. R\xE1""da pou\x9E\xEDv\xE1 luky. Co v\xED""c dodat? To je v\x9A""e. Velk\xE1. Siln\xE1. Hloup\xE1.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Divoch, typick\xFD bojovn\xEDk prvn\xED linie. Netref\xED slab\xE9 m\xEDsto, zato um\xED ude\xF8it tvrd\xEC. D\xE1v\xE1 p\xF8""ednost velk\xFDm obouru\xE8n\xEDm zbran\xEDm.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "V civilizovan\xE9 spole\xE8nosti by byl b\xECs Berserkra probl\xE9mem. Ale tady je to obrovsk\xE1 v\xFDhoda! Nel\xEDtostn\xFD, rychl\xFD a nezastaviteln\xFD bojovn\xEDk.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Rozmar p\xF8\xEDrody, obr mezi mu\x9Ei. Nenos\xED lidskou zbroj - v jeho velikosti ji prost\xEC ned\xEClaj\xED. Hol\xFDma rukama roztrh\xE1 cokoli. D\xE9moni o n\xECm maj\xED no\xE8n\xED m\xF9ry.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Pou\xE8""eni zku\x9A""enostmi z ar\xE9ny, obracej\xED te\xEF tito mu\x9Ei sv\xE9 dovednosti proti d\xE9mon\xF9m, kte\xF8\xED ovl\xE1""dli Tristram.";
+			case STR_1084_Druid_Description:
+				return "Druid p\xF8ij\xEDm\xE1 svou zv\xED\xF8""ec\xED str\xE1nku a r\xE1""d se k netvor\xF9m dostane bl\xEDzko, aby je roztrhal. Trochu neumyt\xFD a p\xE1""chnouc\xED, ale nikdo nem\xE1 odvahu mu to \xF8\xED""ct.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "D\xE9monolog vyvol\xE1v\xE1 d\xE9mony ze v\x9A""ech kruh\xF9 Pekla, aby plnili jeho v\xF9li. Nejrad\xECji se d\xEDv\xE1, jak jeho mazl\xED\xE8""ci trhaj\xED na kusy v\x9A""e, co jim stoj\xED v cest\xEC.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Nekromant nikdy neubl\xED\x9Eil \x9Eiv\xE9mu tvoru. V\x9A""echna zran\xECn\xED, bolest a smrt za n\xECj rozd\xE1v\xE1 jeho ne\x9Eiv\xE1 sadistick\xE1 horda kostliv\xFD""ch p\xF8isluhova\xE8\xF9. N\xECjak se \x9Eivit mus\xED.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "P\xE1n zv\xED\xF8""at je \x9A""aman, kter\xFD proti temnot\xEC bojuje s pomoc\xED krvela\xE8n\xFD""ch \x9A""elem p\xF8\xEDrody. R\xE1""d vytrh\xE1v\xE1 srdce padl\xFDm ob\xECtem a poj\xED""d\xE1 je, aby z\xEDskal jejich s\xEDlu.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "V\xED, jak prorazit i tu nejtlust\x9A\xED zbroj. Proti nemrtv\xFDm je \xFA\xE8inn\xFD s ostr\xFDmi zbran\xECmi. Dodate\xE8n\xE9 \xFAtoky \x9At\xEDtem zvy\x9Auj\xED jeho po\x9Akozen\xED.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "\xC8ist\xEC obrann\xFD typ gladi\xE1tora. Hou\x9E""evnat\xFD, mocn\xFD, nezlomn\xFD. V\xED, jak protivn\xEDka vy\xE8""erpat, ne\x9E ho doraz\xED.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "V n\xE1poru nem\xE1 sob\xEC rovn\xE9ho, obranu ob\xECtuje \xFAtoku. Specializuje se na boj dv\xECma zbran\xECmi. Prav\xE1 hv\xECzda z\xE1pas\xF9 v ar\xE9n\xEC.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Secutor je gladi\xE1tor, kter\xFD se specializuje na uh\xFD""b\xE1n\xED \xFAtok\xF9m a bleskov\xE9 zotaven\xED ze z\xE1sah\xF9. Kupodivu pou\x9E\xEDv\xE1 polot\xEC\x9Ekou v\xFDstroj.";
+			default: return nullptr;
+		}
+	}
+
+	// (th4) Portuguese: base-class descriptions only (Choose Class screen). ASCII-folded.
+	// Anything not listed returns nullptr -> English fallback (subclass/spec stay English).
+	if( GameLanguage == LANG_PT ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Os Guerreiros ficam na frente de qualquer batalha, enfrentando monstros e viloes corpo a corpo.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Os Arqueiros sao habeis com o arco. Mantem distancia e matam monstros de longe.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Os Magos dominam forcas e essencias invisiveis aos outros. E uma ferramenta tao eficaz quanto um martelo contra demonios.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Os Monges sao lutadores espirituais que se destacam em todo tipo de combate, exceto a magia.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Os Ladinos sao aventureiros, bandidos, ladroes e saqueadores. O saque e tudo o que tem valor para eles.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Os Barbaros sao fortes, bem constituidos e se destacam no combate como poucos. Falta-lhes disciplina, mas compensam com poder bruto.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "O Guerreiro e um campeao e brigao cuja vida ou morte depende do conhecimento de armas e taticas. Lutador classico. Mestre do bloqueio.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "O Inquisidor dedicou a vida a encontrar e eliminar a heresia e os praticantes de magia maligna, e a purificar as trevas com fogo sagrado. Mestre do dano elemental.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "O Guardiao e uma classe defensiva que usa grandes espadas e martelos. E bestas. Quando perguntado sobre sua missao em Tristram, muda de assunto rapidamente.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "O Templario e um homem santo e nobre guerreiro que jurou defender os fracos e combater o mal. Especializa-se em erradicar Mortos-Vivos. Pode usar martelos de arremesso.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "O talento do Arqueiro esta em causar dano rapido a distancia segura. Mas ela deve ter cuidado e nao deixar ninguem se aproximar. Isso costuma acabar mal.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "O Batedor nao da critico com flechas, mas compensa com dano elemental de flecha extra. E ai que ela brilha de verdade. Tambem tem belos cabelos ruivos.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "A Franco-Atiradora e uma arqueira mais lenta, tem um sortimento unico de arcos longos e da um belo golpe. Sua precisao e sem igual. E os criticos sao mortais.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "A Armadilheira instala armadilhas para combater os lacaios das trevas. Tambem tem um apurado senso de moda. Sua cor favorita e o azul. Nao pergunte por que.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "O Mago e um conjurador classico, feiticeiro. Tambem obtem acesso ao conhecimento Arcano que nenhuma outra classe tem.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "O Elementalista tem um dom para feiticos de fogo, frio e raio. Um mestre dos elementos. Seus feiticos tem boa chance de causar dano extra.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Os Invocadores sao um subtipo de magos que combatem o mal com a ajuda de criaturas que erguem.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "O Bruxo e um adepto do conhecimento sombrio e usa feiticaria negra e feiticos de acido para combater demonios. Nao pode aprender feiticos sagrados.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Monge classico. Rapido, versatil e inimigo jurado de todos os demonios. Usa o bordao com maestria. Pode atingir varios alvos. Prefere arcos a distancia.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Um verdadeiro mestre das armas, o Kensei e uma forca a ser respeitada. E um espetaculo em batalha. Ele acredita que matar e uma forma de arte.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "O Shugoki e um lutador gigante e pesadamente blindado que prefere armas de haste no combate proximo. E arcos para o combate a distancia.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "O Shinobi prefere aproximar-se do alvo e passou a vida aperfeicoando as habilidades de um lutador das sombras. Pode usar estrelas de arremesso a distancia.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "A Ladina e agil e empunha duas armas. Seus pontos fortes sao ataques rapidos, boa conjuracao e evasao. Seu ponto fraco e a falta de robustez fisica.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "A Assassina usa garras em combate. Adora mergulha-las em acido para causar mais dano a vitimas desavisadas. A distancia, prefere facas de arremesso.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Sua armadura e sua arma. Tem pecas cobertas de espinhos e assim causa dano aos atacantes corpo a corpo. Usa bestas rapidas no combate a distancia.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "A vida e simples para a Bombardeira. Ela adora explosoes. E arremessa frascos explosivos nos inimigos ate que todos morram. Geralmente, em agonia terrivel.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "O Barbaro, um tipico lutador da linha de frente. Nao sabe acertar um ponto fraco, mas sabe bater forte. Prefere grandes armas de duas maos.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Numa sociedade civilizada, a furia do Furioso seria um problema. Mas aqui e uma enorme vantagem! Um lutador impiedoso, rapido e imparavel.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Uma aberracao da natureza, um homem gigantesco, nao usa armadura humana - nao a fazem do tamanho dele. Despedaca qualquer coisa com as maos. Da pesadelos aos demonios.";
+			case STR_1085_Gladiatrix_Description:
+				return "A Gladiadora e grande. Nao gorda, so GRANDE. Ela gosta de bater em coisas com outras coisas, com bastante forca. Gosta de usar arcos. O que mais ha para dizer? E isso. Grande. Forte. Burra.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Ensinados pela experiencia passada na arena, estes homens agora usam suas habilidades contra os demonios que tomaram Tristram.";
+			case STR_1084_Druid_Description:
+				return "O Druida abraca seu lado animalesco e gosta de se aproximar dos monstros e despedaca-los. Um pouco sujo e fedorento, mas ninguem tem coragem de dizer a ele.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "O Demonologo invoca demonios de todos os circulos do Inferno para cumprir suas ordens. Sua parte favorita e ver seus servos despedacarem tudo em seu caminho.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "O Necromante nunca feriu uma criatura viva. Toda a dor, o sofrimento e a morte sao causados por sua horda sadica de servos esqueleticos nao-vivos. E um ganha-pao.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "O Mestre das Feras e um curandeiro que usa feras viscerais da natureza para combater as trevas. Gosta de arrancar coracoes de suas vitimas e come-los para ganhar seu poder.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Sabe perfurar a mais espessa das armaduras. Eficaz com laminas ao lutar contra Mortos-Vivos. Ataques adicionais de escudo aumentam seu dano.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Tipo de gladiador puramente defensivo. Resistente, poderoso, inquebravel. Sabe como desgastar o oponente antes de acaba-lo.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Inigualavel na investida, sacrifica a defesa pelo ataque. Especializa-se no estilo de luta com duas armas. Uma verdadeira estrela das lutas de arena.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "O Secutor e um gladiador que se especializa em esquivar de ataques e em recuperacao ultrarrapida. Curiosamente, usa um equipamento semi-pesado.";
+			default: return nullptr;
+		}
+	}
+	// (th4) Indonesian: base-class + subclass + specialization descriptions.
+	// Anything not listed returns nullptr -> English fallback.
+	// ID atlas is plain ASCII, so these are ordinary literals.
+	if( GameLanguage == LANG_ID ){
+		switch( strId ){
+			case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+				return "Ksatria berada di garis depan setiap pertempuran, beradu langsung dengan monster dan penjahat.";
+			case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+				return "Pemanah adalah ahli busur yang terampil. Mereka menjaga jarak dan membunuh monster dari kejauhan.";
+			case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+				return "Penyihir adalah ahli mengendalikan kekuatan dan esensi yang tak kasat mata bagi manusia lain. Ini adalah senjata seampuh palu melawan iblis.";
+			case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+				return "Biksu adalah petarung spiritual yang unggul dalam segala jenis pertarungan, kecuali sihir.";
+			case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+				return "Bandit adalah petualang, perampok, pencuri, dan penjarah. Jarahan adalah segalanya bagi mereka.";
+			case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+				return "Barbar kuat, bertubuh kekar, dan unggul dalam pertarungan melebihi kebanyakan. Mereka kurang disiplin, tapi menebusnya dengan kekuatan mentah.";
+
+			// --- Warrior subclasses ---
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+				return "Ksatria adalah juara dan petarung yang hidup atau matinya bergantung pada penguasaan senjata dan taktik. Petarung klasik. Ahli menangkis.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+				return "Inkuisitor mengabdikan hidupnya untuk memburu dan melenyapkan bidah, pengguna sihir jahat, serta menyucikan kegelapan dengan api suci. Ahli kerusakan elemental.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+				return "Penjaga adalah kelas bertahan yang menggunakan pedang besar dan palu. Serta busur silang. Saat ditanya soal misinya di Tristram, ia buru-buru mengalihkan topik.";
+			case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+				return "Templar adalah pria suci dan ksatria mulia yang bersumpah membela yang lemah dan melawan kejahatan. Ahli membasmi Mayat Hidup. Bisa memakai palu lempar.";
+
+			// --- Archer subclasses ---
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+				return "Bakat Pemanah terletak pada memberi kerusakan cepat dari jarak aman. Tapi ia harus berhati-hati dan tak membiarkan siapa pun mendekat. Itu sering berakhir buruk.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+				return "Pengintai tak memberi kritikal dengan panah, tapi menebusnya dengan kerusakan panah elemental tambahan. Di situlah ia benar-benar bersinar. Rambut merahnya juga indah.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+				return "Penembak Jitu adalah pemanah yang lebih lambat, punya koleksi busur panjang yang unik, dan bisa memukul keras. Akurasinya tiada tara. Dan kritikalnya mematikan.";
+			case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+				return "Penjebak memasang jebakan untuk melawan antek kegelapan. Ia juga sangat modis. Warna favoritnya biru. Jangan tanya kenapa.";
+
+			// --- Mage subclasses ---
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+				return "Penyihir adalah penyihir klasik. Ia juga memperoleh akses ke pengetahuan Arkana yang tak dimiliki kelas lain.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+				return "Elementalis mahir dalam sihir api, dingin, dan petir. Ahli elemen. Sihirnya punya peluang lumayan untuk memberi kerusakan tambahan.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+				return "Pemanggil adalah jenis penyihir yang melawan kejahatan dengan bantuan makhluk yang mereka bangkitkan.";
+			case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+				return "Warlock adalah ahli pengetahuan gelap dan menggunakan sihir hitam serta sihir asam untuk melawan iblis. Tak bisa mempelajari sihir Suci.";
+
+			// --- Monk subclasses ---
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+				return "Biksu klasik. Cepat, serba bisa, dan musuh bebuyutan semua iblis. Menguasai tongkat dengan piawai. Bisa memukul banyak sasaran sekaligus. Lebih suka busur untuk jarak jauh.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+				return "Ahli senjata sejati, Kensei adalah kekuatan yang patut diperhitungkan. Dan pemandangan menakjubkan dalam pertempuran. Ia percaya membunuh adalah bentuk seni.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+				return "Shugoki adalah petarung raksasa berbaju zirah berat yang lebih suka senjata tiang untuk pertarungan jarak dekat. Dan busur untuk jarak jauh.";
+			case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+				return "Shinobi lebih suka mendekat langsung dengan sasarannya, dan menghabiskan hidupnya menyempurnakan keahlian petarung bayangan. Bisa memakai bintang lempar untuk jarak jauh.";
+
+			// --- Rogue subclasses ---
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+				return "Bandit adalah petarung gesit bersenjata ganda. Kekuatannya pada serangan cepat, sihir lumayan, dan mengelak. Kelemahannya adalah ketahanan fisik yang minim.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+				return "Asasin memakai cakar dalam pertarungan. Ia suka mencelupkannya ke asam untuk memberi kerusakan lebih pada korban yang lengah. Untuk jarak jauh, ia lebih suka pisau lempar.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+				return "Zirahnya adalah senjatanya. Ia punya bagian zirah berduri dan memberi kerusakan pada penyerang jarak dekat lewat itu. Memakai busur silang cepat untuk jarak jauh.";
+			case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+				return "Hidup itu sederhana bagi Bombardir. Ia suka ledakan. Ia melempar botol peledak ke musuhnya sampai semua mati. Biasanya, dalam penderitaan mengerikan.";
+			case STR_1085_Gladiatrix_Description:
+				return "Gladiatrix itu besar. Bukan gemuk, hanya BESAR. Ia suka memukul benda dengan benda lain, cukup keras. Suka pakai busur. Apa lagi? Sudah. Besar. Kuat. Bodoh.";
+
+			// --- Savage subclasses ---
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+				return "Barbar, petarung garis depan yang khas. Tak tahu cara memukul titik lemah, tapi tahu cara memukul keras. Lebih suka senjata besar dua tangan.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+				return "Di masyarakat beradab, amukan Berserker akan jadi masalah. Tapi di sini itu keuntungan besar! Petarung yang kejam, cepat, dan tak terhentikan.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+				return "Manusia raksasa aneh yang tak memakai zirah manusia - mereka memang tak membuatnya seukurannya. Bisa mencabik apa pun dengan tangan kosong. Membuat iblis bermimpi buruk.";
+			case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+				return "Diajari oleh pengalaman arena masa lalu, para pria ini kini memakai keahlian mereka melawan iblis yang telah menguasai Tristram.";
+			case STR_1084_Druid_Description:
+				return "Druid merangkul sisi kebinatangannya dan suka mendekati monster lalu mencabiknya. Sedikit dekil dan bau, tapi tak ada yang berani memberitahunya.";
+
+			// --- Summoner specializations ---
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+				return "Demonolog memanggil iblis dari segala lingkaran Neraka untuk menuruti perintahnya. Bagian favoritnya adalah menonton peliharaannya mencabik semua yang menghalangi.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+				return "Nekromanser tak pernah melukai makhluk hidup. Semua luka, rasa sakit, dan kematian ditimpakan oleh gerombolan antek tengkorak sadis tak-hidupnya. Itu mata pencaharian.";
+			case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+				return "Penjinak Buas adalah dukun yang memakai binatang buas untuk melawan kegelapan. Suka mencabut jantung korbannya dan memakannya untuk merebut kekuatan mereka.";
+
+			// --- Gladiator specializations ---
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+				return "Tahu cara menembus zirah paling tebal. Efektif dengan senjata tajam saat melawan Mayat Hidup. Serangan perisai tambahan meningkatkan kerusakannya.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+				return "Jenis gladiator murni bertahan. Tangguh, kuat, tak terpatahkan. Tahu cara menguras tenaga lawan sebelum menghabisinya.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+				return "Tak tertandingi dalam serbuan, ia mengorbankan pertahanan demi serangan. Ahli gaya bertarung senjata ganda. Bintang sejati laga arena.";
+			case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+				return "Secutor adalah gladiator yang ahli mengelak serangan dan pulih dari pukulan secepat kilat. Anehnya, ia memakai perlengkapan setengah berat.";
+		}
+		return nullptr;
+	}
+	// (th4) Japanese class/subclass descriptions. REAL EUC-JP, not the meta atlas --
+	// the dialog fonts all have grid sheets from TH4loc_jpn.mor.
+	if( GameLanguage == LANG_JA ){
+		switch( strId ){
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\xC0\xEF\xBB\xCE\xA4\xCF\xCD\xA6\xBC\xD4\xA4\xC7\xA4\xA2\xA4\xEA\xC6\xAE\xBB\xCE\xA1\xA3\xA4\xBD\xA4\xCE\xCC\xBF\xA4\xCF\xC9\xF0\xB4\xEF\xA4\xC8\xC0\xEF\xBD\xD1\xA4\xCE\xBD\xCF\xC3\xA3\xA4\xCB\xA4\xAB\xA4\xAB\xA4\xC3\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3\xB8\xC5\xC5\xB5\xC5\xAA\xA4\xCA\xC0\xEF\xA4\xA4\xBC\xEA\xA1\xA3\xBC\xF5\xA4\xB1\xA4\xCE\xC3\xA3\xBF\xCD\xA1\xA3";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\xBF\xB3\xCC\xE4\xB4\xB1\xA4\xCF\xB0\xDB\xC3\xBC\xA4\xC8\xBC\xD9\xB0\xAD\xA4\xCA\xCB\xE2\xCB\xA1\xA4\xCE\xC5\xCC\xA4\xF2\xC3\xB5\xA4\xB7\xBD\xD0\xA4\xB7\xA4\xC6\xCC\xC7\xA4\xDC\xA4\xB7\xA1\xA2\xC0\xBB\xA4\xCA\xA4\xEB\xB2\xD0\xA4\xC7\xB0\xC7\xA4\xF2\xBE\xF4\xA4\xE1\xA4\xEB\xA4\xB3\xA4\xC8\xA4\xCB\xC0\xB8\xB3\xB6\xA4\xF2\xCA\xFB\xA4\xB2\xA4\xBF\xA1\xA3\xC2\xB0\xC0\xAD\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xCE\xC3\xA3\xBF\xCD\xA1\xA3";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\xBC\xE9\xB8\xEE\xBC\xD4\xA4\xCF\xC2\xE7\xB7\xF5\xA4\xC8\xC4\xCA\xA4\xF2\xBF\xB6\xA4\xEB\xA4\xA6\xCB\xC9\xB8\xE6\xA4\xCE\xBF\xA6\xA1\xA3\xD7\xB8\xA4\xE2\xBB\xC8\xA4\xA6\xA1\xA3\xA5\xC8\xA5\xEA\xA5\xB9\xA5\xC8\xA5\xE9\xA5\xE0\xA4\xC7\xA4\xCE\xCC\xDC\xC5\xAA\xA4\xF2\xCC\xE4\xA4\xEF\xA4\xEC\xA4\xEB\xA4\xC8\xA1\xA2\xA4\xB9\xA4\xB0\xCF\xC3\xC2\xEA\xA4\xF2\xCA\xD1\xA4\xA8\xA4\xEB\xA1\xA3";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\xC0\xBB\xC6\xB2\xB5\xB3\xBB\xCE\xA4\xCF\xC0\xBB\xBF\xA6\xBC\xD4\xA4\xCB\xA4\xB7\xA4\xC6\xB9\xE2\xB5\xAE\xA4\xCA\xC0\xEF\xBB\xCE\xA1\xA3\xBC\xE5\xA4\xAD\xBC\xD4\xA4\xF2\xBC\xE9\xA4\xEA\xB0\xAD\xA4\xC8\xC0\xEF\xA4\xA6\xC0\xC0\xA4\xA4\xA4\xF2\xCE\xA9\xA4\xC6\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3\xC9\xD4\xBB\xE0\xBC\xD4\xA4\xCE\xC6\xA4\xC8\xB2\xA4\xF2\xC0\xEC\xCC\xE7\xA4\xC8\xA4\xB7\xA1\xA2\xC4\xCA\xA4\xF2\xC5\xEA\xA4\xB2\xA4\xE9\xA4\xEC\xA4\xEB\xA1\xA3";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\xBC\xCD\xBC\xEA\xA4\xCE\xBA\xCD\xA4\xCF\xB0\xC2\xC1\xB4\xA4\xCA\xB4\xD6\xB9\xE7\xA4\xA4\xA4\xAB\xA4\xE9\xA4\xCE\xC2\xAE\xA4\xA4\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA1\xA3\xA4\xBF\xA4\xC0\xA4\xB7\xC3\xAF\xA4\xE2\xB6\xE1\xA4\xC5\xA4\xB1\xA4\xC6\xA4\xCF\xA4\xCA\xA4\xE9\xA4\xCA\xA4\xA4\xA1\xA3\xA4\xB5\xA4\xE2\xA4\xCA\xA4\xA4\xA4\xC8\xB0\xAD\xA4\xA4\xBD\xAA\xA4\xEF\xA4\xEA\xCA\xFD\xA4\xF2\xA4\xB9\xA4\xEB\xA1\xA3";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\xC0\xCD\xB8\xF5\xA4\xCF\xCC\xF0\xA4\xC7\xB2\xF1\xBF\xB4\xA4\xF2\xBD\xD0\xA4\xBB\xA4\xCA\xA4\xA4\xA4\xAC\xA1\xA2\xCC\xF0\xA4\xCE\xC2\xB0\xC0\xAD\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xCE\xBE\xE5\xBE\xE8\xA4\xBB\xA4\xAC\xA4\xBD\xA4\xEC\xA4\xF2\xCA\xE4\xA4\xA6\xA1\xA3\xA4\xBD\xA4\xB3\xA4\xAC\xB6\xAF\xA4\xDF\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3\xA4\xBD\xA4\xEC\xA4\xC8\xA1\xA2\xC8\xFE\xA4\xB7\xA4\xA4\xC0\xD6\xCC\xD3\xA4\xCE\xBB\xFD\xA4\xC1\xBC\xE7\xA4\xC0\xA1\xA3";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\xC1\xC0\xB7\xE2\xBC\xEA\xA4\xCF\xC3\xD9\xA4\xA4\xB7\xBF\xA4\xCE\xBC\xCD\xBC\xEA\xA1\xA3\xC6\xC8\xBC\xAB\xA4\xCE\xC4\xB9\xB5\xDD\xA4\xF2\xC2\xB7\xA4\xA8\xA1\xA2\xC2\xC7\xB7\xE2\xA4\xCF\xA4\xBF\xA4\xA4\xA4\xBD\xA4\xA6\xBD\xC5\xA4\xA4\xA1\xA3\xA4\xBD\xA4\xCE\xC0\xBA\xC5\xD9\xA4\xCF\xCA\xC2\xA4\xD6\xA4\xE2\xA4\xCE\xA4\xAC\xA4\xCA\xA4\xAF\xA1\xA2\xB2\xF1\xBF\xB4\xA4\xCF\xC3\xD7\xCC\xBF\xC5\xAA\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\xE6\xAB\xBB\xC8\xA4\xA4\xA4\xCF\xB0\xC7\xA4\xCE\xB2\xBC\xCB\xCD\xA4\xCB\xC2\xD0\xA4\xB7\xA4\xC6\xE6\xAB\xA4\xF2\xBB\xC5\xB3\xDD\xA4\xB1\xA4\xEB\xA1\xA3\xC0\xF6\xCE\xFD\xA4\xB5\xA4\xEC\xA4\xBF\xBC\xF1\xCC\xA3\xA4\xCE\xBB\xFD\xA4\xC1\xBC\xE7\xA4\xC7\xA4\xE2\xA4\xA2\xA4\xEB\xA1\xA3\xB9\xA5\xA4\xAD\xA4\xCA\xBF\xA7\xA4\xCF\xC0\xC4\xA1\xA3\xCD\xFD\xCD\xB3\xA4\xCF\xBF\xD6\xA4\xAF\xA4\xCA\xA1\xA3";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\xCB\xE2\xBD\xD1\xBB\xCE\xA4\xCF\xB8\xC5\xC5\xB5\xC5\xAA\xA4\xCA\xBE\xA7\xA4\xA8\xBC\xEA\xA1\xA2\xCB\xE2\xCB\xA1\xBB\xC8\xA4\xA4\xA1\xA2\xCD\xC5\xBD\xD1\xBB\xCE\xA1\xA3\xC2\xBE\xA4\xCE\xBF\xA6\xA4\xCB\xA4\xCF\xC6\xCF\xA4\xAB\xA4\xCC\xC8\xEB\xB1\xFC\xA4\xCE\xC3\xCE\xBC\xB1\xA4\xCB\xA4\xE2\xBC\xEA\xA4\xAC\xC6\xCF\xA4\xAF\xA1\xA3";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\xB8\xB5\xC1\xC7\xBD\xD1\xBB\xCE\xA4\xCF\xB2\xD0\xA4\xC8\xCE\xE4\xB5\xA4\xA4\xC8\xC5\xC5\xB7\xE2\xA4\xCE\xBC\xF6\xCA\xB8\xA4\xF2\xC1\xE0\xA4\xEB\xA1\xA3\xB8\xB5\xC1\xC7\xA4\xCE\xC3\xA3\xBF\xCD\xA1\xA3\xA4\xBD\xA4\xCE\xBC\xF6\xCA\xB8\xA4\xCF\xA4\xAB\xA4\xCA\xA4\xEA\xA4\xCE\xB3\xCE\xCE\xA8\xA4\xC7\xC4\xC9\xB2\xC3\xA4\xCE\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xF2\xCD\xBF\xA4\xA8\xA4\xEB\xA1\xA3";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\xBE\xA4\xB4\xAD\xBB\xCE\xA4\xCF\xCB\xE2\xBD\xD1\xBB\xCE\xA4\xCE\xB0\xEC\xBC\xEF\xA4\xC7\xA1\xA2\xBC\xAB\xA4\xE9\xB5\xAF\xA4\xB3\xA4\xB7\xA4\xBF\xC2\xB8\xBA\xDF\xA4\xF2\xBB\xC8\xA4\xC3\xA4\xC6\xB0\xAD\xA4\xC8\xC0\xEF\xA4\xA6\xA1\xA3";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\xCB\xE2\xC6\xBB\xBB\xD5\xA4\xCF\xB0\xC7\xA4\xCE\xC3\xCE\xBC\xB1\xA4\xCE\xC5\xCC\xA4\xC7\xA1\xA2\xB9\xF5\xA4\xA4\xCB\xE2\xBD\xD1\xA4\xC8\xBB\xC0\xA4\xCE\xBC\xF6\xCA\xB8\xA4\xF2\xB0\xAD\xCB\xE2\xA4\xCB\xC2\xD0\xA4\xB7\xA4\xC6\xBB\xC8\xA4\xA6\xA1\xA3\xC0\xBB\xA4\xCA\xA4\xEB\xBC\xF6\xCA\xB8\xA4\xCF\xB3\xD8\xA4\xD9\xA4\xCA\xA4\xA4\xA1\xA3";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\xB8\xC5\xC5\xB5\xC5\xAA\xA4\xCA\xBD\xA4\xC6\xBB\xBB\xCE\xA1\xA3\xC2\xAE\xA4\xAF\xA1\xA2\xCB\xFC\xC7\xBD\xA4\xC7\xA1\xA2\xA4\xA2\xA4\xE9\xA4\xE6\xA4\xEB\xB0\xAD\xCB\xE2\xA4\xCE\xBD\xC9\xC5\xA8\xA1\xA3\xBE\xF3\xA4\xF2\xB8\xAB\xBB\xF6\xA4\xCB\xC1\xE0\xA4\xEB\xA1\xA3\xCA\xA3\xBF\xF4\xA4\xCE\xC5\xA8\xA4\xF2\xC6\xB1\xBB\xFE\xA4\xCB\xC2\xC7\xA4\xC6\xA4\xEB\xA1\xA3\xB1\xF3\xB3\xD6\xA4\xCB\xA4\xCF\xB5\xDD\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\xBF\xBF\xA4\xCE\xC9\xF0\xB4\xEF\xA4\xCE\xC3\xA3\xBF\xCD\xA4\xC7\xA4\xA2\xA4\xEB\xB7\xF5\xC0\xBB\xA4\xCF\xA1\xA2\xC9\xEE\xA4\xEC\xA4\xCC\xCE\xCF\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3\xC0\xEF\xA4\xA6\xBB\xD1\xA4\xCF\xB8\xAB\xCA\xAA\xA4\xC7\xA4\xE2\xA4\xA2\xA4\xEB\xA1\xA3\xBB\xA6\xA4\xB7\xA4\xCF\xB7\xDD\xA4\xCE\xB0\xEC\xBC\xEF\xA4\xC0\xA4\xC8\xBF\xAE\xA4\xB8\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\xBC\xE9\xB8\xEE\xB5\xB4\xA4\xCF\xBD\xC5\xA4\xA4\xB3\xBB\xA4\xF2\xC5\xBB\xA4\xA6\xB5\xF0\xB6\xED\xA4\xC7\xA1\xA2\xB6\xE1\xC0\xDC\xA4\xC7\xA4\xCF\xC4\xB9\xCA\xC1\xA4\xCE\xC9\xF0\xB4\xEF\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3\xB1\xF3\xB3\xD6\xA4\xC7\xA4\xCF\xB5\xDD\xA4\xF2\xBB\xC8\xA4\xA6\xA1\xA3";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\xC7\xA6\xA4\xCF\xC9\xB8\xC5\xAA\xA4\xCB\xB4\xD6\xB6\xE1\xA4\xDE\xA4\xC7\xC7\xF7\xA4\xEB\xA4\xB3\xA4\xC8\xA4\xF2\xB9\xA5\xA4\xDF\xA1\xA2\xB1\xC6\xA4\xCE\xC0\xEF\xA4\xA4\xBC\xEA\xA4\xC8\xA4\xB7\xA4\xC6\xA4\xCE\xB5\xBB\xA4\xF2\xC0\xB8\xB3\xB6\xA4\xAB\xA4\xB1\xA4\xC6\xCB\xE1\xA4\xA4\xA4\xC6\xA4\xAD\xA4\xBF\xA1\xA3\xB1\xF3\xB3\xD6\xA4\xC7\xA4\xCF\xBC\xEA\xCE\xA2\xB7\xF5\xA4\xF2\xBB\xC8\xA4\xA6\xA1\xA3";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\xC5\xF0\xC2\xB1\xA4\xCF\xC6\xF3\xC5\xE1\xA4\xF2\xC1\xE0\xA4\xEB\xC1\xC7\xC1\xE1\xA4\xA4\xC0\xEF\xA4\xA4\xBC\xEA\xA1\xA3\xB6\xAF\xA4\xDF\xA4\xCF\xC2\xAE\xA4\xA4\xB9\xB6\xB7\xE2\xA1\xA2\xB0\xAD\xA4\xAF\xA4\xCA\xA4\xA4\xCB\xE2\xCB\xA1\xA1\xA2\xA4\xBD\xA4\xB7\xA4\xC6\xB2\xF3\xC8\xF2\xA1\xA3\xBC\xE5\xA4\xDF\xA4\xCF\xC2\xC7\xA4\xBF\xA4\xEC\xB6\xAF\xA4\xB5\xA4\xCE\xB7\xE7\xC7\xA1\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\xB0\xC5\xBB\xA6\xBC\xD4\xA4\xCF\xC0\xEF\xA4\xA4\xA4\xC7\xC4\xDE\xA4\xF2\xBB\xC8\xA4\xA6\xA1\xA3\xA4\xE8\xA4\xEA\xC2\xE7\xA4\xAD\xA4\xCA\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xF2\xCC\xFD\xC3\xC7\xA4\xB7\xA4\xBF\xB3\xCD\xCA\xAA\xA4\xCB\xCD\xBF\xA4\xA8\xA4\xEB\xA4\xBF\xA4\xE1\xA1\xA2\xC4\xDE\xA4\xF2\xBB\xC0\xA4\xCB\xBF\xBB\xA4\xB9\xA4\xCE\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3\xB1\xF3\xB3\xD6\xA4\xC7\xA4\xCF\xC5\xEA\xA4\xB2\xBE\xAE\xC5\xE1\xA4\xF2\xBB\xC8\xA4\xA6\xA4\xB3\xA4\xC8\xA4\xAC\xC2\xBF\xA4\xA4\xA1\xA3";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\xA4\xBD\xA4\xCE\xB3\xBB\xA4\xB3\xA4\xBD\xA4\xAC\xC9\xF0\xB4\xEF\xA1\xA3\xB3\xBB\xA4\xCE\xB3\xC6\xC9\xF4\xA4\xCF\xDB\xF9\xA4\xCB\xCA\xA4\xA4\xEF\xA4\xEC\xA1\xA2\xB6\xE1\xC0\xDC\xA4\xC7\xB9\xB6\xA4\xE1\xA4\xC6\xA4\xAD\xA4\xBF\xBC\xD4\xA4\xCB\xBD\xFD\xA4\xF2\xCD\xBF\xA4\xA8\xA4\xEB\xA1\xA3\xB1\xF3\xB3\xD6\xA4\xCB\xA4\xCF\xC2\xAE\xA4\xA4\xD7\xB8\xA4\xF2\xBB\xC8\xA4\xA6\xA1\xA3";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\xC7\xFA\xB7\xE2\xBC\xEA\xA4\xCE\xBF\xCD\xC0\xB8\xA4\xCF\xC3\xB1\xBD\xE3\xA4\xC0\xA1\xA3\xC7\xFA\xC8\xAF\xA4\xAC\xB9\xA5\xA4\xAD\xA4\xCA\xA4\xCE\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3\xC5\xA8\xA4\xAC\xC1\xB4\xB0\xF7\xBB\xE0\xA4\xCC\xA4\xDE\xA4\xC7\xC7\xFA\xCE\xF6\xA4\xCE\xC9\xD3\xA4\xF2\xC5\xEA\xA4\xB2\xA4\xC4\xA4\xB1\xA4\xEB\xA1\xA3\xA4\xBF\xA4\xA4\xA4\xC6\xA4\xA4\xA4\xCF\xC0\xA8\xA4\xDE\xA4\xB8\xA4\xA4\xB6\xEC\xCC\xE5\xA4\xCE\xA4\xA6\xA4\xC1\xA4\xCB\xA1\xA3";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\xCC\xEE\xBF\xCD\xA4\xCF\xC5\xB5\xB7\xBF\xC5\xAA\xA4\xCA\xC1\xB0\xC0\xFE\xA4\xCE\xC0\xEF\xA4\xA4\xBC\xEA\xA1\xA3\xBC\xE5\xC5\xC0\xA4\xF2\xC6\xCD\xA4\xAF\xA4\xB3\xA4\xC8\xA4\xCF\xA4\xC7\xA4\xAD\xA4\xCA\xA4\xA4\xA4\xAC\xA1\xA2\xB6\xAF\xA4\xAF\xC2\xC7\xA4\xC4\xA4\xB3\xA4\xC8\xA4\xCF\xA4\xC7\xA4\xAD\xA4\xEB\xA1\xA3\xC2\xE7\xA4\xAD\xA4\xCA\xCE\xBE\xBC\xEA\xC9\xF0\xB4\xEF\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\xCA\xB8\xCC\xC0\xA4\xCE\xC3\xE6\xA4\xCA\xA4\xE9\xB6\xB8\xC0\xEF\xBB\xCE\xA4\xCE\xCA\xB0\xC5\xDC\xA4\xCF\xCC\xF1\xB2\xF0\xBB\xF6\xA4\xC0\xA4\xED\xA4\xA6\xA1\xA3\xA4\xC0\xA4\xAC\xA4\xB3\xA4\xB3\xA4\xC7\xA4\xCF\xC0\xE4\xC2\xE7\xA4\xCA\xB6\xAF\xA4\xDF\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xAA\xA1\xA1\xCD\xC6\xBC\xCF\xA4\xCA\xA4\xAF\xA1\xA2\xC2\xAE\xA4\xAF\xA1\xA2\xBB\xDF\xA4\xE1\xA4\xE9\xA4\xEC\xA4\xCC\xC0\xEF\xA4\xA4\xBC\xEA\xA1\xA3";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\xBC\xAB\xC1\xB3\xA4\xCE\xB2\xF8\xCA\xAA\xA1\xA2\xBF\xCD\xA4\xCE\xBB\xD1\xA4\xF2\xA4\xB7\xA4\xBF\xB5\xF0\xBF\xCD\xA1\xA3\xBF\xCD\xB4\xD6\xA4\xCE\xB3\xBB\xA4\xCF\xC3\xE5\xA4\xB1\xA4\xCA\xA4\xA4\xA1\xA3\xA4\xBD\xA4\xCE\xC2\xE7\xA4\xAD\xA4\xB5\xA4\xCE\xA4\xE2\xA4\xCE\xA4\xAC\xBA\xEE\xA4\xE9\xA4\xEC\xA4\xC6\xA4\xA4\xA4\xCA\xA4\xA4\xA4\xAB\xA4\xE9\xA4\xC0\xA1\xA3\xC1\xC7\xBC\xEA\xA4\xC7\xB2\xBF\xA4\xC7\xA4\xA2\xA4\xEC\xB0\xFA\xA4\xAD\xCE\xF6\xA4\xB1\xA4\xEB\xA1\xA3\xB0\xAD\xCB\xE2\xA4\xCF\xC8\xE0\xA4\xCE\xCC\xB4\xA4\xF2\xB8\xAB\xA4\xC6\xF2\xB6\xA4\xB5\xA4\xEC\xA4\xEB\xA1\xA3";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\xC6\xAE\xB5\xBB\xBE\xEC\xA4\xC7\xA4\xCE\xB7\xD0\xB8\xB3\xA4\xCB\xC3\xC3\xA4\xA8\xA4\xE9\xA4\xEC\xA1\xA2\xA4\xBD\xA4\xCE\xB5\xBB\xA4\xF2\xBA\xA3\xA4\xCF\xA5\xC8\xA5\xEA\xA5\xB9\xA5\xC8\xA5\xE9\xA5\xE0\xA4\xF2\xC3\xA5\xA4\xC3\xA4\xBF\xB0\xAD\xCB\xE2\xA4\xCB\xB8\xFE\xA4\xB1\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\xB0\xAD\xCB\xE2\xB3\xD8\xBC\xD4\xA4\xCF\xC3\xCF\xB9\xF6\xA4\xCE\xA4\xA2\xA4\xE9\xA4\xE6\xA4\xEB\xB3\xAC\xC1\xD8\xA4\xAB\xA4\xE9\xB0\xAD\xCB\xE2\xA4\xF2\xBE\xA4\xA4\xD3\xA1\xA2\xB8\xCA\xA4\xCB\xBB\xC5\xA4\xA8\xA4\xB5\xA4\xBB\xA4\xEB\xA1\xA3\xBB\xF4\xA4\xA4\xBC\xEA\xA4\xAC\xB9\xD4\xA4\xAF\xBC\xEA\xA4\xCE\xA4\xB9\xA4\xD9\xA4\xC6\xA4\xF2\xB0\xFA\xA4\xAD\xCE\xF6\xA4\xAF\xA4\xCE\xA4\xF2\xC4\xAF\xA4\xE1\xA4\xEB\xA4\xCE\xA4\xAC\xB2\xBF\xA4\xE8\xA4\xEA\xB9\xA5\xA4\xAD\xA4\xC0\xA1\xA3";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\xBB\xE0\xCE\xEE\xBD\xD1\xBB\xCE\xA4\xCF\xC0\xB8\xA4\xA2\xA4\xEB\xBC\xD4\xA4\xF2\xBD\xFD\xA4\xC4\xA4\xB1\xA4\xBF\xA4\xB3\xA4\xC8\xA4\xAC\xA4\xCA\xA4\xA4\xA1\xA3\xC4\xCB\xA4\xDF\xA4\xE2\xB6\xEC\xA4\xB7\xA4\xDF\xA4\xE2\xBB\xE0\xA4\xE2\xA1\xA2\xA4\xBD\xA4\xCE\xBB\xE0\xA4\xBB\xA4\xEB\xD3\xCF\xB5\xD4\xA4\xCE\xB3\xBC\xB9\xFC\xA4\xCE\xB7\xB2\xA4\xEC\xA4\xAC\xB1\xBF\xA4\xD6\xA1\xA3\xA4\xB3\xA4\xEC\xA4\xE2\xBB\xC5\xBB\xF6\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\xBD\xC3\xBB\xC8\xA4\xA4\xA4\xCF\xBC\xAB\xC1\xB3\xA4\xCE\xCC\xD4\xA4\xEB\xBD\xC3\xA4\xF2\xB0\xC7\xA4\xCB\xC2\xD0\xA4\xB7\xA4\xC6\xBB\xC8\xA4\xA6\xBC\xF6\xBD\xD1\xBB\xD5\xA1\xA3\xDA\xCD\xA4\xB7\xA4\xBF\xB3\xCD\xCA\xAA\xA4\xCE\xBF\xB4\xC2\xA1\xA4\xF2\xD9\xB1\xA4\xEA\xBD\xD0\xA4\xB7\xA4\xC6\xB6\xF4\xA4\xE9\xA4\xA4\xA1\xA2\xA4\xBD\xA4\xCE\xCE\xCF\xA4\xF2\xB2\xE6\xA4\xAC\xCA\xAA\xA4\xC8\xA4\xB9\xA4\xEB\xA4\xCE\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\xBA\xC7\xA4\xE2\xB8\xFC\xA4\xA4\xB3\xBB\xA4\xF2\xA4\xE2\xB4\xD3\xA4\xB1\xA4\xEB\xA1\xA3\xBF\xCF\xA4\xC7\xC9\xD4\xBB\xE0\xBC\xD4\xA4\xCB\xCD\xAD\xB8\xFA\xA1\xA3\xBD\xE2\xA4\xCB\xA4\xE8\xA4\xEB\xC4\xC9\xB2\xC3\xB9\xB6\xB7\xE2\xA4\xAC\xA5\xC0\xA5\xE1\xA1\xBC\xA5\xB8\xA4\xF2\xB9\xE2\xA4\xE1\xA4\xEB\xA1\xA3";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\xBD\xE3\xBF\xE8\xA4\xCB\xCB\xC9\xB8\xE6\xB7\xBF\xA4\xCE\xC6\xAE\xBB\xCE\xA1\xA3\xB4\xE8\xBE\xE6\xA4\xC7\xA1\xA2\xCE\xCF\xB6\xAF\xA4\xAF\xA1\xA2\xCD\xC9\xA4\xEB\xA4\xAC\xA4\xCC\xA1\xA3\xBB\xDF\xA4\xE1\xA4\xF2\xBB\xC9\xA4\xB9\xC1\xB0\xA4\xCB\xC1\xEA\xBC\xEA\xA4\xF2\xBE\xC3\xCC\xD7\xA4\xB5\xA4\xBB\xA4\xEB\xBD\xD1\xA4\xF2\xBF\xB4\xC6\xC0\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\xB9\xB6\xA4\xE1\xA4\xCB\xA4\xAB\xA4\xB1\xA4\xC6\xA4\xCF\xCA\xC2\xA4\xD6\xBC\xD4\xA4\xCA\xA4\xAF\xA1\xA2\xBC\xE9\xA4\xEA\xA4\xF2\xBC\xCE\xA4\xC6\xA4\xC6\xB9\xB6\xB7\xE2\xA4\xCB\xC5\xD2\xA4\xB1\xA4\xEB\xA1\xA3\xC6\xF3\xC5\xE1\xA4\xCE\xC0\xEF\xA4\xA4\xA4\xF2\xC0\xEC\xCC\xE7\xA4\xC8\xA4\xB9\xA4\xEB\xA1\xA3\xA4\xDE\xA4\xB5\xA4\xCB\xB9\xA3\xA4\xCE\xC0\xEF\xA4\xA4\xA4\xCE\xB2\xD6\xB7\xC1\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\xA5\xBB\xA5\xAF\xA5\xC8\xA5\xEB\xA4\xCF\xB9\xB6\xB7\xE2\xA4\xCE\xB2\xF3\xC8\xF2\xA4\xC8\xC4\xB6\xB9\xE2\xC2\xAE\xA4\xCE\xB2\xF3\xC9\xFC\xA4\xF2\xC0\xEC\xCC\xE7\xA4\xC8\xA4\xB9\xA4\xEB\xC6\xAE\xBB\xCE\xA1\xA3\xC9\xD4\xBB\xD7\xB5\xC4\xA4\xCA\xA4\xB3\xA4\xC8\xA4\xCB\xA1\xA2\xC8\xBE\xBD\xC5\xC1\xF5\xA4\xCE\xC1\xF5\xC8\xF7\xA4\xF2\xBF\xC8\xA4\xCB\xA4\xC4\xA4\xB1\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\xC0\xEF\xBB\xCE\xA4\xCF\xA4\xA2\xA4\xE9\xA4\xE6\xA4\xEB\xC0\xEF\xA4\xA4\xA4\xCE\xC1\xB0\xC0\xFE\xA4\xCB\xB8\xAB\xBD\xD0\xA4\xB5\xA4\xEC\xA1\xA2\xB2\xF8\xCA\xAA\xA4\xE4\xB0\xAD\xC5\xDE\xA4\xC8\xC0\xB5\xCC\xCC\xA4\xAB\xA4\xE9\xB8\xFE\xA4\xAD\xB9\xE7\xA4\xA6\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\xBC\xCD\xBC\xEA\xA4\xCF\xB5\xDD\xA4\xCE\xCC\xBE\xBC\xEA\xA1\xA3\xB4\xD6\xB9\xE7\xA4\xA4\xA4\xF2\xCA\xDD\xA4\xC1\xA1\xA2\xB1\xF3\xA4\xAF\xA4\xAB\xA4\xE9\xB2\xF8\xCA\xAA\xA4\xF2\xBB\xC5\xCE\xB1\xA4\xE1\xA4\xEB\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\xCB\xE2\xBD\xD1\xBB\xCE\xA4\xCF\xA1\xA2\xC2\xBE\xA4\xCE\xBF\xCD\xB4\xD6\xA4\xCB\xA4\xCF\xB8\xAB\xA4\xA8\xA4\xCC\xCE\xCF\xA4\xC8\xC2\xB8\xBA\xDF\xA4\xF2\xC1\xE0\xA4\xEB\xC3\xA3\xBF\xCD\xA1\xA3\xA4\xBD\xA4\xCE\xC6\xBB\xB6\xF1\xA4\xCF\xC4\xCA\xA4\xCB\xCE\xF4\xA4\xE9\xA4\xBA\xB0\xAD\xCB\xE2\xA4\xCB\xB8\xFA\xA4\xAF\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\xBD\xA4\xC6\xBB\xBB\xCE\xA4\xCF\xCE\xEE\xC5\xAA\xA4\xCA\xC0\xEF\xA4\xA4\xBC\xEA\xA4\xC7\xA1\xA2\xCB\xE2\xCB\xA1\xA4\xF2\xBD\xFC\xA4\xAF\xA4\xA2\xA4\xE9\xA4\xE6\xA4\xEB\xC0\xEF\xA4\xA4\xA4\xCE\xB7\xBF\xA4\xF2\xBD\xA4\xA4\xE1\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\xC5\xF0\xC2\xB1\xA4\xCF\xCC\xB5\xCD\xEA\xA1\xA2\xBB\xB3\xC2\xB1\xA1\xA2\xC5\xF0\xBF\xCD\xA1\xA2\xA4\xBD\xA4\xB7\xA4\xC6\xCE\xAC\xC3\xA5\xBC\xD4\xA1\xA3\xC0\xEF\xCD\xF8\xC9\xCA\xA4\xB3\xA4\xBD\xA4\xAC\xC8\xE0\xBD\xF7\xA4\xE9\xA4\xCB\xA4\xC8\xA4\xC3\xA4\xC6\xA4\xCE\xB2\xC1\xC3\xCD\xA4\xC7\xA4\xA2\xA4\xEB\xA1\xA3";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\xCC\xEE\xBF\xCD\xA4\xCF\xB6\xAF\xA4\xAF\xA1\xA2\xB4\xE8\xB7\xF2\xA4\xCB\xB0\xE9\xA4\xC1\xA1\xA2\xC0\xEF\xA4\xA4\xA4\xC7\xC8\xE0\xA4\xE9\xA4\xCB\xBE\xA1\xA4\xEB\xBC\xD4\xA4\xCF\xBE\xAF\xA4\xCA\xA4\xA4\xA1\xA3\xB5\xAC\xCE\xA7\xA4\xF2\xB7\xE7\xA4\xAF\xA4\xAC\xA1\xA2\xA4\xBD\xA4\xEC\xA4\xF2\xCF\xD3\xCE\xCF\xA4\xC7\xCA\xE4\xA4\xC3\xA4\xC6\xA4\xA4\xA4\xEB\xA1\xA3";
+		case STR_1084_Druid_Description:
+			return "\xA5\xC9\xA5\xEB\xA5\xA4\xA5\xC9\xA4\xCF\xB8\xCA\xA4\xCE\xBD\xC3\xC0\xAD\xA4\xF2\xBC\xF5\xA4\xB1\xC6\xFE\xA4\xEC\xA1\xA2\xB2\xF8\xCA\xAA\xA4\xCB\xB6\xE1\xA4\xC5\xA4\xA4\xA4\xC6\xB0\xFA\xA4\xAD\xCE\xF6\xA4\xAF\xA4\xCE\xA4\xF2\xB9\xA5\xA4\xE0\xA1\xA3\xBE\xAF\xA1\xB9\xC9\xD4\xB7\xE9\xA4\xC7\xBD\xAD\xA4\xA6\xA4\xAC\xA1\xA2\xC3\xAF\xA4\xE2\xA4\xBD\xA4\xEC\xA4\xF2\xCB\xDC\xBF\xCD\xA4\xCB\xB8\xC0\xA4\xAA\xA4\xA6\xA4\xC8\xA4\xB7\xA4\xCA\xA4\xA4\xA1\xA3";
+		case STR_1085_Gladiatrix_Description:
+			return "\xBD\xF7\xC6\xAE\xBB\xCE\xA4\xCF\xC2\xE7\xA4\xAD\xA4\xA4\xA1\xA3\xC2\xC0\xA4\xC3\xA4\xC6\xA4\xA4\xA4\xEB\xA4\xCE\xA4\xC7\xA4\xCF\xA4\xCA\xA4\xAF\xA1\xA2\xA4\xBF\xA4\xC0\xC2\xE7\xA4\xAD\xA4\xA4\xA1\xA3\xCA\xAA\xA4\xC7\xCA\xAA\xA4\xF2\xA1\xA2\xA4\xAB\xA4\xCA\xA4\xEA\xB6\xAF\xA4\xAF\xC3\xA1\xA4\xAF\xA4\xCE\xA4\xAC\xB9\xA5\xA4\xAD\xA1\xA3\xB5\xDD\xA4\xF2\xBB\xC8\xA4\xA6\xA4\xCE\xA4\xE2\xB9\xA5\xA4\xAD\xA1\xA3\xC2\xBE\xA4\xCB\xB2\xBF\xA4\xF2\xB8\xC0\xA4\xA8\xA4\xD0\xA4\xA4\xA4\xA4\xA1\xA9\xB0\xCA\xBE\xE5\xA1\xA3\xC2\xE7\xA4\xAD\xA4\xA4\xA1\xA3\xB6\xAF\xA4\xA4\xA1\xA3\xB6\xF2\xA4\xAB\xA1\xA3";
+		}
+	}
+	if( GameLanguage == LANG_HIN ){
+		// (th4) Hindi class descriptions. Drawn by DrawFontString from the meta
+		// sheets, so these are ordinary pack-encoded strings.
+		switch( strId ){
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\xAA\xD8\xAF\xBA \xA1\xAB\xA1\xB1 \xAC\xCD\xA3\xF1\xA6\xCD \xA1\xB0\xAA\xDE \xAB\xC2\xAE\xFC\xA1\xB4 \xAE\xA7 \xA3\xE2\xAD\xCC\xA1\xB4 \xA3\xE5\xA7\xF3-\xA9\xFA\xAA\xDE\xA7\xF3 \xA1\xA1\xAE\xC3\xAF\xFB \xA1\xB0\xAA\xDE \xAA\xDE\xA6\xA9\xA7\xF9\xA6\xD0 \xA1\xC6 \xAE\xEF\xA7\xF0 \xA8\xD4\xAA\xDE \xA4\xE7\xA1\xB4 \xAE\xA7\xAE\xBA \xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA \xAA\xF9\xA1\xB1\xA8\xA7 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\xA7\xCF\xAE\xF4\xAE\xCC\xAA\xC0\xAA\xC6 \xA8\xA7 \xA1\xA1\xA8\xD4\xA7\xF3 \xA3\xE5\xAC\xC7\xA7\xF0 \xAC\xCD\xA7\xCF\xAE\xF4 \xA1\xB0\xAA\xDE \xA9\xC4\xAA\xF3 \xA3\xDF\xA7\xBD \xA1\xC6 \xAD\xCF\xA7\xCF\xA1\xCD \xA1\xCC \xA1\xED\xA3\xDC\xA8\xA7 \xA1\xB0\xAA\xDE \xAA\xA2\xA4\xE4\xA8\xA7, \xA6\xCA\xA6\xEE \xA8\xD4\xAC\xCD\xAE\xC4 \xA1\xA1\xAF\xB5 \xAD\xE1 \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xA1\xCC \xAC\xF4\xAE\xE3 \xA1\xB1\xAA\xDE\xA8\xA7 \xAA\xB2 \xAB\xC2\xA1\xF6 \xA7\xB4\xAA\xC0 \xAE\xA7\xAE\xBA \xA6\xCD\xAF\xB0\xA1\xB1 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\xAD\xCD\xAA\xDE\xAE\xE1\xA1\xB1 \xA1\xAB\xA1\xB1 \xAA\xDE\xAE\xED\xAE\xDA\xA9\xFA\xA1\xB1 \xAC\xC7\xAE\xD9 \xAE\xA7 \xA3\xF7 \xA9\xB8\xAE\xBC \xA6\xCA\xAB\xC2\xAC\xCA\xAA\xF4 \xA1\xB0\xAA\xDE \xAD\xED\xA7\xAB\xAE\xFD \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA7\xCF\xA7\xFC\xAD\xF0 \xA9\xE2\xAE\xBA \xA3\xDC\xA9\xB8 \xA1\xA5\xAD\xCC\xAD\xE1 \xAF\xCD\xAE\xC3\xAF\xBC\xA9\xFA \xAA\xB2 \xA1\xA5\xAD\xCC\xA1\xC6 \xA1\xB4\xA9\xFA \xA1\xC6 \xA9\xBB\xAA\xF3 \xAA\xB2 \xA8\xE3\xA3\xD6, \xAC\xC7\xAD\xED \xA6\xD6\xAA\xDF\xA6\xCA \xA9\xBB\xA6\xCA \xA9\xB8\xA7\xAE\xAB\xC2 \xA7\xC3\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\xA4\xF6\xAE\xC9\xA8\xD4\xAB\xC2\xAA\xDE \xA1\xAB\xA1\xB1 \xA8\xD4\xAC\xCD\xAE\xC4 \xA8\xE0\xAA\xEA\xAD\xAB \xA1\xB0\xAA\xDE \xA1\xBD\xAB\xCB\xA7\xF0 \xAA\xD8\xAF\xBA \xAE\xA7, \xA3\xE2\xAD\xCC\xA8\xA7 \xA7\xBA\xB0\xF8\xA9\xB8\xAB\xDE \xA1\xBA \xAA\xDE\xAE\xED \xA1\xB0\xAA\xDE \xA9\xC4\xAA\xE1\xA1\xA4 \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xBA \xAC\xE8\xA8\xD4\xA6\xEB \xAB\xCB \xAE\xA7\xAE\xBA \xA1\xA1\xAA\xAE\xA6\xE6 \xA1\xC6 \xAD\xCC\xA8\xF8\xA1\xAB \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA \xA9\xAD\xA1\xB1\xA8\xA7 \xA1\xC6 \xAD\xED\xA7\xAB\xAE\xFD \xA2\xF8\xAB\xC5 \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xA1\xBA \xAE\xBF\xA6\xD0\xA9\xDC \xAD\xD8\xAA\xDE\xAF\xA7\xA6\xCA \xA7\xBD\xAA\xE7 \xAD\xE1 \xA6\xDF\xA3\xDC \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA1\xB1\xAA\xDE\xA8\xA7 \xAA\xB2 \xAE\xA7\xAE\xBA \xA8\xD4\xAA\xDE \xA1\xA5\xAD\xE1 \xAD\xCF\xAC\xC7\xA7\xD2\xA7\xF0 \xAA\xDE\xAD\xED\xA7\xF3 \xAE\xAA\xA1\xF6 \xA1\xB0\xAA\xDE \xA1\xB7\xAD\xD5 \xA1\xCC \xA8\xD7\xAD\xCC \xA7\xF0\xAD\xF7 \xA1\xA2\xA8\xA7 \xA7\xC3\xA7\xF3 \xAE\xAA\xA1\xF6\xAE\xBA \xAC\xDF\xAD\xCF \xAE\xAA\xA8\xA7 \xA8\xD4\xAA\xDE \xAE\xC0\xA6\xCA \xA9\xD9\xAB\xC5 \xA7\xF0\xAD\xF7 \xAE\xAA\xA6\xCD\xAE\xBA";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\xA1\xB1\xAC\xEB\xB0\xC2 \xA9\xBB\xA6\xC5 \xAD\xE1 \xA9\xFA\xAE\xF4 \xAC\xCA\xAA\xDE \xA7\xF0\xAD\xF7 \xA1\xB1\xAA\xDE\xA6\xD3, \xA8\xD4\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xBA \xA9\xD9\xAA\xDE\xA8\xD7\xA1\xA4 \xA1\xA1\xA6\xD0\xAA\xE4\xAE\xBD\xA6\xCA \xA6\xCD\xAF\xB0\xA1\xB1 \xA9\xBB\xA6\xA9 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAD\xE1 \xA1\xB1\xAA\xDE\xA6\xD3 \xAE\xA7\xAE\xBA \xAA\xBD\xAD\xF7 \xAC\xC7\xAD\xED \xAD\xCC\xA2\xF8\xAA\xA8\xA2\xF8 \xA2\xF8\xA9\xFA\xA1\xB1\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xC6 \xAB\xC5\xAB\xC2 \xA9\xBB\xAB\xC2 \xA9\xE2 \xAD\xD9\xA7\xAE\xAA\xDE \xAE\xA8\xAE\xBA";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\xA7\xF6\xAC\xEB\xA8\xA7\xA9\xBB\xA3\xDC \xA7\xD8\xAA\xA5 \xA6\xCA\xAA\xDE\xAD\xED \xA1\xBA \xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xAE\xA7, \xA1\xA5\xAD\xCC\xA1\xC6 \xA8\xD7\xAD\xCC \xAB\xC2\xAE\xC9\xA9\xCD \xA7\xCF\xA7\xFC\xAD\xC7 \xA1\xB4 \xAC\xCD\xAC\xEE\xAF\xD7 \xAD\xCD\xAE\xF0\xAD\xED \xAE\xA7, \xA1\xB0\xAA\xDE \xAC\xC7\xAD\xED \xA1\xB1\xAE\xBC \xA3\xB5\xA4\xE1 \xA1\xB1\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xAD\xCC\xA4\xEA\xA1\xB1\xA6\xCD \xA1\xA1\xAF\xB6\xAC\xCD\xA6\xD3\xAA\xBD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA1\xC6 \xA9\xFA\xAE\xF4 \xAC\xCA\xAA\xDE \xA2\xB9\xA6\xCA\xA1\xB1 \xAE\xA8\xAE\xBA";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\xA8\xF6\xA7\xC3\xA9\xBB\xA3\xDC \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xA1\xC6 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xFA \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xCC \xA8\xF6\xA7\xC3 \xAB\xC2\xA1\xF6\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA8\xD4\xAD\xED\xA7\xF3\xAC\xDC \xA1\xBA \xAD\xCC\xA9\xFA\xA3\xFD \xA9\xE2 \xA9\xB8\xAD\xF9\xA6\xCA \xAC\xCD\xA1\xB1\xAD\xD2\xA6\xCA \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xB4 \xAF\xAD\xAA\xBD \xAA\xDF\xA1\xF3 \xA7\xF9\xAB\xC5 \xAE\xA7\xAE\xBA \xA1\xB4\xAA\xDE\xA6\xA9 \xA9\xFA\xA6\xCA \xA8\xE3\xA3\xD6\xAE\xBA";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE \xA1\xAB\xA1\xB1 \xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xA6\xDF\xAC\xC7\xAA\xDE\xA2\xFB\xAB\xC2\xA1\xB1, \xA3\xDF\xA7\xBD\xA1\xB1\xAF\xE4, \xA4\xFC\xA7\xF0\xAD\xF0 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xA2\xA4\xAE\xCD \xAE\xEF\xA7\xF0 \xA9\xE2 \xAA\xA2\xAB\xC2\xA6\xCD \xAE\xA7 \xA3\xF7 \xA1\xB7\xAD\xD5 \xA1\xB0\xAA\xDE \xAC\xC7\xAE\xD9 \xA1\xCC \xA7\xF0\xAD\xF7 \xAA\xA2\xAB\xC2\xA6\xCD\xAE\xBA";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\xA6\xCA\xAE\xDA\xAC\xC7\xAC\xDC\xAE\xE5 \xA1\xCC \xA1\xA1\xAF\xB5, \xAC\xF1\xA6\xCA \xA1\xB0\xAA\xDE \xA9\xBE\xA3\xDC\xAB\xCB \xA1\xC6 \xA6\xDF\xAC\xC7\xAA\xFA \xAA\xB2 \xA9\xFA\xAD\xF0\xAA\xDE\xA6\xCA \xAE\xA7\xAE\xBA \xA6\xCA\xAE\xDA\xAC\xE3 \xA1\xB4 \xA2\xA1\xAA\xEA\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xC6 \xA6\xDF\xAC\xC7\xAA\xFA \xAA\xB2 \xA1\xA1\xA6\xD0\xAA\xE4\xAE\xBD\xA6\xCA \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA1\xB1\xAA\xDE\xA8\xA7 \xA1\xBA \xA5\xAD\xA1\xB1-\xA5\xA7\xA1\xB1 \xAD\xCC\xAE\xC9\xA9\xDC\xAC\xC7\xA7\xF3 \xAA\xDE\xAD\xED\xA6\xD3 \xAE\xA7\xAE\xBA";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\xA1\xA2\xB0\xFB\xA7\xF0\xA1\xB1\xAF\xE4 \xA3\xDF\xA7\xBD\xA1\xF3\xAA\xFA \xA1\xB4 \xA1\xAB\xA1\xB1 \xA1\xA5\xA8\xD4\xAC\xC7\xAE\xD9 \xAE\xA8 \xA3\xF7 \xA1\xA1\xA8\xD4\xA8\xA7 \xA1\xA5\xA5\xA7\xA1\xAB \xA3\xE5\xAC\xE3 \xA1\xBA \xA9\xFA\xA7\xAE\xA7\xAE \xAD\xE1 \xA9\xC4\xAA\xE1\xA1\xA4 \xAD\xE1 \xAB\xC2\xAE\xD7\xA6\xDF \xAE\xA8\xAE\xBA";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\xA9\xFA\xAE\xCC\xAE\xC4\xAD\xCF\xA7\xCF\xA1\xB1 \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xE7 \xAE\xEF\xA7\xF0 \xA1\xB4 \xAD\xCF\xA7\xCF\xA1\xB1 \xAE\xA7 \xA1\xB0\xAA\xDE \xA7\xB1\xA7\xF0\xAC\xE3 \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xCC \xA1\xB4\xAB\xC5 \xA3\xDF\xA7\xBD \xA6\xCA\xA6\xEE \xA1\xA1\xAE\xC9\xAB\xC2 \xA6\xDF\xAC\xC7\xAA\xDE \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA8\xD4\xAC\xCD\xAE\xC4 \xA6\xDF\xAC\xC7\xAA\xDE \xA7\xF0\xAD\xF7 \xAD\xD5\xA1\xD2 \xAD\xCC\xA1\xB1\xA6\xCD\xAE\xBA";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\xAE\xBD\xAB\xC5\xAD\xD2\xA1\xB1 \xA9\xDF\xB1\xA8\xAE\xBA \xA6\xDF\xA3\xDC, \xA9\xB8\xAD\xF9\xAA\xA8\xA1\xDB, \xA1\xB0\xAA\xDE \xAD\xCC\xA9\xB8 \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xB4 \xA1\xB1\xB0\xF6\xAA\xDE \xAC\xE8\xAF\xF3\xAE\xBA \xA7\xAF\xA5\xC5 \xA1\xCC \xA1\xBD\xAC\xE8\xAB\xC2\xA6\xCD \xAD\xE1 \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xAD\xE1 \xA1\xB1\xA1\xA4 \xAB\xC2\xAE\xBD\xAE\xC7\xAA\xD9 \xA8\xD4\xAA\xDE \xA1\xAB\xA1\xB1 \xAD\xCF\xA6\xEB \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xA1\xC6 \xAB\xC8\xA1\xAB \xA7\xCF\xA7\xFC\xAD\xAB \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\xA1\xA1\xAE\xC3\xAF\xFB \xA1\xB4 \xA1\xA1\xAD\xCC\xAB\xCB \xA2\xA1\xAA\xEA, \xA1\xC6\xA7\xF0\xAD\xE1\xA1\xA3 \xA1\xAB\xA1\xB1 \xA1\xAC\xAD\xD5 \xAC\xE8\xAE\xC5\xAE\xC6 \xAE\xA7 \xA3\xE2\xAD\xE1 \xAD\xED\xAB\xC2\xA1\xC6 \xAA\xB2 \xA7\xF0\xAD\xF7 \xAB\xC8\xAA\xC0 \xA3\xDF \xAD\xCC\xA1\xB1\xA6\xCD\xAE\xBA \xA1\xB0\xAA\xDE \xAA\xC9\xAE\xE3 \xAA\xB2 \xA7\xC3\xA1\xD2\xA8\xA7 \xAB\xC5\xAA\xBD\xA1\xB1 \xA7\xC0\xAE\xC2\xAA\xBD\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xB4 \xA9\xFD\xA7\xF0\xA7\xF3 \xAE\xA7 \xA1\xB7 \xA9\xFD\xAA\xDE\xA7\xF3 \xA9\xE2 \xA1\xAB\xA1\xB1 \xA1\xB1\xAB\xC5 \xAE\xA7\xAE\xBA";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\xAC\xF4\xA2\xB0\xA1\xB7 \xA1\xAB\xA1\xB1 \xAC\xCD\xAC\xEB\xAB\xC2\xA1\xB4\xAA\xBD, \xA9\xDC\xAA\xE7 \xA1\xB1\xAC\xC7\xA2\xF8 \xAC\xCA\xAB\xC5 \xAB\xC2\xAE\xFC\xA1\xB4 \xAE\xA7 \xA3\xF7 \xA8\xD7\xAD\xCC \xA1\xBA \xA4\xE1\xAE\xBD\xA1\xB1\xAA\xDE \xA1\xC6 \xAB\xC8\xA1\xAB \xAB\xC2\xAE\xC9\xA9\xCD \xA7\xAF\xA5\xC8\xAE\xC3\xAE\xC4 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xB0\xAA\xDE \xA7\xBD\xAA\xDE \xA1\xBA \xAB\xC2\xAE\xFC\xA1\xA4 \xA1\xC6 \xAB\xC8\xA1\xAB \xA7\xCF\xA7\xFC\xAD\xAB\xAE\xBA";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\xAC\xEE\xA8\xAD\xA9\xBE \xA1\xA1\xA8\xD4\xA8\xA7 \xAB\xC2\xB0\xE1 \xA1\xC6 \xA8\xD7\xAD\xCC \xA3\xDF\xA1\xB1\xAA\xDE \xA1\xA2\xA9\xFA\xA8\xA7-\xAD\xCF\xA9\xFA\xA8\xA7 \xA9\xDF\xAE\xD7\xA7\xF3 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7, \xA1\xB0\xAA\xDE \xA1\xA5\xAD\xCC\xA8\xA7 \xA1\xA1\xA8\xD4\xA7\xF3 \xA3\xE5\xAC\xC7\xA7\xF0 \xA3\xBE\xAA\xC0-\xAA\xD8\xAF\xBA \xA1\xC6 \xA1\xCF\xAC\xE8\xAB\xC2 \xA1\xCC \xA7\xF6\xA1\xD5\xAA\xDE\xA8\xA7 \xAA\xB2 \xA9\xBE\xA6\xCD\xAA\xC0 \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA9\xAD\xA1\xB1\xA8\xA7 \xA1\xC6 \xA6\xCD\xAA\xF3 \xA2\xF8\xAB\xC5 \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\xA3\xB5\xAA\xDE \xA7\xC9 \xAD\xED\xA6\xF1\xAA\xC0\xAA\xDE \xA6\xEE\xA9\xFA\xA8\xA7 \xAC\xCA\xAB\xCB \xA9\xA3\xB0\xF8\xA6\xD3\xAB\xCB \xA8\xD7\xAE\xC4 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA6\xCD\xA1\xB1\xA6\xCA \xA6\xDF\xA3\xDC \xAC\xCA\xAA\xDE, \xA5\xAD\xA1\xB1-\xA5\xA7\xA1\xB1 \xA6\xDF\xAC\xC7\xAA\xDE \xA2\xF8\xAB\xC5\xA7\xF3 \xA1\xB0\xAA\xDE \xA2\xF8\xA1\xB1\xA9\xFD \xA7\xC3\xA7\xF3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xBA \xA1\xB1\xA9\xFA\xA3\xF7\xAA\xE7 \xAC\xEB\xAA\xE7\xAA\xE4\xA1\xB1 \xA1\xB1\xA5\xBF\xAA\xDE\xA6\xCD \xA1\xBA \xA1\xB1\xAA\xA5 \xAE\xA7\xAE\xBA";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\xAD\xED\xAE\xDA\xAA\xC0\xAA\xE1 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA8\xD5\xA3\xF1 \xA2\xF8\xAB\xC5\xA6\xD3 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xA1\xA3\xAE\xCC\xAE\xA5 \xA1\xA1\xAE\xC9\xAB\xC2 \xAA\xB2 \xA5\xD1\xA9\xD3\xA7\xF3 \xA9\xDC\xA6\xCD \xAE\xA7 \xA6\xCD\xA1\xB7 \xA9\xCD\xA1\xD2\xA9\xB8\xAA\xDE \xAC\xEE\xA1\xB4\xAA\xDE \xA1\xCC \xA1\xA1\xA7\xD5\xA1\xB1 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xAE\xAA\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xAC\xC7\xAD\xED \xA1\xA1\xA7\xD5\xA1\xB1\xA6\xCA\xAA\xDE \xA9\xAD\xA1\xB1\xA8\xA7 \xA1\xBA \xA3\xC7\xAA\xE4\xAA\xC2 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xD3 \xAE\xA7\xAE\xBA";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\xA1\xA5\xAD\xCC\xA1\xB4 \xA1\xB1\xAC\xC7\xA2\xF8 \xAD\xF6 \xA1\xA5\xAD\xCC\xA1\xB4 \xA1\xA1\xAE\xC3\xAE\xC4 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xCC\xA1\xC6 \xA1\xB1\xAC\xC7\xA2\xF8 \xA1\xC6 \xA4\xED\xA1\xB1\xAE\xFD \xAC\xF7\xAB\xDE \xAD\xE1 \xA5\xE6\xA1\xC6 \xAE\xA8 \xA1\xB0\xAA\xDE \xA1\xA3\xAD\xD5 \xA6\xCA\xAA\xDE\xAD\xED \xAC\xC7\xAD\xED \xA1\xA2\xA9\xFA\xA8\xA7 \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA8\xA7 \xAC\xCA\xAB\xDE \xA1\xCC \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA7\xC3\xA6\xD3 \xAE\xA7\xAE\xBA \xA7\xBD\xAA\xDE \xA1\xC6 \xAA\xC9\xAE\xE3 \xA1\xC6 \xAB\xC8\xA1\xAB \xA6\xDF\xA3\xDC \xA7\xCF\xA7\xFC\xAD\xF0 \xA2\xF8\xAB\xC5\xA6\xD3 \xAE\xA7\xAE\xBA";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\xA2\xB0\xAB\xC2\xAE\xCC\xA7\xB1\xA3\xDC \xA1\xC6 \xAB\xC8\xA1\xAB \xA3\xE5\xAC\xC7\xA7\xF0 \xAD\xCC\xAA\xDE\xAB\xC2 \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xAC\xCD\xAE\xC3\xA9\xB2\xA4\xE1 \xA9\xDC\xA6\xDF \xAE\xA8\xAE\xBA \xA1\xB0\xAA\xDE \xAC\xC7\xAD\xED \xA1\xA1\xA8\xD4\xA8\xA7 \xAC\xE8\xAF\xF3\xAE\xD2 \xA8\xD4\xAA\xDE \xAC\xCD\xAE\xC3\xA9\xB2\xA4\xE1\xA1\xB1 \xA1\xBD\xAE\xE8\xA8\xDA\xAA\xC2 \xA6\xCA\xA9\xB8 \xA6\xCA\xA1\xB1 \xA9\xAD\xA1\xB1\xA6\xD3 \xAE\xA7 \xA3\xDC\xA9\xB8 \xA6\xCA\xA1\xB1 \xAD\xCC\xA9\xB8 \xA9\xFA\xAA\xDE \xA7\xF0 \xA3\xDF\xAE\xF2\xAE\xBA \xA1\xA2\xA9\xFA\xA6\xE8\xAA\xDE \xA8\xD4\xAA\xDE \xA9\xD9\xAA\xC0\xA7\xF0\xA1\xB1 \xAA\xC0\xA6\xCA\xA7\xF3 \xAA\xB2\xAE\xBA";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\xA3\xDD\xA1\xF3\xAB\xCB, \xA1\xA1\xA1\xF3\xAB\xCB \xA8\xD5\xAE\xC5\xAE\xC6 \xA1\xB4 \xA5\xB9\xA5\xA4 \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA \xA1\xB1\xA9\xFA\xA3\xF7\xAA\xDE \xA3\xDC\xA1\xF3\xAD\xED \xA8\xD4\xAA\xDE \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA7\xF3 \xA7\xF0\xAD\xF7 \xA3\xDF\xA7\xF0\xA6\xCD, \xA8\xD4\xAA\xDE \xA1\xB1\xAE\xFC \xAC\xCA\xAA\xDE \xA1\xB1\xAA\xDE\xA7\xF3 \xA1\xE1\xA9\xB8 \xA3\xDF\xA7\xF0\xA6\xCD \xAE\xA7\xAE\xBA \xA9\xB8\xAE\xFD \xA7\xC9\xAD\xED\xAE\xDA\xA7\xA2 \xA1\xA1\xAE\xC3\xAE\xC4 \xA8\xD4\xAD\xCD\xA7\xAE \xA1\xB1\xAA\xDE\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\xA1\xB7\xAD\xD5 \xAC\xEE\xAF\xD7 \xAD\xCC\xA9\xFD\xA3\xDC \xAA\xB2 \xA1\xA5\xAE\xCC\xA9\xFA\xAE\xD6 \xA1\xB4 \xAF\xAE\xA7\xCF \xA1\xAB\xA1\xB1 \xAD\xCC\xA9\xFA\xAE\xC3\xAA\xC0 \xAE\xAA\xA6\xCD\xAE\xBA \xA8\xD4\xAA\xDE \xAA\xBD\xAD\xF2 \xAA\xBD\xAD\xED \xA9\xB8\xAD\xF9\xA6\xCA \xA9\xB8\xAE\xFC \xAB\xC5\xA9\xD9 \xAE\xA7! \xA1\xAB\xA1\xB1 \xA9\xCD\xAA\xDE\xAD\xED\xA9\xFA, \xA6\xDF\xA3\xDC \xA1\xB0\xAA\xDE \xA1\xA1\xA3\xF1\xAA\xBD \xAB\xC2\xAE\xFC\xA1\xB4\xAE\xBA";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\xAE\xBF\xA1\xC3\xA6\xD0 \xA1\xBA \xA1\xAB\xA1\xB1 \xAC\xCD\xA2\xFE\xAE\xC4 \xAA\xDE\xA2\xF8\xA7\xF3, \xA7\xC6\xAE\xDA\xAA\xBD \xA3\xF4\xAD\xCF \xA9\xFA\xA7\xFC\xAE\xC7\xAA\xBD, \xAC\xC7\xAD\xED \xA9\xFD\xA7\xF0\xAC\xC7 \xA1\xB1\xAC\xC7\xA2\xF8 \xA7\xF0\xAD\xF7 \xA8\xD4\xAD\xED\xA7\xF0\xA6\xCD - \xA1\xA5\xAD\xCC\xA1\xC6 \xA7\xF3\xA8\xD4 \xA1\xB4 \xA9\xB8\xA7\xF0\xA6\xCD \xAD\xF6 \xA7\xF0\xAD\xF7\xAE\xBA \xA7\xF1\xA2\xAA \xAD\xF0\xA7\xA9 \xA1\xBD\xA3\xBB \xA9\xE2 \xA3\xA3\xAA\xDE \xAD\xCC\xA1\xB1\xA6\xCD \xAE\xA7\xAE\xBA \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xCC \xB0\xAB\xAE\xC3\xAC\xC7\xB0\xAC \xA7\xC3\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\xA9\xC1\xA6\xDF \xA1\xA1\xA1\xD5\xAE\xFD \xA1\xC6 \xA1\xA1\xA7\xFC\xA9\xD9\xAC\xC7 \xAD\xE1 \xAD\xD5\xA1\xE7 \xAD\xF9\xA1\xAB, \xAA\xD2 \xAB\xDD\xA1\xF3 \xA1\xA1\xA9\xB8 \xA1\xA1\xA8\xD4\xA7\xF3 \xA1\xCF\xAC\xE8\xAB\xC2 \xA1\xA5\xA7\xF0 \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xC6 \xAC\xCD\xAA\xEA\xAE\xE3 \xA2\xF8\xAB\xC5\xA6\xDF \xAE\xA8 \xA3\xE2\xAE\xCC\xAE\xAB\xA8\xA7 \xAF\xCD\xAE\xC3\xAF\xBC\xA9\xFA \xA8\xD4\xAA\xDE \xA1\xB1\xAE\xBE\xA3\xDF \xA1\xB1\xAA\xDE \xAB\xC8\xAA\xC0 \xAE\xA7\xAE\xBA";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\xA7\xB1\xA7\xF0\xAC\xC7\xAC\xEB\xAE\xC3\xAF\xC0 \xA7\xF0\xAA\xDE\xA1\xB1 \xA1\xC6 \xAD\xCC\xA9\xB8 \xA2\xCB\xAA\xFA \xAD\xE1 \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xCC \xA1\xA1\xA8\xD4\xA7\xF3 \xA1\xB4\xA9\xFA \xA1\xB1\xAA\xE1\xA8\xA7 \xA9\xC4\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xAD\xCC\xA9\xB8\xAD\xE1 \xA1\xA1\xA7\xD5\xA1\xB1 \xAA\xBD\xAD\xED \xA9\xDC\xA6\xCD \xAE\xA7 \xA1\xB7 \xA1\xA5\xAD\xCC\xA1\xC6 \xA8\xD7\xAB\xC2\xA6\xD9 \xA1\xA5\xA7\xF0\xA1\xC6 \xAA\xE1\xAE\xC3\xA6\xDF \xAA\xB2 \xA1\xA2\xA8\xA7 \xAC\xCA\xAB\xCB \xAD\xED\xAA\xDE \xA3\xA3\xA3\xDC \xA1\xCC \xA3\xA3\xAA\xDE \xA5\xC8\xAB\xD8\xAE\xBA";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\xAA\xAE\xA6\xCA\xA1\xB1\xAD\xCF\xA7\xCF\xA1\xB1 \xA8\xA7 \xA1\xB1\xA9\xE2 \xA1\xB7\xAD\xD5 \xA3\xE5\xAC\xCD\xA6\xCA \xAE\xF9\xA6\xB2 \xA1\xCC \xA7\xF0\xAD\xF7 \xAD\xCC\xA6\xCD\xAA\xC0\xAE\xBA \xAD\xCF\xAA\xE7 \xA3\xB5\xA4\xE1, \xA8\xDD\xAE\xFC \xA1\xB0\xAA\xDE \xAA\xAE\xAE\xDA\xAA\xC9 \xA1\xA5\xAD\xCC\xA1\xC6 \xAB\xC8\xA1\xAB \xA1\xA5\xAD\xCC\xA1\xBA \xA7\xF6\xB0\xF8\xA3\xE5\xAC\xC7 \xA7\xF6\xB1\xC2\xAA\xDE \xA1\xB2\xA1\xB4\xAB\xC2 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xFA \xA1\xBA \xA9\xE2\xAE\xD7 \xA8\xD4\xAD\xFB\xA2\xFB\xA6\xD3 \xAE\xA7\xAE\xBA \xAA\xBD\xAD\xF6 \xA1\xA5\xAD\xCC\xA1\xBA \xAA\xF9\xA3\xE5 \xAE\xA7\xAE\xBA";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\xA8\xD4\xAC\xF4\xAE\xC3\xAC\xCA\xAA\xA5 \xA1\xAB\xA1\xB1 \xA1\xAF\xA4\xA2 \xAE\xA7 \xA3\xF7 \xAE\xC0\xA7\xCF\xA1\xB4\xAA\xDE \xAD\xE1 \xAB\xC2\xAE\xD7\xA8\xA7 \xA1\xCC \xAE\xBF\xA1\xC3\xA6\xD0 \xA1\xC6 \xAD\xF4\xAD\xCC\xA1\xB1 \xA8\xD4\xAC\xF4 \xA2\xF8\xAB\xC5\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xA5\xAD\xE1 \xA1\xA1\xA8\xD4\xA8\xA7 \xA9\xFD\xAA\xF3 \xAC\xEE\xA1\xB4\xAA\xDE \xA1\xC6 \xAE\xA1\xA7\xAE\xAA\xBD \xA8\xAD\xA2\xF8\xA1\xB1\xAA\xDE \xA7\xF6\xA1\xB4\xAB\xC2\xA7\xF3 \xA1\xB0\xAA\xDE \xA1\xA5\xAE\xCC\xAE\xA5 \xA1\xD5\xA1\xB1\xAA\xDE \xA1\xA5\xA7\xF0\xA1\xBA \xAC\xE8\xAE\xC5\xAE\xC6 \xA8\xD7\xA7\xF3 \xA9\xDC\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\xAD\xCC\xA9\xB8\xAD\xE1 \xAA\xB7\xA4\xF6 \xA1\xB1\xAC\xC7\xA2\xF8 \xA1\xCC \xA9\xE2 \xA9\xEE\xA7\xAE\xA7\xF3 \xA3\xDF\xA7\xF0\xA6\xCD \xAE\xA7\xAE\xBA \xA1\xA1\xAA\xAE\xA6\xE6 \xAD\xE1 \xAB\xC2\xAE\xD7\xA6\xDF \xAD\xCC\xA9\xFA\xAA\xBD \xA6\xDF\xA3\xDC \xA1\xA1\xAE\xC3\xAE\xC4 \xA1\xB4\xAA\xDE\xA1\xF3\xAA\xDE \xAA\xDE\xAD\xED\xA6\xDF \xAE\xA8\xAE\xBA \xA1\xA1\xA6\xD0\xAA\xE4\xAE\xBD\xA6\xCA \xA5\xE9\xAB\xC2 \xAC\xCA\xAA\xDE \xAD\xE1 \xA1\xA5\xAD\xCC\xA1\xB4 \xA7\xFC\xA1\xB1\xAD\xCF\xA7\xF0 \xA9\xB8\xAE\xCD\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\xA8\xE3\xAA\xE7 \xA6\xCA\xAA\xDE\xAD\xED \xAA\xDE\xAE\xED\xAE\xDA\xA9\xFA\xA1\xB1 \xA6\xCA\xAA\xDE\xAD\xED \xA1\xB4 \xA9\xFA\xAE\xCF\xAB\xC2\xAE\xBA \xA1\xB1\xA5\xBF\xAA\xDE, \xA9\xB8\xAB\xC2\xAC\xCA\xA7\xF0, \xA1\xA1\xA4\xF0\xA4\xE1\xAE\xBA \xAC\xCD\xAA\xF9\xA7\xD8 \xA1\xCC \xA1\xD2\xAE\xDA\xA9\xFA \xA1\xB1\xAA\xDE\xA8\xA7 \xAD\xE1 \xA8\xD4\xAD\xED\xAB\xD7 \xA1\xA5\xAD\xE1 \xA6\xEB\xA1\xB4\xA7\xF3 \xA3\xDF\xA7\xF0\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\xA7\xD2\xAC\xDC \xAA\xB2 \xA1\xA5\xAD\xCC\xA1\xB4 \xA1\xCC\xA1\xA4 \xAD\xCF\xA7\xF9 \xA7\xF0\xAD\xF7, \xAC\xC7\xAD\xED \xAC\xCA\xAA\xDE \xA1\xC6 \xAB\xC8\xA1\xAB \xA9\xB8\xA2\xFB\xAC\xC7 \xA1\xBA \xA9\xB8\xAB\xC8 \xA7\xC3 \xA7\xC3\xA6\xCD \xAE\xA7\xAE\xBA \xA7\xC9 \xA1\xA1\xAE\xC3\xAF\xFB \xA1\xBA \xAA\xC9\xAE\xE3 \xAD\xA2\xAB\xCB \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9\xAE\xBA \xA1\xF3\xAF\xAF\xAA\xC9\xAF\xC1 \xA1\xB4 \xA1\xA1\xAD\xCC\xAB\xCB \xAD\xD2\xA6\xCD\xAA\xE1\xAE\xBA";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\xAD\xE1\xA1\xBD\xA6\xE5\xAA\xDE \xA1\xAC\xAD\xCF \xA9\xFA\xAE\xCF\xAB\xC2 \xAE\xA7 \xA3\xF7 \xAC\xCA\xAA\xFA \xAD\xE1 \xA9\xB8\xA2\xF8\xA8\xA7 \xA1\xB0\xAA\xDE \xA1\xA1\xA6\xD0-\xA6\xDF\xA3\xDC \xA1\xA5\xA9\xBB\xAA\xDE \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9 \xAE\xA7\xAE\xBA \xA7\xB4\xAB\xC2\xA2\xF8\xAE\xC3\xA8\xD4 \xAA\xBD\xAD\xED \xA1\xB7 \xAC\xC7\xAD\xED \xA1\xA1\xB0\xE6-\xA9\xDC\xAA\xE7 \xAD\xCF\xA3\xDC \xA8\xD4\xAD\xED\xA7\xF0\xA6\xCD \xAE\xA7\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\xAA\xD8\xAF\xBA \xAD\xED\xAA\xDE \xAA\xC9\xAE\xE3 \xA1\xBA \xA1\xA1\xA1\xF3\xAB\xCB \xA8\xD5\xAE\xC5\xAE\xC6 \xAA\xB2 \xAA\xA2\xAB\xC2\xA6\xDF \xAE\xA8, \xAA\xE1\xAE\xE1\xAD\xE8 \xA1\xB0\xAA\xDE \xA1\xD2\xAB\xC2\xA7\xF3\xAA\xBD\xA1\xCD \xAD\xE1 \xA1\xA2\xA9\xFA\xA8\xA7-\xAD\xCF\xA9\xFA\xA8\xA7 \xA9\xDF\xAE\xD7\xA6\xDF \xAD\xF9\xA1\xAB\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\xA7\xCF\xA7\xFC\xB0\xE6\xAA\xDE \xA1\xBD\xAC\xE8\xAB\xC2 \xA7\xCF\xA7\xFC\xAD\xAB\xA7\xD2\xAA\xE7 \xAE\xAA\xA6\xDF \xAE\xA8\xAE\xBA \xAC\xDC \xA7\xBD\xAA\xE7 \xA9\xB8\xA7\xF3\xA1\xAB \xAA\xDE\xA1\xD2\xA6\xDF \xAE\xA8 \xA1\xB0\xAA\xDE \xAA\xE1\xAE\xE1\xAD\xE8 \xA1\xCC \xA7\xBD\xAA\xDE \xAD\xE1 \xA9\xFD\xAA\xDE\xA6\xDF \xAE\xA8\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\xA3\xDF\xA7\xBD\xA1\xF3\xAA\xDE \xA1\xA5\xA7\xF0 \xAC\xE8\xAE\xC5\xAE\xC6\xAA\xD9 \xA1\xB0\xAA\xDE \xAD\xCF\xAA\xDE\xA6\xCA\xAE\xDA\xAC\xE3 \xA1\xCC \xAD\xCF\xA7\xCF\xA8\xA7 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9 \xAE\xA8 \xA3\xF7 \xA7\xBD\xAD\xCC\xAA\xF3 \xA9\xFA\xA7\xFC\xAE\xC7\xAA\xD9 \xA1\xCC \xA7\xB4\xA1\xD2\xA6\xDF \xAD\xF6 \xA7\xF0\xAD\xF7\xAE\xBA \xA7\xB1\xA7\xF0\xAC\xE3 \xA1\xC6 \xAC\xCD\xAA\xEA\xAE\xE3 \xAA\xBD\xAD\xED \xAD\xED\xA7\xAB\xAE\xFD \xA3\xE2\xA6\xCA\xA7\xF3 \xAD\xF6 \xA1\xB4\xAA\xDE\xA1\xF3\xAA\xDE \xA1\xB0\xA3\xDF\xAA\xDE \xAE\xA7\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\xA9\xDF\xB1\xA8 \xA1\xA2\xAE\xDA\xAA\xA2\xA1\xB1 \xAB\xC2\xAE\xFC\xA1\xC6 \xAE\xA8 \xA3\xF7 \xA3\xDF\xA7\xBD \xA1\xCC \xA3\xD6\xAE\xD7\xA1\xB1\xAA\xDE \xAD\xED\xAA\xDE \xA6\xCA\xAA\xDE\xAD\xED \xA1\xC6 \xAA\xC9\xAE\xE3 \xAA\xB2 \xA7\xF6\xA8\xE0\xA6\xA9 \xAE\xA8\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\xA3\xB5\xAA\xDE \xA6\xCA\xAB\xC2\xAC\xCA\xAA\xDE\xA9\xBB\xA3\xDC, \xA5\xC8\xA1\xC0, \xA1\xA5\xA2\xF8\xAE\xBD\xA1\xC6 \xA1\xB0\xAA\xDE \xAD\xED\xA9\xFA\xAB\xC5\xAC\xC7\xAA\xDE \xAE\xAA\xA6\xDF \xAE\xA8\xAE\xBA \xAB\xD1\xA4\xE1 \xAD\xF6 \xA1\xA5\xA7\xF0\xA1\xC6 \xAB\xC8\xA1\xAB \xAD\xCC\xA9\xB8 \xA1\xBD\xA3\xBB \xAE\xA7\xAE\xBA";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\xA3\xDD\xA1\xF3\xAB\xCB \xA9\xB8\xAB\xC2\xAC\xCA\xA7\xF0 \xA1\xB0\xAA\xDE \xAD\xD8\xA1\xF3\xA5\xAA\xA6\xCA \xAE\xAA\xA6\xDF \xAE\xA8 \xA1\xB0\xAA\xDE \xAA\xC9\xAE\xE3 \xAA\xB2 \xA9\xB8\xAD\xF9\xA6\xCA \xA1\xB1\xA9\xFA \xAB\xDD\xA1\xF3 \xA1\xA5\xA7\xF0\xA1\xC6 \xA9\xB8\xAA\xE1\xA9\xB8\xAA\xDE \xAE\xA8\xAE\xBA \xA1\xA5\xA7\xF0\xAA\xB2 \xA1\xA1\xA7\xFC\xAC\xEB\xAD\xCC\xA7\xF0 \xA1\xBA \xA1\xB1\xAA\xA5 \xAE\xA7, \xA8\xD4\xAA\xDE \xAC\xDC \xA1\xA5\xAD\xCC\xA1\xBA \xA9\xD9\xAA\xDE\xA8\xD7\xA1\xA4 \xA1\xCC\xAA\xF3 \xA9\xB8\xAB\xC2 \xAD\xE1 \xA1\xB1\xAA\xDE\xA6\xDF \xAE\xA8\xAE\xBA";
+		}
+	}
+	else if( GameLanguage == LANG_AR ){
+		switch( strId ){
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8 \xA1\xA8\xA1\xB7\xA1\xBE \xA1\xC2\xA1\xBF\xA1\xB4\xA1\xA7\xA1\xBD\xA1\xB3 \xA1\xC4\xA1\xAD\xA1\xC4\xA1\xA7 \xA1\xC2\xA1\xC4\xA1\xBF\xA1\xC2\xA1\xAA \xA1\xA8\xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBB\xA1\xAA\xA1\xC1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xAA\xA1\xBD\xA1\xAA\xA1\xC4\xA1\xBD. \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4. \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB5\xA1\xAF.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xBC\xA1\xBC \xA1\xC0\xA1\xB0\xA1\xB1 \xA1\xAD\xA1\xC4\xA1\xA7\xA1\xAA\xA1\xC1 \xA1\xBE\xA1\xA5\xA1\xC4\xA1\xAC\xA1\xA7\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xB1\xA1\xB7\xA1\xBC\xA1\xA9 \xA1\xC2\xA1\xBF\xA1\xBF\xA1\xA7\xA1\xB1\xA1\xB3\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xB1\xA1\xC4\xA1\xB1 \xA1\xC2\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xA6\xA1\xB5\xA1\xA7\xA1\xBE\xA1\xC1\xA1\xBF \xA1\xC2\xA1\xAA\xA1\xB7\xA1\xC1\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE\xA1\xA7\xA1\xBF \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xC0\xA1\xA7\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBC\xA1\xAF\xA1\xB3\xA1\xA9. \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xB3 \xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9 \xA1\xAF\xA1\xBB\xA1\xA7\xA1\xB9\xA1\xC4\xA1\xA9 \xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC4\xA1\xC2\xA1\xBB \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xA8\xA1\xC4\xA1\xB1\xA1\xA9 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB7\xA1\xA7\xA1\xB1\xA1\xBC. \xA1\xC2\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xC0\xA1\xB4\xA1\xA7\xA1\xA8. \xA1\xC2\xA1\xAD\xA1\xC4\xA1\xC0 \xA1\xC4\xA1\xB3\xA1\xA3\xA1\xBE \xA1\xB9\xA1\xC0 \xA1\xBF\xA1\xC1\xA1\xBF\xA1\xAA\xA1\xC1 \xA1\xBB\xA1\xC4 \xA1\xAA\xA1\xB1\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xBF \xA1\xC4\xA1\xBA\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xC2\xA1\xB6\xA1\xC2\xA1\xB9 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA7.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\xA1\xBB\xA1\xA7\xA1\xB1\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xA8\xA1\xAF \xA1\xB1\xA1\xAC\xA1\xBE \xA1\xBF\xA1\xBC\xA1\xAF\xA1\xB3 \xA1\xC2\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8 \xA1\xC0\xA1\xA8\xA1\xC4\xA1\xBE \xA1\xC0\xA1\xB0\xA1\xB1 \xA1\xA3\xA1\xC0 \xA1\xC4\xA1\xAF\xA1\xA7\xA1\xBB\xA1\xB9 \xA1\xB9\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xB9\xA1\xBB\xA1\xA7\xA1\xA1 \xA1\xC2\xA1\xC4\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xB1. \xA1\xC4\xA1\xAA\xA1\xAE\xA1\xB5\xA1\xB5 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xA6\xA1\xB5\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBF\xA1\xC2\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xAD\xA1\xC4\xA1\xA7\xA1\xA1. \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xA7\xA1\xBE \xA1\xBF\xA1\xB7\xA1\xA7\xA1\xB1\xA1\xBC \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xC4.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\xA1\xBF\xA1\xC2\xA1\xC1\xA1\xA8\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xA7\xA1\xBF\xA1\xC4\xA1\xA9 \xA1\xBB\xA1\xC4 \xA1\xA5\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xBC \xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xBF\xA1\xC0 \xA1\xBF\xA1\xB3\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xA2\xA1\xBF\xA1\xC0\xA1\xA9. \xA1\xBE\xA1\xBD\xA1\xC0 \xA1\xB9\xA1\xBE\xA1\xC4\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC0 \xA1\xAA\xA1\xAD\xA1\xB0\xA1\xB1 \xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xAF\xA1\xB9 \xA1\xA3\xA1\xAD\xA1\xAF\xA1\xA7 \xA1\xC4\xA1\xBC\xA1\xAA\xA1\xB1\xA1\xA8. \xA1\xBB\xA1\xB0\xA1\xBE\xA1\xBD \xA1\xC0\xA1\xA7\xA1\xAF\xA1\xB1\xA1\xA7 \xA1\xBF\xA1\xA7 \xA1\xC4\xA1\xC0\xA1\xAA\xA1\xC1\xA1\xC4 \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xAE\xA1\xC4\xA1\xB1.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\xA1\xA7\xA1\xBE\xA1\xBD\xA1\xB4\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xAD\xA1\xB1\xA1\xB2 \xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA7\xA1\xAA \xA1\xAD\xA1\xA7\xA1\xB3\xA1\xBF\xA1\xA9 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC1\xA1\xA7\xA1\xBF \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xAA\xA1\xB9\xA1\xC2\xA1\xB6 \xA1\xB0\xA1\xBE\xA1\xBD \xA1\xA8\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4 \xA1\xA5\xA1\xB6\xA1\xA7\xA1\xBB\xA1\xC4 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC1\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xC1\xA1\xC0\xA1\xA7 \xA1\xAA\xA1\xAA\xA1\xA3\xA1\xBE\xA1\xBC \xA1\xAD\xA1\xBC\xA1\xA7. \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xB4\xA1\xB9\xA1\xB1 \xA1\xA3\xA1\xAD\xA1\xBF\xA1\xB1 \xA1\xAC\xA1\xBF\xA1\xC4\xA1\xBE.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xA9 \xA1\xC0\xA1\xC2\xA1\xB9 \xA1\xA3\xA1\xA8\xA1\xB7\xA1\xA3 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xA9\xA1\xCF \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xAA\xA1\xB4\xA1\xBD\xA1\xC4\xA1\xBE\xA1\xA9 \xA1\xBB\xA1\xB1\xA1\xC4\xA1\xAF\xA1\xA9 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xC2\xA1\xC4\xA1\xBE\xA1\xA9\xA1\xCF \xA1\xC2\xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA3\xA1\xC0 \xA1\xAA\xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA9 \xA1\xBF\xA1\xC2\xA1\xAC\xA1\xB9\xA1\xA9. \xA1\xAF\xA1\xBC\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xB6\xA1\xA7\xA1\xC1\xA1\xC3. \xA1\xC2\xA1\xB6\xA1\xB1\xA1\xA8\xA1\xA7\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xB3\xA1\xBF\xA1\xA9 \xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xA9.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xA8\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xAE\xA1\xA7\xA1\xAE \xA1\xAA\xA1\xC0\xA1\xB4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xAE\xA1\xA7\xA1\xAE \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA3\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xB9 \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xB0\xA1\xC2\xA1\xBC \xA1\xB1\xA1\xBB\xA1\xC4\xA1\xB9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB2\xA1\xC4\xA1\xA7\xA1\xA1. \xA1\xC2\xA1\xBE\xA1\xC2\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB2\xA1\xB1\xA1\xBC. \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xB3\xA1\xA3\xA1\xBE \xA1\xBE\xA1\xBF\xA1\xA7\xA1\xB0\xA1\xA7.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1 \xA1\xBF\xA1\xBE\xA1\xBC \xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4\xA1\xCF \xA1\xBF\xA1\xB4\xA1\xB9\xA1\xC2\xA1\xB0 \xA1\xC2\xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1. \xA1\xC2\xA1\xC4\xA1\xC0\xA1\xA7\xA1\xBE \xA1\xA3\xA1\xC4\xA1\xB6\xA1\xA7 \xA1\xC2\xA1\xB5\xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xA5\xA1\xBE\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xAE\xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB0\xA1\xC4 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xC0\xA1\xA7\xA1\xBE\xA1\xC1 \xA1\xA3\xA1\xC4 \xA1\xB7\xA1\xA8\xA1\xBC\xA1\xA9 \xA1\xA3\xA1\xAE\xA1\xB1\xA1\xC3.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\xA1\xA7\xA1\xBE\xA1\xB9\xA1\xC0\xA1\xB5\xA1\xB1\xA1\xC4 \xA1\xA8\xA1\xA7\xA1\xB1\xA1\xB9 \xA1\xBB\xA1\xC4 \xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xC0\xA1\xA7\xA1\xB1 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xB5\xA1\xBC\xA1\xC4\xA1\xB9 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB1\xA1\xBC. \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xC0\xA1\xA7\xA1\xB5\xA1\xB1. \xA1\xC2\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0\xA1\xC1 \xA1\xBB\xA1\xB1\xA1\xB5\xA1\xA9 \xA1\xBF\xA1\xB9\xA1\xAA\xA1\xA8\xA1\xB1\xA1\xA9 \xA1\xBE\xA1\xA5\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xBC \xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA5\xA1\xB6\xA1\xA7\xA1\xBB\xA1\xC4.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xC0\xA1\xC2\xA1\xB9 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1\xA1\xA9 \xA1\xC4\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xB1 \xA1\xA8\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xBF\xA1\xAE\xA1\xBE\xA1\xC2\xA1\xBC\xA1\xA7\xA1\xAA \xA1\xC4\xA1\xA8\xA1\xB9\xA1\xAB\xA1\xC2\xA1\xC0\xA1\xC1\xA1\xA7.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB4\xA1\xB9\xA1\xC2\xA1\xB0 \xA1\xB6\xA1\xBE\xA1\xC4\xA1\xB9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB8\xA1\xBE\xA1\xBF \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xC2\xA1\xAF \xA1\xC2\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBF\xA1\xB6 \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xAA\xA1\xB9\xA1\xBE\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xBC\xA1\xAF\xA1\xB3\xA1\xA9.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xBE\xA1\xA7\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC4. \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xC2\xA1\xBF\xA1\xAA\xA1\xB9\xA1\xAF\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xC1\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA \xA1\xC2\xA1\xB9\xA1\xAF\xA1\xC2 \xA1\xBE\xA1\xAF\xA1\xC2\xA1\xAF \xA1\xBE\xA1\xBD\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0. \xA1\xC4\xA1\xAA\xA1\xBC\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB9\xA1\xB5\xA1\xA7 \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA3\xA1\xC0 \xA1\xC4\xA1\xB5\xA1\xC4\xA1\xA8 \xA1\xA8\xA1\xC1\xA1\xA7 \xA1\xA3\xA1\xC1\xA1\xAF\xA1\xA7\xA1\xBB\xA1\xA7 \xA1\xBF\xA1\xAA\xA1\xB9\xA1\xAF\xA1\xAF\xA1\xA9. \xA1\xC2\xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\xA1\xA7\xA1\xBE\xA1\xBD\xA1\xC4\xA1\xC0\xA1\xB3\xA1\xC4 \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xAD\xA1\xBC\xA1\xC4\xA1\xBC\xA1\xC4 \xA1\xBE\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9\xA1\xCF \xA1\xBC\xA1\xC2\xA1\xA9 \xA1\xC4\xA1\xAD\xA1\xB3\xA1\xA8 \xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xAD\xA1\xB3\xA1\xA7\xA1\xA8. \xA1\xC2\xA1\xBF\xA1\xB4\xA1\xC1\xA1\xAF \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xBC \xA1\xA7\xA1\xBE\xA1\xC0\xA1\xB8\xA1\xB1 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBD\xA1\xA9. \xA1\xC4\xA1\xA4\xA1\xBF\xA1\xC0 \xA1\xA3\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xBE \xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBB\xA1\xC0.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC2\xA1\xBA\xA1\xC2\xA1\xBD\xA1\xC4 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xB9\xA1\xBF\xA1\xBE\xA1\xA7\xA1\xBC \xA1\xAB\xA1\xBC\xA1\xC4\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xAF\xA1\xB1\xA1\xB9 \xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xAD \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xB4\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xBD \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xB1\xA1\xC4\xA1\xA8. \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xC0\xA1\xC2\xA1\xA8\xA1\xC4 \xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xBC\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xA8 \xA1\xBF\xA1\xC0 \xA1\xC1\xA1\xAF\xA1\xBB\xA1\xC1\xA1\xCF \xA1\xC2\xA1\xBC\xA1\xAF \xA1\xA3\xA1\xBB\xA1\xC0\xA1\xC3 \xA1\xAD\xA1\xC4\xA1\xA7\xA1\xAA\xA1\xC1 \xA1\xBB\xA1\xC4 \xA1\xA5\xA1\xAA\xA1\xBC\xA1\xA7\xA1\xC0 \xA1\xBF\xA1\xC1\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE. \xA1\xC2\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xA7\xA1\xBE \xA1\xC0\xA1\xAC\xA1\xC2\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\xA1\xA7\xA1\xBE\xA1\xBE\xA1\xB5\xA1\xA9 \xA1\xB4\xA1\xAE\xA1\xB5\xA1\xC4\xA1\xA9 \xA1\xB1\xA1\xB4\xA1\xC4\xA1\xBC\xA1\xA9 \xA1\xAA\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xA8\xA1\xB3\xA1\xBE\xA1\xA7\xA1\xAD\xA1\xC4\xA1\xC0. \xA1\xBC\xA1\xC2\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xAC\xA1\xBF\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA9 \xA1\xC2\xA1\xA5\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xA1 \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xC2\xA1\xC4\xA1\xB0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB9\xA1\xAA\xA1\xA8\xA1\xB1 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB1\xA1\xA7\xA1\xC2\xA1\xBA\xA1\xA9. \xA1\xC2\xA1\xB6\xA1\xB9\xA1\xBB\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xBC\xA1\xBE\xA1\xA9 \xA1\xB5\xA1\xBE\xA1\xA7\xA1\xA8\xA1\xAA\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xAC\xA1\xB3\xA1\xAF\xA1\xC4\xA1\xA9.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xA9 \xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAE\xA1\xA7\xA1\xBE\xA1\xA8 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE. \xA1\xC2\xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xBA\xA1\xBF\xA1\xB3\xA1\xC1\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBF\xA1\xB6 \xA1\xBE\xA1\xA5\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xBC \xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA3\xA1\xBD\xA1\xA8\xA1\xB1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xB6\xA1\xAD\xA1\xA7\xA1\xC4\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xBA\xA1\xA7\xA1\xBB\xA1\xBE\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF \xA1\xAA\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xB3\xA1\xBD\xA1\xA7\xA1\xBD\xA1\xC4\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBA\xA1\xA7\xA1\xBE\xA1\xA8\xA1\xA7.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\xA1\xAF\xA1\xB1\xA1\xB9\xA1\xC1\xA1\xA7 \xA1\xB3\xA1\xBE\xA1\xA7\xA1\xAD\xA1\xC1\xA1\xA7. \xA1\xBE\xA1\xAF\xA1\xC4\xA1\xC1\xA1\xA7 \xA1\xBC\xA1\xB7\xA1\xB9 \xA1\xAF\xA1\xB1\xA1\xB9 \xA1\xBF\xA1\xBA\xA1\xB7\xA1\xA7\xA1\xA9 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xC0\xA1\xA9 \xA1\xAA\xA1\xBE\xA1\xAD\xA1\xBC \xA1\xA8\xA1\xC1\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xB1\xA1\xB1 \xA1\xA8\xA1\xBF\xA1\xC1\xA1\xA7\xA1\xAC\xA1\xBF\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xBE\xA1\xAA\xA1\xAD\xA1\xA7\xA1\xBF. \xA1\xC2\xA1\xAA\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xC0\xA1\xB4\xA1\xA7\xA1\xA8 \xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9\xA1\xA9 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\xA1\xA7\xA1\xBE\xA1\xAD\xA1\xC4\xA1\xA7\xA1\xA9 \xA1\xA8\xA1\xB3\xA1\xC4\xA1\xB7\xA1\xA9 \xA1\xB9\xA1\xC0\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xA7\xA1\xB0\xA1\xBB\xA1\xA9. \xA1\xBB\xA1\xC1\xA1\xC4 \xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xC0\xA1\xBB\xA1\xAC\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA. \xA1\xC2\xA1\xAA\xA1\xB1\xA1\xBF\xA1\xC4 \xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB1\xA1\xC4\xA1\xB1 \xA1\xBF\xA1\xAA\xA1\xBB\xA1\xAC\xA1\xB1\xA1\xA9 \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xA3\xA1\xB9\xA1\xAF\xA1\xA7\xA1\xA6\xA1\xC1\xA1\xA7 \xA1\xAD\xA1\xAA\xA1\xC3 \xA1\xC4\xA1\xBF\xA1\xC2\xA1\xAA\xA1\xC2\xA1\xA7 \xA1\xAC\xA1\xBF\xA1\xC4\xA1\xB9\xA1\xA7. \xA1\xBB\xA1\xC4 \xA1\xB9\xA1\xB0\xA1\xA7\xA1\xA8 \xA1\xBB\xA1\xB8\xA1\xC4\xA1\xB9 \xA1\xB9\xA1\xA7\xA1\xAF\xA1\xA9.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xB5\xA1\xBB \xA1\xA3\xA1\xC2\xA1\xBE \xA1\xC0\xA1\xBF\xA1\xB7\xA1\xC4. \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xB5\xA1\xC4\xA1\xA8 \xA1\xBF\xA1\xBC\xA1\xAA\xA1\xBE\xA1\xA7\xA1\xCF \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1 \xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xA8\xA1\xBC\xA1\xC2\xA1\xA9. \xA1\xC2\xA1\xC4\xA1\xBB\xA1\xB6\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBD\xA1\xA8\xA1\xC4\xA1\xB1\xA1\xA9 \xA1\xB0\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xC4\xA1\xAF\xA1\xC4\xA1\xC0.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\xA1\xBB\xA1\xC4 \xA1\xBF\xA1\xAC\xA1\xAA\xA1\xBF\xA1\xB9 \xA1\xBF\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xC4\xA1\xBD\xA1\xC2\xA1\xC0 \xA1\xB3\xA1\xAE\xA1\xB7 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xB4\xA1\xC4\xA1\xB7 \xA1\xBF\xA1\xB4\xA1\xBD\xA1\xBE\xA1\xA9. \xA1\xA3\xA1\xBF\xA1\xA7 \xA1\xC1\xA1\xC0\xA1\xA7 \xA1\xBB\xA1\xC1\xA1\xC2 \xA1\xBF\xA1\xC4\xA1\xB2\xA1\xA9 \xA1\xC1\xA1\xA7\xA1\xA6\xA1\xBE\xA1\xA9! \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE \xA1\xBC\xA1\xA7\xA1\xB3 \xA1\xC2\xA1\xB3\xA1\xB1\xA1\xC4\xA1\xB9 \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xC2\xA1\xBC\xA1\xBB.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\xA1\xBF\xA1\xB3\xA1\xAE \xA1\xBF\xA1\xC0 \xA1\xBF\xA1\xB3\xA1\xC2\xA1\xAE \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xA8\xA1\xC4\xA1\xB9\xA1\xA9\xA1\xCF \xA1\xB1\xA1\xAC\xA1\xBE \xA1\xB9\xA1\xBF\xA1\xBE\xA1\xA7\xA1\xBC \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB1\xA1\xAA\xA1\xAF\xA1\xC4 \xA1\xAF\xA1\xB1\xA1\xC2\xA1\xB9 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB4\xA1\xB1 - \xA1\xBB\xA1\xC1\xA1\xBF \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB5\xA1\xC0\xA1\xB9\xA1\xC2\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xA8\xA1\xBF\xA1\xBC\xA1\xA7\xA1\xB3\xA1\xC1. \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB7\xA1\xC4\xA1\xB9 \xA1\xAA\xA1\xBF\xA1\xB2\xA1\xC4\xA1\xBC \xA1\xA3\xA1\xC4 \xA1\xB4\xA1\xC4\xA1\xA1 \xA1\xA8\xA1\xC4\xA1\xAF\xA1\xC4\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAC\xA1\xB1\xA1\xAF\xA1\xAA\xA1\xC4\xA1\xC0. \xA1\xC2\xA1\xC4\xA1\xB1\xA1\xC3 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xBB\xA1\xC4\xA1\xC1 \xA1\xBD\xA1\xC2\xA1\xA7\xA1\xA8\xA1\xC4\xA1\xB3\xA1\xC1\xA1\xA7.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\xA1\xAA\xA1\xB9\xA1\xBE\xA1\xBF\xA1\xC2\xA1\xA7 \xA1\xBF\xA1\xC0 \xA1\xAE\xA1\xA8\xA1\xB1\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBE\xA1\xA8\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xA7\xA1\xB6\xA1\xC4\xA1\xA9\xA1\xCF \xA1\xC2\xA1\xC1\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xA2\xA1\xC0 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xBF\xA1\xC1\xA1\xA7\xA1\xB1\xA1\xA7\xA1\xAA\xA1\xC1\xA1\xBF \xA1\xB6\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xC4 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xC2\xA1\xBE\xA1\xAA \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xAA\xA1\xB1\xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xBF.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\xA1\xAE\xA1\xA8\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xBF\xA1\xC0 \xA1\xBD\xA1\xBE \xA1\xAF\xA1\xC2\xA1\xA7\xA1\xA6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xAC\xA1\xAD\xA1\xC4\xA1\xBF \xA1\xBE\xA1\xAA\xA1\xA3\xA1\xAA\xA1\xBF\xA1\xB1 \xA1\xA8\xA1\xA3\xA1\xBF\xA1\xB1\xA1\xC1. \xA1\xC2\xA1\xA3\xA1\xAD\xA1\xA8 \xA1\xBF\xA1\xA7 \xA1\xA5\xA1\xBE\xA1\xC4\xA1\xC1 \xA1\xA3\xA1\xC0 \xA1\xC4\xA1\xB4\xA1\xA7\xA1\xC1\xA1\xAF \xA1\xA3\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xB9\xA1\xC1 \xA1\xC4\xA1\xBF\xA1\xB2\xA1\xBC\xA1\xC2\xA1\xC0 \xA1\xBD\xA1\xBE \xA1\xBF\xA1\xA7 \xA1\xBB\xA1\xC4 \xA1\xB7\xA1\xB1\xA1\xC4\xA1\xBC\xA1\xC1\xA1\xBF.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB1\xA1\xC2\xA1\xA7\xA1\xAD \xA1\xBE\xA1\xBF \xA1\xC4\xA1\xA4\xA1\xB0 \xA1\xBD\xA1\xA7\xA1\xA6\xA1\xC0\xA1\xA7 \xA1\xAD\xA1\xC4\xA1\xA7 \xA1\xBC\xA1\xB7. \xA1\xBB\xA1\xBD\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB0\xA1\xC3 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBE\xA1\xBF \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xC2\xA1\xAA \xA1\xC4\xA1\xC2\xA1\xBC\xA1\xB9\xA1\xC1 \xA1\xB9\xA1\xC0\xA1\xC1 \xA1\xAC\xA1\xAD\xA1\xBB\xA1\xBE\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xA7\xA1\xAF\xA1\xC4 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xAA\xA1\xA8\xA1\xA7\xA1\xB9 \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xC4\xA1\xBD\xA1\xBE\xA1\xC4\xA1\xA9 \xA1\xBA\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xC4\xA1\xA9. \xA1\xA5\xA1\xC0\xA1\xC1\xA1\xA7 \xA1\xBF\xA1\xC1\xA1\xC0\xA1\xA9.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xB3\xA1\xA7\xA1\xAD\xA1\xB1 \xA1\xB7\xA1\xA8\xA1\xC4\xA1\xA8 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xA7\xA1\xBE\xA1\xB7\xA1\xA8\xA1\xC4\xA1\xB9\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xB6\xA1\xA7\xA1\xB1\xA1\xC4\xA1\xA9 \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xB8\xA1\xBE\xA1\xA7\xA1\xBF. \xA1\xC4\xA1\xAD\xA1\xA8 \xA1\xA7\xA1\xC0\xA1\xAA\xA1\xB2\xA1\xA7\xA1\xB9 \xA1\xBC\xA1\xBE\xA1\xC2\xA1\xA8 \xA1\xB6\xA1\xAD\xA1\xA7\xA1\xC4\xA1\xA7\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xB5\xA1\xB1\xA1\xB9\xA1\xC3 \xA1\xC2\xA1\xA3\xA1\xBD\xA1\xBE\xA1\xC1\xA1\xA7 \xA1\xBE\xA1\xC4\xA1\xC0\xA1\xA7\xA1\xBE \xA1\xBC\xA1\xC2\xA1\xAA\xA1\xC1\xA1\xA7.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xAE\xA1\xAA\xA1\xB1\xA1\xBC \xA1\xA3\xA1\xB3\xA1\xBF\xA1\xBD \xA1\xA7\xA1\xBE\xA1\xAF\xA1\xB1\xA1\xC2\xA1\xB9. \xA1\xBB\xA1\xB9\xA1\xA7\xA1\xBE \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB3\xA1\xBE\xA1\xAD\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xA7\xA1\xAF\xA1\xA9 \xA1\xBB\xA1\xC4 \xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBF\xA1\xC2\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xAD\xA1\xC4\xA1\xA7\xA1\xA1. \xA1\xC2\xA1\xC1\xA1\xAC\xA1\xBF\xA1\xA7\xA1\xAA \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB1\xA1\xB3 \xA1\xA7\xA1\xBE\xA1\xA5\xA1\xB6\xA1\xA7\xA1\xBB\xA1\xC4\xA1\xA9 \xA1\xAA\xA1\xB2\xA1\xC4\xA1\xAF \xA1\xB6\xA1\xB1\xA1\xB1\xA1\xC1.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\xA1\xC0\xA1\xC2\xA1\xB9 \xA1\xAF\xA1\xBB\xA1\xA7\xA1\xB9\xA1\xC4 \xA1\xBF\xA1\xAD\xA1\xB6 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9\xA1\xC4\xA1\xC0. \xA1\xB5\xA1\xBE\xA1\xA8 \xA1\xC2\xA1\xBC\xA1\xC2\xA1\xC4 \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xC0\xA1\xBD\xA1\xB3\xA1\xB1. \xA1\xC4\xA1\xB9\xA1\xB1\xA1\xBB \xA1\xBD\xA1\xC4\xA1\xBB \xA1\xC4\xA1\xC0\xA1\xC1\xA1\xBD \xA1\xAE\xA1\xB5\xA1\xBF\xA1\xC1 \xA1\xBC\xA1\xA8\xA1\xBE \xA1\xA3\xA1\xC0 \xA1\xC4\xA1\xAC\xA1\xC1\xA1\xB2 \xA1\xB9\xA1\xBE\xA1\xC4\xA1\xC1.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xAC\xA1\xA7\xA1\xB1\xA1\xC3 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xAC\xA1\xC2\xA1\xBF\xA1\xCF \xA1\xC4\xA1\xB6\xA1\xAD\xA1\xC4 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xAF\xA1\xBB\xA1\xA7\xA1\xB9 \xA1\xBF\xA1\xC0 \xA1\xA3\xA1\xAC\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xAC\xA1\xC2\xA1\xBF. \xA1\xC4\xA1\xAA\xA1\xAE\xA1\xB5\xA1\xB5 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA8\xA1\xB3\xA1\xBE\xA1\xA7\xA1\xAD\xA1\xC4\xA1\xC0. \xA1\xC0\xA1\xAC\xA1\xBF \xA1\xAD\xA1\xBC\xA1\xC4\xA1\xBC\xA1\xC4 \xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xBB\xA1\xB1.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xC4\xA1\xBD\xA1\xC2\xA1\xAA\xA1\xC2\xA1\xB1 \xA1\xBF\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9 \xA1\xC4\xA1\xAA\xA1\xAE\xA1\xB5\xA1\xB5 \xA1\xBB\xA1\xC4 \xA1\xAA\xA1\xBB\xA1\xA7\xA1\xAF\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xC1\xA1\xAC\xA1\xBF\xA1\xA7\xA1\xAA \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xAA\xA1\xB9\xA1\xA7\xA1\xBB\xA1\xC4 \xA1\xBB\xA1\xA7\xA1\xA6\xA1\xBC \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xB1\xA1\xB9\xA1\xA9 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xA5\xA1\xB5\xA1\xA7\xA1\xA8\xA1\xA9. \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xB9\xA1\xAC\xA1\xC4\xA1\xA8 \xA1\xA3\xA1\xC0\xA1\xC1 \xA1\xC4\xA1\xB3\xA1\xAA\xA1\xB9\xA1\xBF\xA1\xBE \xA1\xB9\xA1\xAA\xA1\xA7\xA1\xAF\xA1\xA7 \xA1\xC0\xA1\xB5\xA1\xBB \xA1\xAB\xA1\xBC\xA1\xC4\xA1\xBE.";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAD\xA1\xA7\xA1\xB1\xA1\xA8\xA1\xC2\xA1\xC0 \xA1\xC4\xA1\xC2\xA1\xAC\xA1\xAF\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xBF\xA1\xBC\xA1\xAF\xA1\xBF\xA1\xA9 \xA1\xBD\xA1\xBE \xA1\xBF\xA1\xB9\xA1\xB1\xA1\xBD\xA1\xA9\xA1\xCF \xA1\xC4\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB4\xA1\xB1\xA1\xA7\xA1\xB1 \xA1\xC2\xA1\xAC\xA1\xC1\xA1\xA7 \xA1\xBE\xA1\xC2\xA1\xAC\xA1\xC1.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xBF\xA1\xA7\xA1\xA9 \xA1\xB5\xA1\xA7\xA1\xC0\xA1\xB9\xA1\xC2 \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3 \xA1\xBF\xA1\xC1\xA1\xB1\xA1\xA9. \xA1\xC4\xA1\xAD\xA1\xBB\xA1\xB8\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB3\xA1\xA7\xA1\xBB\xA1\xA9 \xA1\xC2\xA1\xC4\xA1\xBC\xA1\xAA\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xBF\xA1\xC0 \xA1\xA8\xA1\xB9\xA1\xC4\xA1\xAF.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1\xA1\xA9 \xA1\xA3\xA1\xB3\xA1\xC4\xA1\xA7\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xAA\xA1\xAD\xA1\xBD\xA1\xBF \xA1\xBB\xA1\xC4 \xA1\xBC\xA1\xC2\xA1\xC3 \xA1\xC2\xA1\xAC\xA1\xC2\xA1\xA7\xA1\xC1\xA1\xB1 \xA1\xBE\xA1\xA7 \xA1\xC4\xA1\xB1\xA1\xA7\xA1\xC1\xA1\xA7 \xA1\xB3\xA1\xA7\xA1\xA6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xB4\xA1\xB1. \xA1\xC2\xA1\xC1\xA1\xC4 \xA1\xA3\xA1\xAF\xA1\xA7\xA1\xA9 \xA1\xB6\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 \xA1\xBE\xA1\xA7 \xA1\xAA\xA1\xBC\xA1\xBE \xA1\xBB\xA1\xB9\xA1\xA7\xA1\xBE\xA1\xC4\xA1\xA9 \xA1\xB9\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB7\xA1\xB1\xA1\xBC\xA1\xA9.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\xA1\xA7\xA1\xBE\xA1\xB1\xA1\xC1\xA1\xA8\xA1\xA7\xA1\xC0 \xA1\xBF\xA1\xBC\xA1\xA7\xA1\xAA\xA1\xBE\xA1\xC2\xA1\xC0 \xA1\xB1\xA1\xC2\xA1\xAD\xA1\xC4\xA1\xC2\xA1\xC0 \xA1\xC4\xA1\xA8\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xBD\xA1\xBE \xA1\xB6\xA1\xB1\xA1\xC2\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xA5\xA1\xBE\xA1\xA7 \xA1\xA7\xA1\xBE\xA1\xB3\xA1\xAD\xA1\xB1.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\xA1\xA7\xA1\xBE\xA1\xBE\xA1\xB5\xA1\xC2\xA1\xB5 \xA1\xBF\xA1\xA8\xA1\xA7\xA1\xB1\xA1\xB2\xA1\xC2\xA1\xC0 \xA1\xC2\xA1\xBC\xA1\xB7\xA1\xA7\xA1\xB9 \xA1\xB7\xA1\xB1\xA1\xBC \xA1\xC2\xA1\xB3\xA1\xB1\xA1\xA7\xA1\xBC \xA1\xC2\xA1\xBA\xA1\xB2\xA1\xA7\xA1\xA9. \xA1\xC2\xA1\xA7\xA1\xBE\xA1\xBA\xA1\xC0\xA1\xC4\xA1\xBF\xA1\xA9 \xA1\xC1\xA1\xC4 \xA1\xBD\xA1\xBE \xA1\xBF\xA1\xA7 \xA1\xBE\xA1\xC1 \xA1\xBC\xA1\xC4\xA1\xBF\xA1\xA9 \xA1\xB9\xA1\xC0\xA1\xAF\xA1\xC1\xA1\xBF.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xAA\xA1\xC2\xA1\xAD\xA1\xB4\xA1\xC2\xA1\xC0 \xA1\xA3\xA1\xBC\xA1\xC2\xA1\xC4\xA1\xA7\xA1\xA1 \xA1\xBF\xA1\xAA\xA1\xC4\xA1\xC0\xA1\xC2 \xA1\xA7\xA1\xBE\xA1\xA8\xA1\xC0\xA1\xC4\xA1\xA9 \xA1\xC4\xA1\xA8\xA1\xB1\xA1\xB9\xA1\xC2\xA1\xC0 \xA1\xBB\xA1\xC4 \xA1\xA7\xA1\xBE\xA1\xBC\xA1\xAA\xA1\xA7\xA1\xBE \xA1\xBD\xA1\xBC\xA1\xBE\xA1\xA9 \xA1\xBA\xA1\xC4\xA1\xB1\xA1\xC1\xA1\xBF. \xA1\xC4\xA1\xC0\xA1\xBC\xA1\xB5\xA1\xC1\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xC0\xA1\xB6\xA1\xA8\xA1\xA7\xA1\xB7 \xA1\xBE\xA1\xBD\xA1\xC0\xA1\xC1\xA1\xBF \xA1\xC4\xA1\xB9\xA1\xC2\xA1\xB6\xA1\xC2\xA1\xC0\xA1\xC1 \xA1\xA8\xA1\xA7\xA1\xBE\xA1\xBC\xA1\xC2\xA1\xA9 \xA1\xA7\xA1\xBE\xA1\xAE\xA1\xA7\xA1\xBF.";
+		case STR_1084_Druid_Description:
+			return "\xA1\xC4\xA1\xAA\xA1\xBC\xA1\xA8\xA1\xBE \xA1\xA7\xA1\xBE\xA1\xAF\xA1\xB1\xA1\xC2\xA1\xC4\xA1\xAF \xA1\xAC\xA1\xA7\xA1\xC0\xA1\xA8\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xC4\xA1\xC2\xA1\xA7\xA1\xC0\xA1\xC4 \xA1\xC2\xA1\xC4\xA1\xAD\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xA7\xA1\xBC\xA1\xAA\xA1\xB1\xA1\xA7\xA1\xA8 \xA1\xBF\xA1\xC0 \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 \xA1\xC2\xA1\xAA\xA1\xBF\xA1\xB2\xA1\xC4\xA1\xBC\xA1\xC1\xA1\xA7 \xA1\xA5\xA1\xB1\xA1\xA8\xA1\xA7. \xA1\xBC\xA1\xB0\xA1\xB1 \xA1\xA8\xA1\xB9\xA1\xB6 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA1 \xA1\xC2\xA1\xBD\xA1\xB1\xA1\xC4\xA1\xC1 \xA1\xA7\xA1\xBE\xA1\xB1\xA1\xA7\xA1\xA6\xA1\xAD\xA1\xA9\xA1\xCF \xA1\xBE\xA1\xBD\xA1\xC0 \xA1\xBE\xA1\xA7 \xA1\xA3\xA1\xAD\xA1\xAF \xA1\xC4\xA1\xAC\xA1\xB1\xA1\xA4 \xA1\xB9\xA1\xBE\xA1\xC3 \xA1\xA5\xA1\xAE\xA1\xA8\xA1\xA7\xA1\xB1\xA1\xC1 \xA1\xA8\xA1\xB0\xA1\xBE\xA1\xBD.";
+		case STR_1085_Gladiatrix_Description:
+			return "\xA1\xA7\xA1\xBE\xA1\xBF\xA1\xB5\xA1\xA7\xA1\xB1\xA1\xB9\xA1\xA9 \xA1\xB6\xA1\xAE\xA1\xBF\xA1\xA9. \xA1\xBE\xA1\xC4\xA1\xB3\xA1\xAA \xA1\xA8\xA1\xAF\xA1\xC4\xA1\xC0\xA1\xA9\xA1\xCF \xA1\xA8\xA1\xBE \xA1\xB6\xA1\xAE\xA1\xBF\xA1\xA9 \xA1\xBB\xA1\xAD\xA1\xB3\xA1\xA8. \xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xB6\xA1\xB1\xA1\xA8 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xA1 \xA1\xA8\xA1\xA3\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xA1 \xA1\xA3\xA1\xAE\xA1\xB1\xA1\xC3\xA1\xCF \xA1\xC2\xA1\xA8\xA1\xBC\xA1\xC2\xA1\xA9. \xA1\xAA\xA1\xAD\xA1\xA8 \xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAE\xA1\xAF\xA1\xA7\xA1\xBF \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xBC\xA1\xC2\xA1\xA7\xA1\xB3. \xA1\xBF\xA1\xA7\xA1\xB0\xA1\xA7 \xA1\xC4\xA1\xBC\xA1\xA7\xA1\xBE \xA1\xBA\xA1\xC4\xA1\xB1 \xA1\xB0\xA1\xBE\xA1\xBD\xA1\xD1 \xA1\xC1\xA1\xB0\xA1\xA7 \xA1\xBD\xA1\xBE \xA1\xB4\xA1\xC4\xA1\xA1. \xA1\xB6\xA1\xAE\xA1\xBF\xA1\xA9. \xA1\xBC\xA1\xC2\xA1\xC4\xA1\xA9. \xA1\xBA\xA1\xA8\xA1\xC4\xA1\xA9.";
+		}
+	}
+	// (th4) Ukrainian class/subclass descriptions. META atlas (0x80-0x9F, caps-only),
+	// not CP1251 -- hardcoded here like the BG block below, not in LocalizationUK.cpp.
+	if( GameLanguage == LANG_UK ){
+		switch( strId ){
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\x82\x8EI\x8D - \x97\x85\x8C\x8FI\x8E\x8D I \x81\x8E\x85\x96\x9C, \x97\x88\x85 \x86\x88\x92\x92\x9F \x87\x80\x8B\x85\x86\x88\x92\x9C \x82I\x84 \x82\x8E\x8B\x8E\x84I\x8D\x8D\x9F \x87\x81\x90\x8E\x85\x9E \x89 \x92\x80\x8A\x92\x88\x8A\x8E\x9E. \x8A\x8B\x80\x91\x88\x97\x8D\x88\x89 \x81\x8E\x85\x96\x9C. \x8C\x80\x89\x91\x92\x85\x90 \x81\x8B\x8E\x8A\x93.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "I\x8D\x8A\x82I\x87\x88\x92\x8E\x90 \x8F\x90\x88\x91\x82\x9F\x92\x88\x82 \x86\x88\x92\x92\x9F \x8F\x8E\x98\x93\x8A\x93 \x89 \x82\x88\x8D\x88\x99\x85\x8D\x8D\x9E \x85\x90\x85\x91I, \x80\x84\x85\x8F\x92I\x82 \x87\x8B\x8EI \x8C\x80\x83II \x92\x80 \x8E\x97\x88\x99\x85\x8D\x8D\x9E \x92\x85\x8C\x90\x9F\x82\x88 \x91\x82\x9F\x99\x85\x8D\x8D\x88\x8C \x82\x8E\x83\x8D\x85\x8C. \x8C\x80\x89\x91\x92\x85\x90 \x91\x92\x88\x95I\x89\x8D\x8EI \x98\x8A\x8E\x84\x88.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\x82\x80\x90\x92\x8E\x82\x88\x89 - \x87\x80\x95\x88\x91\x8D\x88\x89 \x8A\x8B\x80\x91, \x99\x8E \x82\x8E\x8B\x8E\x84I\x85 \x82\x85\x8B\x88\x8A\x88\x8C\x88 \x8C\x85\x97\x80\x8C\x88 \x89 \x8C\x8E\x8B\x8E\x92\x80\x8C\x88. \x80 \x92\x80\x8A\x8E\x86 \x80\x90\x81\x80\x8B\x85\x92\x80\x8C\x88. \x8A\x8E\x8B\x88 \x89\x8E\x83\x8E \x8F\x88\x92\x80\x9E\x92\x9C \x8F\x90\x8E \x8C\x85\x92\x93 \x82 \x92\x90I\x91\x92\x90\x80\x8CI, \x82I\x8D \x98\x82\x88\x84\x8A\x8E \x87\x8CI\x8D\x9E\x85 \x92\x85\x8C\x93.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\x92\x80\x8C\x8F\x8BI\x85\x90 - \x91\x82\x9F\x92\x88\x89 \x8C\x93\x86 I \x98\x8B\x9F\x95\x85\x92\x8D\x88\x89 \x82\x8EI\x8D, \x99\x8E \x84\x80\x82 \x8E\x81I\x92\x8D\x88\x96\x9E \x87\x80\x95\x88\x99\x80\x92\x88 \x91\x8B\x80\x81\x8A\x88\x95 I \x81\x8E\x90\x8E\x92\x88\x91\x9F \x87I \x87\x8B\x8E\x8C. \x91\x8F\x85\x96I\x80\x8BI\x87\x93\x85\x92\x9C\x91\x9F \x8D\x80 \x82\x88\x8D\x88\x99\x85\x8D\x8DI \x8D\x85\x86\x88\x92I. \x8C\x8E\x86\x85 \x8C\x85\x92\x80\x92\x88 \x8C\x8E\x8B\x8E\x92\x88.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\x92\x80\x8B\x80\x8D\x92 \x8B\x93\x97\x8D\x88\x96I - \x98\x82\x88\x84\x8A\x80 \x98\x8A\x8E\x84\x80 \x87 \x81\x85\x87\x8F\x85\x97\x8D\x8EI \x84\x88\x91\x92\x80\x8D\x96II. \x80\x8B\x85 \x82\x8E\x8D\x80 \x8C\x93\x91\x88\x92\x9C \x81\x93\x92\x88 \x8E\x81\x85\x90\x85\x86\x8D\x8E\x9E \x89 \x8D\x85 \x8FI\x84\x8F\x93\x91\x8A\x80\x92\x88 \x8DI\x8A\x8E\x83\x8E \x81\x8B\x88\x87\x9C\x8A\x8E. I\x8D\x80\x8A\x98\x85 \x82\x91\x85 \x8AI\x8D\x97\x80\x85\x92\x9C\x91\x9F \x8F\x8E\x83\x80\x8D\x8E.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\x90\x8E\x87\x82I\x84\x8D\x88\x96\x9F \x8D\x85 \x87\x80\x82\x84\x80\x85 \x8A\x90\x88\x92\x93 \x91\x92\x90I\x8B\x80\x8C\x88, \x80\x8B\x85 \x8A\x8E\x8C\x8F\x85\x8D\x91\x93\x85 \x96\x85 \x84\x8E\x84\x80\x92\x8A\x8E\x82\x8E\x9E \x91\x92\x88\x95I\x89\x8D\x8E\x9E \x98\x8A\x8E\x84\x8E\x9E \x91\x92\x90I\x8B. \x93 \x96\x9C\x8E\x8C\x93 II \x91\x88\x8B\x80. \x80 \x99\x85 \x82 \x8D\x85I \x83\x80\x90\x8D\x85 \x90\x93\x84\x85 \x82\x8E\x8B\x8E\x91\x91\x9F.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\x91\x8D\x80\x89\x8F\x85\x90\x8A\x80 - \x8F\x8E\x82I\x8B\x9C\x8D\x88\x89 \x92\x88\x8F \x8B\x93\x97\x8D\x88\x96I. \x93 \x8D\x85I \x93\x8DI\x8A\x80\x8B\x9C\x8D\x88\x89 \x8D\x80\x81I\x90 \x84\x8E\x82\x83\x88\x95 \x8B\x93\x8AI\x82, I \x81'\x85 \x82\x8E\x8D\x80 \x82\x85\x8B\x9C\x8C\x88 \x82I\x84\x97\x93\x92\x8D\x8E. II \x92\x8E\x97\x8DI\x91\x92\x9C \x8D\x85\x8F\x85\x90\x85\x82\x85\x90\x98\x85\x8D\x80. \x80 \x8A\x90\x88\x92\x88 \x91\x8C\x85\x90\x92\x85\x8B\x9C\x8DI.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\x8F\x80\x91\x92\x8A\x80\x90\x8A\x80 \x91\x92\x80\x82\x88\x92\x9C \x8F\x80\x91\x92\x8A\x88 \x8F\x90\x8E\x92\x88 \x8F\x90\x88\x91\x8B\x93\x86\x8D\x88\x8AI\x82 \x92\x85\x8C\x90\x9F\x82\x88. \x80 \x99\x85 \x82 \x8D\x85I \x90\x8E\x87\x82\x88\x8D\x85\x8D\x85 \x82I\x84\x97\x93\x92\x92\x9F \x91\x92\x88\x8B\x9E. II \x93\x8B\x9E\x81\x8B\x85\x8D\x88\x89 \x8A\x8E\x8BI\x90 - \x91\x88\x8DI\x89. \x8D\x85 \x8F\x88\x92\x80\x89 \x97\x8E\x8C\x93.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\x8C\x80\x83 - \x8A\x8B\x80\x91\x88\x97\x8D\x88\x89 \x87\x80\x8A\x8B\x88\x8D\x80\x97, \x97\x80\x90I\x82\x8D\x88\x8A, \x97\x80\x90\x8E\x84I\x89. \x89\x8E\x8C\x93 \x92\x80\x8A\x8E\x86 \x84\x8E\x91\x92\x93\x8F\x8DI \x92\x80\x85\x8C\x8DI \x87\x8D\x80\x8D\x8D\x9F, \x8D\x85\x84\x8E\x91\x92\x93\x8F\x8DI I\x8D\x98\x88\x8C \x8A\x8B\x80\x91\x80\x8C.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\x91\x92\x88\x95I\x89\x8D\x88\x8A \x82\x8E\x8B\x8E\x84I\x85 \x87\x80\x8A\x8B\x9F\x92\x92\x9F\x8C\x88 \x82\x8E\x83\x8D\x9E, \x95\x8E\x8B\x8E\x84\x93 \x89 \x81\x8B\x88\x91\x8A\x80\x82\x8A\x88. \x8C\x80\x89\x91\x92\x85\x90 \x91\x92\x88\x95I\x89. \x89\x8E\x83\x8E \x87\x80\x8A\x8B\x9F\x92\x92\x9F \x8C\x80\x9E\x92\x9C \x8D\x85\x8F\x8E\x83\x80\x8D\x88\x89 \x98\x80\x8D\x91 \x87\x80\x82\x84\x80\x92\x88 \x84\x8E\x84\x80\x92\x8A\x8E\x82\x8EI \x98\x8A\x8E\x84\x88.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\x8F\x90\x88\x8A\x8B\x88\x8A\x80\x97I - \x90I\x87\x8D\x8E\x82\x88\x84 \x8C\x80\x83I\x82, \x99\x8E \x81'\x9E\x92\x9C\x91\x9F \x87I \x87\x8B\x8E\x8C \x87\x80 \x84\x8E\x8F\x8E\x8C\x8E\x83\x8E\x9E I\x91\x92\x8E\x92, \x9F\x8A\x88\x95 \x82\x8E\x8D\x88 \x8FI\x84I\x89\x8C\x80\x9E\x92\x9C.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\x97\x8E\x90\x8D\x8E\x8A\x8D\x88\x86\x8D\x88\x8A - \x80\x84\x85\x8F\x92 \x92\x85\x8C\x8D\x88\x95 \x87\x8D\x80\x8D\x9C, \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x85 \x97\x8E\x90\x8D\x85 \x97\x80\x8A\x8B\x93\x8D\x91\x92\x82\x8E \x89 \x8A\x88\x91\x8B\x8E\x92\x8DI \x87\x80\x8A\x8B\x9F\x92\x92\x9F \x8F\x90\x8E\x92\x88 \x84\x85\x8C\x8E\x8DI\x82. \x8D\x85 \x8C\x8E\x86\x85 \x82\x97\x88\x92\x88 \x91\x82\x9F\x92I \x87\x80\x8A\x8B\x9F\x92\x92\x9F.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\x8A\x8B\x80\x91\x88\x97\x8D\x88\x89 \x97\x85\x90\x8D\x85\x96\x9C. \x98\x82\x88\x84\x8A\x88\x89, \x93\x8DI\x82\x85\x90\x91\x80\x8B\x9C\x8D\x88\x89 I \x87\x80\x8A\x8B\x9F\x92\x88\x89 \x82\x8E\x90\x8E\x83 \x93\x91I\x95 \x84\x85\x8C\x8E\x8DI\x82. \x8C\x80\x89\x91\x92\x85\x90\x8D\x8E \x82\x8E\x8B\x8E\x84I\x85 \x8F\x8E\x91\x8E\x95\x8E\x8C. \x8C\x8E\x86\x85 \x81\x88\x92\x88 \x8AI\x8B\x9C\x8A\x8E\x95 \x82\x8E\x90\x8E\x83I\x82 \x82\x8E\x84\x8D\x8E\x97\x80\x91. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x9C\x8E\x83\x8E \x81\x8E\x9E \x82\x8E\x8BI\x85 \x8B\x93\x8A\x88.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "I\x91\x92\x88\x8D\x8D\x88\x89 \x8C\x80\x89\x91\x92\x85\x90 \x87\x81\x90\x8EI, \x8A\x85\x8D\x91\x85\x89 - \x91\x88\x8B\x80, \x87 \x9F\x8A\x8E\x9E \x92\x90\x85\x81\x80 \x90\x80\x95\x93\x82\x80\x92\x88\x91\x9F. I \x82\x88\x84\x8E\x82\x88\x99\x85 \x82 \x81\x8E\x9E. \x82I\x8D \x82I\x90\x88\x92\x9C, \x99\x8E \x82\x81\x88\x82\x91\x92\x82\x8E - \x96\x85 \x82\x88\x84 \x8C\x88\x91\x92\x85\x96\x92\x82\x80.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\x91\x9E\x83\x8E\x8AI - \x83I\x83\x80\x8D\x92 \x93 \x82\x80\x86\x8AI\x89 \x81\x90\x8E\x8DI, \x99\x8E \x82\x8E\x8BI\x85 \x84\x90\x85\x82\x8A\x8E\x82\x93 \x87\x81\x90\x8E\x9E \x82 \x81\x8B\x88\x86\x8D\x9C\x8E\x8C\x93 \x81\x8E\x9E. I \x8B\x93\x8A\x88 \x82 \x84\x80\x8B\x9C\x8D\x9C\x8E\x8C\x93.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\x91\x88\x8D\x8E\x81I \x82\x8E\x8BI\x85 \x8FI\x84I\x81\x90\x80\x92\x88\x91\x9F \x84\x8E \x96I\x8BI \x82\x8F\x90\x88\x92\x93\x8B I \x82\x91\x85 \x86\x88\x92\x92\x9F \x82I\x84\x92\x8E\x97\x93\x82\x80\x82 \x8D\x80\x82\x88\x97\x8A\x88 \x81I\x89\x96\x9F \x92I\x8D\x85\x89. \x93 \x84\x80\x8B\x9C\x8D\x9C\x8E\x8C\x93 \x81\x8E\x9E \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x85 \x8C\x85\x92\x80\x8B\x9C\x8DI \x87I\x90\x8A\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\x90\x8E\x87\x81I\x89\x8D\x88\x96\x9F - \x91\x8F\x90\x88\x92\x8D\x88\x89 \x81\x8E\x85\x96\x9C I\x87 \x84\x82\x8E\x8C\x80 \x87\x81\x90\x8E\x9F\x8C\x88. II \x91\x88\x8B\x9C\x8DI \x91\x92\x8E\x90\x8E\x8D\x88 - \x98\x82\x88\x84\x8AI \x80\x92\x80\x8A\x88, \x8D\x85\x8F\x8E\x83\x80\x8D\x80 \x8C\x80\x83I\x9F \x89 \x93\x95\x88\x8B\x85\x8D\x8D\x9F. \x91\x8B\x80\x81\x8A\x80 \x91\x92\x8E\x90\x8E\x8D\x80 - \x81\x90\x80\x8A \x91\x92I\x89\x8A\x8E\x91\x92I.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\x80\x91\x80\x91\x88\x8D\x8A\x80 \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x85 \x8AI\x83\x92I \x82 \x81\x8E\x9E. \x82\x8E\x8D\x80 \x8B\x9E\x81\x88\x92\x9C \x82\x8C\x8E\x97\x80\x92\x88 I\x95 \x93 \x8A\x88\x91\x8B\x8E\x92\x93, \x99\x8E\x81 \x87\x80\x82\x84\x80\x92\x88 \x81I\x8B\x9C\x98\x85 \x98\x8A\x8E\x84\x88 \x81\x85\x87\x92\x93\x90\x81\x8E\x92\x8D\x88\x8C \x86\x85\x90\x92\x82\x80\x8C. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x9C\x8E\x83\x8E \x81\x8E\x9E \x97\x80\x91\x92I\x98\x85 \x81\x85\x90\x85 \x8C\x85\x92\x80\x8B\x9C\x8DI \x8D\x8E\x86I.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "II \x81\x90\x8E\x8D\x9F - \x96\x85 \x87\x81\x90\x8E\x9F. \x97\x80\x91\x92\x88\x8D\x88 II \x81\x90\x8E\x8DI \x82\x8A\x90\x88\x92I \x98\x88\x8F\x80\x8C\x88 \x89 \x87\x80\x82\x84\x80\x9E\x92\x9C \x98\x8A\x8E\x84\x88 \x92\x88\x8C, \x95\x92\x8E \x80\x92\x80\x8A\x93\x85 \x82 \x81\x8B\x88\x86\x8D\x9C\x8E\x8C\x93 \x81\x8E\x9E. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x9C\x8E\x83\x8E \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x85 \x98\x82\x88\x84\x8AI \x80\x90\x81\x80\x8B\x85\x92\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\x86\x88\x92\x92\x9F \x81\x8E\x8C\x81\x80\x90\x84\x88\x90\x8A\x88 \x8F\x90\x8E\x91\x92\x85. \x82\x8E\x8D\x80 \x8B\x9E\x81\x88\x92\x9C \x82\x88\x81\x93\x95\x88. I \x86\x81\x93\x90\x8B\x9F\x85 \x93 \x82\x8E\x90\x8E\x83I\x82 \x82\x88\x81\x93\x95\x8E\x82I \x8A\x8E\x8B\x81\x88, \x8F\x8E\x8A\x88 \x82\x91I \x82\x8E\x8D\x88 \x8D\x85 \x8F\x8E\x8C\x90\x93\x92\x9C. \x87\x80\x87\x82\x88\x97\x80\x89 \x93 \x91\x92\x90\x80\x98\x8DI\x89 \x80\x83\x8E\x8DII.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\x84\x88\x8A\x93\x8D - \x92\x88\x8F\x8E\x82\x88\x89 \x81\x8E\x85\x96\x9C \x8F\x85\x90\x85\x84\x8E\x82\x8EI. \x8D\x85 \x82\x8CI\x85 \x81\x88\x92\x88 \x8F\x8E \x91\x8B\x80\x81\x8A\x8E\x8C\x93 \x8CI\x91\x96I, \x80\x8B\x85 \x82\x8CI\x85 \x81\x88\x92\x88 \x91\x88\x8B\x9C\x8D\x8E. \x82\x8E\x8BI\x85 \x82\x85\x8B\x88\x8A\x93 \x84\x82\x8E\x90\x93\x97\x8D\x93 \x87\x81\x90\x8E\x9E.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\x93 \x96\x88\x82I\x8BI\x87\x8E\x82\x80\x8D\x8E\x8C\x93 \x91\x93\x91\x8FI\x8B\x9C\x91\x92\x82I \x8B\x9E\x92\x9C \x81\x85\x90\x91\x85\x90\x8A\x80 \x81\x93\x8B\x80 \x81 \x8F\x90\x8E\x81\x8B\x85\x8C\x8E\x9E. \x80\x8B\x85 \x92\x93\x92 \x96\x85 \x82\x85\x8B\x88\x97\x85\x87\x8D\x80 \x8F\x85\x90\x85\x82\x80\x83\x80! \x81\x85\x87\x86\x80\x8B\x9C\x8D\x88\x89, \x98\x82\x88\x84\x8A\x88\x89 I \x8D\x85\x91\x92\x90\x88\x8C\x8D\x88\x89 \x81\x8E\x85\x96\x9C.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\x8F\x8E\x92\x82\x8E\x90\x80 \x8F\x90\x88\x90\x8E\x84\x88, \x8B\x9E\x84\x88\x8D\x80-\x83I\x83\x80\x8D\x92, \x82I\x8D \x8D\x85 \x8D\x8E\x91\x88\x92\x9C \x8B\x9E\x84\x91\x9C\x8A\x8EI \x81\x90\x8E\x8DI - II \x8F\x90\x8E\x91\x92\x8E \x8D\x85 \x90\x8E\x81\x8B\x9F\x92\x9C \x89\x8E\x83\x8E \x90\x8E\x87\x8CI\x90\x93. \x8C\x8E\x86\x85 \x90\x8E\x87I\x90\x82\x80\x92\x88 \x99\x8E \x87\x80\x82\x83\x8E\x84\x8D\x8E \x83\x8E\x8B\x88\x8C\x88 \x90\x93\x8A\x80\x8C\x88. \x84\x85\x8C\x8E\x8D\x80\x8C \x91\x8D\x9F\x92\x9C\x91\x9F \x8A\x8E\x98\x8C\x80\x90\x88.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\x8D\x80\x82\x97\x85\x8DI \x8C\x88\x8D\x93\x8B\x88\x8C \x84\x8E\x91\x82I\x84\x8E\x8C \x80\x90\x85\x8D\x88, \x96I \x8C\x93\x86I \x92\x85\x8F\x85\x90 \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x9E\x92\x9C \x91\x82\x8EI \x8D\x80\x82\x88\x97\x8A\x88 \x8F\x90\x8E\x92\x88 \x84\x85\x8C\x8E\x8DI\x82, \x99\x8E \x87\x80\x95\x8E\x8F\x88\x8B\x88 \x92\x90I\x91\x92\x90\x80\x8C.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\x84\x85\x8C\x8E\x8D\x8E\x8B\x8E\x83 \x8F\x90\x88\x8A\x8B\x88\x8A\x80\x85 \x84\x85\x8C\x8E\x8DI\x82 I\x87 \x93\x91I\x95 \x8AI\x8B \x8F\x85\x8A\x8B\x80 \x91\x8E\x81I \x8D\x80 \x91\x8B\x93\x86\x81\x93. \x8D\x80\x89\x81I\x8B\x9C\x98\x85 \x82I\x8D \x8B\x9E\x81\x88\x92\x9C \x84\x88\x82\x88\x92\x88\x91\x9F, \x9F\x8A \x89\x8E\x83\x8E \x82\x88\x95\x8E\x82\x80\x8D\x96I \x90\x82\x93\x92\x9C \x8D\x80 \x97\x80\x91\x92\x88\x8D\x88 \x82\x91\x85 \x8D\x80 \x91\x82\x8E\x85\x8C\x93 \x98\x8B\x9F\x95\x93.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\x8D\x85\x8A\x90\x8E\x8C\x80\x8D\x92 \x8DI\x8A\x8E\x8B\x88 \x8D\x85 \x90\x80\x8D\x88\x82 \x86\x88\x82\x8EI I\x91\x92\x8E\x92\x88. \x93\x82\x85\x91\x9C \x81I\x8B\x9C, \x91\x92\x90\x80\x86\x84\x80\x8D\x8D\x9F \x89 \x91\x8C\x85\x90\x92\x9C \x8D\x85\x91\x85 \x89\x8E\x83\x8E \x8D\x85\x86\x88\x82\x80 \x91\x80\x84\x88\x91\x92\x91\x9C\x8A\x80 \x8E\x90\x84\x80 \x91\x8A\x85\x8B\x85\x92I\x82. \x96\x85 \x92\x85\x86 \x90\x8E\x81\x8E\x92\x80.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\x8F\x8E\x82\x85\x8B\x88\x92\x85\x8B\x9C \x87\x82I\x90I\x82 - \x98\x80\x8C\x80\x8D, \x99\x8E \x82\x88\x8A\x8E\x90\x88\x91\x92\x8E\x82\x93\x85 \x8B\x9E\x92\x88\x95 \x92\x82\x80\x90\x9E\x8A \x8F\x90\x88\x90\x8E\x84\x88 \x8F\x90\x8E\x92\x88 \x92\x85\x8C\x90\x9F\x82\x88. \x8B\x9E\x81\x88\x92\x9C \x82\x88\x90\x88\x82\x80\x92\x88 \x91\x85\x90\x96\x9F \x8F\x8E\x8B\x85\x83\x8B\x88\x95 \x86\x85\x90\x92\x82 I \x8F\x8EI\x84\x80\x92\x88 I\x95, \x87\x80\x81\x88\x90\x80\x9E\x97\x88 I\x95\x8D\x9E \x91\x88\x8B\x93.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\x82\x8CI\x85 \x8F\x90\x8E\x81\x88\x92\x88 \x8D\x80\x89\x92\x8E\x82\x99\x93 \x81\x90\x8E\x8D\x9E. \x85\x94\x85\x8A\x92\x88\x82\x8D\x88\x89 \x8A\x8B\x88\x8D\x8A\x80\x8C\x88 \x8F\x90\x8E\x92\x88 \x8D\x85\x86\x88\x92I. \x84\x8E\x84\x80\x92\x8A\x8E\x82I \x80\x92\x80\x8A\x88 \x99\x88\x92\x8E\x8C \x87\x81I\x8B\x9C\x98\x93\x9E\x92\x9C \x89\x8E\x83\x8E \x98\x8A\x8E\x84\x93.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\x91\x93\x92\x8E \x87\x80\x95\x88\x91\x8D\x88\x89 \x92\x88\x8F \x83\x8B\x80\x84I\x80\x92\x8E\x90\x80. \x8CI\x96\x8D\x88\x89, \x8F\x8E\x92\x93\x86\x8D\x88\x89, \x8D\x85\x87\x8B\x80\x8C\x8D\x88\x89. \x82\x8CI\x85 \x82\x88\x91\x8D\x80\x86\x88\x92\x88 \x91\x93\x8F\x90\x8E\x92\x88\x82\x8D\x88\x8A\x80, \x8F\x85\x90\x98 \x8DI\x86 \x84\x8E\x81\x88\x92\x88.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\x8D\x85\x8F\x85\x90\x85\x82\x85\x90\x98\x85\x8D\x88\x89 \x93 \x8D\x80\x92\x88\x91\x8A\x93, \x82I\x8D \x86\x85\x90\x92\x82\x93\x85 \x87\x80\x95\x88\x91\x92\x8E\x8C \x87\x80\x90\x80\x84\x88 \x80\x92\x80\x8A\x88. \x91\x8F\x85\x96I\x80\x8BI\x87\x93\x85\x92\x9C\x91\x9F \x8D\x80 \x81\x8E\x9E \x84\x82\x8E\x8C\x80 \x87\x81\x90\x8E\x9F\x8C\x88. \x91\x8F\x90\x80\x82\x86\x8D\x9F \x87I\x90\x8A\x80 \x9F\x8C\x8D\x88\x95 \x81\x8EI\x82.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\x91\x85\x8A\x93\x92\x8E\x90 - \x83\x8B\x80\x84I\x80\x92\x8E\x90, \x99\x8E \x91\x8F\x85\x96I\x80\x8BI\x87\x93\x85\x92\x9C\x91\x9F \x8D\x80 \x93\x95\x88\x8B\x85\x8D\x8DI \x82I\x84 \x80\x92\x80\x8A I \x8D\x80\x84\x98\x82\x88\x84\x8A\x8E\x8C\x93 \x82I\x84\x8D\x8E\x82\x8B\x85\x8D\x8DI. \x96I\x8A\x80\x82\x8E, \x80\x8B\x85 \x82I\x8D \x8D\x8E\x91\x88\x92\x9C \x8D\x80\x8FI\x82\x82\x80\x86\x8A\x85 \x91\x8F\x8E\x90\x9F\x84\x86\x85\x8D\x8D\x9F.";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\x82\x8EI\x8D\x88 \x92\x90\x80\x8F\x8B\x9F\x9E\x92\x9C\x91\x9F \x8D\x80 \x8F\x85\x90\x85\x84\x8E\x82I\x89 \x81\x93\x84\x9C-\x9F\x8A\x8EI \x81\x88\x92\x82\x88, \x91\x95\x8E\x84\x9F\x97\x88\x91\x9C \x8B\x88\x96\x85\x8C \x84\x8E \x8B\x88\x96\x9F \x87 \x8C\x8E\x8D\x91\x92\x90\x80\x8C\x88 \x89 \x87\x8B\x8E\x84I\x9F\x8C\x88.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\x8B\x93\x97\x8D\x88\x96I - \x82\x8F\x90\x80\x82\x8DI \x91\x92\x90I\x8B\x9C\x96I \x87 \x8B\x93\x8A\x80. \x82\x8E\x8D\x88 \x92\x90\x88\x8C\x80\x9E\x92\x9C \x84\x88\x91\x92\x80\x8D\x96I\x9E \x89 \x93\x81\x88\x82\x80\x9E\x92\x9C \x8C\x8E\x8D\x91\x92\x90I\x82 \x87\x84\x80\x8B\x85\x8A\x93.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\x8C\x80\x83\x88 - \x8C\x80\x89\x91\x92\x90\x88 \x8A\x85\x90\x93\x82\x80\x8D\x8D\x9F \x91\x88\x8B\x80\x8C\x88 \x89 \x91\x93\x92\x8D\x8E\x91\x92\x9F\x8C\x88, \x8D\x85\x82\x88\x84\x88\x8C\x88\x8C\x88 \x84\x8B\x9F I\x8D\x98\x88\x95 \x8B\x9E\x84\x85\x89. \x96\x85 \x87\x8D\x80\x90\x9F\x84\x84\x9F \x92\x80\x8A \x91\x80\x8C\x8E \x84I\x85\x82\x85 \x8F\x90\x8E\x92\x88 \x84\x85\x8C\x8E\x8DI\x82, \x9F\x8A I \x8C\x8E\x8B\x8E\x92.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\x97\x85\x8D\x96I - \x84\x93\x95\x8E\x82\x8DI \x81I\x89\x96I, \x99\x8E \x84\x8E\x91\x9F\x83\x8B\x88 \x93\x91\x8FI\x95\x93 \x82 \x93\x91I\x95 \x82\x88\x84\x80\x95 \x81\x8E\x9E, \x87\x80 \x82\x88\x8D\x9F\x92\x8A\x8E\x8C \x8C\x80\x83II.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\x90\x8E\x87\x81I\x89\x8D\x88\x96I - \x83\x8E\x8B\x8E\x82\x8E\x90I\x87\x88, \x81\x80\x8D\x84\x88\x92\x88, \x87\x8B\x8E\x84II \x89 \x8C\x80\x90\x8E\x84\x85\x90\x88. \x87\x84\x8E\x81\x88\x97 - \x93\x91\x85, \x99\x8E \x84\x8B\x9F \x8D\x88\x95 \x96I\x8D\x8D\x85.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\x84\x88\x8A\x93\x8D\x88 \x91\x88\x8B\x9C\x8DI, \x8CI\x96\x8D\x8E \x87\x81\x93\x84\x8E\x82\x80\x8DI \x89 \x8F\x85\x90\x85\x82\x85\x90\x98\x93\x9E\x92\x9C \x93 \x81\x8E\x9E \x8D\x85\x81\x80\x83\x80\x92\x9C\x8E\x95. I\x8C \x81\x90\x80\x8A\x93\x85 \x84\x88\x91\x96\x88\x8F\x8BI\x8D\x88, \x80\x8B\x85 \x82\x8E\x8D\x88 \x8A\x8E\x8C\x8F\x85\x8D\x91\x93\x9E\x92\x9C \x96\x85 \x83\x90\x93\x81\x8E\x9E \x91\x88\x8B\x8E\x9E.";
+		case STR_1084_Druid_Description:
+			return "\x84\x90\x93I\x84 \x8F\x90\x88\x89\x8C\x80\x85 \x91\x82\x8E\x9E \x87\x82I\x90\x88\x8D\x93 \x8D\x80\x92\x93\x90\x93 \x89 \x8B\x9E\x81\x88\x92\x9C \x8FI\x84\x81\x88\x90\x80\x92\x88\x91\x9F \x84\x8E \x8C\x8E\x8D\x91\x92\x90I\x82, \x99\x8E\x81 \x90\x8E\x87\x84\x88\x90\x80\x92\x88 I\x95 \x8D\x80 \x98\x8C\x80\x92\x8A\x88. \x92\x90\x8E\x95\x88 \x8D\x85\x8C\x88\x92\x88\x89 I \x91\x8C\x85\x90\x84\x9E\x97\x88\x89, \x80\x8B\x85 \x8DI\x95\x92\x8E \x8D\x85 \x8D\x80\x82\x80\x86\x93\x85\x92\x9C\x91\x9F \x89\x8E\x8C\x93 \x96\x85 \x91\x8A\x80\x87\x80\x92\x88.";
+		case STR_1085_Gladiatrix_Description:
+			return "\x83\x8B\x80\x84I\x80\x92\x90\x88\x91\x80 \x82\x85\x8B\x88\x8A\x80. \x8D\x85 \x92\x8E\x82\x91\x92\x80, \x8F\x90\x8E\x91\x92\x8E \x82\x85\x8B\x88\x8A\x80. \x8B\x9E\x81\x88\x92\x9C \x81\x88\x92\x88 \x90\x85\x97I I\x8D\x98\x88\x8C\x88 \x90\x85\x97\x80\x8C\x88, I \x84\x8E\x91\x88\x92\x9C \x91\x88\x8B\x9C\x8D\x8E. \x8B\x9E\x81\x88\x92\x9C \x8A\x8E\x90\x88\x91\x92\x93\x82\x80\x92\x88\x91\x9F \x8B\x93\x8A\x80\x8C\x88. \x81I\x8B\x9C\x98\x85 \x89 \x91\x8A\x80\x87\x80\x92\x88 \x8DI\x97\x8E\x83\x8E. \x8E\x91\x9C I \x82\x91\x85. \x82\x85\x8B\x88\x8A\x80. \x91\x88\x8B\x9C\x8D\x80. \x84\x93\x90\x8D\x80.";
+		}
+	}
+	// (th4) Bulgarian class/subclass descriptions. META atlas (0x80-0x9F, caps-only),
+	// not CP1251 -- these strings are hardcoded here rather than in LocalizationBG.cpp,
+	// and BG previously fell through to the English fallback below.
+	if( GameLanguage == LANG_BG ){
+		switch( strId ){
+		// --- Warrior subclass descriptions (STR 1052..1055) ---
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\x82\x8e\x88\x8d\x9a\x92 \x85 \x98\x80\x8c\x8f\x88\x8e\x8d \x88 \x81\x8e\x85\x96, \x97\x88\x89\x92\x8e \x86\x88\x82\x8e\x92 \x87\x80\x82\x88\x91\x88 \x8e\x92 \x82\x8b\x80\x84\x85\x85\x8d\x85\x92\x8e \x8d\x80 \x8e\x90\x9a\x86\x88\x85 \x88 \x92\x80\x8a\x92\x88\x8a\x80. \x8a\x8b\x80\x91\x88\x97\x85\x91\x8a\x88 \x81\x8e\x85\x96. \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x81\x8b\x8e\x8a\x80.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\x88\x8d\x8a\x82\x88\x87\x88\x92\x8e\x90\x9a\x92 \x85 \x8f\x8e\x91\x82\x85\x92\x88\x8b \x86\x88\x82\x8e\x92\x80 \x91\x88 \x8d\x80 \x92\x9a\x90\x91\x85\x8d\x85\x92\x8e \x88 \x88\x87\x92\x90\x85\x81\x82\x80\x8d\x85\x92\x8e \x8d\x80 \x85\x90\x85\x91, \x8d\x80 \x80\x84\x85\x8f\x92\x88\x92\x85 \x8d\x80 \x87\x8b\x80 \x8c\x80\x83\x88\x9f \x88 \x8d\x80 \x8f\x90\x85\x97\x88\x91\x92\x82\x80\x8d\x85\x92\x8e \x8d\x80 \x8c\x90\x80\x8a\x80 \x91\x9a\x91 \x91\x82\x85\x99\x85\x8d \x8e\x83\x9a\x8d. \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x91\x92\x88\x95\x88\x89\x8d\x80\x92\x80 \x99\x85\x92\x80.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\x91\x92\x90\x80\x86\x9a\x92 \x85 \x87\x80\x99\x88\x92\x85\x8d \x8a\x8b\x80\x91, \x82\x8b\x80\x84\x85\x85\x99 \x83\x8e\x8b\x85\x8c\x88 \x8c\x85\x97\x8e\x82\x85 \x88 \x97\x93\x8a\x8e\x82\x85. \x80 \x91\x9a\x99\x8e \x88 \x80\x90\x81\x80\x8b\x85\x92\x88. \x8a\x8e\x83\x80\x92\x8e \x83\x8e \x8f\x88\x92\x80\x92 \x87\x80 \x96\x85\x8b\x92\x80 \x8c\x93 \x82 \x92\x90\x88\x91\x92\x90\x80\x8c, \x81\x9a\x90\x87\x8e \x91\x8c\x85\x8d\x9f \x92\x85\x8c\x80\x92\x80.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\x92\x80\x8c\x8f\x8b\x88\x85\x90\x9a\x92 \x85 \x91\x82\x9f\x92 \x8c\x9a\x86 \x88 \x81\x8b\x80\x83\x8e\x90\x8e\x84\x85\x8d \x82\x8e\x88\x8d, \x84\x80\x8b \x8e\x81\x85\x92 \x84\x80 \x87\x80\x99\x88\x92\x80\x82\x80 \x91\x8b\x80\x81\x88\x92\x85 \x88 \x84\x80 \x91\x85 \x81\x8e\x90\x88 \x91\x9a\x91 \x87\x8b\x8e\x92\x8e. \x91\x8f\x85\x96\x88\x80\x8b\x88\x87\x88\x90\x80 \x82 \x88\x87\x92\x90\x85\x81\x82\x80\x8d\x85\x92\x8e \x8d\x80 \x8d\x85\x8c\x9a\x90\x92\x82\x88. \x8c\x8e\x86\x85 \x84\x80 \x8c\x9f\x92\x80 \x97\x93\x8a\x8e\x82\x85.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\x92\x80\x8b\x80\x8d\x92\x9a\x92 \x8d\x80 \x91\x92\x90\x85\x8b\x8a\x88\x8d\x9f\x92\x80 \x85 \x81\x9a\x90\x87\x80 \x99\x85\x92\x80 \x8e\x92 \x81\x85\x87\x8e\x8f\x80\x91\x8d\x8e \x90\x80\x87\x91\x92\x8e\x9f\x8d\x88\x85. \x8d\x8e \x92\x9f \x92\x90\x9f\x81\x82\x80 \x84\x80 \x85 \x8f\x90\x85\x84\x8f\x80\x87\x8b\x88\x82\x80 \x88 \x84\x80 \x8d\x85 \x84\x8e\x8f\x93\x91\x8a\x80 \x8d\x88\x8a\x8e\x83\x8e \x81\x8b\x88\x87\x8e. \x88\x8d\x80\x97\x85 \x82\x91\x88\x97\x8a\x8e \x91\x82\x9a\x90\x98\x82\x80 \x87\x8b\x85.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\x90\x80\x87\x93\x87\x8d\x80\x82\x80\x97\x8a\x80\x92\x80 \x8d\x85 \x8d\x80\x8d\x80\x91\x9f \x8a\x90\x88\x92 \x91\x9a\x91 \x91\x92\x90\x85\x8b\x88, \x8d\x8e \x8a\x8e\x8c\x8f\x85\x8d\x91\x88\x90\x80 \x92\x8e\x82\x80 \x91 \x84\x8e\x8f\x9a\x8b\x8d\x88\x92\x85\x8b\x8d\x80 \x91\x92\x88\x95\x88\x89\x8d\x80 \x99\x85\x92\x80 \x8d\x80 \x91\x92\x90\x85\x8b\x88\x92\x85. \x82 \x92\x8e\x82\x80 \x85 \x91\x88\x8b\x80\x92\x80 \x88. \x80 \x88 \x88\x8c\x80 \x8a\x90\x80\x91\x88\x82\x80 \x90\x88\x86\x80 \x8a\x8e\x91\x80.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\x91\x8d\x80\x89\x8f\x85\x90\x88\x91\x92\x8a\x80\x92\x80 \x85 \x81\x80\x82\x8d\x88\x9f\x92 \x92\x88\x8f \x91\x92\x90\x85\x8b\x8a\x88\x8d\x9f. \x92\x9f \x88\x8c\x80 \x8e\x91\x8e\x81\x85\x8d \x8d\x80\x81\x8e\x90 \x84\x9a\x8b\x83\x88 \x8b\x9a\x8a\x8e\x82\x85 \x88 \x93\x84\x90\x9f \x84\x8e\x91\x92\x80 \x8e\x91\x85\x87\x80\x85\x8c\x8e. \x92\x8e\x97\x8d\x8e\x91\x92\x92\x80 \x88 \x85 \x8d\x85\x8d\x80\x84\x8c\x88\x8d\x80\x92\x80. \x80 \x8a\x90\x88\x92\x8e\x82\x85\x92\x85 \x88 \x91\x80 \x91\x8c\x9a\x90\x92\x8e\x8d\x8e\x91\x8d\x88.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\x8a\x80\x8f\x80\x8d\x84\x86\x88\x89\x8a\x80\x92\x80 \x8f\x8e\x91\x92\x80\x82\x9f \x8a\x80\x8f\x80\x8d\x88 \x91\x90\x85\x99\x93 \x91\x8b\x93\x83\x88\x92\x85 \x8d\x80 \x8c\x90\x80\x8a\x80. \x80 \x88 \x88\x8c\x80 \x88\x87\x92\x9a\x8d\x97\x85\x8d \x93\x91\x85\x92 \x87\x80 \x91\x92\x88\x8b. \x8b\x9e\x81\x88\x8c\x88\x9f\x92 \x88 \x96\x82\x9f\x92 \x85 \x91\x88\x8d\x9c\x8e. \x8d\x85 \x8f\x88\x92\x80\x89 \x87\x80\x99\x8e.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\x8c\x80\x83\x9a\x92 \x85 \x8a\x8b\x80\x91\x88\x97\x85\x91\x8a\x88 \x87\x80\x8a\x8b\x88\x8d\x80\x92\x85\x8b, \x82\x9a\x8b\x98\x85\x81\x8d\x88\x8a, \x97\x80\x90\x8e\x84\x85\x89. \x8d\x85\x8c\x93 \x91\x80 \x84\x8e\x91\x92\x9a\x8f\x8d\x88 \x88 \x92\x80\x89\x8d\x88 \x87\x8d\x80\x8d\x88\x9f, \x8d\x85\x84\x8e\x91\x92\x9a\x8f\x8d\x88 \x87\x80 \x84\x90\x93\x83\x88\x92\x85 \x8a\x8b\x80\x91\x8e\x82\x85.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\x91\x92\x88\x95\x88\x89\x8d\x88\x8a\x9a\x92 \x82\x8b\x80\x84\x85\x85 \x87\x80\x8a\x8b\x88\x8d\x80\x8d\x88\x9f \x87\x80 \x8e\x83\x9a\x8d, \x91\x92\x93\x84 \x88 \x8c\x9a\x8b\x8d\x88\x9f. \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x91\x92\x88\x95\x88\x88\x92\x85. \x87\x80\x8a\x8b\x88\x8d\x80\x8d\x88\x9f\x92\x80 \x8c\x93 \x88\x8c\x80\x92 \x84\x8e\x81\x9a\x90 \x98\x80\x8d\x91 \x84\x80 \x8d\x80\x8d\x85\x91\x80\x92 \x84\x8e\x8f\x9a\x8b\x8d\x88\x92\x85\x8b\x8d\x80 \x99\x85\x92\x80.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\x8f\x90\x88\x87\x8e\x82\x80\x92\x85\x8b\x88\x92\x85 \x91\x80 \x8f\x8e\x84\x82\x88\x84 \x8c\x80\x83\x8e\x82\x85, \x8a\x8e\x88\x92\x8e \x91\x85 \x91\x90\x80\x86\x80\x82\x80\x92 \x91\x9a\x91 \x87\x8b\x8e\x92\x8e \x91 \x8f\x8e\x8c\x8e\x99\x92\x80 \x8d\x80 \x91\x9a\x99\x85\x91\x92\x82\x80, \x8a\x8e\x88\x92\x8e \x82\x84\x88\x83\x80\x92.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\x97\x85\x90\x8d\x8e\x8a\x8d\x88\x86\x8d\x88\x8a\x9a\x92 \x85 \x80\x84\x85\x8f\x92 \x8d\x80 \x92\x9a\x8c\x8d\x88\x92\x85 \x87\x8d\x80\x8d\x88\x9f, \x88\x87\x8f\x8e\x8b\x87\x82\x80 \x97\x85\x90\x8d\x8e \x82\x85\x99\x85\x90\x91\x92\x82\x8e \x88 \x8a\x88\x91\x85\x8b\x88\x8d\x8d\x88 \x87\x80\x8a\x8b\x88\x8d\x80\x8d\x88\x9f \x91\x90\x85\x99\x93 \x84\x85\x8c\x8e\x8d\x88\x92\x85. \x8d\x85 \x8c\x8e\x86\x85 \x84\x80 \x93\x97\x88 \x91\x82\x85\x92\x88 \x87\x80\x8a\x8b\x88\x8d\x80\x8d\x88\x9f.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\x8a\x8b\x80\x91\x88\x97\x85\x91\x8a\x88\x9f\x92 \x8c\x8e\x8d\x80\x95. \x81\x9a\x90\x87, \x93\x8d\x88\x82\x85\x90\x91\x80\x8b\x85\x8d \x88 \x87\x80\x8a\x8b\x85\x92 \x82\x90\x80\x83 \x8d\x80 \x82\x91\x88\x97\x8a\x88 \x84\x85\x8c\x8e\x8d\x88. \x82\x8b\x80\x84\x85\x85 \x8c\x80\x89\x91\x92\x8e\x90\x91\x8a\x88 \x86\x85\x87\x9a\x8b\x80. \x8c\x8e\x86\x85 \x84\x80 \x93\x84\x90\x9f \x8d\x9f\x8a\x8e\x8b\x8a\x8e \x82\x90\x80\x83\x80 \x8d\x80\x82\x85\x84\x8d\x9a\x86. \x87\x80 \x84\x80\x8b\x85\x97\x85\x8d \x81\x8e\x89 \x8f\x90\x85\x84\x8f\x8e\x97\x88\x92\x80 \x8b\x9a\x8a\x8e\x82\x85.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\x88\x91\x92\x88\x8d\x91\x8a\x88 \x8c\x80\x89\x91\x92\x8e\x90 \x8d\x80 \x8e\x90\x9a\x86\x88\x85\x92\x8e, \x8a\x85\x8d\x91\x85\x89 \x85 \x91\x88\x8b\x80, \x91 \x8a\x8e\x9f\x92\x8e \x92\x90\x9f\x81\x82\x80 \x84\x80 \x91\x85 \x91\x97\x88\x92\x80. \x88 \x87\x90\x85\x8b\x88\x99\x85 \x82 \x81\x8e\x89. \x92\x8e\x89 \x82\x9f\x90\x82\x80, \x97\x85 \x93\x81\x88\x89\x91\x92\x82\x8e\x92\x8e \x85 \x82\x88\x84 \x88\x87\x8a\x93\x91\x92\x82\x8e.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\x98\x93\x83\x8e\x8a\x88 \x85 \x83\x88\x83\x80\x8d\x92 \x82 \x92\x85\x86\x8a\x80 \x81\x90\x8e\x8d\x9f, \x8a\x8e\x89\x92\x8e \x8f\x90\x85\x84\x8f\x8e\x97\x88\x92\x80 \x8f\x90\x9a\x92\x8e\x82\x8e \x8e\x90\x9a\x86\x88\x85 \x82 \x81\x8b\x88\x87\x9a\x8a \x81\x8e\x89. \x88 \x8b\x9a\x8a\x8e\x82\x85 \x82 \x84\x80\x8b\x85\x97\x85\x8d.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\x98\x88\x8d\x8e\x81\x88 \x8f\x90\x85\x84\x8f\x8e\x97\x88\x92\x80 \x84\x80 \x91\x85 \x84\x8e\x81\x8b\x88\x86\x88 \x8f\x8b\x9a\x92\x8d\x8e \x84\x8e \x96\x85\x8b\x92\x80 \x88 \x96\x9f\x8b \x86\x88\x82\x8e\x92 \x85 \x93\x91\x9a\x82\x9a\x90\x98\x85\x8d\x91\x92\x82\x80\x8b \x93\x8c\x85\x8d\x88\x9f\x92\x80 \x8d\x80 \x81\x8e\x85\x96 \x8d\x80 \x91\x85\x8d\x8a\x88\x92\x85. \x82 \x84\x80\x8b\x85\x97\x85\x8d \x81\x8e\x89 \x88\x87\x8f\x8e\x8b\x87\x82\x80 \x8c\x85\x92\x80\x92\x85\x8b\x8d\x88 \x87\x82\x85\x87\x84\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\x90\x80\x87\x81\x8e\x89\x8d\x88\x97\x8a\x80\x92\x80 \x85 \x8b\x8e\x82\x9a\x8a \x81\x8e\x85\x96 \x91 \x84\x82\x85 \x8e\x90\x9a\x86\x88\x9f. \x91\x88\x8b\x8d\x88\x92\x85 \x88 \x91\x92\x90\x80\x8d\x88 \x91\x80 \x81\x9a\x90\x87\x88\x92\x85 \x80\x92\x80\x8a\x88, \x8f\x90\x88\x8b\x88\x97\x8d\x80\x92\x80 \x8c\x80\x83\x88\x9f \x88 \x88\x87\x8f\x8b\x9a\x87\x82\x80\x8d\x85\x92\x8e. \x91\x8b\x80\x81\x80\x92\x80 \x88 \x91\x92\x90\x80\x8d\x80 \x85 \x8b\x88\x8f\x91\x80\x92\x80 \x8d\x80 \x88\x87\x84\x90\x9a\x86\x8b\x88\x82\x8e\x91\x92.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\x80\x91\x80\x91\x88\x8d\x8a\x80\x92\x80 \x88\x87\x8f\x8e\x8b\x87\x82\x80 \x8d\x8e\x8a\x92\x88 \x82 \x81\x8e\x89. \x8e\x81\x88\x97\x80 \x84\x80 \x83\x88 \x8f\x8e\x92\x80\x8f\x9f \x82 \x8a\x88\x91\x85\x8b\x88\x8d\x80, \x87\x80 \x84\x80 \x8d\x80\x8d\x85\x91\x85 \x8f\x8e\x82\x85\x97\x85 \x99\x85\x92\x80 \x8d\x80 \x8d\x85\x95\x80\x89\x8d\x88\x92\x85 \x86\x85\x90\x92\x82\x88. \x87\x80 \x84\x80\x8b\x85\x97\x85\x8d \x81\x8e\x89 \x8f\x8e-\x97\x85\x91\x92\x8e \x82\x87\x85\x8c\x80 \x8c\x85\x92\x80\x92\x85\x8b\x8d\x88 \x8d\x8e\x86\x8e\x82\x85.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\x81\x90\x8e\x8d\x9f\x92\x80 \x88 \x85 \x8e\x90\x9a\x86\x88\x85. \x97\x80\x91\x92\x88 \x8e\x92 \x81\x90\x8e\x8d\x9f\x92\x80 \x88 \x91\x80 \x8f\x8e\x8a\x90\x88\x92\x88 \x91 \x98\x88\x8f\x8e\x82\x85 \x88 \x8d\x80\x8d\x80\x91\x9f\x92 \x99\x85\x92\x80 \x8d\x80 \x8d\x80\x8f\x80\x84\x80\x99\x88\x92\x85 \x82 \x81\x8b\x88\x87\x9a\x8a \x81\x8e\x89. \x87\x80 \x84\x80\x8b\x85\x97\x85\x8d \x88\x87\x8f\x8e\x8b\x87\x82\x80 \x81\x9a\x90\x87\x88 \x80\x90\x81\x80\x8b\x85\x92\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\x86\x88\x82\x8e\x92\x9a\x92 \x8d\x80 \x81\x8e\x8c\x81\x80\x90\x84\x88\x90\x8a\x80\x92\x80 \x85 \x8f\x90\x8e\x91\x92. \x92\x9f \x8e\x81\x88\x97\x80 \x82\x87\x90\x88\x82\x8e\x82\x85\x92\x85. \x88 \x8c\x9f\x92\x80 \x8f\x8e \x82\x90\x80\x83\x8e\x82\x85\x92\x85 \x82\x87\x90\x88\x82\x8d\x88 \x8a\x8e\x8b\x81\x88, \x84\x8e\x8a\x80\x92\x8e \x82\x91\x88\x97\x8a\x88 \x8d\x85 \x93\x8c\x90\x80\x92. \x8e\x81\x88\x8a\x8d\x8e\x82\x85\x8d\x8e \x82 \x91\x92\x90\x80\x98\x8d\x80 \x80\x83\x8e\x8d\x88\x9f.";
+		case STR_1085_Gladiatrix_Description:
+			return "\x83\x8b\x80\x84\x88\x80\x92\x90\x88\x8a\x91 \x85 \x83\x8e\x8b\x9f\x8c\x80. \x8d\x85 \x84\x85\x81\x85\x8b\x80, \x8f\x90\x8e\x91\x92\x8e \x83\x8e\x8b\x9f\x8c\x80. \x8e\x81\x88\x97\x80 \x84\x80 \x93\x84\x90\x9f \x8d\x85\x99\x80 \x91 \x84\x90\x93\x83\x88 \x8d\x85\x99\x80, \x84\x8e\x91\x92\x80 \x91\x88\x8b\x8d\x8e. \x8e\x81\x88\x97\x80 \x8b\x9a\x8a\x8e\x82\x85. \x8a\x80\x8a\x82\x8e \x8e\x99\x85 \x84\x80 \x91\x85 \x8a\x80\x86\x85? \x92\x8e\x82\x80 \x85. \x83\x8e\x8b\x9f\x8c\x80. \x91\x88\x8b\x8d\x80. \x92\x9a\x8f\x80.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\x84\x88\x82\x80\x8a\x9a\x92 \x85 \x92\x88\x8f\x88\x97\x85\x8d \x81\x8e\x85\x96 \x8d\x80 \x8f\x90\x85\x84\x8d\x80\x92\x80 \x8b\x88\x8d\x88\x9f. \x8d\x85 \x93\x8c\x85\x85 \x84\x80 \x93\x84\x90\x9f \x8f\x8e \x91\x8b\x80\x81\x8e\x92\x8e \x8c\x9f\x91\x92\x8e, \x8d\x8e \x93\x8c\x85\x85 \x84\x80 \x93\x84\x90\x9f \x91\x88\x8b\x8d\x8e. \x8f\x90\x85\x84\x8f\x8e\x97\x88\x92\x80 \x83\x8e\x8b\x9f\x8c\x8e \x84\x82\x93\x90\x9a\x97\x8d\x8e \x8e\x90\x9a\x86\x88\x85.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\x82 \x96\x88\x82\x88\x8b\x88\x87\x8e\x82\x80\x8d\x8e \x8e\x81\x99\x85\x91\x92\x82\x8e \x9f\x90\x8e\x91\x92\x92\x80 \x8d\x80 \x81\x85\x90\x91\x85\x90\x8a\x80 \x81\x88 \x81\x88\x8b\x80 \x8f\x90\x8e\x81\x8b\x85\x8c. \x8d\x8e \x92\x93\x8a \x92\x8e\x82\x80 \x85 \x8e\x83\x90\x8e\x8c\x8d\x8e \x8f\x90\x85\x84\x88\x8c\x91\x92\x82\x8e! \x81\x85\x87\x8f\x8e\x99\x80\x84\x85\x8d, \x81\x9a\x90\x87 \x88 \x8d\x85\x93\x84\x9a\x90\x86\x88\x8c \x81\x8e\x85\x96.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\x88\x87\x90\x8e\x84 \x8d\x80 \x8f\x90\x88\x90\x8e\x84\x80\x92\x80, \x97\x8e\x82\x85\x8a-\x83\x88\x83\x80\x8d\x92, \x92\x8e\x89 \x8d\x85 \x8d\x8e\x91\x88 \x97\x8e\x82\x85\x98\x8a\x80 \x81\x90\x8e\x8d\x9f - \x8f\x90\x8e\x91\x92\x8e \x8d\x85 \x9f \x8f\x90\x80\x82\x9f\x92 \x82 \x8d\x85\x83\x8e\x82\x88\x9f \x90\x80\x87\x8c\x85\x90. \x8c\x8e\x86\x85 \x84\x80 \x90\x80\x87\x8a\x9a\x91\x80 \x8a\x80\x8a\x82\x8e\x92\x8e \x88 \x84\x80 \x85 \x91 \x83\x8e\x8b\x88 \x90\x9a\x96\x85. \x84\x85\x8c\x8e\x8d\x88\x92\x85 \x91\x9a\x8d\x93\x82\x80\x92 \x8a\x8e\x98\x8c\x80\x90\x88.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\x8d\x80\x93\x97\x85\x8d\x88 \x8e\x92 \x8c\x88\x8d\x80\x8b\x88\x9f \x8e\x8f\x88\x92 \x8d\x80 \x80\x90\x85\x8d\x80\x92\x80, \x92\x85\x87\x88 \x8c\x9a\x86\x85 \x91\x85\x83\x80 \x88\x87\x8f\x8e\x8b\x87\x82\x80\x92 \x93\x8c\x85\x8d\x88\x9f\x92\x80 \x91\x88 \x91\x90\x85\x99\x93 \x84\x85\x8c\x8e\x8d\x88\x92\x85, \x87\x80\x82\x8b\x80\x84\x85\x8b\x88 \x92\x90\x88\x91\x92\x90\x80\x8c.";
+		case STR_1084_Druid_Description:
+			return "\x84\x90\x93\x88\x84\x9a\x92 \x8f\x90\x88\x85\x8c\x80 \x87\x82\x9f\x90\x91\x8a\x80\x92\x80 \x91\x88 \x91\x92\x90\x80\x8d\x80 \x88 \x8e\x81\x88\x97\x80 \x84\x80 \x91\x85 \x84\x8e\x81\x8b\x88\x86\x88 \x84\x8e \x97\x93\x84\x8e\x82\x88\x99\x80\x92\x80 \x88 \x84\x80 \x83\x88 \x90\x80\x87\x8a\x9a\x91\x80 \x8d\x80 \x8f\x80\x90\x97\x85\x92\x80. \x8c\x80\x8b\x8a\x8e \x8d\x85\x8c\x88\x92 \x88 \x82\x8e\x8d\x9f\x99, \x8d\x8e \x8d\x88\x8a\x8e\x89 \x8d\x85 \x91\x8c\x85\x85 \x84\x80 \x8c\x93 \x83\x8e \x8a\x80\x86\x85.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\x84\x85\x8c\x8e\x8d\x8e\x8b\x8e\x83\x9a\x92 \x8f\x90\x88\x87\x8e\x82\x80\x82\x80 \x84\x85\x8c\x8e\x8d\x88 \x8e\x92 \x82\x91\x88\x97\x8a\x88 \x8a\x90\x9a\x83\x8e\x82\x85 \x8d\x80 \x80\x84\x80 \x8d\x80 \x91\x82\x8e\x9f \x91\x8b\x93\x86\x81\x80. \x8d\x80\x89-\x8c\x8d\x8e\x83\x8e \x8e\x81\x88\x97\x80 \x84\x80 \x83\x8b\x85\x84\x80 \x8a\x80\x8a \x8f\x88\x92\x8e\x8c\x96\x88\x92\x85 \x8c\x93 \x90\x80\x87\x8a\x9a\x91\x82\x80\x92 \x82\x91\x88\x97\x8a\x8e \x8f\x8e \x8f\x9a\x92\x9f \x91\x88.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\x8d\x85\x8a\x90\x8e\x8c\x80\x8d\x92\x9a\x92 \x8d\x88\x8a\x8e\x83\x80 \x8d\x85 \x85 \x8d\x80\x90\x80\x8d\x9f\x82\x80\x8b \x86\x88\x82\x8e \x91\x9a\x99\x85\x91\x92\x82\x8e. \x96\x9f\x8b\x80\x92\x80 \x81\x8e\x8b\x8a\x80, \x91\x92\x90\x80\x84\x80\x8d\x88\x85 \x88 \x91\x8c\x9a\x90\x92 \x8d\x8e\x91\x88 \x8d\x85\x86\x88\x82\x80\x92\x80 \x8c\x93 \x91\x80\x84\x88\x91\x92\x88\x97\x8d\x80 \x8e\x90\x84\x80 \x8e\x92 \x91\x8a\x85\x8b\x85\x92\x88. \x92\x8e\x82\x80 \x91\x9a\x99\x8e \x85 \x90\x80\x81\x8e\x92\x80.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\x8f\x8e\x82\x85\x8b\x88\x92\x85\x8b\x9f\x92 \x8d\x80 \x87\x82\x85\x90\x8e\x82\x85 \x85 \x98\x80\x8c\x80\x8d, \x88\x87\x8f\x8e\x8b\x87\x82\x80\x99 \x91\x82\x88\x90\x85\x8f\x88\x92\x85 \x92\x82\x80\x90\x88 \x8d\x80 \x8f\x90\x88\x90\x8e\x84\x80\x92\x80 \x91\x90\x85\x99\x93 \x8c\x90\x80\x8a\x80. \x8e\x81\x88\x97\x80 \x84\x80 \x88\x87\x92\x90\x9a\x83\x82\x80 \x91\x9a\x90\x96\x80\x92\x80 \x8d\x80 \x8f\x80\x84\x8d\x80\x8b\x88\x92\x85 \x86\x85\x90\x92\x82\x88 \x88 \x84\x80 \x83\x88 \x88\x87\x9f\x86\x84\x80, \x82\x87\x85\x8c\x80\x89\x8a\x88 \x91\x88\x8b\x80\x92\x80 \x88\x8c.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\x93\x8c\x85\x85 \x84\x80 \x8f\x90\x8e\x81\x88\x85 \x88 \x8d\x80\x89-\x84\x85\x81\x85\x8b\x80\x92\x80 \x81\x90\x8e\x8d\x9f. \x85\x94\x85\x8a\x92\x88\x82\x85\x8d \x91 \x8e\x91\x92\x90\x88\x85\x92\x80 \x91\x90\x85\x99\x93 \x8d\x85\x8c\x9a\x90\x92\x82\x88. \x84\x8e\x8f\x9a\x8b\x8d\x88\x92\x85\x8b\x8d\x88\x92\x85 \x80\x92\x80\x8a\x88 \x91 \x99\x88\x92 \x93\x82\x85\x8b\x88\x97\x80\x82\x80\x92 \x99\x85\x92\x80\x92\x80 \x8c\x93.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\x97\x88\x91\x92\x8e \x87\x80\x99\x88\x92\x85\x8d \x92\x88\x8f \x83\x8b\x80\x84\x88\x80\x92\x8e\x90. \x9f\x8a, \x8c\x8e\x99\x85\x8d, \x8d\x85\x91\x9a\x8a\x90\x93\x98\x88\x8c. \x93\x8c\x85\x85 \x84\x80 \x88\x87\x92\x8e\x99\x88 \x8f\x90\x8e\x92\x88\x82\x8d\x88\x8a\x80, \x8f\x90\x85\x84\x88 \x84\x80 \x83\x8e \x84\x8e\x82\x9a\x90\x98\x88.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\x8d\x85\x8d\x80\x84\x8c\x88\x8d\x80\x92 \x82 \x8d\x80\x92\x88\x91\x8a\x80, \x92\x8e\x89 \x86\x85\x90\x92\x82\x80 \x87\x80\x99\x88\x92\x80\x92\x80 \x87\x80\x90\x80\x84\x88 \x80\x92\x80\x8a\x80\x92\x80. \x91\x8f\x85\x96\x88\x80\x8b\x88\x87\x88\x90\x80 \x82 \x81\x8e\x89 \x91 \x84\x82\x85 \x8e\x90\x9a\x86\x88\x9f. \x88\x91\x92\x88\x8d\x91\x8a\x80 \x87\x82\x85\x87\x84\x80 \x8d\x80 \x9f\x8c\x8d\x88\x92\x85 \x81\x88\x92\x8a\x88.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\x91\x85\x8a\x93\x92\x8e\x90\x9a\x92 \x85 \x83\x8b\x80\x84\x88\x80\x92\x8e\x90, \x8a\x8e\x89\x92\x8e \x91\x8f\x85\x96\x88\x80\x8b\x88\x87\x88\x90\x80 \x82 \x88\x87\x81\x9f\x83\x82\x80\x8d\x85\x92\x8e \x8d\x80 \x80\x92\x80\x8a\x88 \x88 \x91\x82\x90\x9a\x95\x81\x9a\x90\x87\x8e\x92\x8e \x82\x9a\x87\x91\x92\x80\x8d\x8e\x82\x9f\x82\x80\x8d\x85. \x8b\x9e\x81\x8e\x8f\x88\x92\x8d\x8e, \x8d\x8e \x8d\x8e\x91\x88 \x8f\x8e\x8b\x93\x92\x85\x86\x8a\x8e \x91\x8d\x80\x90\x9f\x86\x85\x8d\x88\x85.";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\x82\x8e\x88\x8d\x88\x92\x85 \x91\x85 \x91\x90\x85\x99\x80\x92 \x8d\x80 \x8f\x90\x85\x84\x8d\x80\x92\x80 \x8b\x88\x8d\x88\x9f \x8d\x80 \x82\x91\x9f\x8a\x80 \x81\x88\x92\x8a\x80, \x88\x87\x8f\x90\x80\x82\x9f\x89\x8a\x88 \x91\x85 \x8b\x88\x96\x85 \x82 \x8b\x88\x96\x85 \x91 \x97\x93\x84\x8e\x82\x88\x99\x80 \x88 \x87\x8b\x8e\x84\x85\x88.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\x91\x92\x90\x85\x8b\x8a\x88\x8d\x88\x92\x85 \x91\x80 \x88\x87\x8a\x93\x91\x8d\x88 \x91 \x8b\x9a\x8a\x80. \x92\x85 \x8f\x80\x87\x9f\x92 \x84\x88\x91\x92\x80\x8d\x96\x88\x9f \x88 \x93\x81\x88\x82\x80\x92 \x97\x93\x84\x8e\x82\x88\x99\x80\x92\x80 \x8e\x92\x84\x80\x8b\x85\x97.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\x8c\x80\x83\x8e\x82\x85\x92\x85 \x91\x80 \x8c\x80\x89\x91\x92\x8e\x90\x88 \x82 \x93\x8f\x90\x80\x82\x8b\x85\x8d\x88\x85\x92\x8e \x8d\x80 \x91\x88\x8b\x88 \x88 \x91\x9a\x99\x8d\x8e\x91\x92\x88, \x8d\x85\x82\x88\x84\x88\x8c\x88 \x87\x80 \x84\x90\x93\x83\x88\x92\x85 \x95\x8e\x90\x80. \x92\x8e\x82\x80 \x85 \x8e\x90\x9a\x84\x88\x85, \x92\x8e\x8b\x8a\x8e\x82\x80 \x84\x85\x89\x91\x92\x82\x85\x8d\x8e \x91\x90\x85\x99\x93 \x84\x85\x8c\x8e\x8d\x88\x92\x85, \x8a\x8e\x8b\x8a\x8e\x92\x8e \x88 \x97\x93\x8a\x9a\x92.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\x8c\x8e\x8d\x80\x91\x88\x92\x85 \x91\x80 \x84\x93\x95\x8e\x82\x8d\x88 \x81\x8e\x89\x96\x88, \x8f\x90\x85\x93\x91\x8f\x85\x8b\x88 \x82\x9a\x82 \x82\x91\x88\x97\x8a\x88 \x82\x88\x84\x8e\x82\x85 \x81\x8e\x89 \x91 \x88\x87\x8a\x8b\x9e\x97\x85\x8d\x88\x85 \x8d\x80 \x8c\x80\x83\x88\x9f\x92\x80.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\x90\x80\x87\x81\x8e\x89\x8d\x88\x97\x8a\x88\x92\x85 \x91\x80 \x83\x8b\x80\x82\x8e\x90\x85\x87\x88, \x81\x80\x8d\x84\x88\x92\x88, \x8a\x90\x80\x84\x96\x88 \x88 \x8c\x80\x90\x8e\x84\x85\x90\x88. \x8f\x8b\x9f\x97\x8a\x80\x92\x80 \x85 \x82\x91\x88\x97\x8a\x8e, \x8a\x8e\x85\x92\x8e \x96\x85\x8d\x9f\x92.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\x84\x88\x82\x80\x96\x88\x92\x85 \x91\x80 \x91\x88\x8b\x8d\x88, \x9f\x8a\x8e \x91\x8b\x8e\x86\x85\x8d\x88 \x88 \x8c\x80\x8b\x96\x88\x8d\x80 \x83\x88 \x8d\x80\x84\x8c\x88\x8d\x80\x82\x80\x92 \x82 \x81\x8e\x89. \x8b\x88\x8f\x91\x82\x80 \x88\x8c \x84\x88\x91\x96\x88\x8f\x8b\x88\x8d\x80, \x8d\x8e \x8a\x8e\x8c\x8f\x85\x8d\x91\x88\x90\x80\x92 \x92\x8e\x82\x80 \x91 \x83\x90\x93\x81\x80 \x91\x88\x8b\x80.";
+		}
+		return nullptr;
+	}
+	if( GameLanguage != LANG_RU ) return nullptr;
+	switch( strId ){
+		// --- Warrior subclass descriptions (STR 1052..1055) ---
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_WARRIOR:
+			return "\x82\x8E\x88\x8D - \x97\x85\x8C\x8F\x88\x8E\x8D \x88 \x81\x8E\x85\x96, \x97\x9C\x9F \x86\x88\x87\x8D\x9C \x87\x80\x82\x88\x91\x88\x92 \x8E\x92 \x82\x8B\x80\x84\x85\x8D\x88\x9F \x8E\x90\x93\x86\x88\x85\x8C \x88 \x92\x80\x8A\x92\x88\x8A\x8E\x89. \x8A\x8B\x80\x91\x91\x88\x97\x85\x91\x8A\x88\x89 \x81\x8E\x85\x96. \x8C\x80\x91\x92\x85\x90 \x81\x8B\x8E\x8A\x80.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_INQUISITOR:
+			return "\x88\x8D\x8A\x82\x88\x87\x88\x92\x8E\x90 \x8F\x8E\x91\x82\x9F\x92\x88\x8B \x86\x88\x87\x8D\x9C \x8F\x8E\x88\x91\x8A\x93 \x88 \x88\x91\x92\x90\x85\x81\x8B\x85\x8D\x88\x9E \x85\x90\x85\x91\x88, \x80\x84\x85\x8F\x92\x8E\x82 \x87\x8B\x8E\x89 \x8C\x80\x83\x88\x88 \x88 \x8E\x97\x88\x99\x85\x8D\x88\x9E \x92\x9C\x8C\x9B \x91\x82\x9F\x99\x85\x8D\x8D\x9B\x8C \x8E\x83\x8D\x85\x8C. \x8C\x80\x91\x92\x85\x90 \x91\x92\x88\x95\x88\x89\x8D\x8E\x83\x8E \x93\x90\x8E\x8D\x80.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_GUARDIAN:
+			return "\x91\x92\x90\x80\x86 - \x87\x80\x99\x88\x92\x8D\x9B\x89 \x8A\x8B\x80\x91\x91, \x82\x8B\x80\x84\x85\x9E\x99\x88\x89 \x81\x8E\x8B\x9C\x98\x88\x8C\x88 \x8C\x85\x97\x80\x8C\x88 \x88 \x8C\x8E\x8B\x8E\x92\x80\x8C\x88. \x80 \x92\x80\x8A\x86\x85 \x80\x90\x81\x80\x8B\x85\x92\x80\x8C\x88. \x8A\x8E\x83\x84\x80 \x85\x83\x8E \x91\x8F\x90\x80\x98\x88\x82\x80\x9E\x92 \x8E \x96\x85\x8B\x88 \x82 \x92\x90\x88\x91\x92\x90\x80\x8C\x85, \x8E\x8D \x81\x9B\x91\x92\x90\x8E \x8C\x85\x8D\x9F\x85\x92 \x92\x85\x8C\x93.";
+		case STR_1052_Warriors_Descriptions_Start + PSC_WARRIOR_TEMPLAR:
+			return "\x92\x80\x8C\x8F\x8B\x88\x85\x90 - \x91\x82\x9F\x92\x8E\x89 \x8C\x93\x86 \x88 \x81\x8B\x80\x83\x8E\x90\x8E\x84\x8D\x9B\x89 \x82\x8E\x88\x8D, \x84\x80\x82\x98\x88\x89 \x8E\x81\x85\x92 \x87\x80\x99\x88\x99\x80\x92\x9C \x91\x8B\x80\x81\x9B\x95 \x88 \x81\x8E\x90\x8E\x92\x9C\x91\x9F \x91\x8E \x87\x8B\x8E\x8C. \x91\x8F\x85\x96\x88\x80\x8B\x88\x87\x88\x90\x93\x85\x92\x91\x9F \x8D\x80 \x88\x91\x92\x90\x85\x81\x8B\x85\x8D\x88\x88 \x8D\x85\x86\x88\x92\x88. \x8C\x8E\x86\x85\x92 \x8C\x85\x92\x80\x92\x9C \x8C\x8E\x8B\x8E\x92\x9B.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_ARCHER:
+			return "\x92\x80\x8B\x80\x8D\x92 \x8B\x93\x97\x8D\x88\x96\x9B - \x81\x9B\x91\x92\x90\x9B\x89 \x93\x90\x8E\x8D \x91 \x81\x85\x87\x8E\x8F\x80\x91\x8D\x8E\x89 \x84\x88\x91\x92\x80\x8D\x96\x88\x88. \x8D\x8E \x8E\x8D\x80 \x84\x8E\x8B\x86\x8D\x80 \x81\x9B\x92\x9C \x8E\x91\x92\x8E\x90\x8E\x86\x8D\x80 \x88 \x8D\x85 \x8F\x8E\x84\x8F\x93\x91\x8A\x80\x92\x9C \x8D\x88\x8A\x8E\x83\x8E \x81\x8B\x88\x87\x8A\x8E. \x88\x8D\x80\x97\x85 \x82\x91\x85 \x8A\x8E\x8D\x97\x80\x85\x92\x91\x9F \x8F\x8B\x8E\x95\x8E.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SCOUT:
+			return "\x90\x80\x87\x82\x85\x84\x97\x88\x96\x80 \x8D\x85 \x8D\x80\x8D\x8E\x91\x88\x92 \x8A\x90\x88\x92 \x91\x92\x90\x85\x8B\x80\x8C\x88, \x8D\x8E \x8A\x8E\x8C\x8F\x85\x8D\x91\x88\x90\x93\x85\x92 \x9D\x92\x8E \x84\x8E\x8F\x8E\x8B\x8D\x88\x92\x85\x8B\x9C\x8D\x9B\x8C \x91\x92\x88\x95\x88\x89\x8D\x9B\x8C \x93\x90\x8E\x8D\x8E\x8C \x91\x92\x90\x85\x8B. \x82 \x9D\x92\x8E\x8C \x85\x85 \x91\x88\x8B\x80. \x80 \x85\x99\x85 \x93 \x8D\x85\x85 \x8A\x90\x80\x91\x88\x82\x9B\x85 \x90\x9B\x86\x88\x85 \x82\x8E\x8B\x8E\x91\x9B.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_SHARPSHOOTER:
+			return "\x91\x8D\x80\x89\x8F\x85\x90 - \x8C\x85\x84\x8B\x85\x8D\x8D\x9B\x89 \x92\x88\x8F \x8B\x93\x97\x8D\x88\x96\x9B. \x93 \x8D\x85\x85 \x93\x8D\x88\x8A\x80\x8B\x9C\x8D\x9B\x89 \x8D\x80\x81\x8E\x90 \x84\x8B\x88\x8D\x8D\x9B\x95 \x8B\x93\x8A\x8E\x82, \x88 \x81\x9C\x85\x92 \x8E\x8D\x80 \x82\x85\x91\x9C\x8C\x80 \x8E\x99\x93\x92\x88\x8C\x8E. \x85\x85 \x92\x8E\x97\x8D\x8E\x91\x92\x9C \x8D\x85\x8F\x90\x85\x82\x87\x8E\x89\x84\x85\x8D\x8D\x80. \x80 \x8A\x90\x88\x92\x9B \x91\x8C\x85\x90\x92\x85\x8B\x9C\x8D\x9B.";
+		case STR_1056_Archers_Descriptions_Start + PSC_ARCHER_TRAPPER:
+			return "\x8B\x8E\x82\x93\x98\x8D\x88\x96\x80 \x91\x92\x80\x82\x88\x92 \x8B\x8E\x82\x93\x98\x8A\x88 \x8F\x90\x8E\x92\x88\x82 \x8F\x90\x88\x91\x8B\x93\x86\x8D\x88\x8A\x8E\x82 \x92\x9C\x8C\x9B. \x80 \x85\x99\x85 \x93 \x8D\x85\x85 \x90\x80\x87\x82\x88\x92\x8E\x85 \x97\x93\x82\x91\x92\x82\x8E \x91\x92\x88\x8B\x9F. \x85\x85 \x8B\x9E\x81\x88\x8C\x9B\x89 \x96\x82\x85\x92 - \x91\x88\x8D\x88\x89. \x8D\x85 \x91\x8F\x90\x80\x98\x88\x82\x80\x89 \x8F\x8E\x97\x85\x8C\x93.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_MAGE:
+			return "\x8C\x80\x83 - \x8A\x8B\x80\x91\x91\x88\x97\x85\x91\x8A\x88\x89 \x87\x80\x8A\x8B\x88\x8D\x80\x92\x85\x8B\x9C, \x82\x8E\x8B\x98\x85\x81\x8D\x88\x8A, \x97\x80\x90\x8E\x84\x85\x89. \x85\x8C\x93 \x92\x80\x8A\x86\x85 \x84\x8E\x91\x92\x93\x8F\x8D\x9B \x92\x80\x89\x8D\x9B\x85 \x87\x8D\x80\x8D\x88\x9F, \x8D\x85\x84\x8E\x91\x92\x93\x8F\x8D\x9B\x85 \x84\x90\x93\x83\x88\x8C \x8A\x8B\x80\x91\x91\x80\x8C.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_ELEMENTALIST:
+			return "\x91\x92\x88\x95\x88\x89\x8D\x88\x8A \x82\x8B\x80\x84\x85\x85\x92 \x87\x80\x8A\x8B\x88\x8D\x80\x8D\x88\x9F\x8C\x88 \x8E\x83\x8D\x9F, \x95\x8E\x8B\x8E\x84\x80 \x88 \x8C\x8E\x8B\x8D\x88\x88. \x8C\x80\x91\x92\x85\x90 \x91\x92\x88\x95\x88\x89. \x85\x83\x8E \x87\x80\x8A\x8B\x88\x8D\x80\x8D\x88\x9F \x88\x8C\x85\x9E\x92 \x8D\x85\x8F\x8B\x8E\x95\x8E\x89 \x98\x80\x8D\x91 \x8D\x80\x8D\x85\x91\x92\x88 \x84\x8E\x8F\x8E\x8B\x8D\x88\x92\x85\x8B\x9C\x8D\x9B\x89 \x93\x90\x8E\x8D.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_SUMMONER:
+			return "\x8F\x90\x88\x87\x9B\x82\x80\x92\x85\x8B\x88 - \x8F\x8E\x84\x82\x88\x84 \x8C\x80\x83\x8E\x82, \x97\x92\x8E \x91\x90\x80\x86\x80\x9E\x92\x91\x9F \x91\x8E \x87\x8B\x8E\x8C \x91 \x8F\x8E\x8C\x8E\x99\x9C\x9E \x91\x93\x99\x85\x91\x92\x82, \x8A\x8E\x92\x8E\x90\x9B\x95 \x8E\x8D\x88 \x8F\x8E\x84\x8D\x88\x8C\x80\x9E\x92.";
+		case STR_1060_Mages_Descriptions_Start + PSC_MAGE_WARLOCK:
+			return "\x97\x85\x90\x8D\x8E\x8A\x8D\x88\x86\x8D\x88\x8A - \x80\x84\x85\x8F\x92 \x92\x85\x8C\x8D\x9B\x95 \x87\x8D\x80\x8D\x88\x89, \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x85\x92 \x97\x85\x90\x8D\x8E\x85 \x8A\x8E\x8B\x84\x8E\x82\x91\x92\x82\x8E \x88 \x8A\x88\x91\x8B\x8E\x92\x8D\x9B\x85 \x87\x80\x8A\x8B\x88\x8D\x80\x8D\x88\x9F \x8F\x90\x8E\x92\x88\x82 \x84\x85\x8C\x8E\x8D\x8E\x82. \x8D\x85 \x8C\x8E\x86\x85\x92 \x93\x97\x88\x92\x9C \x91\x82\x9F\x92\x9B\x85 \x87\x80\x8A\x8B\x88\x8D\x80\x8D\x88\x9F.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_MONK:
+			return "\x8A\x8B\x80\x91\x91\x88\x97\x85\x91\x8A\x88\x89 \x8C\x8E\x8D\x80\x95. \x81\x9B\x91\x92\x90\x9B\x89, \x93\x8D\x88\x82\x85\x90\x91\x80\x8B\x9C\x8D\x9B\x89 \x88 \x87\x80\x8A\x8B\x9F\x92\x9B\x89 \x82\x90\x80\x83 \x82\x91\x85\x95 \x84\x85\x8C\x8E\x8D\x8E\x82. \x8C\x80\x91\x92\x85\x90\x91\x8A\x88 \x82\x8B\x80\x84\x85\x85\x92 \x8F\x8E\x91\x8E\x95\x8E\x8C. \x8C\x8E\x86\x85\x92 \x81\x88\x92\x9C \x8D\x85\x91\x8A\x8E\x8B\x9C\x8A\x88\x95 \x82\x90\x80\x83\x8E\x82 \x91\x90\x80\x87\x93. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x85\x83\x8E \x81\x8E\x9F \x8F\x90\x85\x84\x8F\x8E\x97\x88\x92\x80\x85\x92 \x8B\x93\x8A\x88.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_KENSEI:
+			return "\x88\x91\x92\x88\x8D\x8D\x9B\x89 \x8C\x80\x91\x92\x85\x90 \x8E\x90\x93\x86\x88\x9F, \x8A\x85\x8D\x91\x85\x89 - \x91\x88\x8B\x80, \x91 \x8A\x8E\x92\x8E\x90\x8E\x89 \x8D\x80\x84\x8E \x91\x97\x88\x92\x80\x92\x9C\x91\x9F. \x88 \x87\x90\x85\x8B\x88\x99\x85 \x82 \x81\x8E\x9E. \x8E\x8D \x82\x85\x90\x88\x92, \x97\x92\x8E \x93\x81\x88\x89\x91\x92\x82\x8E - \x9D\x92\x8E \x82\x88\x84 \x88\x91\x8A\x93\x91\x91\x92\x82\x80.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHUGOKI:
+			return "\x91\x9E\x83\x8E\x8A\x88 - \x83\x88\x83\x80\x8D\x92 \x82 \x92\x9F\x86\x85\x8B\x8E\x89 \x81\x90\x8E\x8D\x85, \x97\x92\x8E \x8F\x90\x85\x84\x8F\x8E\x97\x88\x92\x80\x85\x92 \x84\x90\x85\x82\x8A\x8E\x82\x8E\x85 \x8E\x90\x93\x86\x88\x85 \x82 \x81\x8B\x88\x86\x8D\x85\x8C \x81\x8E\x9E. \x88 \x8B\x93\x8A\x88 \x82 \x84\x80\x8B\x9C\x8D\x85\x8C.";
+		case STR_1064_Monks_Descriptions_Start + PSC_MONK_SHINOBI:
+			return "\x91\x88\x8D\x8E\x81\x88 \x8F\x90\x85\x84\x8F\x8E\x97\x88\x92\x80\x85\x92 \x8F\x8E\x84\x8E\x81\x90\x80\x92\x9C\x91\x9F \x8A \x96\x85\x8B\x88 \x82\x8F\x8B\x8E\x92\x8D\x93\x9E \x88 \x82\x91\x9E \x86\x88\x87\x8D\x9C \x8E\x92\x92\x80\x97\x88\x82\x80\x8B \x8D\x80\x82\x9B\x8A\x88 \x81\x8E\x89\x96\x80 \x92\x85\x8D\x85\x89. \x82 \x84\x80\x8B\x9C\x8D\x85\x8C \x81\x8E\x9E \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x85\x92 \x8C\x85\x92\x80\x92\x85\x8B\x9C\x8D\x9B\x85 \x87\x82\x85\x87\x84\x9B.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ROGUE:
+			return "\x90\x80\x87\x81\x8E\x89\x8D\x88\x96\x80 - \x8B\x8E\x82\x8A\x88\x89 \x81\x8E\x85\x96 \x91 \x84\x82\x93\x8C\x9F \x8E\x90\x93\x86\x88\x9F\x8C\x88. \x85\x85 \x91\x88\x8B\x9C\x8D\x9B\x85 \x91\x92\x8E\x90\x8E\x8D\x9B - \x81\x9B\x91\x92\x90\x9B\x85 \x80\x92\x80\x8A\x88, \x8D\x85\x8F\x8B\x8E\x95\x80\x9F \x8C\x80\x83\x88\x9F \x88 \x93\x8A\x8B\x8E\x8D\x85\x8D\x88\x85. \x91\x8B\x80\x81\x80\x9F \x91\x92\x8E\x90\x8E\x8D\x80 - \x8D\x85\x95\x82\x80\x92\x8A\x80 \x91\x92\x8E\x89\x8A\x8E\x91\x92\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_ASSASSIN:
+			return "\x80\x91\x91\x80\x91\x88\x8D \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x85\x92 \x8A\x8E\x83\x92\x88 \x82 \x81\x8E\x9E. \x8E\x8D\x80 \x8B\x9E\x81\x88\x92 \x8E\x8A\x93\x8D\x80\x92\x9C \x88\x95 \x82 \x8A\x88\x91\x8B\x8E\x92\x93, \x97\x92\x8E\x81\x9B \x8D\x80\x8D\x85\x91\x92\x88 \x81\x8E\x8B\x9C\x98\x85 \x93\x90\x8E\x8D\x80 \x81\x85\x91\x8F\x85\x97\x8D\x9B\x8C \x86\x85\x90\x92\x82\x80\x8C. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x85\x83\x8E \x81\x8E\x9F \x97\x80\x99\x85 \x81\x85\x90\x85\x92 \x8C\x85\x92\x80\x92\x85\x8B\x9C\x8D\x9B\x85 \x8D\x8E\x86\x88.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_IRON_MAIDEN:
+			return "\x85\x85 \x81\x90\x8E\x8D\x9F - \x9D\x92\x8E \x8E\x90\x93\x86\x88\x85. \x97\x80\x91\x92\x88 \x85\x85 \x81\x90\x8E\x8D\x88 \x8F\x8E\x8A\x90\x9B\x92\x9B \x98\x88\x8F\x80\x8C\x88 \x88 \x8D\x80\x8D\x8E\x91\x9F\x92 \x93\x90\x8E\x8D \x80\x92\x80\x8A\x93\x9E\x99\x88\x8C \x82 \x81\x8B\x88\x86\x8D\x85\x8C \x81\x8E\x9E. \x84\x8B\x9F \x84\x80\x8B\x9C\x8D\x85\x83\x8E \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x85\x92 \x81\x9B\x91\x92\x90\x9B\x85 \x80\x90\x81\x80\x8B\x85\x92\x9B.";
+		case STR_1068_Rogues_Descriptions_Start + PSC_ROGUE_BOMBARDIER:
+			return "\x86\x88\x87\x8D\x9C \x81\x8E\x8C\x81\x80\x90\x84\x88\x90\x80 \x8F\x90\x8E\x91\x92\x80. \x8E\x8D\x80 \x8B\x9E\x81\x88\x92 \x82\x87\x90\x9B\x82\x9B. \x88 \x98\x82\x9B\x90\x9F\x85\x92 \x82\x8E \x82\x90\x80\x83\x8E\x82 \x82\x87\x90\x9B\x82\x8D\x9B\x85 \x8A\x8E\x8B\x81\x9B, \x8F\x8E\x8A\x80 \x82\x91\x85 \x8E\x8D\x88 \x8D\x85 \x93\x8C\x90\x93\x92. \x8E\x81\x9B\x97\x8D\x8E \x82 \x91\x92\x90\x80\x98\x8D\x8E\x89 \x80\x83\x8E\x8D\x88\x88.";
+		case STR_1085_Gladiatrix_Description:
+			return "\x83\x8B\x80\x84\x88\x80\x92\x90\x88\x8A\x91 \x81\x8E\x8B\x9C\x98\x80\x9F. \x8D\x85 \x92\x8E\x8B\x91\x92\x80\x9F, \x8F\x90\x8E\x91\x92\x8E \x81\x8E\x8B\x9C\x98\x80\x9F. \x8B\x9E\x81\x88\x92 \x81\x88\x92\x9C \x82\x85\x99\x88 \x84\x90\x93\x83\x88\x8C\x88 \x82\x85\x99\x80\x8C\x88, \x82\x85\x91\x9C\x8C\x80 \x91\x88\x8B\x9C\x8D\x8E. \x8B\x9E\x81\x88\x92 \x8B\x93\x8A\x88. \x97\x92\x8E \x85\x99\x85 \x91\x8A\x80\x87\x80\x92\x9C? \x82\x8E\x92 \x88 \x82\x91\x85. \x81\x8E\x8B\x9C\x98\x80\x9F. \x91\x88\x8B\x9C\x8D\x80\x9F. \x92\x93\x8F\x80\x9F.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_SAVAGE:
+			return "\x84\x88\x8A\x80\x90\x9C - \x92\x88\x8F\x88\x97\x8D\x9B\x89 \x81\x8E\x85\x96 \x8F\x85\x90\x85\x84\x8E\x82\x8E\x89. \x8D\x85 \x93\x8C\x85\x85\x92 \x81\x88\x92\x9C \x8F\x8E \x91\x8B\x80\x81\x8E\x8C\x93 \x8C\x85\x91\x92\x93, \x8D\x8E \x93\x8C\x85\x85\x92 \x81\x88\x92\x9C \x91\x88\x8B\x9C\x8D\x8E. \x8F\x90\x85\x84\x8F\x8E\x97\x88\x92\x80\x85\x92 \x81\x8E\x8B\x9C\x98\x8E\x85 \x84\x82\x93\x90\x93\x97\x8D\x8E\x85 \x8E\x90\x93\x86\x88\x85.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_BERSERKER:
+			return "\x82 \x96\x88\x82\x88\x8B\x88\x87\x8E\x82\x80\x8D\x8D\x8E\x8C \x8E\x81\x99\x85\x91\x92\x82\x85 \x9F\x90\x8E\x91\x92\x9C \x81\x85\x90\x91\x85\x90\x8A\x80 \x81\x9B\x8B\x80 \x81\x9B \x8F\x90\x8E\x81\x8B\x85\x8C\x8E\x89. \x8D\x8E \x87\x84\x85\x91\x9C \x9D\x92\x8E \x8E\x83\x90\x8E\x8C\x8D\x8E\x85 \x8F\x90\x85\x88\x8C\x93\x99\x85\x91\x92\x82\x8E! \x81\x85\x87\x86\x80\x8B\x8E\x91\x92\x8D\x9B\x89, \x81\x9B\x91\x92\x90\x9B\x89 \x88 \x8D\x85\x93\x84\x85\x90\x86\x88\x8C\x9B\x89 \x81\x8E\x85\x96.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_EXECUTIONER:
+			return "\x93\x90\x8E\x84 \x8F\x90\x88\x90\x8E\x84\x9B, \x97\x85\x8B\x8E\x82\x85\x8A-\x83\x88\x83\x80\x8D\x92, \x8E\x8D \x8D\x85 \x8D\x8E\x91\x88\x92 \x8B\x9E\x84\x91\x8A\x93\x9E \x81\x90\x8E\x8D\x9E - \x85\x85 \x8F\x90\x8E\x91\x92\x8E \x8D\x85 \x84\x85\x8B\x80\x9E\x92 \x85\x83\x8E \x90\x80\x87\x8C\x85\x90\x80. \x8C\x8E\x86\x85\x92 \x90\x80\x87\x8E\x90\x82\x80\x92\x9C \x97\x92\x8E \x93\x83\x8E\x84\x8D\x8E \x83\x8E\x8B\x9B\x8C\x88 \x90\x93\x8A\x80\x8C\x88. \x84\x85\x8C\x8E\x8D\x80\x8C \x91\x8D\x9F\x92\x91\x9F \x8A\x8E\x98\x8C\x80\x90\x9B.";
+		case STR_1072_Savages_Descriptions_Start + PSC_SAVAGE_GLADIATOR:
+			return "\x8D\x80\x93\x97\x85\x8D\x8D\x9B\x85 \x8F\x90\x8E\x98\x8B\x9B\x8C \x8E\x8F\x9B\x92\x8E\x8C \x80\x90\x85\x8D\x9B, \x9D\x92\x88 \x8C\x93\x86\x88 \x92\x85\x8F\x85\x90\x9C \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x9E\x92 \x91\x82\x8E\x88 \x8D\x80\x82\x9B\x8A\x88 \x8F\x90\x8E\x92\x88\x82 \x84\x85\x8C\x8E\x8D\x8E\x82, \x87\x80\x95\x82\x80\x92\x88\x82\x98\x88\x95 \x92\x90\x88\x91\x92\x90\x80\x8C.";
+		case STR_1084_Druid_Description:
+			return "\x84\x90\x93\x88\x84 \x8F\x90\x88\x8D\x88\x8C\x80\x85\x92 \x91\x82\x8E\x9E \x87\x82\x85\x90\x88\x8D\x93\x9E \x91\x92\x8E\x90\x8E\x8D\x93 \x88 \x8B\x9E\x81\x88\x92 \x8F\x8E\x84\x8E\x81\x90\x80\x92\x9C\x91\x9F \x8A \x8C\x8E\x8D\x91\x92\x90\x80\x8C \x88 \x90\x80\x87\x8E\x90\x82\x80\x92\x9C \x88\x95 \x8D\x80 \x97\x80\x91\x92\x88. \x91\x8B\x85\x83\x8A\x80 \x8D\x85\x8C\x9B\x92\x9B\x89 \x88 \x82\x8E\x8D\x9E\x97\x88\x89, \x8D\x8E \x91\x8A\x80\x87\x80\x92\x9C \x85\x8C\x93 \x8E\x81 \x9D\x92\x8E\x8C \x8D\x88\x8A\x92\x8E \x8D\x85 \x90\x85\x98\x80\x85\x92\x91\x9F.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_DEMONOLOGIST:
+			return "\x84\x85\x8C\x8E\x8D\x8E\x8B\x8E\x83 \x8F\x90\x88\x87\x9B\x82\x80\x85\x92 \x84\x85\x8C\x8E\x8D\x8E\x82 \x88\x87 \x82\x91\x85\x95 \x8A\x90\x93\x83\x8E\x82 \x80\x84\x80 \x91\x85\x81\x85 \x8D\x80 \x91\x8B\x93\x86\x81\x93. \x81\x8E\x8B\x9C\x98\x85 \x82\x91\x85\x83\x8E \x8E\x8D \x8B\x9E\x81\x88\x92 \x91\x8C\x8E\x92\x90\x85\x92\x9C, \x8A\x80\x8A \x85\x83\x8E \x8F\x88\x92\x8E\x8C\x96\x9B \x90\x82\x93\x92 \x8D\x80 \x97\x80\x91\x92\x88 \x82\x91\x85 \x8D\x80 \x91\x82\x8E\x85\x8C \x8F\x93\x92\x88.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_NECROMANCER:
+			return "\x8D\x85\x8A\x90\x8E\x8C\x80\x8D\x92 \x8D\x88\x8A\x8E\x83\x84\x80 \x8D\x85 \x90\x80\x8D\x88\x8B \x86\x88\x82\x8E\x85 \x91\x93\x99\x85\x91\x92\x82\x8E. \x82\x91\x9E \x81\x8E\x8B\x9C, \x91\x92\x90\x80\x84\x80\x8D\x88\x9F \x88 \x91\x8C\x85\x90\x92\x9C \x8D\x85\x91\x85\x92 \x85\x83\x8E \x8D\x85\x86\x88\x82\x80\x9F \x91\x80\x84\x88\x91\x92\x91\x8A\x80\x9F \x8E\x90\x84\x80 \x91\x8A\x85\x8B\x85\x92\x8E\x82. \x9D\x92\x8E \x92\x8E\x86\x85 \x90\x80\x81\x8E\x92\x80.";
+		case STR_1076_Summoners_Descriptions_Start + PSCL_MAGE_SUMMONER_BEASTMASTER:
+			return "\x8F\x8E\x82\x85\x8B\x88\x92\x85\x8B\x9C \x87\x82\x85\x90\x85\x89 - \x98\x80\x8C\x80\x8D, \x88\x91\x8F\x8E\x8B\x9C\x87\x93\x9E\x99\x88\x89 \x91\x82\x88\x90\x85\x8F\x9B\x95 \x92\x82\x80\x90\x85\x89 \x8F\x90\x88\x90\x8E\x84\x9B \x8F\x90\x8E\x92\x88\x82 \x92\x9C\x8C\x9B. \x8B\x9E\x81\x88\x92 \x82\x9B\x90\x9B\x82\x80\x92\x9C \x91\x85\x90\x84\x96\x80 \x8F\x80\x82\x98\x88\x95 \x86\x85\x90\x92\x82 \x88 \x8F\x8E\x85\x84\x80\x92\x9C \x88\x95, \x87\x80\x81\x88\x90\x80\x9F \x88\x95 \x91\x88\x8B\x93.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_THRAEX:
+			return "\x93\x8C\x85\x85\x92 \x8F\x90\x8E\x81\x88\x92\x9C \x91\x80\x8C\x93\x9E \x92\x8E\x8B\x91\x92\x93\x9E \x81\x90\x8E\x8D\x9E. \x9D\x94\x94\x85\x8A\x92\x88\x82\x85\x8D \x8A\x8B\x88\x8D\x8A\x80\x8C\x88 \x8F\x90\x8E\x92\x88\x82 \x8D\x85\x86\x88\x92\x88. \x84\x8E\x8F\x8E\x8B\x8D\x88\x92\x85\x8B\x9C\x8D\x9B\x85 \x80\x92\x80\x8A\x88 \x99\x88\x92\x8E\x8C \x93\x82\x85\x8B\x88\x97\x88\x82\x80\x9E\x92 \x85\x83\x8E \x93\x90\x8E\x8D.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_MURMILLO:
+			return "\x97\x88\x91\x92\x8E \x87\x80\x99\x88\x92\x8D\x9B\x89 \x92\x88\x8F \x83\x8B\x80\x84\x88\x80\x92\x8E\x90\x80. \x8A\x90\x85\x8F\x8A\x88\x89, \x8C\x8E\x99\x8D\x9B\x89, \x8D\x85\x91\x8E\x8A\x90\x93\x98\x88\x8C\x9B\x89. \x93\x8C\x85\x85\x92 \x88\x87\x8C\x8E\x92\x80\x92\x9C \x8F\x90\x8E\x92\x88\x82\x8D\x88\x8A\x80 \x8F\x85\x90\x85\x84 \x92\x85\x8C, \x8A\x80\x8A \x84\x8E\x81\x88\x92\x9C.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_DIMACHAERUS:
+			return "\x8D\x85\x8F\x90\x85\x82\x87\x8E\x89\x84\x85\x8D \x82 \x8D\x80\x92\x88\x91\x8A\x85, \x8E\x8D \x86\x85\x90\x92\x82\x93\x85\x92 \x87\x80\x99\x88\x92\x8E\x89 \x90\x80\x84\x88 \x80\x92\x80\x8A\x88. \x91\x8F\x85\x96\x88\x80\x8B\x88\x87\x88\x90\x93\x85\x92\x91\x9F \x8D\x80 \x81\x8E\x85 \x84\x82\x93\x8C\x9F \x8E\x90\x93\x86\x88\x9F\x8C\x88. \x8D\x80\x91\x92\x8E\x9F\x99\x80\x9F \x87\x82\x85\x87\x84\x80 \x9F\x8C\x8D\x9B\x95 \x81\x8E\x85\x82.";
+		case STR_1079_Gladiators_Descriptions_Start + PSCL_SAVAGE_GLADIATOR_SECUTOR:
+			return "\x91\x85\x8A\x93\x92\x8E\x90 - \x83\x8B\x80\x84\x88\x80\x92\x8E\x90, \x97\x92\x8E \x91\x8F\x85\x96\x88\x80\x8B\x88\x87\x88\x90\x93\x85\x92\x91\x9F \x8D\x80 \x93\x8A\x8B\x8E\x8D\x85\x8D\x88\x88 \x8E\x92 \x80\x92\x80\x8A \x88 \x91\x82\x85\x90\x95\x81\x9B\x91\x92\x90\x8E\x8C \x82\x8E\x91\x91\x92\x80\x8D\x8E\x82\x8B\x85\x8D\x88\x88. \x8B\x9E\x81\x8E\x8F\x9B\x92\x8D\x8E, \x8D\x8E \x8E\x8D \x8D\x8E\x91\x88\x92 \x8F\x8E\x8B\x93\x92\x9F\x86\x85\x8B\x8E\x85 \x91\x8D\x80\x90\x9F\x86\x85\x8D\x88\x85.";
+		case STR_1046_Classes_Descriptions_Start + PC_0_WARRIOR:
+			return "\x82\x8E\x88\x8D\x9B \x82\x91\x92\x90\x85\x97\x80\x9E\x92\x91\x9F \x8D\x80 \x8F\x85\x90\x85\x84\x8E\x82\x8E\x89 \x8B\x9E\x81\x8E\x89 \x81\x88\x92\x82\x9B, \x91\x95\x8E\x84\x9F\x91\x9C \x8B\x88\x96\x8E\x8C \x8A \x8B\x88\x96\x93 \x91 \x8C\x8E\x8D\x91\x92\x90\x80\x8C\x88 \x88 \x87\x8B\x8E\x84\x85\x9F\x8C\x88.";
+		case STR_1046_Classes_Descriptions_Start + PC_1_ARCHER:
+			return "\x8B\x93\x97\x8D\x88\x96\x9B - \x88\x91\x8A\x93\x91\x8D\x9B\x85 \x91\x92\x90\x85\x8B\x8A\x88 \x88\x87 \x8B\x93\x8A\x80. \x8E\x8D\x88 \x84\x85\x90\x86\x80\x92 \x84\x88\x91\x92\x80\x8D\x96\x88\x9E \x88 \x93\x81\x88\x82\x80\x9E\x92 \x8C\x8E\x8D\x91\x92\x90\x8E\x82 \x88\x87\x84\x80\x8B\x85\x8A\x80.";
+		case STR_1046_Classes_Descriptions_Start + PC_2_MAGE:
+			return "\x8C\x80\x83\x88 - \x8C\x80\x91\x92\x85\x90\x80 \x93\x8F\x90\x80\x82\x8B\x85\x8D\x88\x9F \x91\x88\x8B\x80\x8C\x88 \x88 \x91\x93\x99\x8D\x8E\x91\x92\x9F\x8C\x88, \x8D\x85\x82\x88\x84\x88\x8C\x9B\x8C\x88 \x84\x8B\x9F \x84\x90\x93\x83\x88\x95 \x8B\x9E\x84\x85\x89. \x9D\x92\x8E \x8E\x90\x93\x84\x88\x85 \x91\x92\x8E\x8B\x9C \x86\x85 \x84\x85\x89\x91\x92\x82\x85\x8D\x8D\x8E\x85 \x8F\x90\x8E\x92\x88\x82 \x84\x85\x8C\x8E\x8D\x8E\x82, \x8A\x80\x8A \x8C\x8E\x8B\x8E\x92.";
+		case STR_1046_Classes_Descriptions_Start + PC_3_MONK:
+			return "\x8C\x8E\x8D\x80\x95\x88 - \x84\x93\x95\x8E\x82\x8D\x9B\x85 \x81\x8E\x89\x96\x9B, \x8F\x90\x85\x93\x91\x8F\x85\x82\x98\x88\x85 \x82\x8E \x82\x91\x85\x95 \x82\x88\x84\x80\x95 \x81\x8E\x9F, \x87\x80 \x88\x91\x8A\x8B\x9E\x97\x85\x8D\x88\x85\x8C \x8C\x80\x83\x88\x88.";
+		case STR_1046_Classes_Descriptions_Start + PC_4_ROGUE:
+			return "\x90\x80\x87\x81\x8E\x89\x8D\x88\x96\x9B - \x83\x8E\x8B\x8E\x82\x8E\x90\x85\x87\x9B, \x81\x80\x8D\x84\x88\x92\x9B, \x82\x8E\x90\x9B \x88 \x8C\x80\x90\x8E\x84\x85\x90\x9B. \x84\x8E\x81\x9B\x97\x80 - \x82\x91\x85, \x97\x92\x8E \x84\x8B\x9F \x8D\x88\x95 \x96\x85\x8D\x8D\x8E.";
+		case STR_1046_Classes_Descriptions_Start + PC_5_SAVAGE:
+			return "\x84\x88\x8A\x80\x90\x88 \x91\x88\x8B\x9C\x8D\x9B, \x8A\x90\x85\x8F\x8A\x8E \x91\x8B\x8E\x86\x85\x8D\x9B \x88 \x8F\x90\x85\x82\x8E\x91\x95\x8E\x84\x9F\x92 \x82 \x81\x8E\x9E \x8C\x8D\x8E\x83\x88\x95. \x88\x8C \x8D\x85 \x95\x82\x80\x92\x80\x85\x92 \x84\x88\x91\x96\x88\x8F\x8B\x88\x8D\x9B, \x8D\x8E \x8E\x8D\x88 \x8A\x8E\x8C\x8F\x85\x8D\x91\x88\x90\x93\x9E\x92 \x9D\x92\x8E \x83\x90\x93\x81\x8E\x89 \x91\x88\x8B\x8E\x89.";
+	}
+	return nullptr;
+}
+
+// (th4) SCROLLABLE CLASS / SUBCLASS / SPECIALIZATION DESCRIPTION -----------------------
+//
+// Same mechanism as the trait description (see the block above SetTraitInfoText in
+// Traits.cpp) and the Game Changer / Game Mode ones -- read the Traits comment first.
+// Reported from a German stream: the class descriptions are the longest text in the
+// whole meta menu once translated, and the box just cut them off mid-sentence.
+//
+// ONE PROC, TWENTY-ONE DIALOGS. Unlike the other three, class/subclass/specialization
+// selection is not one dialog but 21 (.rc): 3 class variants, 16 subclass variants and
+// 2 specialization ones, all driven by DialogSelectClass. They are never up at the same
+// time and every one is 256x203 at the same origin as the SELHERO parent, so they all
+// carry the SAME ID_DESC_SCROLL control at the same coordinates and share this code.
+//
+// The description field is ID_CLASS_DESCRIPTION on the PARENT SELHERO dialog at
+// (14,130,68,62), so the bar at (85,130,10,62) sits just right of it -- the identical
+// offsets the trait dialog uses.
+
+// (th4) Reset the scroll only when the DESCRIPTION TEXT actually changes.
+//
+// This used to compare descriptionIndex, and that was wrong: SetHeroInfoText is also
+// called from the BN_SETFOCUS arm of DialogSelectClass, so simply moving the mouse over
+// the class buttons re-runs the whole info draw. On that path the id is re-derived from
+// NewSaveInfo, which the focus handler has just reassigned from the focused button, so it
+// can differ for an instant from the one the scroll belongs to -- snapping the text back
+// to the top BETWEEN clicks. A debug log of real clicks showed it plainly:
+//     ScrollBy: delta=+1 top 1 -> 2 (max=2 page=9)
+//     UpdateScroll: totalLines=11 ... top=2
+//     UpdateScroll: totalLines=11 ... top=0      <-- no click, same description
+// which is exactly why every second click looked like it did nothing.
+// Comparing the rendered text cannot be fooled that way, and still resets properly when
+// the player really does move to another class, subclass or specialization.
+static char g_ClsDescShownText[ 512 ] = { 0 };
+static void ClsDescNoteShown( const char* description )
+{
+	const char* d = description ? description : "";
+	if( strncmp( d, g_ClsDescShownText, sizeof( g_ClsDescShownText ) - 1 ) != 0 ){
+		strncpy( g_ClsDescShownText, d, sizeof( g_ClsDescShownText ) - 1 );
+		g_ClsDescShownText[ sizeof( g_ClsDescShownText ) - 1 ] = 0;
+		g_ClsDescTop = 0;
+	}
+}
+
+// Size and show/hide the scrollbar after a draw.
+static void ClsDescUpdateScroll( HWND scrollDlg, TextWin* field, int totalLines )
+{
+	if( !scrollDlg || !field ) return;
+	const int fontH = GetCurFontHeight() > 0 ? GetCurFontHeight() : 1;
+	g_ClsDescPage = field->size.cy / fontH;
+	if( g_ClsDescPage < 1 ) g_ClsDescPage = 1;
+	g_ClsDescMax = totalLines - g_ClsDescPage;
+	if( g_ClsDescMax < 0 ) g_ClsDescMax = 0;
+	if( g_ClsDescTop > g_ClsDescMax ) g_ClsDescTop = g_ClsDescMax;
+	if( g_ClsDescTop < 0 ) g_ClsDescTop = 0;
+	const HWND scroll = GetDlgItem( scrollDlg, ID_DESC_SCROLL );
+	if( !scroll ) return;
+	SetScrollOnElem( scrollDlg, ID_DESC_SCROLL, g_ClsDescMax + 1, g_ClsDescTop );
+	const bool want = g_ClsDescMax > 0;
+	if( want != ( IsWindowVisible( scroll ) != 0 ) ){
+		ShowWindow( scroll, want ? SW_SHOW : SW_HIDE );
+		// (th4) These dialogs are painted onto a surface, not by Windows: hiding a
+		// control does NOT clear its pixels, so the bar lingers until something else
+		// repaints -- which looks like the bar lagging a click behind. The child is
+		// WS_EX_TRANSPARENT, so the parent has to repaint underneath it too.
+		const HWND parentDlg = GetParent( scrollDlg );
+		if( parentDlg ){ InvalidateRect( parentDlg, NULL, FALSE ); UpdateWindow( parentDlg ); }
+		InvalidateRect( scrollDlg, NULL, FALSE ); UpdateWindow( scrollDlg );
+	}
 }
 
 //----- (2000D2A0) --------------------------------------------------------
-void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELECTION_MODE classSelectionMode /*= CSM_NONE*/ )
+void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELECTION_MODE classSelectionMode /*= CSM_NONE*/, HWND scrollDlg /*= nullptr*/ )
 {
 	if( saveInfo->Level || classSelectionMode != CSM_NONE ){
         if( classSelectionMode == CSM_NONE ) {
@@ -9153,6 +15122,7 @@ void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELE
                     descriptionIndex = descriptionStartIndex + saveInfo->SubClass;
 					// TODO: change to get index from char classes table
 					if( saveInfo->Class == PC_5_SAVAGE && saveInfo->SubClass == PSC_SAVAGE_DRUID ) descriptionIndex = STR_1084_Druid_Description;
+					else if (saveInfo->Class == PC_4_ROGUE && saveInfo->SubClass == PSC_ROGUE_GLADIATRIX) descriptionIndex = STR_1085_Gladiatrix_Description;
                 }
                 break;
             case CSM_SPECIALIZATION:
@@ -9169,9 +15139,18 @@ void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELE
 
             const int BUFFER_SIZE = 256;
             char buffer[ BUFFER_SIZE ];
-            LoadStringA( HInstance, descriptionIndex, buffer, BUFFER_SIZE );
+            const char* loc = LocalizedHeroString( descriptionIndex );
+            if( loc ){
+                // (th4) buffer is char[256] and strcpy is unbounded; copy with a hard
+                // bound so an over-long overlay string can never smash the stack.
+                strncpy( buffer, loc, BUFFER_SIZE - 1 );
+                buffer[ BUFFER_SIZE - 1 ] = 0;
+            }else{
+                LoadStringA( HInstance, descriptionIndex, buffer, BUFFER_SIZE );
+            }
 
             SetWindowTextA( GetDlgItem( parent, ID_CLASS_DESCRIPTION ), buffer );
+            ClsDescNoteShown( buffer );   // (th4) reset the scroll only on a real change
         }
 
         HWND portraitWin = GetDlgItem( parent, ID_PLAYER_PORTRAIT );
@@ -9182,10 +15161,25 @@ void __fastcall SetHeroInfoText( HWND parent, CharSaveInfo *saveInfo, CLASS_SELE
 
 		AdjustScrollRect( &rect, 0, rect.bottom * portrait.id );
 		SDlgSetBitmap( portraitWin, 0, "Static", -1, 1, portrait.pcx->data, &rect, portrait.pcx->size.cx, portrait.pcx->size.cy, -1 );
-		DrawTextToElemList( parent, CharParamValueList, 1 );
-        DrawTextToElemList( parent, CharParamNameList, 1 );
-        DrawTextToElemList( parent, ClassDescriptionList, 1 );
+		// (th4) hand the true-colour overlay what is being shown; it re-reads the
+		// control each frame, so it stops by itself when the dialog closes.
+		MenuPortrait_Set( portrait.pcx ? portrait.pcx->name : 0, portrait.id, portraitWin, portrait.pcx ? portrait.pcx->data : 0, portrait.pcx ? (int) portrait.pcx->size.cx : 0 );
+		DrawTextToElemList( parent, CharParamValueList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+        DrawTextToElemList( parent, CharParamNameList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+        // RU: font16s (fontIndex 1) has no Cyrillic glyphs; font16g (fontIndex 0)
+        // is the same size and does. Use it so the description is visible.
+        // (th4) The draw is told how many wrapped lines to skip and reports how many the
+        // text has in all; the scrollbar is sized from that. Skip is reset straight after
+        // so no other menu text inherits it.
+        g_MenuTextSkipLines = g_ClsDescTop;
+        DrawTextToElemList( parent, ClassDescriptionList, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
+        g_MenuTextSkipLines = 0;
+        {
+            const HWND descField = GetDlgItem( parent, ID_CLASS_DESCRIPTION );
+            ClsDescUpdateScroll( scrollDlg, descField ? (TextWin*) GetWindowLongA( descField, GWL_USERDATA ) : nullptr, g_MenuTextLineCount );
+        }
 	}else{
+		MenuPortrait_Clear();	// (th4) no portrait on screen -> overlay draws nothing
 		ClearHeroInfoText( parent );
 	}
 }
@@ -9326,6 +15320,14 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 				CheckPressKey( hdlg, 1 );
 			}
 			InitTextElemList( hdlg, TitleList, 5 );
+			// (th4) widened from LANG_RU (English build returns input unchanged).
+			if( GameLanguage != LANG_EN ){
+				SetWindowTextA( GetDlgItem( hdlg, ID_HERO_LEVEL_LABEL ), LMenu("Level:") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_STRENGTH_LABEL ), LMenu("Strength:") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_MAGIC_LABEL ), LMenu("Magic:") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_DEXTERITY_LABEL ), LMenu("Dexterity:") );
+				SetWindowTextA( GetDlgItem( hdlg, ID_VITALITY_LABEL ), LMenu("Vitality:") );
+			}
 			InitTextElemList( hdlg, CharParamNameList, 1 );
 			InitTextElemList( hdlg, CharParamValueList, 1 );
             InitTextElemList( hdlg, ClassDescriptionList, 1 );
@@ -9374,21 +15376,27 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 		{
 			int selectSaveResult = SDlgDialogBoxParam( HInstance, "SELLIST_DIALOG", hdlg, DialogSelectSave, 0 );
 			if( selectSaveResult == 1 ){
-				if( strlen( SelectedHeroName ) == 0 ){
-					if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
-						PostMessageA( hdlg, MSG_SELECT_CLASS, 0, 0 );
-					}else{
-						PostMessageA( hdlg, MSG_SELECT_GAME_MODE, 0, 0 );
+				if (strlen(SelectedHeroName) == 0) {
+					memset(&NewSaveInfo, 0, sizeof(NewSaveInfo)); // clear stale GameChanger (e.g. Terminator) before starting a new hero
+					if (SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu) {
+						PostMessageA(hdlg, MSG_SELECT_CLASS, 0, 0);
 					}
-				}else if( IsMultiGame == 1 ){
+					else {
+						PostMessageA(hdlg, MSG_SELECT_GAME_MODE, 0, 0);
+					}
+				}
+				else if (IsMultiGame == 1) {
 					PostMessageA( hdlg, MSG_LOAD_GAME, 0, 0 );
 				}else if( true /*IsHellfireSave*/ ){
 					CharSaveInfo* saveInfo = HeroSaveHead;
 					while( saveInfo ){
 						if( ! strcmp( SelectedHeroName, saveInfo->Name ) ){
-							saveInfo->GameChanger & BIT(GC_1_AUTO_SAVE)
-								? PostMessageA( hdlg, MSG_NEW_GAME, 0, 0 )
-								: PostMessageA( hdlg, MSG_LOAD_OR_NEW, 0, 0 );
+							if ((saveInfo->GameChanger & BIT(GC_1_AUTO_SAVE)) || (saveInfo->GameMode == GM_OUTBREAK)) {
+								PostMessageA(hdlg, MSG_NEW_GAME, 0, 0);
+							}
+							else {
+								PostMessageA(hdlg, MSG_LOAD_OR_NEW, 0, 0);
+							}
 							break;
 						}
 						saveInfo = saveInfo->next;
@@ -9420,7 +15428,7 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 					PostMessageA( hdlg, MSG_SELECT_TRAITS, 0, 1 );
 				}else{
 					char nameBuf[ 32 ];
-					LoadStringA( HInstance, STR_30_New_hero, nameBuf, 31 );
+					LoadStringA( HInstance, NewHeroStringId(), nameBuf, 31 );
 					if( !strcmp( nameBuf, HeroSaveHead->Name ) ){
 						EndDialogSelectHero( hdlg, 4 );
 					}else{
@@ -9429,7 +15437,11 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 				}
 			}else{
 				NewSaveInfo.GameMode = GameMode;
-				if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
+				// (th4) Dark Campaign has no Game Changers. Checked BEFORE the SelectGameModeLater
+				// branch, which is true in the default config and would route into the GC screen.
+				if( GameMode == GM_DARK_CAMPAIGN ){
+					PostMessageA( hdlg, MSG_SELECT_CLASS, 0, 0 );
+				}else if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
 					PostMessageA( hdlg, MSG_GAME_CHANGERS, 0, 0 );
 				}else{
 					PostMessageA( hdlg, MSG_SELECT_CLASS, 0, 0 );
@@ -9443,15 +15455,23 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 			if( !(SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu) ){
 				memset( &NewSaveInfo, 0, sizeof( NewSaveInfo ) );
 			}
+			// (th4) Dark Campaign never visits MSG_SELECT_GAME_MODE, which is the ONLY place
+			// that assigns NewSaveInfo.GameMode. Without this the save is stamped GM_NORMAL (0)
+			// and MSG_WTF's "GameMode = NewSaveInfo.GameMode" wipes the mode out at game start.
+			// Set after the memset above so it cannot be cleared.
+			if( GameMode == GM_DARK_CAMPAIGN ) NewSaveInfo.GameMode = GameMode;
 			ClassSelectionMode = CSM_CLASS;
-			int selClassResult = (GameMode == GM_CLASSIC) 
-				? SDlgDialogBoxParam(HInstance, "SELCLASS_CLASSIC_DIALOG", hdlg, DialogSelectClass, 0)
-				: SDlgDialogBoxParam(HInstance, "SELCLASS_DIALOG3", hdlg, DialogSelectClass, 0);
+			// (th4) Dark Campaign uses its own class dialog (dark names); Classic and everything
+			// else keep theirs untouched.
+			const char* classDialogId = GameMode == GM_CLASSIC       ? "SELCLASS_CLASSIC_DIALOG"
+			                          : GameMode == GM_DARK_CAMPAIGN ? "SELCLASS_DIALOG_DARK"
+			                          :                                "SELCLASS_DIALOG3";
+			int selClassResult = SDlgDialogBoxParam(HInstance, classDialogId, hdlg, DialogSelectClass, 0);
 			if( selClassResult == -1 || selClassResult == ID_EXIT_CANCEL_BUTTON ){
 				if( GameModeFilter > 0 && GameModeFilter & B(GameMode)
 				 || SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
 					char nameBuf[ 32 ];
-					LoadStringA( HInstance, STR_30_New_hero, nameBuf, 31 );
+					LoadStringA( HInstance, NewHeroStringId(), nameBuf, 31 );
 					if( !strcmp( nameBuf, HeroSaveHead->Name ) ){
 						EndDialogSelectHero( hdlg, 4 );
 					}else{
@@ -9495,6 +15515,19 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 			}
 			else 
 			{
+				// (th4) DARK CAMPAIGN uses its own subclass dialogs: dark names, and the
+				// summoners / gladiators / Elementalist / Templar are not available.
+				if( GameMode == GM_DARK_CAMPAIGN ){
+					switch (NewSaveInfo.Class)
+					{
+						default:			dialogId = "SELSUBCLASS_DIALOG_WARRIOR_DARK"; break;
+						case PC_1_ARCHER:	dialogId = "SELSUBCLASS_DIALOG_ARCHER_DARK";  break;
+						case PC_2_MAGE:		dialogId = "SELSUBCLASS_DIALOG_MAGE_DARK";    break;
+						case PC_3_MONK:		dialogId = "SELSUBCLASS_DIALOG_MONK_DARK";    break;
+						case PC_4_ROGUE:	dialogId = "SELSUBCLASS_DIALOG_ROGUE_DARK";   break;
+						case PC_5_SAVAGE:	dialogId = "SELSUBCLASS_DIALOG_SAVAGE_DARK";  break;
+					}
+				}else
 				switch (NewSaveInfo.Class)
 				{
 					default:				dialogId = GameMode == GM_COLISEUM ? "SELSUBCLASS_DIALOG_WARRIOR_COLISEUM" : "SELSUBCLASS_DIALOG_WARRIOR"; break;
@@ -9520,7 +15553,7 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
                 else
                 {
                     std::fill( std::begin( NewSaveInfo.Traits ), std::end( NewSaveInfo.Traits ), TraitId::NoTrait );
-					PostMessageA(hdlg, MSG_SELECT_TRAITS, 0, 0);
+					PostMessageA( hdlg, MSG_SELECT_TRAITS, 0, 0 );
                 }
             }
             return 0;
@@ -9551,7 +15584,7 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
             }else{
                 NewSaveInfo.Specialization = getSpecializationIdForButtonId( NewSaveInfo.Class, NewSaveInfo.SubClass, selSpecializationResult );
                 std::fill( std::begin( NewSaveInfo.Traits ), std::end( NewSaveInfo.Traits ), TraitId::NoTrait );
-				PostMessageA(hdlg, MSG_SELECT_TRAITS, 0, 0);
+				PostMessageA( hdlg, MSG_SELECT_TRAITS, 0, 0 );
 			}
             return 0;
         }
@@ -9571,7 +15604,13 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 					PostMessageA( hdlg, MSG_SELECT_SUBCLASS, 0, 0 );
                 }
             }else if( selTraitsResult == ID_TRAITS_CONTINUE ){
-				if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
+				// (th4) Dark Campaign: straight to the name -- no Game Changers, and no game-mode
+				// screen (the mode is fixed by the menu). This test MUST come FIRST: the
+				// SelectGameModeLater condition below is true in the default config and would
+				// otherwise swallow the flow before the DC check was ever reached.
+				if( GameMode == GM_DARK_CAMPAIGN ){
+					PostMessageA( hdlg, MSG_ENTER_NAME, 0, 0 );
+				}else if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
 					PostMessageA( hdlg, MSG_SELECT_GAME_MODE, 0, 0 );
 				}else{
 					PostMessageA( hdlg, MSG_GAME_CHANGERS, 0, 0 );
@@ -9638,7 +15677,14 @@ int __stdcall DialogSelectHero( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 			}
 			else
 			{
-				PostMessageA(hdlg, GameMode == GM_CLASSIC ? MSG_SELECT_CLASS : MSG_GAME_CHANGERS, 0, 1);
+				// (th4) Cancelling the name step: Classic goes back to class select; Dark Campaign
+				// has neither Game Changers nor traits, so it steps back to the SUBCLASS screen --
+				// the last screen the player actually saw.
+				if( GameMode == GM_DARK_CAMPAIGN ){
+					PostMessageA( hdlg, MSG_SELECT_SUBCLASS, 0, 1 );
+				}else{
+					PostMessageA(hdlg, GameMode == GM_CLASSIC ? MSG_SELECT_CLASS : MSG_GAME_CHANGERS, 0, 1);
+				}
 			}
 			return 0;
 		}
@@ -9699,7 +15745,7 @@ void __fastcall MenuLoadCharSlots( HWND hdlg )
 	charSlot_1 = charSlot;
 	if( charSlot ){
 		charSlot->next = 0;
-		LoadStringA( HInstance, STR_30_New_hero, charSlot->Name, 15 );
+		LoadStringA( HInstance, NewHeroStringId(), charSlot->Name, 15 );
 		charSlot_1->Level = 0;
 		charSlot_1->next = HeroSaveHead;
 		HeroSaveHead = charSlot_1;
@@ -9761,6 +15807,14 @@ int __fastcall SetNewHeroName( HWND hdlg, char *nameBuf )
 	msg = message2;
 	hinstance = HInstance;
 	LoadStringA( hinstance, NewHeroTitle(), msg, 31 );
+	// (th4) The name-entry / name-error screen shows the same title as the dialogs it
+	// came from, so it needs the same localization. This site was missed twice: it uses
+	// the local `hinstance` rather than HInstance, so a grep for the usual call shape
+	// does not find it.
+	// NOTE: common.h redirects strcpy to the ARRAY form of strncpy_s, which cannot
+	// deduce a size from a pointer -- and `msg` is a char*, not the array. Copy into
+	// message2 (char[32]), which is what msg points at.
+	if( const char* t = NewHeroTitleText() ) strcpy( message2, t );
 	namePresent = 1;
 	if( strlen( nameBuf_1 ) == 0 ){
 		namePresent = 0;
@@ -9830,7 +15884,12 @@ LABEL_21:
 			}
 		}
 	}else{
-		LoadStringA( HInstance, STR_15_Invalid_name, errorString, 127 );
+		if( GameLanguage != LANG_EN ){	// (th4) localized char-name error via menu overlay
+			strcpy( errorString, "\n" );
+			strcat( errorString, LMenu( "Invalid name. A name cannot contain spaces, reserved characters, or reserved words." ) );
+		}else{
+			LoadStringA( HInstance, STR_15_Invalid_name, errorString, 127 );
+		}
 		SelectOk_2( hdlga, errorString, message2, 1 );
 		result = 0;
 	}
@@ -9850,8 +15909,17 @@ void __fastcall MurderHeroMenu( HWND hdlg )
 		if( ColiseumInMainMenu && GameMode == GM_COLISEUM ) titleId = STR_81_Murder_coliseum;
 	}else{
 		if( ClassicInMainMenu  && GameMode == GM_CLASSIC  ) titleId = STR_85_Murder_classic;
+		if (OutbreakInMainMenu && GameMode == GM_OUTBREAK) titleId = STR_88_Murder_outbreak;
+		if( GameMode == GM_DARK_CAMPAIGN ) titleId = STR_91_Murder_dark_campaign; // (th4)
 	}
 	LoadStringA( HInstance, titleId, title, 31 );
+	// (th4) Dark Campaign murder title via the LMenu overlay. NOTE: the other special modes
+	// (Coliseum/Classic/Outbreak) have never been localised here -- this only adds DC, it does
+	// not change their behaviour.
+	if( GameLanguage != LANG_EN && titleId == STR_91_Murder_dark_campaign ){
+		strncpy( title, LMenu("Murder Villain"), 31 );
+		title[31] = 0;
+	}
 	LoadStringA( HInstance, STR_7_Sure_murder, errorString, 63 );
 	sprintf( errorTitle, errorString, SelectedHeroName );
 	if( SelectYesNo( hdlg, errorTitle, title, 1 ) == 2 ){
@@ -9906,7 +15974,7 @@ LABEL_17:
 	}
 	HeroSaveHead = curSave;
 	--CharSaveCount;
-	LoadStringA( HInstance, STR_30_New_hero, errorString, 15 );
+	LoadStringA( HInstance, NewHeroStringId(), errorString, 15 );
 	if( !strcmp( errorString, HeroSaveHead->Name ) ){
 		if( SelectGameModeLater && ClassicInMainMenu && ColiseumInMainMenu ){
 			PostMessageA( hdlg, MSG_SELECT_CLASS, 0, 0 );
@@ -9970,9 +16038,12 @@ int __fastcall NewGame( HWND hdlg )
 			result = SDlgEndDialog( hdlg,  1 );
 		}
 	}else{
-		result = (CurCharSaveInfo && CurCharSaveInfo->GameChanger & BIT(GC_1_AUTO_SAVE))
-			? PostMessageA( hdlg, MSG_SELECT_HERO, 0, 0 )
-			: PostMessageA( hdlg, MSG_LOAD_OR_NEW, 0, 0 );
+		if (CurCharSaveInfo && ((CurCharSaveInfo->GameChanger & BIT(GC_1_AUTO_SAVE)) || (CurCharSaveInfo->GameMode == GM_OUTBREAK))) {
+			result = PostMessageA(hdlg, MSG_SELECT_HERO, 0, 0);
+		}
+		else {
+			result = PostMessageA(hdlg, MSG_LOAD_OR_NEW, 0, 0);
+		}
 	}
 	CurCharSaveInfo = 0;
 	return result;
@@ -10212,10 +16283,9 @@ int __stdcall DialogSelectGameIPX( HWND hDlg, unsigned int Msg, WPARAM wParam, L
 					JoinIpxGame(hDlg, ipxGame_3);
 				}
 				else {
-					stringstream text;
-					text << "Only " << getGameModeName( GAME_MODE( SpecialGame ) ) << " characters may join this game.";
-					char errorText[128];
-					strcpy(errorText, text.str().c_str());
+					// (th4) localized via LMenu (English gets the key back unchanged); the mode name is already localized.
+					char errorText[256];
+					sprintf( errorText, LMenu("Only %s characters may join this game."), getGameModeName( GAME_MODE( SpecialGame ) ) );
 					return SelectOk_2(hDlg, errorText, 0, 0);
 				}
 				return SDlgDefDialogProc_(hDlg, Msg, wParam, lParam);
@@ -10464,7 +16534,7 @@ void __fastcall SetGameDesc( HWND hdlg, int activeId )
 		ipxGame = ipxWin->ipxGame;
 		if( ipxGame ){
 			if( ipxGame->index ){
-				if( ipxGame->szGameStatString[0] != 0 || strlen( ipxGame->szGameStatString ) < 16 ){ // qndel - forces to show description // ask dd if this doesn't break stuff
+				if( ipxGame->szGameStatString[0] != 0 || strlen( ipxGame->szGameStatString ) < 16 ){
 					gameDescTextWin = (TextWin *) GetWindowLongA( gameDesc, GWL_USERDATA );
 					sprintf( buf, "Game mode: %s", getGameModeName( GAME_MODE( GetSuperGameMode( ipxGame->szGameName ) ) ) );
 					gameDescText = buf;
@@ -10494,7 +16564,7 @@ void __fastcall SetGameDesc( HWND hdlg, int activeId )
 				gameDescText = gameStatString;
 			}
 			WriteTextToElemData( gameDescTextWin, gameDescText );
-			DrawTextToElemList( hdlg_1, IpxText1List, 1 );
+			DrawTextToElemList( hdlg_1, IpxText1List, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 		}
 	}
 }
@@ -11009,9 +17079,21 @@ void __fastcall EnumerateIpxGames( HWND hdlg )
 		LoadStringA( HInstance, STR_77_Join_games, msgText, 63 );
 		SetWindowTextA( joinTextElem, msgText );
 	}
+	// RU: caption/subcaption/label/buttons via LMenu (English build returns input unchanged).
+	// (th4) CHI: LMenu resolves per-language; the guard was never widened past RU.
+	// (th4) KO: same, the Korean dialog sheets cover these strings.
+	// (th4) DA: ASCII-folded rows, so the meta atlas renders them directly.
+	// (th4) UK and BG: both menu tables are ATLAS-encoded like RU, so they render here too.
+	if( is(GameLanguage, LANG_RU, LANG_CHI, LANG_KO, LANG_DA, LANG_NL, LANG_UK, LANG_BG, LANG_JA, LANG_AR, LANG_HIN, LANG_SW, LANG_CS, LANG_HR, LANG_ID, LANG_ES, LANG_IT, LANG_FR, LANG_PL, LANG_DE, LANG_TR, LANG_PT) ){
+		SetWindowTextA( GetDlgItem( hdlg_1, ID_CAPTION ), LMenu("Join Games") );
+		SetWindowTextA( GetDlgItem( hdlg_1, ID_SUBCAPTION ), LMenu("Select Game") );
+		SetWindowTextA( GetDlgItem( hdlg_1, ID_SOME_LABEL ), LMenu("Description:") );
+		SetWindowTextA( GetDlgItem( hdlg_1, ID_OK_BUTTON ), LMenu("OK") );
+		SetWindowTextA( GetDlgItem( hdlg_1, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+	}
 	InitTextElemList( hdlg_1, IpxJoinSelectList, 5 );
 	InitTextElemList( hdlg_1, IxpDescTitleList, 3 );
-	InitTextElemList( hdlg_1, IpxText1List, 1 );
+	InitTextElemList( hdlg_1, IpxText1List, is(GameLanguage, LANG_RU, LANG_BG, LANG_UK) ? 0 : 1 );
 	InitButtonListText( hdlg_1, IpxOkCancelList, 4, 0 );
 	InitButtonListText( hdlg_1, IpxGameButtonList, 2, 1 );
 	IpxGameCount = 0;
@@ -11022,8 +17104,13 @@ void __fastcall EnumerateIpxGames( HWND hdlg )
 		netGameNode->index = 0;
 		IpxGameHead->szGameStatString[ 0 ] = 0;
 		IpxGameHead->next = 0;
-		LoadStringA( HInstance, STR_36_Create_Game, IpxGameHead->szGameName, 127 ); // qndel - create game button in multiplayer
+		LoadStringA( HInstance, STR_36_Create_Game, IpxGameHead->szGameName, 127 );
 		LoadStringA( HInstance, STR_42_Create_new_game, IpxGameHead->szGameStatString, 127 );
+		// (th4) CHI: LMenu resolves per-language; the guard was never widened past RU. DA too. UK too.
+	if( is(GameLanguage, LANG_RU, LANG_CHI, LANG_KO, LANG_DA, LANG_NL, LANG_UK, LANG_BG, LANG_JA, LANG_AR, LANG_HIN, LANG_SW, LANG_CS, LANG_HR, LANG_ID, LANG_ES, LANG_IT, LANG_FR, LANG_PL, LANG_DE, LANG_TR, LANG_PT) ){
+			strcpy( IpxGameHead->szGameName, LMenu("Create Game") );
+			strcpy( IpxGameHead->szGameStatString, LMenu("Create a new game with a difficulty setting of your choice.") );
+		}
 	}
 	SNetEnumDevices( 0, 0, SetIpxGameData, 0 );
 	ResetIpxGameButtonName( hdlg_1, IpxGameHead );
@@ -11434,7 +17521,7 @@ int __fastcall JoinIpxGame( HWND hdlg, IpxGame *ipxGame )
 			FadePalette( 10 );
 			result = SDlgEndDialog( hdlg_1,  1 );
 		}else{
-			LoadStringA( HInstance, STR_37_Unable_join, joinError, 63 );
+			LoadStringL( STR_37_Unable_join, joinError, 63, "\n\n", "Unable to join game \"%s.\"" );
 			sprintf( joinError_1, joinError, ipxGame_1->szGameName );
 			result = SelectOk_2( hdlg_1, joinError_1, 0, 0 );
 		}
@@ -11505,6 +17592,25 @@ int __stdcall DialogSelectSave( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
             constexpr int TITLE_BUF_LEN = 32;
             char titleBuf[ TITLE_BUF_LEN ];
 			LoadStringA( HInstance, CharSelectTitle(), titleBuf, TITLE_BUF_LEN - 1 );
+            // (th4) Widened from LANG_RU to all non-English. LMenu returns its input on
+            // a miss, so the English build is unchanged. titleBuf is char[TITLE_BUF_LEN]
+            // and strcpy is unbounded, so bound the copy.
+            // (th4) Dark Campaign caption also applies in English (the .rc text is static)
+            if( GameLanguage == LANG_EN && GameMode == GM_DARK_CAMPAIGN ){
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), "Select Villain" );
+            }
+            if( GameLanguage != LANG_EN ){
+                // (th4) All six titles in one place; see CharSelectTitleText().
+                if( const char* t = CharSelectTitleText() ){
+                    strncpy( titleBuf, t, TITLE_BUF_LEN - 1 );
+                    titleBuf[ TITLE_BUF_LEN - 1 ] = 0;
+                }
+                // (th4) Dark Campaign: you pick a villain, not a hero
+                SetWindowTextA( GetDlgItem( hdlg, ID_CAPTION ), LMenu( GameMode == GM_DARK_CAMPAIGN ? "Select Villain" : "Select Hero" ) );
+                SetWindowTextA( GetDlgItem( hdlg, ID_OK_BUTTON ), LMenu("OK") );
+                SetWindowTextA( GetDlgItem( hdlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+                SetWindowTextA( GetDlgItem( hdlg, ID_MURDER ), LMenu("Murder") );
+            }
             WriteAndDrawDialogTitle( GetParent( hdlg ), titleBuf );
             SetWindowLongA( hdlg, GWL_USERDATA, GetWindowLongA( GetParent( hdlg ), GWL_USERDATA ) );
             InitTextElemList( hdlg, SelectHeroTitleList, 5 );
@@ -11628,6 +17734,25 @@ int __stdcall DialogSelectSave( HWND hdlg, unsigned int Msg, WPARAM wParam, LPAR
 }
 
 //----- (200108E0) --------------------------------------------------------
+// (th4) The empty-slot row ("New Hero", or "New Villain" in Dark Campaign) is a
+// RESOURCE string, so it stayed English in every localization. It cannot simply be
+// translated at the source: CharSaveInfo::Name is char[16] and THREE sites compare a
+// loaded name against the resource text to detect the empty slot (see NewHeroStringId).
+// Translating the stored name would break that comparison, and would not fit anyway --
+// the Arabic and Japanese renderings exceed 15 bytes.
+//
+// So the name is translated HERE, at the one place a slot name reaches a button, and
+// only for display. Name itself is untouched, so every comparison keeps working.
+static const char* SlotDisplayName( const char* name )
+{
+    if( !name || GameLanguage == LANG_EN ) return name;
+    char en[ 32 ];
+    LoadStringA( HInstance, NewHeroStringId(), en, sizeof(en) - 1 );
+    if( strcmp( name, en ) != 0 ) return name;      // a real character: never touched
+    // LMenu returns its input on a miss, so a language without the row keeps English.
+    return LMenu( NewHeroStringId() == STR_92_New_villain ? "New Villain" : "New Hero" );
+}
+
 void __fastcall ResetSaveButtons( HWND hdlg, CharSaveInfo* topSavePointer )
 {
     CharSaveInfo* saveIt = topSavePointer;
@@ -11638,7 +17763,7 @@ void __fastcall ResetSaveButtons( HWND hdlg, CharSaveInfo* topSavePointer )
             if( saveIt ){
                 EnableWindow( saveButton, true );
                 if( auto heroWin = (HeroWin *) GetWindowLongA( saveButton, GWL_USERDATA ); heroWin ){
-                    WriteTextToElemData( (TextWin *) heroWin, saveIt->Name );
+                    WriteTextToElemData( (TextWin *) heroWin, SlotDisplayName( saveIt->Name ) );
                     heroWin->saveInfo = saveIt;
                 }
                 saveIt = saveIt->next;
@@ -11933,6 +18058,21 @@ int __stdcall DialogSelectLoad( HWND hDlg, unsigned int Msg, WPARAM wParam, LPAR
 		case WM_INITDIALOG:
 			parent = GetParent( hDlg );
 			LoadStringA( HInstance, CharSelectTitle(), Buffer, 31 );
+			// (th4) Widened from LANG_RU to all non-English; LMenu returns its input on a
+			// miss, so English is unchanged. Buffer is char[32] and strcpy is unbounded.
+			if( GameLanguage != LANG_EN ){
+				// (th4) All six titles, not just single-player: this dialog showed
+				// "Classic Characters" and the other mode variants in English.
+				if( const char* t = CharSelectTitleText() ){
+					strncpy( Buffer, t, sizeof(Buffer) - 1 );
+					Buffer[ sizeof(Buffer) - 1 ] = 0;
+				}
+				SetWindowTextA( GetDlgItem( hDlg, ID_CAPTION ), LMenu("Game File Exists") );
+				SetWindowTextA( GetDlgItem( hDlg, ID_LOAD_GAME ), LMenu("Load Game") );
+				SetWindowTextA( GetDlgItem( hDlg, ID_NEW_GAME ), LMenu("New Game") );
+				SetWindowTextA( GetDlgItem( hDlg, ID_OK_BUTTON ), LMenu("OK") );
+				SetWindowTextA( GetDlgItem( hDlg, ID_CANCEL_BUTTON ), LMenu("Cancel") );
+			}
 			WriteAndDrawDialogTitle( parent, Buffer );
 			textWin = (TextWin *) GetWindowLongA( parent, GWL_USERDATA );
 			SetWindowLongA( hDlg, GWL_USERDATA, (LONG) textWin );
@@ -13195,7 +19335,13 @@ int __fastcall SelectYesNo( HWND hWndParent, char *errorString, char *errorTitle
 	DlgHasPentagram = hasPentagram;
 	IsHeadBackground = 0;
 	YesButtonProc = 0;
-	return SDlgDialogBoxParam( HInstance, "SELYESNO_DIALOG", hWndParent, DialogSelectYesNo, 0 );
+	// (th4) This box covers the hero portrait, and the dialog underneath stays visible
+	// while it is up -- so the true-colour overlay has to be told; it cannot tell.
+	// Wrapped here rather than at the call sites so every user of SelectYesNo is covered.
+	MenuPortrait_Suppress( 1 );
+	const int answer = SDlgDialogBoxParam( HInstance, "SELYESNO_DIALOG", hWndParent, DialogSelectYesNo, 0 );
+	MenuPortrait_Suppress( 0 );
+	return answer;
 }
 
 //----- (200134A0) --------------------------------------------------------
@@ -13346,7 +19492,30 @@ int __fastcall SelectOk_2( HWND hdlg, char *errorString, char *dlgTitleText, int
 	DlgHasPentagram = dlgHasPentagram;
 	IsHeadBackground = 0;
 	YesButtonProc = 0;
-	return SDlgDialogBoxParam( HInstance, "SELOK_DIALOG", hdlg, DialogSelectYesNo, 0 );
+	// (th4) Same as SelectYesNo: modal box over a dialog that stays visible, so the
+	// true-colour overlay keeps painting the portrait straight over this text.
+	MenuPortrait_Suppress( 1 );
+	const int answer = SDlgDialogBoxParam( HInstance, "SELOK_DIALOG", hdlg, DialogSelectYesNo, 0 );
+	MenuPortrait_Suppress( 0 );
+	return answer;
+}
+
+//----- (new by th4) -------------------------------------------------------
+// LoadStringA for text shown in the pre-game OK box (SelectOk_2) and dialog titles.
+// English reads the .rc STRINGTABLE exactly as before; every other language takes
+// LMenu(key) from its *_Menu table, with the .rc string's leading newlines (lead) put
+// back -- they centre the text vertically in the box. key = the .rc text minus those
+// newlines, byte-exact, or the row is never found and English shows. Same idea as the
+// invalid-name box (~15414 "Invalid name. A name cannot contain..."), which does it inline.
+// Keep translated rows within bufSize: a truncated GB2312/EUC row would end on half a
+// character. A language with no row (HIN today) gets the English key.
+void LoadStringL( UINT id, char* buf, int bufSize, const char* lead, const char* key )
+{
+	if( GameLanguage == LANG_EN ){
+		LoadStringA( HInstance, id, buf, bufSize );
+		return;
+	}
+	_snprintf_s( buf, bufSize, _TRUNCATE, "%s%s", lead, LMenu( key ) );
 }
 
 //----- (200137C0) --------------------------------------------------------
@@ -13362,7 +19531,10 @@ int __fastcall SelectError( HWND hWndParent, UINT uID, int headBackground )
 	DlgTitleText = 0;
 	ErrorString = msgText;
 	YesButtonProc = 0;
-	return SDlgDialogBoxParam( HInstance, "SPAWNERR_DIALOG", parent, DialogSelectYesNo, 0 );
+	MenuPortrait_Suppress( 1 );	// (th4) as SelectYesNo -- modal box over a still-visible portrait
+	const int answer = SDlgDialogBoxParam( HInstance, "SPAWNERR_DIALOG", parent, DialogSelectYesNo, 0 );
+	MenuPortrait_Suppress( 0 );
+	return answer;
 }
 
 //----- (20013830) --------------------------------------------------------
@@ -13662,15 +19834,28 @@ void __fastcall AnimateDialogTitle( HWND hdlg )
 						if( AnimTitleHeight > 480 ){
 							heigth = 480;
 						}
-						SBltROP3(
-							TitleDialogSurface,
-							&dlgData->surface[ Rect.left ] + dlgData->size.cx * Rect.top,
-							AnimTitleWidth,
-							heigth,
-							AnimTitleWidth,
-							dlgData->size.cx,
-							0,
-							0xCC0020u );
+						// Guard against reading past the end of dlgData->surface.
+						// The logo control (ID_BACKGROUND) is positioned by the dialog
+						// template and should always fit inside the background bitmap,
+						// but we clamp defensively. Rect coords are client-relative after
+						// ScreenToClient; dlgData->size is the background bitmap size.
+						if( Rect.left >= 0 && Rect.top >= 0
+							&& Rect.left + AnimTitleWidth  <= dlgData->size.cx
+							&& Rect.top  + heigth          <= dlgData->size.cy ){
+							SBltROP3(
+								TitleDialogSurface,
+								&dlgData->surface[ Rect.left ] + dlgData->size.cx * Rect.top,
+								AnimTitleWidth,
+								heigth,
+								AnimTitleWidth,
+								dlgData->size.cx,
+								0,
+								0xCC0020u );
+						}else{
+							// Fallback: fill logo area with black so the animation is
+							// still visible rather than showing garbage memory.
+							memset( TitleDialogSurface, 0, AnimTitleWidth * heigth );
+						}
 						STransBlt( TitleDialogSurface, 0, 0, AnimTitleWidth, DialogAnimTitle[ CurAnimTitleFrame ] );
 						InvalidateRect( staticControl, 0, 0 );
 					}
@@ -13732,6 +19917,23 @@ void __fastcall InitDialogAnimTitle( HWND hdlg, char *picName )
 
 	transBuf = 0;
 	LoadSpriteSheet( picName, &transBuf, &size );
+	// Load this logo's own palette so LoadDialogBackground can patch MenuPalette
+	// with the correct colors for whichever indices this logo actually uses.
+	// Using transBuf+size so SBmpLoadImage also fills pixel data - this is the
+	// same proven call pattern used by LoadDialogBackground and avoids any
+	// uncertainty about whether a null pixel-buffer call populates the palette.
+	LogoPaletteLoaded = false;
+	if( transBuf ){
+		if( SBmpLoadImage( picName, LogoPalette, transBuf, size.cx * size.cy, 0, 0, 0 ) ){
+			memset( LogoPaletteUsed, 0, sizeof( LogoPaletteUsed ) );
+			int totalLogoPixels = size.cx * size.cy;
+			for( int px = 0; px < totalLogoPixels; px++ ){
+				unsigned __int8 idx = transBuf[ px ];
+				if( idx != 0xFA ) LogoPaletteUsed[ idx ] = true;
+			}
+			LogoPaletteLoaded = true;
+		}
+	}
 	memset( DialogAnimTitle, 0, sizeof( DialogAnimTitle ) );
 	if( transBuf ){
 		height = AnimTitleHeight;

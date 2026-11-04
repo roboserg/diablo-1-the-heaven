@@ -1,4 +1,6 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
+#include "ItemOverlay.h"
+
 
 volatile int forceCallforSync;
 
@@ -116,7 +118,7 @@ bool UseHealingPotion(int playerIndex)
 	Player& player = Players[playerIndex];
 	if( player.CurLife != player.MaxCurLife ){
         int lifeAdd = RNG(player.MaxCurLife >> 8);
-        int maxLife = (player.MaxCurLife >> 8) & ~1/*Зачем обнуление 1го бита?*/; // Возможно это получение модуля числа ?
+        int maxLife = (player.MaxCurLife >> 8) & ~1/*(rt) Why clear the 1st bit?*/; // (rt) Maybe this takes the absolute value?
         lifeAdd = VariatePotionsByDifficulty( lifeAdd, maxLife );
         if( (player.ClassID == PC_2_MAGE && (!HasTrait(playerIndex, TraitId::Mamluk))) || HasTrait(playerIndex, TraitId::Giant) ){
             lifeAdd /= 2;
@@ -189,7 +191,7 @@ bool UseManaPotion(int playerIndex)
 void UseItemWithMagicCode_47_51_rune(int playerIndex, int magicCode, int seed, int baseItemIndex)
 {
 	Player& player = Players[playerIndex];
-	player.SpellOnCursor = magicCode;// У рун маджик код совпадает с player_cast кодом
+	player.SpellOnCursor = magicCode;// (rt) For runes the magic code matches the player_cast code
 	player.spellOnCursorType = SO_4_NONE;
 	if( playerIndex == CurrentPlayerIndex ){
 		Cur.UsedItemSeed = seed; Cur.UsedItemBase = baseItemIndex;
@@ -379,16 +381,40 @@ bool findClassGroupsByMask( uint requiredClassMask, PLAYER_CLASS_GROUPS result[]
     return checkMask == requiredClassMask;
 }
 
+//----- (th4) -------------------------------------------------------------
+// Class / class-group names as the item tooltips should show them.
+//   * Dark Campaign renames the whole roster, so prefer the DC name there. The
+//     nine classes DC does not offer (Templar, Elementalist, the three Summoners
+//     and the four Gladiators) have no DC name and fall through to the base one.
+//   * The base name now goes through L() as well. It never did before, so class
+//     names stayed English in every translated build while the "[%s only]" frame
+//     around them was localized.
+static const char* TooltipClassName( PLAYER_FULL_CLASS fullClass )
+{
+	if( GameMode == GM_DARK_CAMPAIGN ){
+		if( const char* dcName = DarkCampaignClassName( fullClass ) ) return dcName;
+	}
+	return L( FullPlayerClasses[fullClass].name );
+}
+
+static const char* TooltipClassGroupName( PLAYER_CLASS_GROUPS group )
+{
+	if( GameMode == GM_DARK_CAMPAIGN ){
+		if( const char* dcName = DarkCampaignClassGroupName( group ) ) return dcName;
+	}
+	return L( ClassGroupsNames[group] );
+}
+
 //----- (th2) -------------------------------------------------------------
 void printItemClassReqInfoInBuffer( const Item* aItem )
 {
 	const BaseItem& baseItem = BaseItems[aItem->baseItemIndex];
     uint requiredClassMask = GetRequiredClassMask( aItem );
     if( requiredClassMask == IPCM_ALL_CLASSES ){
-        strcpy(InfoPanelBuffer, "[No class req]");
+        strcpy(InfoPanelBuffer, L("[No class req]"));
     }
 	else if( requiredClassMask == 0 ){
-		strcpy(InfoPanelBuffer, "[No one can wear it]");
+		strcpy(InfoPanelBuffer, L("[No one can wear it]"));
 	}
 	else{
 		bitset<32> classReqBitset( requiredClassMask );
@@ -403,30 +429,41 @@ void printItemClassReqInfoInBuffer( const Item* aItem )
             
                 if( allowedClassesCount == 1u ){
 					if (HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) {
-						sprintf(InfoPanelBuffer, "[Mamluk only]");
+						sprintf(InfoPanelBuffer, L("[Mamluk only]"));
 					}
 					else if (Players[CurrentPlayerIndex].fullClassId == PFC_ELEMENTALIST && !HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) {
-						sprintf(InfoPanelBuffer, "[Elementalist only]");
+						sprintf(InfoPanelBuffer, L("[Elementalist only]"));
 					}
 					else if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer) && baseItem.ItemCode == IC_23_PISTOL) {
-						sprintf(InfoPanelBuffer, "[Pistoleer only]");
+						if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+							sprintf(InfoPanelBuffer, L("[Terminator only]"));
+						}
+						else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+							sprintf(InfoPanelBuffer, L("[Super Mutant only]"));
+						}
+						else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+							sprintf(InfoPanelBuffer, L("[Enclave only]"));
+						}
+						else {
+							sprintf(InfoPanelBuffer, L("[Pistoleer only]")); 
+						}
 					}
 					else if (HasTrait(CurrentPlayerIndex, TraitId::Ranger) && baseItem.ItemCode == IC_3_BOW) {
-						sprintf(InfoPanelBuffer, "[Ranger only]");
+						sprintf(InfoPanelBuffer, L("[Ranger only]"));
 					}
 					else if (HasTrait(CurrentPlayerIndex, TraitId::Barbarian) && baseItem.ItemCode == IC_7_HELM) {
-						sprintf(InfoPanelBuffer, "[Barbarian only]");
+						sprintf(InfoPanelBuffer, L("[Barbarian only]"));
 					}
 					else {
-						sprintf(InfoPanelBuffer, "[%s only]", FullPlayerClasses[classes[0]].name);
+						sprintf(InfoPanelBuffer, L("[%s only]"), TooltipClassName(classes[0]));
 					}
                 }
 				else{
 					if (HasTrait(CurrentPlayerIndex, TraitId::Barbarian) && baseItem.ItemCode == IC_7_HELM) {
-						sprintf(InfoPanelBuffer, "[Barbarian only]");
+						sprintf(InfoPanelBuffer, L("[Barbarian only]"));
 					}
 					else {
-						sprintf(InfoPanelBuffer, "[%s and %s only]", FullPlayerClasses[classes[0]].name, FullPlayerClasses[classes[1]].name);
+						sprintf(InfoPanelBuffer, L("[%s and %s only]"), TooltipClassName(classes[0]), TooltipClassName(classes[1]));
 					}
                 }
             }
@@ -436,18 +473,18 @@ void printItemClassReqInfoInBuffer( const Item* aItem )
 				bool isOk = findClassGroupsByMask( requiredClassMask, classGroups, 2, &classGroupsFound );
 
 				if( !isOk || classGroupsFound == 0u ){
-				   strcpy(InfoPanelBuffer, "[Available to multiple classes]");
+				   strcpy(InfoPanelBuffer, L("[Available to multiple classes]"));
 				}
 				else{
 					if (HasTrait(CurrentPlayerIndex, TraitId::Barbarian) && baseItem.ItemCode == IC_7_HELM) {
-						sprintf(InfoPanelBuffer, "[Barbarian only]");
+						sprintf(InfoPanelBuffer, L("[Barbarian only]"));
 					}
 					else {
 						if (classGroupsFound == 1u) {
-							sprintf(InfoPanelBuffer, "[%s only]", ClassGroupsNames[classGroups[0]]);
+							sprintf(InfoPanelBuffer, L("[%s only]"), TooltipClassGroupName(classGroups[0])); // (th4) localize the class-group name too
 						}
 						else {
-							sprintf(InfoPanelBuffer, "[%s and %s only]", ClassGroupsNames[classGroups[0]], ClassGroupsNames[classGroups[1]]);
+							sprintf(InfoPanelBuffer, L("[%s and %s only]"), TooltipClassGroupName(classGroups[0]), TooltipClassGroupName(classGroups[1])); // (th4)
 						}
 					}
 				}
@@ -462,9 +499,9 @@ void printItemClassReqInfoInBuffer( const Item* aItem )
                 findFullClassIdByMask( requiredClassMask, classes, 2, nullptr );
 
                 if( disAllowedClassesCount == 1u ){
-                    sprintf(InfoPanelBuffer, "[for all but %s]", FullPlayerClasses[classes[0]].name);
+                    sprintf(InfoPanelBuffer, L("[for all but %s]"), TooltipClassName(classes[0]));
 				}else{
-					sprintf(InfoPanelBuffer, "[for all but %s and %s]", FullPlayerClasses[classes[0]].name, FullPlayerClasses[classes[1]].name);
+					sprintf(InfoPanelBuffer, L("[for all but %s and %s]"), TooltipClassName(classes[0]), TooltipClassName(classes[1]));
                 }
             }else{
 				size_t classGroupsFound = 0;
@@ -472,12 +509,12 @@ void printItemClassReqInfoInBuffer( const Item* aItem )
 				bool isOk = findClassGroupsByMask( requiredClassMask, classGroups, 2, &classGroupsFound );
 	
 				if( !isOk || classGroupsFound == 0u ){
-					strcpy(InfoPanelBuffer, "[Available to multiple classes]");
+					strcpy(InfoPanelBuffer, L("[Available to multiple classes]"));
 				}else{
 					if( classGroupsFound == 1u ){
-						sprintf(InfoPanelBuffer, "[for all but %s]", ClassGroupsNames[ classGroups[0] ]);
+						sprintf(InfoPanelBuffer, L("[for all but %s]"), TooltipClassGroupName(classGroups[0])); // (th4)
 					}else{
-						sprintf(InfoPanelBuffer, "[for all but %s and %s]", ClassGroupsNames[ classGroups[0] ], ClassGroupsNames[ classGroups[1] ]);
+						sprintf(InfoPanelBuffer, L("[for all but %s and %s]"), TooltipClassGroupName(classGroups[0]), TooltipClassGroupName(classGroups[1])); // (th4)
 					}
 				}
             }
@@ -486,10 +523,22 @@ void printItemClassReqInfoInBuffer( const Item* aItem )
 }
 
 //----- (th2) -------------------------------------------------------------
+
 void printItemClassReqInfo( const Item* aItem )
 {
+	// ------------------------------ THIS FUNCTION IS DEAD ---------------------------------
+#if 0
 	uint requiredClassMask = GetRequiredClassMask( aItem );
-	if( requiredClassMask != IPCM_ALL_CLASSES )
+	bool sort_out = false;
+	if (requiredClassMask == IPCM_ALL_CLASSES) { 
+		sort_out = true; 
+	}
+	else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)
+		|| Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)
+		|| Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		sort_out = true;
+	}
+	if( !sort_out )
 	{
 	    printItemClassReqInfoInBuffer(aItem);
 	    InfoPanel_AddLine( InfoPanelBuffer, true );
@@ -502,35 +551,48 @@ void printItemClassReqInfo( const Item* aItem )
 	{
 		InfoPanel_AddLine( "[Can't wear item]", true );
 	}
+#endif
 }
 
 // ╔═════════════════════════════════════════════════════════════════════════════╗
 // ║                           end of inline	                                 ║
 // ╚═════════════════════════════════════════════════════════════════════════════╝
 
-// функция для опциональной подмены графики бутылок на оригинальные
+// (rt) function to optionally replace potion graphics with the original ones
 //----- (th2) -------------------------------------------------------------
 char* GetItemSprites( int& spriteId )
 {
 	extern char UserPotion[64];
 	if( UserPotionB || GameMode == GM_CLASSIC){
 		switch( spriteId - 12 ){
-		case 314 + 168: spriteId = 32 + 12; return ClassicItemSprites; // potion of healing
-		case 496 + 168: spriteId = 39 + 12; return ClassicItemSprites; // potion of mana
-		case 449 + 168: spriteId = 35 + 12; return ClassicItemSprites; // potion of full healing
-		case 497 + 168: spriteId = 0  + 12; return ClassicItemSprites; // potion of full mana
-		case  37:		spriteId = 36 + 12; return ClassicModItemSprites; // elixir of dexterity
-		case 179 + 168: spriteId = 241 + 168 + 12 - 179; return AddonModItemSprites; // relict of mana
+		case 314 + 168: spriteId = 32 + 12; return Classic_Item_Sprites; // potion of healing
+		case 496 + 168: spriteId = 39 + 12; return Classic_Item_Sprites; // potion of mana
+		case 449 + 168: spriteId = 35 + 12; return Classic_Item_Sprites; // potion of full healing
+		case 497 + 168: spriteId = 0  + 12; return Classic_Item_Sprites; // potion of full mana
+		case  37:		spriteId = 36 + 12; return Invobj1_item_sprites; // elixir of dexterity
+		case 179 + 168: spriteId = 241 + 168 + 12 - 179; return TH2objcurs_Item_Sprites; // relict of mana
 		}
 	}
-	if( spriteId <= 179){ // выбор файла для отрисовки графики вещи
-		return GameMode == GM_CLASSIC ? ClassicItemSprites : ClassicModItemSprites;
+	if (!UserPotionB && !UserPanelB && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
+		if (spriteId - 12 == 314 + 168) {
+			spriteId = 316 + 168 + 12 - 179; return TH2objcurs_Item_Sprites;
+		}
+		if (spriteId - 12 == 449 + 168) {
+			spriteId = 37 + 12; return Invobj1_item_sprites;
+		}
+		if (spriteId - 12 == 180 + 168) {
+			spriteId = 241 + 168 + 12 - 179; return TH2objcurs_Item_Sprites;
+		}
+	}
+
+	if( spriteId <= 179){ // (rt) choose the file for drawing the item's graphics
+		return GameMode == GM_CLASSIC ? Classic_Item_Sprites : Invobj1_item_sprites;
 	}else if( spriteId <= 3896 ){
 		spriteId -= 179;
-		return AddonModItemSprites;
+		return TH2objcurs_Item_Sprites;
 	}else{
 		spriteId -= 3896;
-		return Th3ItemSprites;
+		return TH3objcurs_Item_Sprites;
 	}
 }
 
@@ -565,7 +627,16 @@ char* test()
 }
 #endif
 
-// функция для определения анимации предмета по данным базовых предметов и опциональной подмены графики бутылок на оригинальные
+static bool IsSigil(Item& item) {
+	return item.baseItemIndex >= BI_2504_SIGIL_FIRST && item.baseItemIndex <= BI_2508_SIGIL_LAST;
+}
+
+static bool IsSigil(BaseItem& bi) {
+	return bi.baseId >= BI_2504_SIGIL_FIRST && bi.baseId <= BI_2508_SIGIL_LAST;
+}
+
+// (rt) function that picks the item animation from the base item data, optionally replacing potion graphics with the original ones
+// #item flips
 //----- (th2) -------------------------------------------------------------
 void SetFlipTable()
 {
@@ -590,11 +661,19 @@ void SetFlipTable()
 				}
 			}
 			break;
-		//case IC_1_SWORD	     : f = FL_8_SWORD; break;
+		//case IC_1_SWORD	     : 		
+		//	{
+		//		f = FL_8_SWORD;
+		//	}
+		//	break;
 		case IC_2_AXE	     : f = *(int*)i.NamePtr == 'aelC' ? FL_10_CLEAVER : FL_1_AXE; break;	 
 		case IC_3_BOW	     : f = FL_3_BOW; break;
 		//case IC_4_MACE	     : f = i.EquippedLocation == EL_1_ONE_HANDED ? (i.GraphicValue, 2819+168 ? FL_65_LITECLUB : FL_6_MACE) : FL_51_MAUL; break;
 		//case IC_5_SHIELD     : f = i.Material ? FL_7_SHIELD : FL_15_WSHIELD; break; //is( *(int*)i.NamePtr, 'kcuB', 'graT', 'dooW' ) ? FL_15_WSHIELD : FL_7_SHIELD; break;
+		//case IC_5_SHIELD: {
+		//	if (i.Name2 == "Razor") f = FL_8_SWORD;
+		//				  } 
+		//				  break;
 		case IC_6_LIGHT_ARMOR: f = i.Material ? FL_14_LARMOR : FL_42_CLOTH; break; //is( *(int*)i.NamePtr, 'epaC', 'sgaR', 'oalC', 'ddaP', 'inuT', 'cihT', 'aziW', 'lraW', 'liuQ', 'dnaW', 'csiD' ) ? FL_42_CLOTH : FL_14_LARMOR; break;
 		case IC_8_MID_ARMOR  : f = FL_0_ARMOR2; break;
 		case IC_9_HEAVY_ARMOR: f = FL_17_FPLATEAR; break;
@@ -606,16 +685,22 @@ void SetFlipTable()
 		case IC_15_GLOVE     : f = FL_45_GLOVES + i.Material; break;
 		//case IC_16_BOOTS     : f = FL_48_BOOTS  + i.Material; break;
 		case IC_17_BELT      : f = FL_44_BELT; break;
-		//case IC_20_CLAW		 : f = FL_8_SWORD; break; // will be used if need be.
+		case IC_20_CLAW		 : f = FL_70_CLAW; break;
 		}
+		if (i.ItemCode == IC_12_RING && IsSigil(i)) f = FL_68_SIGIL;
 	}
 	extern char UserPotion[ 64 ];
 	if( UserPotionB || GameMode == GM_CLASSIC){
-		ItemFlipTable[ 664 ] = FL_20_FBTTLEBB; // potion of mana
-		ItemFlipTable[ 665 ] = FL_20_FBTTLEBB; // potion of full mana
+		ItemFlipTable[ 496+168 ] = FL_20_FBTTLEBB; // potion of mana
+		ItemFlipTable[ 497+168 ] = FL_20_FBTTLEBB; // potion of full mana
 		ItemFlipTable[  37 ] = FL_24_FBTTLEBL; // elixir of dexterity
 		ItemFlipTable[ 179 + 168 ] = FL_56_RELICTBB; // relict of mana
 	}
+	// this didn't work here (failed GC check), applied it in SelectRandomLevelPalette() instead..
+//	if (/*Players &&*/ (CurrentPlayerIndex >= 0 && CurrentPlayerIndex < 4) && (!UserPotionB) && ( NewSaveInfo.GameChanger & BIT( GC_15_ICE_AGE ) ) ) {
+//		ItemFlipTable[314+168] = FL_20_FBTTLEBB; // potion of heal
+//		ItemFlipTable[449+168] = FL_20_FBTTLEBB; // potion of full heal
+//	}
 }
 
 //----- (0041E584) -------------------------------------------------------- interface
@@ -638,10 +723,16 @@ void FreeInvPanelCEL()
     FreeMemZero(CraftSocketCEL);
 	FreeMemZero(EnchantPanelCEL);
 	FreeMemZero(TransmutePanelCEL);
+	FreeMemZero(PowerupPanelCEL);
 	//FreeMemZero(QuenchPanelCEL);
 	FreeMemZero(LongButtonCEL);
 	FreeMemZero(WpnSwapBtnImg);
+	FreeMemZero(SigilButtonCEL);
+	FreeMemZero(SigilGridCEL);
+	FreeMemZero(LitheBuildCoverCEL);
 }
+
+//char* SigilButtonCEL = nullptr;
 
 //----- (0041E596) --------------------------------------------------------
 void LoadPanelsGraphic()
@@ -657,7 +748,9 @@ void LoadPanelsGraphic()
 	default: TerminateWithError("Wrong class id");
 	}
 	if( HasTrait(CurrentPlayerIndex, TraitId::Mamluk)         ) invPanelName = "Data\\Inv\\inv4x1.cel";
-	if( HasTrait(CurrentPlayerIndex, TraitId::LordOfTheRings) ) invPanelName = "Data\\Inv\\inv4x2-LOTR.cel"; // TODO: change to draw additional slot programmaticaly
+	else if( HasTrait(CurrentPlayerIndex, TraitId::LordOfTheRings) ) invPanelName = "Data\\Inv\\inv4x2-LOTR.cel";
+	else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) { invPanelName = "Data\\Inv\\inv_mutie.cel"; }
+	else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) { invPanelName = "Data\\Inv\\inv_Enclave.cel"; }
 	InvPanelCEL = (char*)LoadFile(invPanelName);
 
 	WpnSwapBtnImg            = (char*)LoadFile("data\\inv\\wpn_btns2.cel");
@@ -676,13 +769,23 @@ void LoadPanelsGraphic()
 	CraftPanel2CEL			 = (char*)LoadFile("data\\craft\\socket_panel_v7.cel");// th2_item_craft_v6.cel");
 	CraftSocketsLockCEL      = (char*)LoadFile("data\\craft\\ic_b.cel");
 	CraftSocketCEL           = (char*)LoadFile("data\\craft\\sockets.cel");
-	EnchantPanelCEL          = (char*)LoadFile("data\\enchant\\EnchantPanel.cel");
+		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			EnchantPanelCEL = (char*)LoadFile("data\\enchant\\enclave_enchant.cel");
+		}
+		else {
+			EnchantPanelCEL = (char*)LoadFile("data\\enchant\\EnchantPanel.cel");
+		}
+	PowerupPanelCEL			 = (char*)LoadFile("data\\powerups\\powerup_panel_new.cel");
 	LongButtonCEL            = (char*)LoadFile("data\\enchant\\longbutton.cel");
 	TransmutePanelCEL        = (char*)LoadFile("data\\transmute\\tmpanel_v2.cel");
 	//QuenchPanelCEL         = (char*)LoadFile("data\\enchant\\EnchantPanel.cel");
-	IsINVPanelVisible   = false;
-    IsPerksPanelVisible = false;
-	IsInfoWindowVisible = false;
+	IsINVPanelVisible    = false;
+    IsPerksPanelVisible  = false;
+	IsInfoWindowVisible  = false;
+	IsChatHistoryVisible = false;
+	SigilButtonCEL = (char*)LoadFile("data\\inv\\frame_sigil_buttons.cel");
+	SigilGridCEL = (char*)LoadFile("data\\sigil\\sigil_inv.cel");
+	LitheBuildCoverCEL = (char*)LoadFile("data\\inv\\lithe_build_cover.cel");
 }
 
 //----- (0041E5F8) --------------------------------------------------------
@@ -709,13 +812,13 @@ void __fastcall ShadowItemSlot( int leftPosition, int downPosition, ushort picWi
 //----- (th2) -------------------------------------------------------------
 void __fastcall CustomShadowItemSlot(int xPosition, int yPosition, ushort width, ushort height, int colorGradient, uint8_t stroke)
 {
-	int frameBorderColor = (colorGradient & 0b11110000) + 5; // цвет рамки
+	int frameBorderColor = (colorGradient & 0b11110000) + 5; // (rt) frame colour
 	uchar* dstPtr = (uchar*)&WorkingSurface[xPosition] + YOffsetHashTable[yPosition];
 	if (stroke == 1) {
 		for (ushort i = height; i > 0; --i) {
 			for (ushort j = width; j > 0; --j) {
 				if (*dstPtr >= 160) {
-					if (j < 4 || j > width - 3 || i > height - 3 || i < 4) // Рисуем рамку
+					if (j < 4 || j > width - 3 || i > height - 3 || i < 4) // (rt) Draw the frame
 						*dstPtr = ((*dstPtr & 0b1111) >> 1) + frameBorderColor; 
 					else
 						*dstPtr = (*dstPtr & 0b1111) + colorGradient;
@@ -728,7 +831,7 @@ void __fastcall CustomShadowItemSlot(int xPosition, int yPosition, ushort width,
 		for (ushort i = height; i > 0; --i) {
 			for (ushort j = width; j > 0; --j) {
 				if (*dstPtr >= 160) {
-					if (j < 4 || j > width - 3 || i > height - 3 || i < 4) // Рисуем рамку
+					if (j < 4 || j > width - 3 || i > height - 3 || i < 4) // (rt) Draw the frame
 						*dstPtr = frameBorderColor + 4;
 					else
 						*dstPtr = (*dstPtr & 0b1111) + colorGradient;
@@ -804,9 +907,9 @@ void DrawBeltInventory()
 	bool useRecolor = true;
 	extern bool InventoryTurnOffRedColorItems;
 
-	// аналогично отрисовке инвентаря, сделана оптимизация, путем замены координат клеток на вычисляемые
-	// ну и отрисовка вся аналогична, только добавлено рисование цифры в нижнем правом углу у клеток
-	// в которых есть используемый предмет
+	// (rt) same as the inventory drawing: optimized by computing cell coordinates instead of storing them
+	// (rt) and the drawing is the same too, except a digit is drawn in the bottom-right corner of the cells
+	// (rt) that hold a usable item
 	if( TalkPanelMode ){
 		return;
 	}
@@ -816,11 +919,11 @@ void DrawBeltInventory()
 		Item& item = player.BeltInventory[i];
 		int cellLeft = Belt->rect.Left + i * (CELL_SIZE + 1);
 
-		// Подсветка предметов на поясе
+		// (rt) Highlight items on the belt
 		Item& curItem = player.ItemOnCursor;
 		useRecolor = true;
 
-		if (Cur.GraphicsID >= CM_12_ITEMS_PICS_START // TODO: change to IsItemAllowedForBelt
+		if (Cur.GraphicsID >= CM_12_ITEMS_PICS_START
 			&& curItem.ItemCode == IC_0_OTHER
 			&& curItem.TypeID == ITEM_3_JEWELRY_POTION_RELICT
 			&& is(curItem.MagicCode,
@@ -834,6 +937,7 @@ void DrawBeltInventory()
 				MC_11_ELIXIR_OF_MAGIC,
 				MC_12_ELIXIR_OF_DEXTERITY,
 				MC_13_ELIXIR_OF_VITALITY,
+				MC_44_SPECTRAL_ELIXIR,	// (th4)
 				MC_21_RELIC_NEED_NO_TARGET,
 				MC_22_RELIC_NEED_TARGET,
 				MC_31_OIL_OF_REPAIR_I,
@@ -858,7 +962,7 @@ void DrawBeltInventory()
 				&& curScrY >= Belt->rect.Top - 14
 				&& curScrY <= Belt->rect.Down - 15)
 			{
-				// устанавливаем цвет фона слота, если курсор с предметом НАД доступным ему слотом
+				// (rt) set the slot's background colour if the cursor holds an item OVER a slot it can go into
 				if (curItem.IsReqMet)
 					shadowColor = blColor.overslot;
 				else
@@ -875,12 +979,13 @@ void DrawBeltInventory()
 		extern bool InventoryBackgroundOldStyle;
 		uint8_t colorMark = InventoryBackgroundOldStyle ? 0 : GetItemBackgroundColorType(item);
 
-		if (useRecolor) { // пропускаем перекраску, если уже покрашена выше по коду
+		if (useRecolor) { // (rt) skip recolouring if it was already coloured further up
 			ShadowItemSlot(cellLeft, Belt->rect.Down, CELL_SIZE, CELL_SIZE, colorMark);
 		}
 		//if( !strcmp( item.Name, "Potion of Mana" ) ) __debugbreak();
 		int graphicValue = item.GraphicValue + CM_12_ITEMS_PICS_START;
 		char itemWidth = ItemWidthTable[graphicValue];
+		const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
 		char* itemsCELArray = GetItemSprites( graphicValue );
 		bool itemUnderCursor = Cur.InventoryCellID == i + IS_50_47_Belt_Start;
 		int colorOfBorder = -1;
@@ -893,12 +998,21 @@ void DrawBeltInventory()
 				colorOfBorder = 229;
 			}
 		}
-		CEL_Draw(cellLeft, Belt->rect.Down, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!(item.IsReqMet || InventoryTurnOffRedColorItems || itemUnderCursor) | item.mirrorImage << 1, colorOfBorder);
+		ItemCEL_Draw( overlayGfx, cellLeft, Belt->rect.Down, itemsCELArray, graphicValue, itemWidth, 0, 8, (int)!(item.IsReqMet || InventoryTurnOffRedColorItems || itemUnderCursor) | item.mirrorImage << 1, colorOfBorder);
+		ItemOverlay_Queue(overlayGfx, cellLeft, Belt->rect.Down, itemWidth, ItemHeightTable[overlayGfx], item.mirrorImage != 0, colorOfBorder, (int)!(item.IsReqMet || InventoryTurnOffRedColorItems || itemUnderCursor) | item.mirrorImage << 1);	// (th4)
 
 		if( BaseItems[item.baseItemIndex].UseOnceFlag && item.IsReqMet && item.ItemCode != IC_11_GOLD ){
 			int charIndex = '1' + i;
 			uchar letterId = FontIndexSmall[Codepage[charIndex]];
-			DrawLetter(Belt->rect.Down * WorkingWidth + (cellLeft + CELL_SIZE - FontWidthSmall[letterId]), letterId, 0);
+			int letterX = cellLeft + CELL_SIZE - FontWidthSmall[letterId];
+			// (th4) The RGBA overlay icon draws after the 8-bit pass and covered this digit.
+			// Claim the glyph rect with a snapshot taken BEFORE the digit is drawn: the digit
+			// becomes ink and is re-drawn on top of the icon (same mechanism as tooltips).
+			// Factor 1.0f = no dimming; generous margins are free with ink keying.
+			ItemOverlay_QueueDimRect(letterX - (int)Screen_LeftBorder - 2, Belt->rect.Down - (int)Screen_TopBorder - 14,
+				FontWidthSmall[letterId] + 4, 28, 1.0f);
+			ItemOverlay_SnapshotDimRect();
+			DrawLetter(Belt->rect.Down * WorkingWidth + letterX, letterId, 0);
 		}
 	}
 }
@@ -916,10 +1030,14 @@ bool __fastcall AutoPutCursorToCell( Player& player, int cellIndex, int width, i
 		return false;
 	}
 
+	auto* invUsedAlt = player.InvUsedAlt;
+	auto* inventorySlots = player.InventorySlots;
+	int* invItemCount = &player.InvItemCount;
+
 	// check space
 	for( int y = startY, ye = endY; y < ye; ++y ){
 		for( int x = startX, xe = endX; x < xe; ++x ){
-			if( player.InvUsedAlt[y][x] ){
+			if( invUsedAlt[y][x] ){
 				return false;
 			}
 		}
@@ -931,18 +1049,18 @@ bool __fastcall AutoPutCursorToCell( Player& player, int cellIndex, int width, i
 	}
 
 	// place item
-	// InvItemCount бывает отрицательное, бывает меньше чем обозначено в InvUsedAlt
-	// возможно надо добавить пересчет и вынести все изменения в одну функцию
-	int placedItemIndex = player.InvItemCount++;
+	// (rt) InvItemCount can be negative, and can be smaller than what InvUsedAlt indicates
+	// (rt) maybe add a recount and move all changes into one function
+	int placedItemIndex = (*invItemCount)++;
 	int placedItemNumber = placedItemIndex + 1;
-	player.InventorySlots[placedItemIndex] = player.ItemOnCursor;
+	inventorySlots[placedItemIndex] = player.ItemOnCursor;
 
 	for( int y = startY, ye = endY; y < ye; ++y ){
 		for( int x = startX, xe = endX; x < xe; ++x ){
 			if( y == endY - 1 && x == startX ){
-				player.InvUsedAlt[y][x] = placedItemNumber;
+				invUsedAlt[y][x] = placedItemNumber;
 			}else{
-				player.InvUsedAlt[y][x] = -placedItemNumber;
+				invUsedAlt[y][x] = -placedItemNumber;
 			}
 		}
 	}
@@ -951,11 +1069,11 @@ bool __fastcall AutoPutCursorToCell( Player& player, int cellIndex, int width, i
 	return true;
 }
 
-// Та же функция что и выше, но чуть подкостыленная для проверки на свободное место при покупке и Адрии и Пепина
-// Костыль сломает к чертям собачим инвентарь при попытке этой же функцией не только проверить,
-// но и положить вещь 1 на 1 при заполненном инвентаре и незаполненном поясе.
-// При использовании для проверки при той же ситуации всрет все вещи 1 на 1, которые нельзя автоматом поставить на пояс
-// Что на текущий момент успешно делает
+// (rt) Same function as above, but slightly hacked to check for free space when buying from both Adria and Pepin
+// (rt) This workaround corrupts the inventory if the same function is used not only to check,
+// (rt) but also to place a 1x1 item when the inventory is full and the belt isn't.
+// (rt) When used as a check in that same situation it misplaces all 1x1 items that can't be put on the belt automatically
+// (rt) Which it currently does successfully
 //----- (0041F505) --------------------------------------------------------
 bool __fastcall TryPutItemInInventoryOrBelt( int playerIndex, int cellIndex, int width, int height, bool needPlaceItem )
 {
@@ -971,10 +1089,14 @@ bool __fastcall TryPutItemInInventoryOrBelt( int playerIndex, int cellIndex, int
 		return false;
 	}
 
+	auto* invUsedAlt = player.InvUsedAlt;
+	auto* inventorySlots = player.InventorySlots;
+	int* invItemCount = &player.InvItemCount;
+
 	// check space
 	for( int y = startY, ye = endY; y < ye; ++y ){
 		for( int x = startX, xe = endX; x < xe; ++x ){
-			if( player.InvUsedAlt[y][x] ){
+			if( invUsedAlt[y][x] ){
 				// stupid blizzard shit
 				if( width == 1 && height == 1 ){
 					for( int i = 0, ie = IS_8_Belt_Count; i < ie; ++i ){
@@ -995,16 +1117,16 @@ AFTER_CHECK:
 	}
 
 	// place item
-	int placedItemIndex = player.InvItemCount++;
+	int placedItemIndex = *(invItemCount)++;
 	int placedItemNumber = placedItemIndex + 1;
-	player.InventorySlots[placedItemIndex] = player.ItemOnCursor;
+	inventorySlots[placedItemIndex] = player.ItemOnCursor;
 
 	for( int y = startY, ye = endY; y < ye; ++y ){
 		for( int x = startX, xe = endX; x < xe; ++x ){
 			if( y == endY - 1 && x == startX ){
-				player.InvUsedAlt[y][x] = placedItemNumber;
+				invUsedAlt[y][x] = placedItemNumber;
 			}else{
-				player.InvUsedAlt[y][x] = -placedItemNumber;
+				invUsedAlt[y][x] = -placedItemNumber;
 			}
 		}
 	}
@@ -1018,7 +1140,7 @@ bool __fastcall GoldAutoPlace( int playerIndex )
 {
 	Player& player = Players[playerIndex];
 	Item& cursorItem = player.ItemOnCursor;
-	// Вначале пытаемся раскидать золото по уже имеющимся неполным кучкам золота
+	// (rt) First try to spread the gold over the existing incomplete gold piles
 	for( int i = 0; i < player.InvItemCount; ++i ){
 		Item& item = player.InventorySlots[i];
 		if( item.ItemCode == IC_11_GOLD ){
@@ -1026,14 +1148,14 @@ bool __fastcall GoldAutoPlace( int playerIndex )
 			int goldToPut = itemAmount + cursorItem.amount;
 			if( goldToPut <= MaxGoldInCell ){
 				item.amount = goldToPut;
-				SetGraphicToGold(item);// оптимизация
+				SetGraphicToGold(item);// (rt) optimization
 				player.TotalGold = CalcTotalGold(playerIndex);
 				cursorItem.amount = 0;
 				SetCursorGraphics(CM_1_NORMAL_HAND);
 				return true;
 			}else if( item.amount < MaxGoldInCell ){
 				item.amount = MaxGoldInCell;
-				SetGraphicToGold(item);// оптимизация
+				SetGraphicToGold(item);// (rt) optimization
 				cursorItem.amount -= MaxGoldInCell - itemAmount;
 				bool isPutAllGold = false;
 				if( cursorItem.amount <= 0 ){
@@ -1051,7 +1173,7 @@ bool __fastcall GoldAutoPlace( int playerIndex )
 		}
 	}
 
-	// если не получилось, то создаем новые кучки золота до тех пор пока не кончится место, либо пока все не раскидается
+	// (rt) if that didn't work, create new gold piles until space runs out or everything is placed
 	for( int y = InvRows - 1, ye = 0; y >= ye; --y ){
 		for( int x = player.invCols - 1, xe = 0; x >= xe; --x ){
 			if( player.InvUsedAlt[y][x] ){
@@ -1064,7 +1186,7 @@ bool __fastcall GoldAutoPlace( int playerIndex )
 
 			player.InvUsedAlt[y][x] = placedItemNumber;
 
-			SetGraphicToGold(cursorItem);// оптимизация
+			SetGraphicToGold(cursorItem);// (rt) optimization
 
 			if( cursorItem.amount <= MaxGoldInCell ){
 				cursorItem.amount = 0;
@@ -1079,7 +1201,7 @@ bool __fastcall GoldAutoPlace( int playerIndex )
 		}
 	}
 
-	// не хватило места
+	// (rt) not enough space
 	return false;
 }
 
@@ -1110,8 +1232,8 @@ bool __fastcall PutWeaponFromCursorToArm( int playerIndex, int takenCell )
 	bool allowSpecial = oneHandSpecial && (h1.ItemCode == IC_M1_NONE || h1.EquippedLocation == EL_1_ONE_HANDED || OneHandSpecial(playerIndex, h1))
 		                               && (h2.ItemCode == IC_M1_NONE || h2.EquippedLocation == EL_1_ONE_HANDED || OneHandSpecial(playerIndex, h2));
 
-	// определение, одноручное ли оружие. У глада двуручные мечи и булавы считаются одноручными
-	// одноручку можно надеть только если ни в одной из рук нет оружия или если это аська, которая орудует двумя оружиями
+	// (rt) decide whether the weapon is one-handed. For the Gladiator two-handed swords and maces count as one-handed
+	// (rt) a one-handed weapon can only be equipped if neither hand holds a weapon, or if it's the Assassin, who wields two weapons
 	if( item.EquippedLocation == EL_1_ONE_HANDED || allowSpecial ){
 		if( h1.ItemCode == IC_M1_NONE && (is(h2.ItemCode, IC_M1_NONE, IC_5_SHIELD) || allowSpecial) && (item.ItemCode != IC_5_SHIELD || allowSpecial)){
             NetSendCmdChItem( true, s1 );
@@ -1156,7 +1278,7 @@ bool __fastcall PutWeaponFromCursorToArm( int playerIndex, int takenCell )
 			return false;
 		}
 	}else if( h1.ItemCode == IC_M1_NONE && h2.ItemCode == IC_M1_NONE ){
-		// двуручное оружие можно взять только если обе руки пусты
+		// (rt) a two-handed weapon can only be taken if both hands are empty
         NetSendCmdChItem( true, s1 );
 		h1 = item;
 		return true;
@@ -1271,11 +1393,11 @@ bool PutArmorToBodySlots()
 	return false;
 }
 
-// костыльная функция обмена вещей. Используется тольво в PutCursorItem
-// одновременно выставляет graphicValue в значение, которое было у первой вещи
-// а после обмена стало у второй. За счет этого если вторым аргументом идет вещь с курсора
-// а первым вещь с инвентаря, то вызвав SetCursorGraphics(cursorGraphics), 
-// курсор будет сразу настроен на вещь, которая попала обменом с игрока на курсор
+// (rt) item swap helper (a workaround). Used only in PutCursorItem
+// (rt) at the same time sets graphicValue to the value the first item had
+// (rt) and after the swap the second one has it. Thanks to this, if the second argument is the cursor item
+// (rt) and the first is the inventory item, then by calling SetCursorGraphics(cursorGraphics) 
+// (rt) the cursor is immediately set to the item that moved from the player onto the cursor
 //----- (0041FA98) --------------------------------------------------------
 int __fastcall SwapItemsAndGetFirstItemGraphicsValue( Item* item1, Item* item2 )
 {
@@ -1298,17 +1420,17 @@ void __fastcall EquipItemFromNetwork( int playerIndex, int onBodySlotIndex, Last
 	item.CurCharges = info.curCharges;
 	item.BaseCharges = info.baseCharges;
 	cursorItem = item;
-	if( onBodySlotIndex < IS_Inventory ){ //  если слот на теле героя
+	if( onBodySlotIndex < IS_Inventory ){ //  (rt) if the slot is on the hero's body
 		memcpy(&player.OnBodySlots[onBodySlotIndex], &cursorItem, sizeof(Item));
 
-		// херня. Во первых нет проверки на класс - гладиатор
-		// во-вторых двуручка всегда кладется в 4х слот (у всех кроме глада, но у него это и не двуручкой считается)
-		// если положить двуручку в 5й слот, то все сломается
-		if( onBodySlotIndex == IS_LeftHand ){ //  левая рука
+		// (rt) incorrect. First, there is no check for the Gladiator class
+		// (rt) second, a two-hander always goes into slot 4 (for everyone except the Gladiator, and for him it doesn't count as a two-hander)
+		// (rt) if you put a two-hander into slot 5, everything breaks
+		if( onBodySlotIndex == IS_LeftHand ){ //  (rt) left hand
 			if( cursorItem.EquippedLocation == EL_2_TWO_HANDED ){
 				player.OnBodySlots[IS_RightHand].ItemCode = IC_M1_NONE;
 			}
-		}else if( onBodySlotIndex == IS_RightHand ){ //  правая рука
+		}else if( onBodySlotIndex == IS_RightHand ){ //  (rt) right hand
 			if( cursorItem.EquippedLocation == EL_2_TWO_HANDED ){
 				player.OnBodySlots[IS_LeftHand].ItemCode = IC_M1_NONE;
 			}
@@ -1395,7 +1517,7 @@ void __fastcall ClearInventorySlot( int playerIndex, int invItemIndex, bool mous
 	if( mouse ) DispatchCursorAboveIsoland();
 
 	UpdateRelictsState(player);
-	// полный дубль хвоста UpdateRelictsState. Не знаю нафига
+	// (rt) exact duplicate of the tail of UpdateRelictsState; the reason is unclear
 	if( player.SpellType == SO_2_RELIC ){
 		if( !(player.AvailableRelictMask & BIT(player.CurrentSpellIndex)) ){
 			player.CurrentSpellIndex = PS_M1_NONE;
@@ -1404,7 +1526,7 @@ void __fastcall ClearInventorySlot( int playerIndex, int invItemIndex, bool mous
 	}
 }
 
-// Саб используется чтобы удалить все вещи нехэлфаеровского перса для избежания морфа вещей золото не морфится, так что его оставляем.
+// (rt) Used to remove all items of a non-Hellfire character to avoid item morphing; gold doesn't morph, so it is kept.
 //----- (00420FD0) --------------------------------------------------------
 void __fastcall StripPlayer( int playerIndex )
 {
@@ -1441,7 +1563,7 @@ void __fastcall StripPlayer( int playerIndex )
 		}
 	}
 
-	for( int i = 0; i < IS_8_Belt_Count; i++){ // Очищаем вещи на поясе
+	for( int i = 0; i < IS_8_Belt_Count; i++){ // (rt) Clear the items on the belt
 		player.BeltInventory[i].ItemCode = IC_M1_NONE;
 	}
 
@@ -1455,7 +1577,7 @@ void __fastcall ClearBeltSlot( int playerIndex, int beltSlot )
 	player.BeltInventory[beltSlot].ItemCode = IC_M1_NONE;
 	UpdateRelictsState(player);
 
-	// полный дубль хвоста UpdateRelictsState. Не знаю нафига
+	// (rt) exact duplicate of the tail of UpdateRelictsState; the reason is unclear
 	if( player.SpellType == SO_2_RELIC ){
 		if( !(player.AvailableRelictMask & BIT(player.CurrentSpellIndex)) ){
 			player.CurrentSpellIndex = PS_M1_NONE;
@@ -1513,13 +1635,23 @@ void __fastcall CheckQuestItem( int playerIndex )
 	Player& curPlayer = Players[CurrentPlayerIndex];
 	Item& cursorItem = player.ItemOnCursor;
 
-	for (auto&& uid : blindRewards) {
-		if (cursorItem.UniqueItemIndex == uid) {
+	if (GameMode == GM_CLASSIC) {
+		if (is(cursorItem.UniqueItemIndex, 4680, 4681, 4682)) {
 			Quest& hallsOfTheBlindQuest = Quests[Q_8_HALLS_OF_THE_BLIND];
 			if (hallsOfTheBlindQuest.status == QS_2_IN_PROGRESS) {
 				hallsOfTheBlindQuest.status = QS_3_COMPLETE;
 			}
-			break;
+		}
+	}
+	else {
+		for (auto&& uid : blindRewards) {
+			if (cursorItem.UniqueItemIndex == uid) {
+				Quest& hallsOfTheBlindQuest = Quests[Q_8_HALLS_OF_THE_BLIND];
+				if (hallsOfTheBlindQuest.status == QS_2_IN_PROGRESS) {
+					hallsOfTheBlindQuest.status = QS_3_COMPLETE;
+				}
+				break;
+			}
 		}
 	}
 
@@ -1703,15 +1835,15 @@ void __fastcall CheckQuestItem( int playerIndex )
 		}
 	}
 	if( baseItem == BI_399_SHADOWFANG ){ // fleshdoom patch (8) did
-		// обнаружил баг с поднятием вещи, в частности этого меча, иногда (load/new game) не реагирует на клик на вещь
-		// в th1 при сверке тоже самое, разобраться
+		// (rt) found a bug with picking up items, this sword in particular: sometimes (load/new game) clicking the item does nothing
+		// (rt) th1 does the same when compared, look into it
 		PlayerSoundMessageDelay = 10;
 		if( Quests[Q_21_THE_CURSED_BLADE].status2 >= 7 ){
 			switch( curPlayer.ClassID ){
 			case PC_0_WARRIOR:
 			case PC_5_SAVAGE:	SoundMessage = S_823_WAR_93;	break;
 			case PC_2_MAGE:		SoundMessage = S_1085;			break;
-			case PC_3_MONK:		SoundMessage = S_1086;			break; // для монка пока нет файла monk93.wav, используется речь воина
+			case PC_3_MONK:		SoundMessage = S_1086;			break; // (rt) there is no monk93.wav for the monk yet, the warrior's speech is used
 			case PC_1_ARCHER:
 			case PC_4_ROGUE:	SoundMessage = S_714_ROG_93;	break;
 			}
@@ -1720,7 +1852,7 @@ void __fastcall CheckQuestItem( int playerIndex )
 			case PC_0_WARRIOR:
 			case PC_5_SAVAGE:	SoundMessage = S_816_WAR_86;	break;
 			case PC_2_MAGE:		SoundMessage = S_1087;			break;
-			case PC_3_MONK:		SoundMessage = S_1088;			break; // для монка пока нет файла monk86.wav, используется речь воина
+			case PC_3_MONK:		SoundMessage = S_1088;			break; // (rt) there is no monk86.wav for the monk yet, the warrior's speech is used
 			case PC_1_ARCHER:
 			case PC_4_ROGUE:	SoundMessage = S_707_ROG_86;	break;
 			}
@@ -1995,7 +2127,7 @@ int DropCursorItemBeforeTrig() // TODO: add player param
 //----- (00422221) --------------------------------------------------------
 void __fastcall AddWorldMessage(char* message)
 {
-	i64 now = GetTickCountTh(); // это таймер не влияет на гемплей, не перехватываем
+	i64 now = GetTickCountTh(); // (rt) this timer doesn't affect gameplay, not intercepted
 	if( now - StatusMessageTimeout >= 5000_ms ){
 		StatusMessageTimeout = now;
 		ErrorPlrMsg( message );
@@ -2087,7 +2219,7 @@ int __fastcall SyncPutItem( uint playerIndex, int row, int col, LastItemInfo inf
 bool __fastcall MinusRelictFromInventoryOrBelt(int playerIndex)
 {
 	Player& player = Players[playerIndex];
-	// Ищем нужный реликт в инвентаре
+	// (rt) Look for the relic in the inventory
 	for( int i = 0; i < Players[playerIndex].InvItemCount; i++){
 		Item& item = player.InventorySlots[i];
 		if( Players[playerIndex].InventorySlots[i].ItemCode != IC_M1_NONE
@@ -2101,7 +2233,7 @@ bool __fastcall MinusRelictFromInventoryOrBelt(int playerIndex)
 			return true;
 		}
 	}
-	// Ищем нужный реликт на поясе
+	// (rt) Look for the relic on the belt
 	for( int i = 0; i < IS_8_Belt_Count; i++){
 		if( Players[playerIndex].BeltInventory[i].ItemCode != IC_M1_NONE 
 		 && is( Players[playerIndex].BeltInventory[i].MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET)
@@ -2117,6 +2249,25 @@ bool __fastcall MinusRelictFromInventoryOrBelt(int playerIndex)
 }
 
 //----- (00717F50) --------------------------------------------------
+//----- (th4) -------------------------------------------------------------
+// (th4) DARK CAMPAIGN banned spells. The player must never obtain or cast these: mobility
+// spells would trivialise the mission levels, and the holy/wall/ring spells do not fit a
+// servant of the Dark Lord. ONE list, consulted from every acquisition route -- book drops,
+// book sorting, Adria stock, staff/relic/scroll base-item selection, and the cast gate --
+// so the ban cannot be defeated by finding a route that was updated and another that was not.
+bool IsSpellBannedInDarkCampaign(int spellIndex)
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return false;
+	// Holy Bolt and Holy Nova are NOT banned. Thematically they sit oddly on a servant of
+	// the Dark Lord, but several missions field undead, and without them the Occultist has
+	// no answer to that at all.
+	return is( spellIndex,
+		PS_7_TOWN_PORTAL, PS_42_WARP, PS_10_PHASING,      // mobility
+		PS_6_FIRE_WALL, PS_40_LIGHTING_WALL,              // walls
+		PS_19_FLAME_RING, PS_17_LIGHTING_RING,            // rings
+		PS_15_FORCE_WAVE );
+}
+
 int __fastcall IsSpellEnabledHere(int spell, int playerIndex)// #quest level spell restrictions
 {
 	if( DevelopMode && FreeSpell ) return 1;
@@ -2125,6 +2276,19 @@ int __fastcall IsSpellEnabledHere(int spell, int playerIndex)// #quest level spe
 			return 0;
 		}
 	}
+	// (th4) DARK CAMPAIGN HUB: only three spells work in the Hideout -- Identify, Item Repair
+	// and Healing. Everything else is refused. Checked BEFORE the Dungeon->isQuest block
+	// below, because that block returns early and the Hideout IS a quest floor, so a check
+	// placed after it would never run. This is the single gate every caster path goes
+	// through (casting, hotkeys, relics, spell-panel greying, the MP message handlers),
+	// so one condition here covers the whole surface.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		return is(spell, PS_5_IDENTIFY, PS_26_ITEM_REPAIR, PS_2_HEALING);
+	}
+	// (th4) Dark Campaign ban list. Placed here so it also catches spells the player
+	// already carries -- staff charges, affix-granted casts, anything acquired before
+	// a ban was added -- not just newly generated items.
+	if( IsSpellBannedInDarkCampaign(spell) ) return 0;
 	//if(GameMode == GM_CLASSIC && Dungeon == DUN_16_HELL_4 && is(spell, PS_10_PHASING, PS_23_TELEPORT)){ return 0; }
 	if( Dungeon->isQuest /*&& GameMode != GM_EASY*/ ){
 		if( MonstersCount > SummonMonsters_Count && !SaveAlwaysEnabled && not(GameMode, GM_EASY, GM_CLASSIC) && spell == PS_7_TOWN_PORTAL && MaxCountOfPlayersInGame == 1 //Allow quest area TP in MP
@@ -2133,14 +2297,17 @@ int __fastcall IsSpellEnabledHere(int spell, int playerIndex)// #quest level spe
 		
 			|| Dungeon == DUN_35_PASSAGE_OF_FIRE && is(spell, PS_10_PHASING, PS_23_TELEPORT, PS_7_TOWN_PORTAL) 
 		
-			|| is(Dungeon, DUN_75_RIVER_OF_FIRE, DUN_78_THE_BRIDGE, DUN_91_STYGIAN_PASSAGE, DUN_98_EBON_CHASM, DUN_97_GLOOMY_DEPTHS, DUN_103_ALTAR_OF_IMMOLATION, DUN_104_NETHERWORLD_GATES, DUN_113_THE_MAZE) 
+			|| is(Dungeon, DUN_75_RIVER_OF_FIRE, DUN_78_THE_BRIDGE, DUN_91_STYGIAN_PASSAGE, DUN_98_EBON_CHASM, DUN_97_GLOOMY_DEPTHS, DUN_103_ALTAR_OF_IMMOLATION, DUN_104_NETHERWORLD_GATES) 
 				&& is(spell, PS_10_PHASING, PS_23_TELEPORT, PS_7_TOWN_PORTAL, PS_42_WARP)
-		
+
+			|| is(Dungeon, DUN_113_THE_MAZE, DUN_119_DEEPER_CAVES)	// (th4) DC mission 11: no skipping the caves
+			&& is(spell, PS_10_PHASING, PS_23_TELEPORT, PS_42_WARP)
+
 			|| is( Dungeon, DUN_39_FROZEN_LOCH, DUN_38_GLACIAL_CAVERNS) && is( spell, PS_1_FIREBOLT, PS_6_FIRE_WALL, PS_9_INFRAVISION, PS_10_PHASING, PS_12_FIREBLAST,
 			/*PS_13_HYDRA,*/ PS_15_FORCE_WAVE, PS_19_FLAME_RING, PS_20_INCINERATE, PS_41_FIERY_NOVA, PS_45_RING_OF_FIRE, PS_23_TELEPORT, PS_42_WARP, PS_24_APOCALYPSE)
 		
 			|| Dungeon == DUN_36_VALLEY_OF_DESPAIR && is( spell, PS_6_FIRE_WALL, PS_15_FORCE_WAVE, PS_17_LIGHTING_RING, PS_18_LIGHTNING_NOVA, PS_19_FLAME_RING,
-			PS_24_APOCALYPSE, PS_39_HOLY_NOVA, PS_40_LIGHTING_WALL, PS_41_FIERY_NOVA, PS_43_ARCANE_NOVA )
+			PS_24_APOCALYPSE, PS_39_HOLY_NOVA, PS_40_LIGHTING_WALL, PS_41_FIERY_NOVA, PS_43_ARCANE_NOVA, PS_58_FROST_NOVA, PS_61_ACID_NOVA )
 		
 			|| Dungeon == DUN_40_ISLAND && is( spell, PS_6_FIRE_WALL, PS_10_PHASING, /*PS_13_HYDRA,*/ PS_15_FORCE_WAVE, PS_17_LIGHTING_RING, PS_19_FLAME_RING, PS_21_GOLEM,
 			PS_23_TELEPORT, PS_40_LIGHTING_WALL, PS_42_WARP, PS_45_RING_OF_FIRE )
@@ -2151,7 +2318,8 @@ int __fastcall IsSpellEnabledHere(int spell, int playerIndex)// #quest level spe
 		
 			|| Dungeon == DUN_45_THE_DEN && is(spell, PS_42_WARP)
 		
-			|| Dungeon == DUN_29_ARCHBISHOP_LAZARUS_LAIR && is(spell, PS_9_INFRAVISION, PS_23_TELEPORT, PS_10_PHASING)
+			|| Dungeon == DUN_29_ARCHBISHOP_LAZARUS_LAIR && ( is(spell, PS_23_TELEPORT, PS_10_PHASING)
+				|| spell == PS_9_INFRAVISION && !HasTrait(playerIndex, TraitId::Thief) ) // (th4) Thief's stealth kit keeps Infravision here
 		
 			|| is( Dungeon, DUN_41_FLESHDOOM, DUN_42_WIELDER, DUN_43_HEPHASTO) && is( spell, /*PS_23_TELEPORT,*/ PS_10_PHASING, PS_42_WARP )
 
@@ -2214,7 +2382,7 @@ bool IsHasRelicForSpell()
 }
 
 //----- (00422C89) --------------------------------------------------------
-// Если это магический посох с зарядами более 0 и в качестве магии выбрано заклинание с посоха
+// (rt) If this is a magic staff with more than 0 charges and the selected spell is the staff's spell
 void __fastcall MinusChargeFromStaff(int casterIndex, int spellIndex)
 {
 	int slotIndex = FindBodySlotWithSpell(casterIndex, spellIndex);
@@ -2230,7 +2398,7 @@ void __fastcall MinusChargeFromStaff(int casterIndex, int spellIndex)
 }
 
 //----- (00422CE9) --------------------------------------------------------
-// Тут проверяется код заклинания посоха и код выбранного заклинания. Именно поэтому многозаклинательные посохи не будут работать.
+// (rt) Here the staff's spell code is checked against the selected spell code. That's exactly why multi-spell staves won't work.
 bool IsHasChargesForSpell(int spellIndex)
 {
 	int slotIndex = FindBodySlotWithSpell(CurrentPlayerIndex, spellIndex);
@@ -2454,6 +2622,20 @@ bool __fastcall InteractWithQuestItem(uint baseItemIndex, int playerIndex, uint 
 			return true;
 		}
 		break;
+	case BI_2706_SCROLL_OF_MAGIC:
+		if (IMNM) {
+			Quest& som_Quest = Quests[Q_40_SECRETS_OF_MAGIC];
+			PlayGlobalSound(S_1084);
+			ClearInventorySlot(playerIndex, itemIndex);
+			som_Quest.status = QS_3_COMPLETE;
+			som_Quest.status2 = 2;
+			som_Quest.status3 = 2;
+			int goldAmount = 4'000 + 3'000 * Difficulty;
+			SpawnSomething(BI_0_GOLD, player.Row, player.Col, 0, 0, 0, 0, goldAmount);
+			SetCursorGraphics(CM_1_NORMAL_HAND);
+			return true;
+		}
+		break;
 	case BI_2459_REAGENTS:
 		if (IMNM || HasTrait(playerIndex, TraitId::Leper)) {
 			Quest& demon_Plague_Quest = Quests[Q_30_DEMON_PLAGUE];
@@ -2477,6 +2659,7 @@ bool __fastcall InteractWithQuestItem(uint baseItemIndex, int playerIndex, uint 
 			anvilOfFuryQuest.status2 = 2;
 			anvilOfFuryQuest.status3 = 2;
 			PLAYER_FULL_CLASS fullClassId = player.fullClassId;
+			int reward_variant;
 			if (player.fullClassId == PFC_ROGUE && HasTrait(playerIndex, TraitId::Axepertise)) {
 				fullClassId = PFC_SHUGOKI;
 			}
@@ -2501,7 +2684,9 @@ bool __fastcall InteractWithQuestItem(uint baseItemIndex, int playerIndex, uint 
 				return true;
 			}
 			else if (HasTrait(playerIndex, TraitId::Pistoleer)) {
-				InvGetItem(playerIndex, SpawnUnique(2735 + Difficulty, player.Row, player.Col));
+				if (player.gameChanger & BIT (GC_28_SUPERMUTANT)){	reward_variant = 4880 + Difficulty;	}
+				else {												reward_variant = 2735 + Difficulty; }
+				InvGetItem(playerIndex, SpawnUnique(reward_variant, player.Row, player.Col));
 				AutoPutCursorToInventoryOrDrop();
 				SetCursorGraphics(CM_1_NORMAL_HAND);
 				return true;
@@ -2575,13 +2760,30 @@ bool __fastcall InteractWithQuestItem(uint baseItemIndex, int playerIndex, uint 
 bool __fastcall RightClickOnItem(int playerIndex, int invCellIndex, bool mouse, bool xinput /*= false*/)
 {
 	Player& player = Players[playerIndex];
+	
+	// --- disallow right-clicking sigils ---
+	extern bool IsSigilInventoryOpen;
+
+	// Sigil inventory occupies the same cell index range as normal inventory
+	// but only when IsSigilInventoryOpen is true
+	if (IsSigilInventoryOpen && invCellIndex >= IS_Inventory && invCellIndex < IS_Inventory + IS_70_40_Inv_Count) {
+		int itemIndex = invCellIndex - IS_Inventory;
+		if (itemIndex < player.TalItemCount) {
+			Item& item = player.TalismanSlots[itemIndex];
+			if (item.baseItemIndex >= BI_2504_SIGIL_FIRST && item.baseItemIndex <= BI_2508_SIGIL_LAST) {
+				return true; // Sigil - handled (do nothing)
+			}
+		}
+	}
+	// --- end of disallow right-clicking sigils ---
+	
 	if( /*Berserk*/HasTrait(playerIndex, TraitId::Psychotic) && (player.activeBuffFlag & BF_2_FURY_ACTIVE) && Dungeon != DUN_0_TOWN ){
 		return 0;
 	}
 	
 	if( player.notHittableInTransition && !player.CurLife && playerIndex == CurrentPlayerIndex
 	 || /*Cur.GraphicsID != CM_1_NORMAL_HAND ||*/ CurrentDialogIndex 
-	 || invCellIndex < IS_Inventory ){// Если кликнули на нательный предмет
+	 || invCellIndex < IS_Inventory ){// (rt) If an equipped item was clicked
 		return false;
 	}
 	Item* item;
@@ -2630,11 +2832,11 @@ bool __fastcall RightClickOnItem(int playerIndex, int invCellIndex, bool mouse, 
 		}
 
 		switch(item->MagicCode){
-		// у всех предметов кроме книги звук использования и укладки в инвентарь одинаковы
+		// (rt) for every item except books the use sound and the put-in-inventory sound are the same
 		case MC_24_BOOKS:
 			PlayGlobalSound(71);
 			break; 
-		// мор: внизу к предметам прибавились еще и склянки
+		// mor: flasks were added to the items below
 		case MC_10_ELIXIR_OF_STRENGTH or MC_11_ELIXIR_OF_MAGIC or MC_12_ELIXIR_OF_DEXTERITY or MC_13_ELIXIR_OF_VITALITY or MC_44_SPECTRAL_ELIXIR // elixirs
 		  or MC_18_POTION_OF_REJUVENATION or MC_19_POTION_OF_FULL_REJUVENATION // holy waters
 		  or MC_2_POTION_OF_FULL_HEALING or MC_3_POTION_OF_HEALING // healing potions
@@ -2652,7 +2854,7 @@ bool __fastcall RightClickOnItem(int playerIndex, int invCellIndex, bool mouse, 
 		}
 		if( ! UsePotionOrScroll(playerIndex, item) ) return true;
 
-		// если спэлл айди из списка то не удаляем, обозначаем вещь как используемую с задержкой. Даже так. Если курсор стал картинкой значит не удаляем
+		// (rt) if the spell id is in the list, don't delete; mark the item as used with a delay. Even so. If the cursor turned into a picture, don't delete
 		if( isBelt ){
 			ClearBeltSlot(playerIndex, itemIndex);
 			int bestMatchIndex = -1;
@@ -2708,7 +2910,7 @@ bool __fastcall RightClickOnItem(int playerIndex, int invCellIndex, bool mouse, 
 		}
 		return true;
 	}
-	// Если используемый предмет не подходит по статам
+	// (rt) If the used item's stat requirements are not met
 	uint soundIndex;
 	switch (player.ClassID ){
 	case PC_4_ROGUE:
@@ -2727,8 +2929,8 @@ bool TelekinesRecentlyAppliedToMonster = false;
 void TelekinesApply()
 {
 	Player& player = Players[CurrentPlayerIndex];
-	// если расстояние больше 10 клеток, телекинез тратится в пустую
-	// надо сделать отображение превышения расстояния (красный курсор) и возможно сделать несрабатывание
+	// (rt) if the distance is more than 10 cells, telekinesis is wasted
+	// (rt) should show that the distance is exceeded (red cursor) and maybe make it not fire
 	if( abs( player.Row - Cur.Row ) <= 10 && abs( player.Col - Cur.Col ) <= 10 ){
 		if( Cur.ObjectIndex != -1 ){
             NetSendCmdParam1( 1, CMD_27_OPOBJT, Cur.ObjectIndex );
@@ -2998,7 +3200,7 @@ void LoadFlipItemCELFiles()
 			FlipItemCELFiles[ FileCount ] = (char*) LoadFile( FileName );
 		}
 		++FileCount;
-	}while( FileCount < FL_68_COUNT );
+	}while( FileCount < FL_81_COUNT );
 }
 
 // for dungeon generation item init only
@@ -3049,7 +3251,7 @@ void InitItems()
 	memcpy(&ItemGoldBuffer, &Items[MaxItems_255], sizeof( Item ));
 	ItemGoldBuffer.IsReqMet = true;
 
-	// Обнуление массива ItemsOnGround и массива его индексов MapItemsFreeIndexes
+	// (rt) Clear the ItemsOnGround array and its index array MapItemsFreeIndexes
 	for( int i = 0; i < MaxItems_255; i++ ){
 		Items[i].ItemCode = IC_0_OTHER;
 		Items[i].MapRow = 0;
@@ -3080,10 +3282,10 @@ void InitItems()
 			}
 		}
 		if( Dungeon == DUN_20_ABYSS_4 && CowQuestOn ){
-			SpawnSomething(BI_46_BONE_MACE, 25, 25, 0, 3, 1, 1); // Костюм кретина
+			SpawnSomething(BI_46_BONE_MACE, 25, 25, 0, 3, 1, 1); // (rt) Cretin's costume
 		}
 		if( Dungeon == DUN_19_ABYSS_3 && CowQuestOn ){
-			SpawnSomething(BI_47_BLUDGEON, 25, 25, 0, 3, 1, 1); // Второй костюм кретина
+			SpawnSomething(BI_47_BLUDGEON, 25, 25, 0, 3, 1, 1); // (rt) Second cretin's costume
 		}
 		#ifdef NOTE_FRAGMENT
 		if( Dungeon >= DUN_21_CRYPT_1 && Dungeon <= DUN_23_CRYPT_3 ){
@@ -3091,7 +3293,7 @@ void InitItems()
 		}
 		#endif
 		if( Dungeon != DUN_0_TOWN ){
-			AddInitItems(); // теперь кидаем банки на пол во всех подземельях
+			AddInitItems(); // (rt) now potions are dropped on the floor in all dungeons
 		}
 		#ifdef WTF
 		SpawnSomething(BI_42_LIGHT_CANE, 20*2+16, 30*2+16, 0, 0, 0, 1, 1);
@@ -3099,7 +3301,7 @@ void InitItems()
 	}
 }
 
-// Кидает фрагмент блокнота (номер зависит от длвл) в случайное доступное место
+// (rt) Drops a notebook fragment (number depends on dlvl) at a random free spot
 //----- (0042390F) --------------------------------------------------------
 void PutFragmentsOfReconstructedNote()
 {
@@ -3173,6 +3375,7 @@ PLAYER_FULL_CLASS GetPlayerFullClass( PLAYER_CLASS classId, PLAYER_SUBLASS subcl
         case PSC_ROGUE_ASSASSIN:	        fullClassId = PFC_ASSASSIN;	        break;
         case PSC_ROGUE_IRON_MAIDEN:	        fullClassId = PFC_IRON_MAIDEN;	    break;
         case PSC_ROGUE_BOMBARDIER:	        fullClassId = PFC_BOMBARDIER;	    break;
+		case PSC_ROGUE_GLADIATRIX:	        fullClassId = PFC_GLADIATRIX;	    break;
         }
         break;
 
@@ -3257,6 +3460,22 @@ bool IsHarmfulWhenNegative(AFFIX_EFFECT id) {
 		// e.g. AE_MINUS_LIGHT_RADIUS: handled separately at call sites
 		return false;
 	}
+}
+
+// by (th4): true if this player has a live Seeing (Infravision skill) missile.
+// Scans the authoritative live-missile list (MissileAmount / MissileIndexes[]), the
+// same pool used for town-portal/hydra dedup — valid at all times, not just render.
+static bool IsInfravisionMissileActive( int playerIndex )
+{
+	for( int i = 0; i < MissileAmount; ++i ){
+		Missile& missile = Missiles[ MissileIndexes[i] ];
+		if( missile.BaseMissileIndex == MI_39_INFRAVISION
+			&& missile.CasterIndex == playerIndex
+			&& !missile.IsDeleted ){
+			return true;
+		}
+	}
+	return false;
 }
 
 //----- (00423965) --------------------------------------------------------
@@ -3366,6 +3585,47 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
     // Add fake items with applied set effects in list of "equippedItems"
     SetItem_GetActiveSetItemEffects( playerIndex, equippedItems );
 
+	// -- SIGILS IN SIGIL (TALISMAN) INVENTORY --
+	// Only sigils physically in the dedicated sigil inventory give stat bonuses.
+	// Sigils in normal inventory give NO bonuses.
+	static std::vector<Item> boostedSigils; // survives between calls, cleaned at end
+	boostedSigils.clear();
+	// by (th4): reserve up front so push_back below never reallocates. equippedItems stores
+	// interior pointers (&boosted) into this vector; a mid-loop reallocation would dangle them
+	// and corrupt the stat pass that follows. TalItemCount is a safe upper bound on sigils.
+	// (th4) Clamp first: reserve() takes size_t, so a negative count becomes ~4 billion and
+	// throws std::length_error, which nothing catches -- the process dies with 0xE06D7363
+	// instead of showing a broken inventory. The real repair is in SaveInfo.cpp
+	// (CheckInvalidInvItems) and InventoryPanel.cpp; this is the last line of defence, and it
+	// also bounds the loop below to the array (TalismanSlots is IS_70_40_Inv_Count long).
+	int sigilCount = player.TalItemCount;
+	if( sigilCount < 0 ) sigilCount = 0;
+	if( sigilCount > IS_70_40_Inv_Count ) sigilCount = IS_70_40_Inv_Count;
+	boostedSigils.reserve(sigilCount);
+
+	for (int i = 0; i < sigilCount; i++) {
+		Item& item = player.TalismanSlots[i];
+		if (IsSigil(item) && item.IsReqMet) {
+			if (HasTrait(playerIndex, TraitId::RawPower)) {
+				boostedSigils.push_back(item);
+				Item& boosted = boostedSigils.back();
+				boosted.ArmorClass *= 10; 
+				for (Effect& e : boosted.effect) {
+					//if (e.id != EA_NO) {
+						e.minVal *= 10;
+						e.maxVal *= 10;
+						e.chance *= 10;
+					//}
+				}
+				equippedItems.push_back(&boosted);
+			}
+			else {
+				equippedItems.push_back(&item);
+			}
+		}
+	}
+	// --- END OF SIGIL SECTION ---
+
 	for( Item* itemPtr : equippedItems ){
 	    Item& item = *itemPtr;
 		minDamage += item.MinDamage;
@@ -3407,7 +3667,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			case AE_AC                         : armorClass            += e.minVal; break;
 			case AE_RESIST                     : player.resist[e.type] += e.minVal; break;
 			case AE_GOLD_ABS_FIND              : goldAbsFindMin        += e.minVal; goldAbsFindMax += e.maxVal; break;
-			case AE_XP_GAIN                    : xpGainMin             += e.minVal; xpGainMax += e.maxVal; break;// работает
+			case AE_XP_GAIN                    : xpGainMin             += e.minVal; xpGainMax += e.maxVal; break;// (rt) works
 			case AE_DAMAGE                     : addsDamage            += e.minVal; break;
 			case AE_GOLD_FIND                  : goldFind              += e.minVal; break;
 			case AE_MAGIC_FIND                 : magicFind             += e.minVal; break;
@@ -3625,6 +3885,9 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 				}
 			}
 			break;
+		case DUN_116_MINING_CAVES:
+			player.resist[ET_2_LIGHTNING] -= 30 + Difficulty * 10;
+			break;
 		}
 	}
 	if( minDamage == 0 && maxDamage == 0 ){
@@ -3645,7 +3908,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 	}
 	// TODO: extract to func GetFuryValue and apply to GetDamageOfPlayerSpell
 	if( player.activeBuffFlag & BF_2_FURY_ACTIVE ){  // Fury effects on classes, #player Fury, #character Fury
-		int charLevel = player.CharLevel; // в th1 uchar, при uint почему то разницы при сверке, разобраться
+		int charLevel = player.CharLevel; // (rt) uchar in th1; with uint there is a difference in comparison for some reason, look into it
 		int resistAll = 0;
 		switch( player.fullClassId ){
 		//WARRIORS
@@ -3660,17 +3923,24 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		case PFC_INQUISITOR:
 			accuracy += charLevel / 2 - 3;
 			ACFromItems += charLevel / 3 - 1;
-			addsDamage += 2 * charLevel - 1;
+			addsDamage += 3 * charLevel / 2;
 			//spellsIncreasedLevels -= 2;
 			break;
 		case PFC_GUARDIAN:
+		{
 			accuracy += charLevel / 2;
 			ACFromItems += 4 * charLevel / 5 + 5;
 			//addsDamage -= ( charLevel / 5 ) * ( charLevel / 5 );
 			//spellsIncreasedLevels -= 3;
 			damageFromEnemies -= charLevel / 10;
-			arrowAbsorbPercentMin += charLevel / 5;
-			arrowAbsorbPercentMax += charLevel / 5;
+			if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+				addsDamage += 1 + charLevel / 2;
+			}
+			else {
+				arrowAbsorbPercentMin += charLevel / 5;
+				arrowAbsorbPercentMax += charLevel / 5;
+			}
+		}
 			break;
 		case PFC_TEMPLAR:
 			accuracy += charLevel / 5 + 10;
@@ -3809,6 +4079,12 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			//damageFromEnemies += charLevel / 11 + 1;
 			resistAll = charLevel / 3;
 			break;
+		case PFC_GLADIATRIX:
+			ACFromItems += 5 + charLevel / 5; 
+			addsDamage += charLevel * 2;
+			damageFromEnemies -= 2 + charLevel / 9;
+			accuracy += 10 + charLevel / 5;
+			break;
 		//SAVAGES
 		case PFC_SAVAGE:
 			//xpGainPercent -= 3 * charLevel / 2; // -1,5 * clvl % to xpGain percent
@@ -3921,7 +4197,21 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 	player.DamageFromEnemy = damageFromEnemies;
 	//lightRadiusDiv10 -= 6 + PerkValue(PERK_VEIL_OF_SHADOW, playerIndex);
 	LimitToRange(lightRadiusDiv10, 3, 15);//Light radius limit - old 2,15 / new 3,15
-	if( player.LightRadius != lightRadiusDiv10 && playerIndex == CurrentPlayerIndex ){
+	// (th4) THIEF: emits NO light at all, and no light-radius bonus (or malus) from items,
+	// perks or anything else ever applies to her. Light radius normally drives VISION too,
+	// so the two are split here: emission is forced to 0, vision stays pinned at the base 9.
+	// This is the single choke point where the computed radius lands on the light/vision
+	// systems, so the override lives here and nowhere else (plus the spawn seed in Player.cpp).
+	if( HasTrait(playerIndex, TraitId::Thief) ){
+		// she has NO LightList entry (LightIndex = -1, set at spawn) -- nothing to change,
+		// nothing to paint, nothing to trail. Only vision is maintained, pinned at base 9,
+		// so light-radius items have no effect on her in either direction.
+		player.LightRadius = 0;
+		if( playerIndex == CurrentPlayerIndex ){
+			ChangeVisionRadius(player.lightRadiusIdentificator, 9);
+		}
+	}
+	else if( player.LightRadius != lightRadiusDiv10 && playerIndex == CurrentPlayerIndex ){
 		ChangeLightRadius(player.LightIndex, lightRadiusDiv10);
 		// original diablo has minimal visibility == 10
 		ChangeVisionRadius(player.lightRadiusIdentificator, lightRadiusDiv10);
@@ -3934,7 +4224,8 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		+ PerkValue(PERK_GAIN_STRENGTH, playerIndex) 
 		+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex) 
 		- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
-		+ skilledTraitBenefit
+		+ skilledTraitBenefit 
+		+ player.powerupLevel[14]
 		- coinbound_penalty;
 	player.CurDexterity = statAdds[ST_DEXTERITY] 
 		+ player.BaseDexterity 
@@ -3942,6 +4233,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 		- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 		+ skilledTraitBenefit
+		+ player.powerupLevel[14]
 		- coinbound_penalty;
 	player.CurMagic = statAdds[ST_MAGIC] 
 		+ player.BaseMagic 
@@ -3949,6 +4241,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 		- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 		+ skilledTraitBenefit
+		+ player.powerupLevel[14]
 		- coinbound_penalty;
 	player.CurVitality = statAdds[ST_VITALITY] 
 		+ player.BaseVitality 
@@ -3956,6 +4249,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 		- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 		+ skilledTraitBenefit
+		+ player.powerupLevel[14]
 		- coinbound_penalty;
 	player.CurStrength += player.BaseStrength * statPercent[ST_STRENGTH] / 100;
 	player.CurDexterity += player.BaseDexterity * statPercent[ST_DEXTERITY] / 100;
@@ -4056,12 +4350,27 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		}
 		else if (player.OnBodySlots[IS_LeftHand].ItemCode == IC_23_PISTOL || player.OnBodySlots[IS_RightHand].ItemCode == IC_23_PISTOL) {
 			player.BaseDamage = player.CharLevel * player.CurDexterity / 80 + (player.CharLevel - 1); //0;
+			if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+				player.BaseDamage = player.CharLevel * player.CurDexterity / 300 + (player.CharLevel - 1);
+			}
+			else if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+				player.BaseDamage = player.CharLevel * player.CurDexterity / 112;
+			}
 			goto LABEL_73;
 		}
 		else {
 			damageDivider = HasTrait(playerIndex, TraitId::Pistoleer) ? 189 : 63; // 198 + 25 + 2
 			baseDamage = (int)(mainAttribLevel / damageDivider);
 			player.BaseDamage = baseDamage + (player.CharLevel / 2) + 2;
+			if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+				player.BaseDamage = 49;// Terminator base damage is independent of cSTR and CLVL (increased through perk upgrades)
+			}
+			else if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+				player.BaseDamage = player.CharLevel * player.CurStrength / 50 + 4 + player.CharLevel;
+			}
+			else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				player.BaseDamage = player.CharLevel * player.CurStrength / 100 + (player.CharLevel - 1);
+			}
 			goto LABEL_73;
 		}
 	}
@@ -4141,6 +4450,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		mainAttribLevel = player.CharLevel * player.CurStrength;
 		if (player.OnBodySlots[IS_LeftHand].ItemCode == IC_3_BOW) {
 			damageDivider = 112; // 45000 / 112 = 401
+			if (HasTrait(playerIndex, TraitId::Thief)) { damageDivider = 200; } // Thief normally deals less damage
 			baseDamage = (int)(mainAttribLevel / damageDivider);
 			baseDamage += player.CharLevel / 2;
 			if (HasTrait(playerIndex, TraitId::GrimDeal)) {
@@ -4346,6 +4656,22 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 		baseDamage = (int)(mainAttribLevel / damageDivider);
 		player.BaseDamage = baseDamage;
 		goto LABEL_73;
+	}
+
+	else if (player.fullClassId == PFC_GLADIATRIX) {
+		mainAttribLevel = player.CharLevel * player.CurStrength;
+		if (player.OnBodySlots[IS_LeftHand].ItemCode == IC_3_BOW) {
+			damageDivider = 200;
+			baseDamage = (int)(mainAttribLevel / damageDivider);
+			player.BaseDamage = baseDamage + (player.CharLevel / 2);
+			goto LABEL_73;
+		}
+		else {
+			damageDivider = 65;
+			baseDamage = (int)(mainAttribLevel / damageDivider);
+			player.BaseDamage = baseDamage + player.CharLevel - 1;
+			goto LABEL_73;
+		}
 	}
 
 	// savages
@@ -4565,6 +4891,12 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 				player.BaseDamage = baseDamage + (player.CharLevel / 2);
 				goto LABEL_73;
 		}
+		else if (HasTrait(playerIndex, TraitId::Scissor)) {
+				damageDivider = 75;
+				baseDamage = (int)(mainAttribLevel / damageDivider);
+				player.BaseDamage = baseDamage + (player.CharLevel / 2);
+				goto LABEL_73;
+		}
 		else if ((player.OnBodySlots[IS_LeftHand].ItemCode == IC_1_SWORD && player.OnBodySlots[IS_RightHand].ItemCode == IC_5_SHIELD)
 			|| (player.OnBodySlots[IS_LeftHand].ItemCode == IC_4_MACE && player.OnBodySlots[IS_RightHand].ItemCode == IC_5_SHIELD)) {
 				damageDivider = 52; // 173 + 25
@@ -4589,7 +4921,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 				goto LABEL_73;
 		}
 		else {
-				damageDivider = 750;
+				damageDivider = 150;
 				baseDamage = (int)(mainAttribLevel / damageDivider);
 				player.BaseDamage = baseDamage;
 				goto LABEL_73;
@@ -4664,6 +4996,7 @@ LABEL_73:
 		all_elemental_resistances += player.CharLevel / 3;
 	}
 	all_elemental_resistances += PerkValue(SYNERGY_IMPEDANCE, playerIndex, 0) + PerkValue(SYNERGY_NEGATION, playerIndex);
+	all_elemental_resistances += player.powerupLevel[3];           // 4. +all res
 	for (int i = ET_1_FIRE; i < ET_COUNT; ++i) { player.resist[i] += all_elemental_resistances; }
     if( Dungeon->isQuest && Dungeon == DUN_36_VALLEY_OF_DESPAIR && !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) ){
 		int minusRes = 20 + Difficulty * 5;
@@ -4706,7 +5039,8 @@ LABEL_73:
 		+ PerkValue(SYNERGY_REJUVENATION, playerIndex, 0) 
 		+ PerkValue(SYNERGY_LONGEVITY, playerIndex, 0)
 		+ PerkValue(SYNERGY_INTREPIDITY, playerIndex)
-		) << 6;
+		+ PerkValue(PERK_IRIDIUM_POWER_CELL, playerIndex, 1)
+		+ (player.powerupLevel[4] * 5) ) << 6;
 	// mana gains from +MAG items
 	int addMana = (PerkValue(SYNERGY_WILL_TO_ENDURE, playerIndex) + 100) * statAdds[ST_MAGIC] / 100;
 	if (GameMode == GM_CLASSIC) {
@@ -4725,13 +5059,13 @@ LABEL_73:
 		+ PerkValue(SYNERGY_MANA_FLOW, playerIndex, 0) 
 		+ PerkValue(SYNERGY_AWAKENING, playerIndex, 0)
 		+ PerkValue(SYNERGY_SAPIENCE, playerIndex)
-		) << 6;
+		+ (player.powerupLevel[5] * 5)) << 6;
 	addsManaBy64 -= (PerkValue(SYNERGY_VALOR, playerIndex, 2) << 6);
 	int weirdTraitBenefit = HasTrait(playerIndex, TraitId::Weird) ? ((player.CharLevel * 2) << 6) : 0;
 	//player.CurLife = addsHitPointsBy64 + player.BaseLife + weirdTraitBenefit;
 	player.MaxCurLife = addsHitPointsBy64 + player.MaxBaseLife + weirdTraitBenefit;
-	// действие life процентов
-	// если надо учитывать прибавку Vitality c вещей, то раскомментировать ниже (addHP << 6) + 
+	// (rt) percentage life effect
+	// (rt) if the Vitality bonus from items must be counted, uncomment (addHP << 6) + below 
 	int adventurer_trait_penalty = HasTrait(playerIndex, TraitId::Adventurer) ? 20 : 0;
 	int vigorous_trait_bonus = HasTrait(playerIndex, TraitId::Vigorous) ? 35 : 0;
 	int grim_deal_trait_penalty_lifemana = HasTrait(playerIndex, TraitId::GrimDeal) ? (2 * player.CharLevel / 5) : 0;
@@ -4756,8 +5090,8 @@ LABEL_73:
 					  + player.MaxBaseMana
 					  - giftedTraitPenalty
 					  - necropathy_trait_penalty;
-	// действие мана процентов
-	// если надо учитывать прибавку Magic c вещей, то раскомментировать ниже (addMana << 6) + 
+	// (rt) percentage mana effect
+	// (rt) if the Magic bonus from items must be counted, uncomment (addMana << 6) + below 
 	int mana_flux_trait_penalty = HasTrait(playerIndex, TraitId::ManaFlux) ? 20 : 0;
 	int addManaPercents = ( /*(addMana << 6) +*/ player.MaxBaseMana) 
 		* (manaPercent - adventurer_trait_penalty - mana_flux_trait_penalty - PerkValue(SYMP_PALLOR, playerIndex) - grim_deal_trait_penalty_lifemana) / 100;
@@ -4766,7 +5100,12 @@ LABEL_73:
 	//LimitToMin(player.MaxCurMana, 64); // doesn't seem  to work !!!
 	LimitToMax( player.CurMana, player.MaxCurMana );
 	if (!(player.gameChanger & BIT(GC_21_C_NO_EVIL))) {
-		player.Infravision = player.effectFlag[EA_INFRAVISION];
+		// by (th4): don't clobber an active Seeing (Infravision skill) buff. Every
+		// inventory action (pick up / place in slot / equip) calls CalcCharParams;
+		// the EA_INFRAVISION item flag alone would zero Infravision for one turn, then
+		// ActInfravision re-sets it next tick -> highlighted monsters flicker. OR-in
+		// the running missile so the skill buff survives the recalc.
+		player.Infravision = player.effectFlag[EA_INFRAVISION] || IsInfravisionMissileActive(playerIndex);
 	}
 	player.goldFind = goldFind;
 	player.goldAbsFindMin = goldAbsFindMin;
@@ -4794,7 +5133,7 @@ LABEL_73:
 	player.xpGainMin = xpGainMin;
 	player.xpGainMax = xpGainMax;
 	player.xpGainPercent = xpGainPercent;
-	switch (GameMode) { //starting exp update 03.09.2019
+	switch (GameMode) { //exp update
 	    case GM_SURVIVAL: player.xpGainPercent += player.CharLevel + 50; break;
 		case GM_IRONMAN: 
 			if (player.gameChanger & BIT(GC_24_RUTHLESS)) { 
@@ -4808,6 +5147,7 @@ LABEL_73:
 			}
 			break;
 		case GM_NIGHTMARE: 
+		case GM_OUTBREAK:
 			if (player.CharLevel < 60) {
 				player.xpGainPercent += 90 + ((player.CharLevel * player.CharLevel * player.CharLevel) / 10'000) + (player.CharLevel * player.CharLevel / 4);
 			}
@@ -4897,7 +5237,12 @@ LABEL_73:
 	int treasure_hunter_trait_penalty = HasTrait(playerIndex, TraitId::TreasureHunter) ? (75 + player.CharLevel / 2) : 0;
 	int tough_luck_gf = player.gameChanger & BIT(GC_23_TOUGH_LUCK) ? 75 : 0;
 	int coinbound_boost = HasTrait(playerIndex, TraitId::Coinbound) ? player.CharLevel : 0;
-	player.goldFind += PerkValue(SYNERGY_LIGHT_FINGERED, playerIndex, 1) - treasure_hunter_trait_penalty - tough_luck_gf + coinbound_boost;
+	int capitalist_penalty = HasTrait(playerIndex, TraitId::Capitalist) ? 33 : 0;
+	player.goldFind += PerkValue(SYNERGY_LIGHT_FINGERED, playerIndex, 1)
+		- treasure_hunter_trait_penalty 
+		- tough_luck_gf 
+		+ coinbound_boost
+		- capitalist_penalty;
 	int gold_fever_perk = PerkValue(PERK_GOLD_FEVER, playerIndex);
 	int gold_digger_trait_benefit = HasTrait(playerIndex, TraitId::GoldDigger) ? (player.CharLevel * 2) : 0;
 	player.goldAbsFindMin += 
@@ -4957,6 +5302,7 @@ LABEL_73:
 	int NK_crit_chance = player.gameChanger & BIT(GC_9_NIGHT_KIN) ? (player.CharLevel / 5) : 0;	
 	player.critChance +=
 		PerkValue(PERK_EXPERT_KILLER, playerIndex)
+		+ PerkValue(PERK_TARGETING_MATRIX, playerIndex, 1)
 		+ PerkValue(SYNERGY_BETTER_CRITS, playerIndex, 0)
 		+ PerkValue(PERK_CRIPPLING_STRIKES, playerIndex)
 		+ PerkValue(SYNERGY_EXCEPTIONAL_FERVOUR, playerIndex, 0)
@@ -4974,7 +5320,8 @@ LABEL_73:
 		+ PerkValue(SYNERGY_SEEKER_ARROWS, playerIndex)
 		+ PerkValue(SYNERGY_DEEP_WOUNDS, playerIndex)
 		+ PerkValue(SYNERGY_CRIMSON_TIDE, playerIndex, 1)
-		+ PerkValue(SYNERGY_FATAL_IMPACTS, playerIndex, 0);
+		+ PerkValue(SYNERGY_FATAL_IMPACTS, playerIndex, 0)
+		+ PerkValue(SYNERGY_INTIMIDATION, playerIndex);
 
 	//----------basic and extra boosts to mdr and adr---------------
 	int thickskinned_trait_benefit = HasTrait(playerIndex, TraitId::ThickSkinned) ? (player.CharLevel / 9) : 0;
@@ -4984,12 +5331,14 @@ LABEL_73:
 		+ thickskinned_trait_benefit
 		+ PerkValue(SYNERGY_EXCEPTIONAL_FERVOUR, playerIndex, 3)
 		+ PerkValue(SYNERGY_RIGIDITY, playerIndex)
+		+ PerkValue(SYNERGY_IMPENETRABLE, playerIndex)
 		+ arrow_dancing_trait
 		+ abneg_trait_benefit;
 	int absorb_melee = PerkValue(PERK_TOUGHNESS, playerIndex) 
 		+ PerkValue(SYNERGY_BUTCHERY, playerIndex)
 		+ PerkValue(SYNERGY_EXCEPTIONAL_FERVOUR, playerIndex, 2)
 		+ PerkValue(SYNERGY_RIGIDITY, playerIndex)
+		+ PerkValue(SYNERGY_IMPENETRABLE, playerIndex)
 		+ thickskinned_trait_benefit 
 		- arrow_dancing_trait
 		+ abneg_trait_benefit;
@@ -5033,6 +5382,10 @@ LABEL_73:
 	int forgetfulTraitBenefit = HasTrait(playerIndex, TraitId::Forgetful) ? (player.CharLevel * player.CharLevel + 100) : 0;
 	player.xpGainMin += forgetfulTraitBenefit;
 	player.xpGainMax += forgetfulTraitBenefit;
+	if (HasTrait(playerIndex, TraitId::Capitalist)) {
+		player.xpGainMin += player.TotalGold / 100;
+		player.xpGainMax += player.TotalGold /  25;
+	}
 	int scroungerTraitBenefit = HasTrait(playerIndex, TraitId::Scrounger) ? 50 : 0;	
 	//int barb_mf_penalty = HasTrait(playerIndex, TraitId::Barbarian) ? 75 : 0;
 	player.magicFind += PerkValue(PERK_OBSESSION, playerIndex) 
@@ -5064,12 +5417,15 @@ LABEL_73:
 			)
 		) {// ranged
 		player.BaseDamage += PerkValue(PERK_OVERDRAW, playerIndex) 
+			+ PerkValue(PERK_PRECISION, playerIndex)
 			+ PerkValue(PERK_HEAVY_DRAW, playerIndex)
+			+ PerkValue(PERK_MUTILATION, playerIndex)
 			+ PerkValue(PERK_ABSOLUTION, playerIndex, 0)
 			+ PerkValue(PERK_TEMPEST, playerIndex)
 			+ PerkValue(SYNERGY_MESSENGER_OF_DEATH, playerIndex, 1)
 			- finesseTraitPenalty 
 			+ oldfashioned_trait_benefit_damage
+			+ (player.powerupLevel[1] * 2) // 2. +damage (melee & ranged)
 			+ ironFist_TraitBenefit
 			+ PerkValue(SYNERGY_VERSATILITY, playerIndex)
 			+ PerkValue(SYNERGY_ACUITY, playerIndex, 1)
@@ -5078,13 +5434,16 @@ LABEL_73:
 	}
 	else {// melee
 		player.BaseDamage += (HasTrait(playerIndex, TraitId::Rabid) ? player.BaseDamage : 0)
+			+ (PerkValue(SYNERGY_AGGRESSION, playerIndex, 1) * player.BaseDamage / 100)
 			+ PerkValue(PERK_STRONG_ARM, playerIndex) 
 			+ PerkValue(PERK_SHARPENED_SWORD, playerIndex)
 			+ PerkValue(SYNERGY_MESSENGER_OF_DEATH, playerIndex)
 			+ PerkValue(SYNERGY_ACUITY, playerIndex, 1) 
-			+ (HasTrait(playerIndex, TraitId::HeavyHanded) ? (4 * player.CharLevel / 5) : 0)
+			+ (HasTrait(playerIndex, TraitId::HeavyHanded) ? (1 + 4 * player.CharLevel / 5) : 0)
+			+ PerkValue(PERK_UNARMED_PROTOCOL, playerIndex)
 			- finesseTraitPenalty
 			+ oldfashioned_trait_benefit_damage
+			+ (player.powerupLevel[1] * 2) // 2. +damage (melee & ranged)
 			+ ironFist_TraitBenefit
 			- armadillo_trait_penalty
 			+ boardingTechniqueDamage
@@ -5094,8 +5453,7 @@ LABEL_73:
 			+ PerkValue(PERK_VANDALISM, playerIndex)
 			+ PerkValue(SYNERGY_HEAVY_HITTER, playerIndex, 1)
 			+ PerkValue(SYNERGY_VALOR, playerIndex, 0)
-			+ strong_heart
-			+ ( PerkValue(SYNERGY_AGGRESSION, playerIndex, 1) * player.BaseDamage / 100 );
+			+ strong_heart;
 	}
 	int oldfashioned_trait_benefit_ac = HasTrait(playerIndex, TraitId::OldFashioned) ? ((player.CharLevel * player.CharLevel / 45) + player.CharLevel) : 0;
 	int gold_digger_trait_penalty = HasTrait(playerIndex, TraitId::GoldDigger) ? (player.CharLevel * 6 / 5) : 0;
@@ -5107,7 +5465,7 @@ LABEL_73:
 	int unshakable_trait_penalty_ac = HasTrait(playerIndex, TraitId::Unshakable) ? player.CharLevel : 0;
 	int mamluk_ac = HasTrait(playerIndex, TraitId::Mamluk) ? player.CharLevel : 0;
 	int dimachaerus_extra_ac = 0;
-		if ((is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL)) && player.fullClassId == PFC_DIMACHAERUS) {
+		if ((is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SURVIVAL, GM_OUTBREAK)) && player.fullClassId == PFC_DIMACHAERUS) {
 			dimachaerus_extra_ac = 2 * player.CharLevel / 3;
 		}
 	int kamikazeTraitPenalty = HasTrait(playerIndex, TraitId::Kamikaze) ? (player.CharLevel / 3) : 0;
@@ -5150,7 +5508,8 @@ LABEL_73:
 	int nastyDispositionBonus = HasTrait(playerIndex, TraitId::NastyDisposition) ? (10 + player.CharLevel/3) : 0;
 	int inexorability_accuracy = PerkValue(SYNERGY_INEXORABILITY, playerIndex, 0) == 0 ? 0 : (player.CharLevel / PerkValue(SYNERGY_INEXORABILITY, playerIndex, 0));
 	player.ItemsAddToHitPercents += PerkValue(PERK_EAGLE_EYE, playerIndex)
-				+ PerkValue(SYNERGY_ACUITY, playerIndex, 0) 
+				+ PerkValue(SYNERGY_ACUITY, playerIndex, 0)
+				+ PerkValue(PERK_TARGETING_MATRIX, playerIndex, 0)
 				- thickskinnedTraitPenalty
 				+ kamikazeTraitBenefit
 				+ NK_accu
@@ -5175,10 +5534,12 @@ LABEL_73:
 	int grim_deal_trait_penalty_dfe = HasTrait(playerIndex, TraitId::GrimDeal) ? (2 * player.CharLevel / 5) : 0;
 	int blood_oath_trait_penalty_dfe = HasTrait(playerIndex, TraitId::BloodOath) ? (1 + player.CharLevel / 16) : 0;
 	short exec_dfe = 0;
+	short term_dfe = 0;
 	if (player.fullClassId == PFC_EXECUTIONER) {
 		if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) { exec_dfe = player.CharLevel * player.CharLevel / 100 + player.CharLevel / 5; }
-		else {											exec_dfe = player.CharLevel * player.CharLevel / 1500 + player.CharLevel / 15; }
+		else { exec_dfe = player.CharLevel * player.CharLevel / 1500 + player.CharLevel / 15; }
 	}
+	else if (player.gameChanger & BIT(GC_27_TERMINATOR))term_dfe = 50;
 	player.DamageFromEnemy += PerkValue(PERK_IRONCLAD, playerIndex)
 				+ PerkValue(SYNERGY_BOLSTER, playerIndex)
 				- ratelhideTraitBenefit
@@ -5186,6 +5547,7 @@ LABEL_73:
 				+ oldhabit_trait_penalty
 				+ grim_deal_trait_penalty_dfe
 				- exec_dfe
+				- term_dfe
 				+ blood_oath_trait_penalty_dfe
 				+ PerkValue(SYMP_CYSTS, playerIndex)
 				+ PerkValue(SYMP_DARK_PUSTULES, playerIndex)
@@ -5195,12 +5557,39 @@ LABEL_73:
 	
 	int engineer = HasTrait(playerIndex, TraitId::Engineer) ? (15 + player.CharLevel / 2) : 0;
 	int nastyDispositionDamageBonus = HasTrait(playerIndex, TraitId::NastyDisposition) ? (25 + player.CharLevel / 2) : 0;
-	player.ItemsAddDamagePercents += engineer 
+	int percent_ED_bonus = 0;
+	if(is(player.fullClassId, PFC_TRAPPER, IPCM_BOMBARDIER)) percent_ED_bonus = (player.powerupLevel[1] * 5);
+	player.ItemsAddDamagePercents += engineer
 		+ nastyDispositionDamageBonus
 		+ PerkValue(PERK_HIT_HARDER, playerIndex)
+		+ PerkValue(PERK_CONCENTRATED_FIRE, playerIndex)
 		+ PerkValue(SYNERGY_GLAD_DISCIPLINE, playerIndex, 0)
 		+ PerkValue(SYNERGY_RETRIBUTION, playerIndex, 0)
-		+ PerkValue(SYNERGY_STRENGTH_N_HONOR, playerIndex, 0);
+		+ PerkValue(SYNERGY_STRENGTH_N_HONOR, playerIndex, 0)
+		+ percent_ED_bonus;
+
+	// (rt) Bonuses from powerups bought from Wirt
+	player.ACFromClass += player.powerupLevel[0] * 2;                         // 1. +armor
+	player.ItemsAddToHitPercents += player.powerupLevel[2] * 2;               // 3. +accuracy
+	//player.MaxCurLife += player.powerupLevel[4] * 64;                     // 5. +HP
+	//player.CurLife += player.powerupLevel[4] * 64;
+	//player.MaxBaseLife += player.powerupLevel[4] * 64;
+	//player.BaseLife += player.powerupLevel[4] * 64;
+	//player.MaxCurMana += player.powerupLevel[5] * 64;                     // 6. +Mana
+	//player.CurMana += player.powerupLevel[5] * 64;
+	//player.MaxBaseMana += player.powerupLevel[5] * 64;
+	//player.BaseMana += player.powerupLevel[5] * 64;
+	player.goldFind += player.powerupLevel[6] * 3;                            // 7. +gold find
+	player.stunThreshold[CT_0_STUN] += player.powerupLevel[7];            // 8. +stun threshold
+	player.DamageFromEnemy -= player.powerupLevel[8];                     // 9. -DFE
+	// (rt) 6 new effects
+	player.lifeRegen += player.powerupLevel[9];
+	player.manaRegen += player.powerupLevel[10];
+	player.resistMeleeMin += player.powerupLevel[11];
+	player.resistMeleeMax += player.powerupLevel[11];
+	player.resistArrowMin += player.powerupLevel[12];
+	player.resistArrowMax += player.powerupLevel[12];
+	player.xpGainPercent += player.powerupLevel[13] * 3;
 
 	//blocking
 	player.CanBlock = 0;
@@ -5268,14 +5657,20 @@ LABEL_73:
         weaponItemCode = player.OnBodySlots[IS_LeftHand].ItemCode;
 	}
 	if( player.OnBodySlots[IS_RightHand].ItemCode != IC_M1_NONE
-	 && player.OnBodySlots[IS_RightHand].TypeID == ITEM_1_WEAPON && player.OnBodySlots[IS_RightHand].IsReqMet ){ // не щит ?
+	 && player.OnBodySlots[IS_RightHand].TypeID == ITEM_1_WEAPON && player.OnBodySlots[IS_RightHand].IsReqMet ){ // (rt) not a shield?
         weaponItemCode = player.OnBodySlots[IS_RightHand].ItemCode;
 	}
- 
+ // player animation adjustments
     int appearance = PAW_0_NONE;
 	bool hideShield = false;
-    	
-    if( player.fullClassId == PFC_DEMONOLOGIST ){
+    
+	if (HasTrait(playerIndex, TraitId::Scissor)) {
+		if (weaponItemCode == IC_1_SWORD) appearance = PAW_10_SWORD_ONE; 
+		else if (weaponItemCode == IC_4_MACE) appearance = PAW_11_MACE_ONE;
+		else if (weaponItemCode == IC_3_BOW) { appearance = PAW_4_BOW; player.IsBowInHand = 1; }
+		hideShield = true; // sword only animation or empty hands animation
+	}
+    else if( player.fullClassId == PFC_DEMONOLOGIST){
 		hideShield = true; // always empty hands animation
     }else if( player.fullClassId == PFC_BEASTMASTER ){
         if( weaponItemCode == IC_1_SWORD ) appearance = PAW_2_SWORD;
@@ -5311,7 +5706,7 @@ LABEL_73:
 	    player.CanBlock = 1;
 	    if( WeaponAnims[appearance].canPairShied ) ++appearance;
 	}
-	// двуручки и одноручки в единственном числе
+	// (rt) two-handers and one-handers, singular
 	if( is(classID, PC_4_ROGUE, PC_5_SAVAGE) && is(appearance, PAW_2_SWORD, PAW_6_MACE)
 	 && ( player.OnBodySlots[IS_LeftHand].ItemCode == IC_M1_NONE || player.OnBodySlots[IS_RightHand].ItemCode == IC_M1_NONE
 	 || ! player.OnBodySlots[IS_RightHand].IsReqMet || ! player.OnBodySlots[IS_LeftHand].IsReqMet ) ){
@@ -5368,7 +5763,7 @@ LABEL_73:
 	}else if (is(player.fullClassId, PFC_MONK, PFC_KENSEI, PFC_SHUGOKI)) {
 		player.ACFromClass += player.CharLevel;
 	}
-	// проверка на подвисание при смене вида
+	// (rt) check for a freeze when the look changes
 	//static int ii = 0;
 	//if( ii < 6 ){ 
 	//	if( ii == 5 ){
@@ -5376,7 +5771,8 @@ LABEL_73:
 	//	}
 	//	++ii;
 	//}
-	if( player.Appearance != appearance && canLoadAnimFlag && player.CurAction < PCA_10_NEW_LEVEL && player.CurAction != PCA_8_DEATH ){
+	// (th4) TWO TOWERS: one shield or two is the same look, but not the same files -- reload when that changes too (Player.cpp)
+	if( ( player.Appearance != appearance || TwoTowersGfxStale( playerIndex ) ) && canLoadAnimFlag && player.CurAction < PCA_10_NEW_LEVEL && player.CurAction != PCA_8_DEATH ){
 		player.Appearance = appearance;
 		player.LoadPlayerAnimationMask = PAF_0_NO;
 		LoadPlayerGFX(playerIndex, PAF_1_STAY);
@@ -5390,15 +5786,15 @@ LABEL_73:
 			ContinueStay( playerIndex );
 		}
 	}else{
-		player.Appearance = appearance; // стартовый расчет до загрузки файлов анимации либо работа с инвентарем
+		player.Appearance = appearance; // (rt) initial calculation before the animation files are loaded, or inventory work
 	}
 	
 	/*for (int item = 0; item < MissileAmount; item++) { // old disabled cycle, disabled while fixing monster MS pierce
 		Missile& cast = Missiles[MissileIndexes[item]];
 		if (cast.BaseMissileIndex == MI_13_MANA_SHIELD && cast.CasterIndex == playerIndex) { //Dragon Mana shield
-			cast.FirstServiseValue = player.CurLife;	// здесь запоминается повышеная фури жизнь
+			(rt) cast.FirstServiseValue = player.CurLife;	// the life raised by fury is stored here
 			cast.SecondServiseValue = player.BaseLife;
-			break;										// Здесь возникает глюк с шилдом :) не расчитано на несколько манащитов одновременно
+			(rt) break;										// The shield glitch happens here: not designed for several mana shields at once
 		}
 	}*/
 	// Store new hp values in MS if it is active
@@ -5530,6 +5926,29 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 {
 	Player& player = Players[playerIndex];
 
+	// by (th4): stat effects of an item, with the Raw Power sigil boost applied so that
+	// equip-requirement resolution sees the SAME stat totals CalcCharParams grants.
+	// CalcCharParams multiplies a sigil's effect minVal/maxVal x10 under RawPower (3438),
+	// but this req resolver used base sigil stats, so items only equippable thanks to
+	// x10 sigil stats were wrongly judged unmet. Mirror that boost here.
+	// NOTE: scale the effect FIELDS (minVal/maxVal) x10 then compute stat effects, exactly
+	// like CalcCharParams' boostedSigils path -- not a post-computed x10 of the result --
+	// so AE_CLVL_STAT ( minVal + CharLevel*maxVal/100 ) integer-rounds identically and the
+	// req resolver never disagrees with the actual stat grant by a truncation point.
+	auto getStatEffectsReqAware = [&]( Item& it, StatEffects& se ){
+		if( IsSigil(it) && HasTrait(playerIndex, TraitId::RawPower) ){
+			Item boosted = it; // copy; original sigil untouched
+			for( Effect& e : boosted.effect ){
+				e.minVal *= 10;
+				e.maxVal *= 10;
+				e.chance *= 10;
+			}
+			boosted.getStatEffects( se, player );
+		}else{
+			it.getStatEffects( se, player );
+		}
+	};
+
 	// Ensure that full class id is set, else, CheckBaseItemClassReq might fail. 
 	// This isn't the ideal spot for this...but I don't know where it should go in this project...
 	// Ideally, this would only be called once at a new game start, since the character won't be 
@@ -5554,6 +5973,19 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 	for( Item& item : player.OnBodySlots ) equippedItems.push_back( &item );
 	SetItem_GetActiveSetItemEffects( playerIndex, equippedItems );
 
+	//-------------Sigil item requirement fix : they affect item requirements now---
+	// Only sigils physically in the dedicated sigil inventory give stat bonuses.
+	// Sigils in normal inventory give NO bonuses.
+	for (int i = 0; i < player.TalItemCount; i++) {
+		Item& item = player.TalismanSlots[i];
+		if (IsSigil(item)) {
+			// Sigils themselves have no requirements, always treat as met
+			item.IsReqMet = true;
+			equippedItems.push_back(&item);
+		}
+	}
+	//----------------------------
+
 	for( Item* itemPtr : equippedItems ){
 		Item& item = *itemPtr;
 		if( item.ItemCode != IC_M1_NONE
@@ -5563,7 +5995,7 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 		{
 			item.IsReqMet = true;
 			if( item.Identified ){
-				StatEffects se {}; item.getStatEffects(se, player);
+				StatEffects se {}; getStatEffectsReqAware( item, se );
 				statEffects += se;
 			}
 		}
@@ -5592,6 +6024,7 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 				+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 				- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2) 
 				+ skilledTraitBenefit
+				+ player.powerupLevel[14]
 				+ player.BaseStrength 
 				+ player.BaseStrength * statEffects.percent[ST_STRENGTH] / 100 < item.RequiredStrength ){
 				itemReqMet = 0;
@@ -5602,6 +6035,7 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 				+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 				- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 				+ skilledTraitBenefit
+				+ player.powerupLevel[14]
 				+ player.BaseMagic
 				+ player.BaseMagic * statEffects.percent[ST_MAGIC] / 100 < item.RequiredMagic ){
 				itemReqMet = 0;
@@ -5612,6 +6046,7 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 				+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 				- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 				+ skilledTraitBenefit
+				+ player.powerupLevel[14]
 				+ player.BaseDexterity
 				+ player.BaseDexterity * statEffects.percent[ST_DEXTERITY] / 100 < item.RequiredDexterity  ){
 				itemReqMet = 0;
@@ -5622,6 +6057,7 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 				+ PerkValue(SYNERGY_STAR_ALIGNMENT, playerIndex)
 				- PerkValue(SYNERGY_INFERNAL_BARGAIN, playerIndex, 2)
 				+ skilledTraitBenefit
+				+ player.powerupLevel[14]
 				+ player.BaseVitality
 				+ player.BaseVitality * statEffects.percent[ST_VITALITY] / 100 < item.RequiredVitality ){
 				itemReqMet = 0;
@@ -5633,8 +6069,12 @@ void __fastcall RecalcReqMetForOnBodyItems( int playerIndex )
 			if( itemReqMet == 0 ){
 				needLoop = 1;
 				item.IsReqMet = 0;// IsReqMet
-				if( item.ItemCode != IC_0_OTHER ){
-					StatEffects se {}; item.getStatEffects(se, player);
+				// by (th4): gate the subtract on Identified to match the add path (5808).
+				// Unidentified items add no stats (their affixes are hidden), so subtracting
+				// their stats on demotion pushed statEffects negative and wrongly demoted
+				// other valid items in the cascade. Add and subtract must use the same gate.
+				if( item.ItemCode != IC_0_OTHER && item.Identified ){
+					StatEffects se {}; getStatEffectsReqAware( item, se );
 					statEffects -= se;
 				}
 			}
@@ -5661,6 +6101,11 @@ void __fastcall CheckAllItemsReq(int playerIndex)
 		if( item->ItemCode != IC_M1_NONE ){
 			item->IsReqMet = CheckItemReq( playerIndex, item );
 		}
+	}
+	// Also recalc sigil inventory (TalismanSlots) so sigils are effective on load
+	for( itemIndex = 0; itemIndex < player->TalItemCount; ++itemIndex ){
+		item = &player->TalismanSlots[itemIndex];
+		item->IsReqMet = CheckItemReq( playerIndex, item );
 	}
 }
 
@@ -5722,9 +6167,20 @@ int __fastcall CheckItemReq(uint playerIndex, Item* item)
 		}
 	}
 
-	if( HasTrait(playerIndex, TraitId::Barbarian) && (item->MagicLevel || item->socketsAmount
-	 || item->MagicCode == MC_24_BOOKS && not(item->SpellIndex, PS_2_HEALING, PS_7_TOWN_PORTAL, PS_22_FURY) ) ){
+	bool is_sigil = (item->baseItemIndex >= BI_2504_SIGIL_FIRST && item->baseItemIndex <= BI_2508_SIGIL_LAST);
+
+	if( HasTrait(playerIndex, TraitId::Barbarian) 
+		&& (
+		(item->MagicLevel && !is_sigil)
+		|| item->socketsAmount
+		|| item->MagicCode == MC_24_BOOKS && not(item->SpellIndex, PS_2_HEALING, PS_7_TOWN_PORTAL, PS_22_FURY) ) ){
 		return false;
+	}
+
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		if (item->MagicCode == MC_24_BOOKS && item->SpellIndex != PS_7_TOWN_PORTAL) {
+			return false;	// terminator only learns TP
+		}
 	}
 
 	if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
@@ -5732,7 +6188,10 @@ int __fastcall CheckItemReq(uint playerIndex, Item* item)
 			return false;	// night kin does not read healing, holy bolt and holy nova
 		}
 		const BaseItem& baseItem = BaseItems[item->baseItemIndex];
-		if (is(baseItem.ItemCode, IC_12_RING, IC_13_AMULET, 
+		if (baseItem.baseId >= BI_2504_SIGIL_FIRST && baseItem.baseId <= BI_2508_SIGIL_LAST) {
+			return true;
+		}
+		if (is(baseItem.ItemCode, IC_12_RING, IC_13_AMULET,
 			IC_15_GLOVE, IC_16_BOOTS, IC_17_BELT, 
 			IC_1_SWORD, IC_2_AXE, IC_3_BOW, IC_4_MACE, 
 			IC_7_HELM, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)){
@@ -5789,9 +6248,62 @@ int __fastcall CheckItemReq(uint playerIndex, Item* item)
 		}
 	}
 
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		if (is(item->MagicCode,
+			MC_10_ELIXIR_OF_STRENGTH,
+			MC_11_ELIXIR_OF_MAGIC,
+			MC_12_ELIXIR_OF_DEXTERITY,
+			MC_13_ELIXIR_OF_VITALITY,
+			MC_44_SPECTRAL_ELIXIR,
+			MC_3_POTION_OF_HEALING,
+			MC_6_POTION_OF_MANA,
+			MC_2_POTION_OF_FULL_HEALING,
+			MC_7_POTION_OF_FULL_MANA,
+			MC_18_POTION_OF_REJUVENATION,
+			MC_19_POTION_OF_FULL_REJUVENATION)
+
+			|| is(item->baseItemIndex, 
+				BI_214_RELICT_OF_HEALING, BI_217_RELICT_OF_FIREWALL, BI_293_RELICT_OF_GOLEM,
+				BI_215_RELICT_OF_MANA, BI_26_RELICT_OF_MANA_SHIELD, BI_294_RELICT_OF_HOLY_NOVA,
+				BI_188_RELICT_OF_FURY, BI_184_RELICT_OF_WARP, BI_295_RELICT_OF_ARCANE_NOVA,
+				BI_342_RELICT_OF_TRAP_DISARM, BI_290_RELICT_OF_PHASING, BI_343_RELICT_OF_INCINERATE,
+				BI_212_RELICT_OF_APOCALYPSE, BI_291_RELICT_OF_HYDRA, BI_344_RELICT_OF_FLASH,
+				BI_213_RELICT_OF_STONE_CURSE, BI_292_RELICT_OF_TELEPORT, BI_345_RELICT_OF_LIGHTNING,
+				BI_216_RELICT_OF_REFLECT, BI_346_RELICT_OF_ELEMENTAL)
+
+			) {
+			return false;
+		}
+	}
+
+	if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		if (is(item->ItemCode, IC_7_HELM, IC_15_GLOVE, IC_16_BOOTS, IC_17_BELT)) {
+			return false;
+		}
+	}
+
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		if (item->baseItemIndex >= BI_2767_STANDARD_FATIGUES && item->baseItemIndex <= 2887) {
+			return false;
+		}
+	}
+
 	if (HasTrait(playerIndex, TraitId::OldFashioned)) {
 		if (is(item->ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
 			return false;
+		}
+	}
+
+	if (player.fullClassId == PFC_SECUTOR) {
+		if (HasTrait(playerIndex, TraitId::Scissor)) {
+			if (item->ItemCode == IC_5_SHIELD && item->maxArrowAbsorbPercent > 0) {
+				return false;
+			}
+		}
+		else {
+			if (item->ItemCode == IC_5_SHIELD && item->maxArrowAbsorbPercent == 0 && item->baseItemIndex != BI_395_BUCKLER) {
+				return false;
+			}
 		}
 	}
 
@@ -5883,13 +6395,13 @@ void __fastcall RecalcBooksReq(int playerIndex)
 {
 	Player& player = Players[playerIndex];
 
-	// Проверка требований магии у книг в магазине Адрии и установка флага рекМет
+	// (rt) Check books' magic requirement in Adria's shop and set the reqMet flag
 	if( Dungeon == DUN_0_TOWN ){
 		for( int itemIndex = 1; WitchAdriaItems[itemIndex].ItemCode != IC_M1_NONE && itemIndex < PT_25_WitchItemsCount; ++itemIndex ){
 			CalculateRequiredMagicForBooks(itemIndex);
 		}
 	}
-	// Проверка требований магии у книг в инвентаре и установка флага рекМет
+	// (rt) Check books' magic requirement in the inventory and set the reqMet flag
 	for( int itemIndex = 0; itemIndex < player.InvItemCount; itemIndex++ ){
 		RecalcBookReq(player.InventorySlots[itemIndex], playerIndex);
 	}
@@ -5904,9 +6416,9 @@ void __fastcall RecalcPlayer( int playerIndex, int canLoadAnimFlag, bool forceIt
     auto lastSeed = LastSeed;
 
 	CheckAllItemsReq(playerIndex);
-	// здесь проверяются требования к надетым вещам (база + эти вещи)
-	// возможно надо перенести это в CheckAllItemsReq и переделать на сравнение с текущими атрибутами
-	// чтобы в квестовых подземелья эти вещи тоже "краснели"
+	// (rt) requirements of equipped items are checked here (base + these items)
+	// (rt) maybe move this into CheckAllItemsReq and change it to compare against current attributes
+	// (rt) so that these items also turn "red" in quest dungeons
 	RecalcReqMetForOnBodyItems(playerIndex);
 	SetItem_RecalculateSetInfo(playerIndex);
 	InitDoublePrice();
@@ -5957,14 +6469,20 @@ void __fastcall SetPlayerHandItem(Item& item, int baseItemIndex)
 	item.saveVersion = CurSaveVersion;
 	item.ItemCode = (ITEM_CODE)baseItem.ItemCode;
 	item.GraphicValue = baseItem.GraphicValue;
-	strcpy(item.Name, (const char*)baseItem.NamePtr);
-	strcpy(item.FullMagicalItemName, (const char*)baseItem.NamePtr);
+	strcpy(item.Name, LocalizedBaseItemName((const char*)baseItem.NamePtr)); // (th4) display-only
+	strcpy(item.FullMagicalItemName, LocalizedBaseItemName((const char*)baseItem.NamePtr)); // (th4)
+	// (th4) DC mission 15: the smith on the Anvil rewards is Hephasto in the Dark
+	// Campaign. Applied to BOTH buffers because 120 BASE items are named after him
+	// too -- Name is the unidentified view, FullMagicalItemName the identified one,
+	// and an unidentified reward would otherwise still read Griswold.
+	DarkCampaignRenameSmith( item.Name,                sizeof(item.Name) );
+	DarkCampaignRenameSmith( item.FullMagicalItemName, sizeof(item.FullMagicalItemName) );
 	item.EquippedLocation = baseItem.EquippedLocation;
 	item.TypeID = baseItem.ItemType;
     item.throwing = (char)baseItem.throwing;
 	item.MinDamage = baseItem.MinDamageLow;
 	item.MaxDamage = baseItem.MaxDamageLow;
-	item.ArmorClass = baseItem.MinimumArmor; // нет рандомизации, функция для специальных вещей, типа золота
+	item.ArmorClass = baseItem.MinimumArmor; // (rt) no randomization, function for special items such as gold
     item.damageFromEnemies = baseItem.MinDamageFromEnemy;
     item.minMeleeAbsorbPercent = baseItem.MinMeleeAbsorbPercentLow;
     item.maxMeleeAbsorbPercent = baseItem.MaxMeleeAbsorbPercentLow;
@@ -5978,7 +6496,7 @@ void __fastcall SetPlayerHandItem(Item& item, int baseItemIndex)
 	}
 	item.SpellIndex = baseItem.SpellNumber;
 	if( baseItem.MagicCode == MC_23_STAFF ){
-		item.CurCharges = 18;// Почему зарядов конкретно 18?
+		item.CurCharges = 18;// (rt) Why exactly 18 charges?
 	}
 	item.BaseCharges = item.CurCharges;
 	item.CurDurability = baseItem.DurabilityMin;
@@ -5996,6 +6514,7 @@ void __fastcall SetPlayerHandItem(Item& item, int baseItemIndex)
 	item.MagicLevel = ML_0_USUAL;
 	item.Price = baseItem.MinPrice;
 	item.baseItemIndex = baseItemIndex;
+	RingNameFixup( item ); // (th4) RU: plain ring Кольцо -> Перстень (needs baseItemIndex + name set above; magic rings also handled in AddPrefix/AddSuffix)
 
 	SetItemGrade(item);
 	AdjustItemLook(item);
@@ -6059,42 +6578,43 @@ void __fastcall Item_MakeNonCollisionSeed(int playerIndex, Item& item)
 	item.SetSeed(seed, CurItemGenVersion);
 }
 
-// в оригинале используется ровно одын раз - в StripTopGold. 
-// В тх2 я для снижения дублирования кода все конструкции проверки диапазонов золота и выставления картинки
-// были перенаправленны сюда. Но надо помнить, что в оригинале везде проверки по месту
+// (rt) used exactly once in the original - in StripTopGold. 
+// (rt) In th2, to reduce code duplication, all the gold range checks and picture setting
+// (rt) were redirected here. But remember that in the original the checks are done in place everywhere
 //----- (00424CB0) --------------------------------------------------------
 void __fastcall SetGraphicToGold( Item& gold )
 {
 	if( gold.amount <= Gold_1000_LowLimit ){
-		gold.GraphicValue = Gold_4_SmallPic; // маленькая кучка золота
+		gold.GraphicValue = Gold_4_SmallPic; // (rt) small gold pile
 	}else if( gold.amount < Gold_2500_HiLimit ){
-		gold.GraphicValue = Gold_5_MediumPic; // средняя кучка золота
+		gold.GraphicValue = Gold_5_MediumPic; // (rt) medium gold pile
 	}else{
-		gold.GraphicValue = Gold_6_BigPic; // большая кучка золота
+		gold.GraphicValue = Gold_6_BigPic; // (rt) large gold pile
 	}
 }
 
-// преждевременная оптимизация
-// Создание стартовых вещей новому персонажу в зависимости от класса
+// (rt) premature optimization
+// (rt) Create a new character's starting items depending on the class 
+// #starting items
 //----- (00424CE5) --------------------------------------------------------
 void __fastcall CreateInitialItems(int playerIndex)
 {
 	Player& player = Players[playerIndex];
-	// очистка слотов тела
+	// (rt) clear the body slots
 	for( int onBodySlotIndex = 0; onBodySlotIndex < IS_Inventory; onBodySlotIndex++ ){
 		player.OnBodySlots[onBodySlotIndex].ItemCode = IC_M1_NONE;
 	}
-	// очистка инвентаря
+	// (rt) clear the inventory
 	memset(player.InvUsed, 0, sizeof(player.InvUsed));
 	for( int inventorySlotIndex = 0; inventorySlotIndex < IS_70_40_Inv_Count; inventorySlotIndex++ ){  
 		player.InventorySlots[inventorySlotIndex].ItemCode = IC_M1_NONE;
 	}
 	player.InvItemCount = 0;
-	// очистка пояса
+	// (rt) clear the belt
 	for( int beltInventoryIndex = 0; beltInventoryIndex < IS_8_Belt_Count; beltInventoryIndex++ ){
 		player.BeltInventory[beltInventoryIndex].ItemCode = IC_M1_NONE;
 	}
-	// Добавление начальных вещей из массива
+	// (rt) Add the starting items from the array
 	Item& beltSlot1 = player.BeltInventory[0];
 	Item& beltSlot2 = player.BeltInventory[1];
 	Item& leftHand = player.OnBodySlots[IS_LeftHand];
@@ -6111,7 +6631,17 @@ void __fastcall CreateInitialItems(int playerIndex)
 	if (player.gameChanger & BIT(GC_23_TOUGH_LUCK)) {
 		goto AXEPERTISE_JUMP;
 	}
-	
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		goto AXEPERTISE_JUMP;
+	}
+	if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		FullCreateAndPutItem(leftHand, BI_2733_MINIGUN_01);
+		goto AXEPERTISE_JUMP;
+	}
+	if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		FullCreateAndPutItem(leftHand, 2838);
+		goto AXEPERTISE_JUMP;
+	}
 	if (HasTrait(playerIndex, TraitId::Axepertise)) {
 		FullCreateAndPutItem(leftHand, BI_485_LONG_HATCHET);
 		goto AXEPERTISE_JUMP;
@@ -6123,6 +6653,12 @@ void __fastcall CreateInitialItems(int playerIndex)
 	}
 	else if (player.fullClassId == PFC_SCOUT) {
 		FullCreateAndPutItem(leftHand, BI_1361_SCOUT_ENTRY_WEAPON);
+		goto AXEPERTISE_JUMP;
+	}
+	else if (HasTrait(playerIndex, TraitId::Scissor)) {
+		FullCreateAndPutItem(leftHand, startItems.LeftHandItemIndex);
+		FullCreateAndPutItem(rightHand, 2689);
+		PutStartItemToInventory(playerIndex, startItems.InventoryItemIndex);
 		goto AXEPERTISE_JUMP;
 	}
 	else if (HasTrait(playerIndex, TraitId::Ranger)) {
@@ -6170,7 +6706,7 @@ void __fastcall CreateInitialItems(int playerIndex)
 	if( HasTrait(playerIndex, TraitId::Rabid, TraitId::WildSorcery, TraitId::Mamluk)/* || HasTrait(playerIndex, TraitId::Axepertise)*/ ){
 	    initialGold += 2 * 100; // gold compensation for potions
     }else{
-		if (GameMode != GM_COLISEUM) {
+		if (GameMode != GM_COLISEUM && !(player.gameChanger & BIT(GC_27_TERMINATOR))){
 			FullCreateAndPutItem(beltSlot1, startItems.BeltSlot1ItemIndex);
 			FullCreateAndPutItem(beltSlot2, startItems.BeltSlot2ItemIndex);
 		}
@@ -6184,12 +6720,14 @@ void __fastcall CreateInitialItems(int playerIndex)
 		leftHand.BaseCharges = 34;
 	}
 		
-	// добавление золота
-	FullCreateAndPutItem(player.ItemOnCursor, 0);
-	player.ItemOnCursor.amount = initialGold;
-	player.TotalGold = player.ItemOnCursor.amount;
-	AutoPutCursorToInventoryOrDrop();
-	// какой то пересчёт параметров
+	// (rt) add gold
+	if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+		FullCreateAndPutItem(player.ItemOnCursor, 0);
+		player.ItemOnCursor.amount = initialGold;
+		player.TotalGold = player.ItemOnCursor.amount;
+		AutoPutCursorToInventoryOrDrop();
+	}
+	// (rt) some kind of parameter recalculation
 	CalcCharParams(playerIndex, 0);
 }
 
@@ -6359,7 +6897,8 @@ void __fastcall Item_RecalculatePrice(Item& item)
 bool BookSpellSkip(int spellIndex, int playerIndex)// #book availability, #book sorting, #adria books
 {
 	Player player = Players[playerIndex];
-	return spellIndex == PS_7_TOWN_PORTAL && isTownPortalForbidden()
+	return IsSpellBannedInDarkCampaign(spellIndex)		// (th4) Dark Campaign ban list
+		|| spellIndex == PS_7_TOWN_PORTAL && isTownPortalForbidden()
 		|| is(spellIndex, PS_32_BONE_SPIRIT_REAL_RESSURECT, PS_34_HEAL_OTHER) && MaxCountOfPlayersInGame == 1
 		|| player.fullClassId == PFC_WARLOCK && is(spellIndex, PS_31_HOLY_BOLT, PS_39_HOLY_NOVA)
 		|| (GameMode == GM_COLISEUM && (is(spellIndex, PS_32_BONE_SPIRIT_REAL_RESSURECT, PS_2_HEALING, PS_7_TOWN_PORTAL, PS_13_HYDRA, PS_15_FORCE_WAVE, 
@@ -6368,7 +6907,8 @@ bool BookSpellSkip(int spellIndex, int playerIndex)// #book availability, #book 
 		|| HasTrait(CurrentPlayerIndex, TraitId::Paladin) && is(spellIndex, PS_36_BONE_SPIRIT)
 		|| (GameMode == GM_CLASSIC && (is(spellIndex, PS_32_BONE_SPIRIT_REAL_RESSURECT, PS_15_FORCE_WAVE, PS_14_BALL_LIGHTNING, PS_42_WARP, PS_39_HOLY_NOVA,
 			PS_16_REFLECT, PS_37_MANA_RECHARGE, PS_38_MAGI, PS_34_HEAL_OTHER, PS_17_LIGHTING_RING, PS_18_LIGHTNING_NOVA, PS_19_FLAME_RING, PS_22_FURY,
-			PS_41_FIERY_NOVA, PS_43_ARCANE_NOVA)));
+			PS_41_FIERY_NOVA, PS_43_ARCANE_NOVA)))
+		|| player.gameChanger & BIT(GC_27_TERMINATOR) && spellIndex != PS_7_TOWN_PORTAL;
 }
 
 //----- (th3) -------------------------------------------------------------
@@ -6443,14 +6983,56 @@ void __fastcall Item_InitBooks( int itemIndex, int qlvl )
 }
 
 //----- (004253D5) --------------------------------------------------------
+//----- (th4) -------------------------------------------------------------
+// RU only: for ANY ring (plain/unidentified and magic/rare), show the base
+// noun as "Перстень" (masculine) instead of "Кольцо" (feminine), so
+// adjective agreement is correct. Item-name path uses the CEL font (raw CP1251).
+// (th4) Replace every "Кольцо" (6 bytes) with "Перстень" (8 bytes) inside a
+// CP1251 name buffer of fixed capacity. +2-byte GROW: shift the tail (incl. NUL)
+// RIGHT by 2, bounds-checking against cap each time. memmove/memcpy (not the
+// strcpy macro) because the destination is a raw pointer, not a fixed array.
+static void ReplaceKolzoWithPersten( char* buf, size_t cap )
+{
+	char* p;
+	while( ( p = strstr( buf, "\xCA\xEE\xEB\xFC\xF6\xEE" ) ) != nullptr ){ // "Кольцо"
+		size_t tailLen  = strlen( p + 6 ) + 1;              // bytes after "Кольцо", incl. NUL
+		size_t newTotal = ( p - buf ) + 8 + tailLen;        // resulting length incl. NUL
+		if( newTotal > cap ) break;                         // won't fit -> leave as-is
+		memmove( p + 8, p + 6, tailLen );
+		memcpy( p, "\xCF\xE5\xF0\xF1\xF2\xE5\xED\xFC", 8 ); // "Перстень"
+	}
+}
+
+void RingNameFixup( Item& item )
+{
+	if( GameLanguage != LANG_RU ) return;
+	if( BaseItems[item.baseItemIndex].ItemCode != IC_12_RING ) return;
+	// Applies to ALL rings (plain/unidentified AND magic/rare): show the base
+	// noun as "Перстень" (masculine) instead of "Кольцо" (feminine), so adjective
+	// agreement in assembled names is correct ("нефритовый перстень", not
+	// "нефритовый кольцо"). Item-name path uses the CEL font (raw CP1251 bytes).
+	// Both display buffers are fixed: FullMagicalItemName (identified / plain view)
+	// and Name (unidentified-magic view).
+	ReplaceKolzoWithPersten( item.FullMagicalItemName, sizeof( item.FullMagicalItemName ) );
+	ReplaceKolzoWithPersten( item.Name,                sizeof( item.Name ) );
+}
+
+//----- (00424FEC) --------------------------------------------------------
 void __fastcall Item_AddPrefix(Item& item, int MaxAffixQLVL, int Spell_ID, int IsMagicItem)
 {
 	int affixId = -1;
 	vector<int> affixMap;
 	affixMap.reserve(1000);
-	Affix* affixes = CurAffixesMagic();
+	//Affix* affixes = CurAffixesMagic();
+	Affix* affixes;
+	if (IsSigil(item)) {
+		affixes = AffixesSigil;  // Use sigil affixes
+	}
+	else {
+		affixes = CurAffixesMagic();  // Use normal affixes
+	}
     BaseItem& baseItem = BaseItems[ item.baseItemIndex ];
-	Affix* pref = 0;//&Affixes[185]; // Инициация нулевым маркером
+	Affix* pref = 0;//(rt) &Affixes[185]; // Initialized with the zero marker
 	if( !RNG(10) || IsMagicItem ){
 		while( affixes[affixId + 1].effect.id != AE_NO ){
 			pref = &affixes[++affixId];
@@ -6465,21 +7047,22 @@ void __fastcall Item_AddPrefix(Item& item, int MaxAffixQLVL, int Spell_ID, int I
 		if( affixMap.size() ){
 			affixId = affixMap[RNG(affixMap.size())];
 			pref = &affixes[affixId];
-			sprints(item.FullMagicalItemName, "%s %s", pref->Name, item.FullMagicalItemName);
+			sprints(item.FullMagicalItemName, "%s %s", LocalizedAffixPrefix(pref->Name), item.FullMagicalItemName);
 			item.MagicLevel = ML_1_MAGIC;
 			Item_ApplyAffix(item, pref->effect, pref->MinGoldValue, pref->MaxGoldValue, pref->Multiplier, 0, pref->minReqClvl, pref->maxReqClvl, false );
 		}
 	}
 	if( !CheckLetterWidth(item.FullMagicalItemName) ){
-		strcpy(item.FullMagicalItemName, BaseItems[item.baseItemIndex].Name2);
+		strcpy(item.FullMagicalItemName, LocalizedBaseName2(BaseItems[item.baseItemIndex].Name2)); // (th4) display
 		if( affixId != -1 )
-			sprints(item.FullMagicalItemName, "%s %s", pref->Name, item.FullMagicalItemName);
-		sprints(item.FullMagicalItemName, "%s of %s", item.FullMagicalItemName, getSpellName( item.SpellIndex ));
-		// Вылет при не сгенерированном перфиксе. Исправил, но теперь вместо названия у простого посоха
-		// посох чего то там написано просто staff of //mordor - и это называется исправил?
+			sprints(item.FullMagicalItemName, "%s %s", LocalizedAffixPrefix(pref->Name), item.FullMagicalItemName);
+		sprints(item.FullMagicalItemName, L("%s of %s"), item.FullMagicalItemName, getSpellName( item.SpellIndex ));
+		// (rt) Crash on an ungenerated prefix. Fixed, but now instead of the name, a plain staff
+		// (rt) says just "staff of" //mordor - and that's called fixed?
 		if( !item.MagicLevel )
 			strcpy(item.Name, item.FullMagicalItemName);
 	}
+	RingNameFixup( item );
 	Item_RecalculatePrice(item);
 }
 
@@ -6512,7 +7095,7 @@ void __fastcall Item_AddSpellCastAbility(Item& item, int maxAffixQLVL, int isMag
 				spellIndex = curSpell_ID;
 				--spellRange;
 			}
-			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // идем по кругу
+			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // (rt) go around in a circle
 		}
 
 	}
@@ -6527,7 +7110,7 @@ void __fastcall Item_AddSpellCastAbility(Item& item, int maxAffixQLVL, int isMag
 				spellIndex = curSpell_ID;
 				--spellRange;
 			}
-			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // идем по кругу
+			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // (rt) go around in a circle
 		}
 
 	}
@@ -6536,14 +7119,17 @@ void __fastcall Item_AddSpellCastAbility(Item& item, int maxAffixQLVL, int isMag
 			int itemQLVL = Spells[curSpell_ID].ItemQuality;
 			if (itemQLVL != -1 && itemQLVL <= maxSpellQlvl
 				&& Spells[curSpell_ID].RequiredClassMask & playerFullClassMask /*& baseItem.RequiredClassMask*/ //replacing baseitem mask with player mask for more precise spell req
-				&& (is(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE, GM_SPEEDRUN) ? curSpell_ID != PS_7_TOWN_PORTAL : true) //removing townportal generation on certain game modes
-				// тут может происходить морфинг спелла на предмете между SP и MP, так как список доступных спеллов разный
+				&& (is(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE, GM_SPEEDRUN, GM_OUTBREAK) ? curSpell_ID != PS_7_TOWN_PORTAL : true) //removing townportal generation on certain game modes
+				&& !IsSpellBannedInDarkCampaign(curSpell_ID) // (th4) Dark Campaign ban list
+				// (th4) Warlocks are barred from holy magic, as they already are for books (BookSpellSkip)
+				&& !(player.fullClassId == PFC_WARLOCK && is(curSpell_ID, PS_31_HOLY_BOLT, PS_39_HOLY_NOVA))
+				// (rt) the spell on the item can morph between SP and MP here, since the list of available spells differs
 				&& (MaxCountOfPlayersInGame > 1 || not(curSpell_ID, PS_32_BONE_SPIRIT_REAL_RESSURECT, PS_34_HEAL_OTHER))				
 				) {
 				spellIndex = curSpell_ID;
 				--spellRange;
 			}
-			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // идем по кругу
+			if (++curSpell_ID >= PS_COUNT) { curSpell_ID = 1; } // (rt) go around in a circle
 		}
 	}
 	Spell& spell = Spells[spellIndex];
@@ -6557,7 +7143,7 @@ void __fastcall Item_AddSpellCastAbility(Item& item, int maxAffixQLVL, int isMag
 	item.Price += addToPrice;
 	if( rare == -1 ){
 		char name[64];
-		sprintf(name, "%s of %s", baseItem.Name2, getSpellName(item.SpellIndex));
+		sprintf(name, L("%s of %s"), LocalizedBaseName2(baseItem.Name2), getSpellName(item.SpellIndex)); // (th4)
 		strcpy(item.Name, name);
 		strcpy( item.FullMagicalItemName, name );
 		Item_AddPrefix(item, maxAffixQLVL, item.SpellIndex, isMagicItem );
@@ -6581,7 +7167,7 @@ void __fastcall Item_InitOils( int itemIndex, int qlvl )
 		}
 		oilIndex = goodOils[RNG(goodOilsCount)];
 	}else{
-		oilIndex = (RNG(2) != 0) + 5;// В мульти доступны только 5 и 6 масла. в одной из версий поправлено
+		oilIndex = (RNG(2) != 0) + 5;// (rt) In multiplayer only oils 5 and 6 are available. Fixed in one of the versions
 	}
 
 	Item& item = Items[itemIndex];
@@ -6610,12 +7196,19 @@ void AdjustItemLook(Item& item)
 	auto lastSeed = LastSeed;
 
 	if (item.MagicCode == MC_21_RELIC_NEED_NO_TARGET && item.SpellIndex == PS_22_FURY) {
+		// (th4) These renames used to hardcode English ("Relict of Concentration"),
+		// leaking untranslated names into every localization. Build them like every
+		// other relic name: localized pattern + genitive spell-table lookup. Both
+		// keys ("Concentration", "Battle Trance") exist in all 14 language spell
+		// tables; the scroll/relict wording condition mirrors Panel.cpp so the
+		// classic-mode prefix patch further down never has to touch these.
+		const bool asScroll = RelixToScrolls || GameMode == GM_CLASSIC;
 		if (Players[CurrentPlayerIndex].ClassID == PC_2_MAGE) {
-			sprintf(item.FullMagicalItemName, RelixToScrolls ? "Scroll of Concentration" : "Relict of Concentration");
+			sprintf(item.FullMagicalItemName, asScroll ? L("Scroll of %s") : L("Relict of %s"), LocalizedSpell("Concentration"));
 			item.GraphicValue = 3231 + 168;
 		}
 		else if (Players[CurrentPlayerIndex].fullClassId == PFC_KENSEI && MaxCountOfPlayersInGame == 1) {
-			sprintf(item.FullMagicalItemName, RelixToScrolls ? "Scroll of Battle Trance" : "Relict of Battle Trance");
+			sprintf(item.FullMagicalItemName, asScroll ? L("Scroll of %s") : L("Relict of %s"), LocalizedSpell("Battle Trance"));
 			item.GraphicValue = 3306 + 168;
 		}
 	}
@@ -6627,8 +7220,8 @@ void AdjustItemLook(Item& item)
 		if (baseItemIndex == BI_54_CAPE) { // cape
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 1218 + 3885;
-				sprintf(item.Name, "Fur Cape");
-				sprintf(item.FullMagicalItemName, "Fur Cape");
+				strcpy(item.Name, LocalizedBaseItemName("Fur Cape"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Fur Cape"));
 			}
 		}
 		else if (item.GraphicValue == 1310 + 3885) { // greaves of blood
@@ -6667,18 +7260,31 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 372 + 3885) { // lightened gambeson
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 627 + 3885;
-				sprintf(item.Name, "Insulated Gambeson");
-				sprintf(item.FullMagicalItemName, "Insulated Gambeson");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Gambeson"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Gambeson"));
+			}
+			else if (Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX){
+					item.GraphicValue = 1721 + 3885;
 			}
 			else {
 				item.mirrorImage = 1;
 			}
 		}
+		else if (item.baseItemIndex == 956) { // chain mail
+			if (Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX) {
+				item.GraphicValue = 1724 + 3885;
+			}
+		}
+		else if (item.baseItemIndex == 805) { // battle mail
+			if (Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX) {
+				item.GraphicValue = 1728 + 3885;
+			}
+		}
 		else if (item.GraphicValue == 1254 + 168) { // Crude Leather
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 629 + 3885;
-				//sprintf(item.Name, "Insulated Gambeson");
-				//sprintf(item.FullMagicalItemName, "Insulated Gambeson");
+				//strcpy(item.Name, LocalizedBaseItemName("Insulated Gambeson"));
+				//strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Gambeson"));
 			}
 		}
 		else if (item.GraphicValue == 1465 + 168) { // hourglass gauntlets
@@ -6705,8 +7311,13 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 1590 + 168) { // cloth tunic
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 624 + 3885;
-				sprintf(item.Name, "Fur Tunic");
-				sprintf(item.FullMagicalItemName, "Fur Tunic");
+				strcpy(item.Name, LocalizedBaseItemName("Fur Tunic"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Fur Tunic"));
+			}
+			else if (Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX) {
+				item.GraphicValue = 1722 + 3885;
+				strcpy(item.Name, LocalizedBaseItemName("Woven Gown"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Woven Gown"));
 			}
 			else {
 				item.GraphicValue = 274 + 3885;// 3257 + 168;
@@ -6715,15 +7326,15 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 3308 + 168) { // coif
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 634 + 3885;
-				sprintf(item.Name, "Fur Coif");
-				sprintf(item.FullMagicalItemName, "Fur Coif");
+				strcpy(item.Name, LocalizedBaseItemName("Fur Coif"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Fur Coif"));
 			}
 		}
 		else if (item.GraphicValue == 3311 + 168) { // cloth armor
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 625 + 3885;
-				sprintf(item.Name, "Dark Fur Armor");
-				sprintf(item.FullMagicalItemName, "Dark Fur Armor");
+				strcpy(item.Name, LocalizedBaseItemName("Dark Fur Armor"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Dark Fur Armor"));
 			}
 			else {
 				item.GraphicValue = 3312 + 168;
@@ -6732,8 +7343,8 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 2382 + 168) { // short leather jack
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 626 + 3885;
-				sprintf(item.Name, "Insulated Leather Jack");
-				sprintf(item.FullMagicalItemName, "Insulated Leather Jack");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Leather Jack"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Leather Jack"));
 			}
 		}
 		else if (item.GraphicValue == 19) { // bloodraven's bow
@@ -6743,6 +7354,12 @@ void AdjustItemLook(Item& item)
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 1219 + 3885;
 			}
+			else if (Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX) {
+				item.GraphicValue = 1725 + 3885;
+				//strcpy(item.Name, LocalizedBaseItemName("Woven Gown"));
+				//strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Woven Gown"));
+				item.mirrorImage = 1;
+			}
 			else {
 				item.GraphicValue = 3259 + 168;
 			}
@@ -6750,8 +7367,8 @@ void AdjustItemLook(Item& item)
 		else if (baseItemIndex == BI_185_QUILTED_ARMOR){ // quilted armor
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 1220 + 3885;
-				sprintf(item.Name, "Insulated Coat");
-				sprintf(item.FullMagicalItemName, "Insulated Coat");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Coat"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Coat"));
 			}
 		}
 		else if (item.GraphicValue == 1541 + 168) { // cloth gloves
@@ -6765,8 +7382,8 @@ void AdjustItemLook(Item& item)
 		}
 		else if (item.GraphicValue == 1970 + 168) { // light leather gloves
 			item.GraphicValue = 3267 + 168;
-			sprintf(item.Name, "Leather Bracers");
-			sprintf(item.FullMagicalItemName, "Leather Bracers");
+			strcpy(item.Name, LocalizedBaseItemName("Leather Bracers"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Leather Bracers"));
 		}
 		else if (item.GraphicValue == 1497 + 168) { // leather demi gauntlets
 			item.GraphicValue = 3268 + 168;
@@ -6790,8 +7407,8 @@ void AdjustItemLook(Item& item)
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
 				item.mirrorImage = 1;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else if (Players[CurrentPlayerIndex].fullClassId == PFC_SHARPSHOOTER) {
 				item.GraphicValue = 3302 + 168;
@@ -6810,8 +7427,8 @@ void AdjustItemLook(Item& item)
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 291 + 3885;
 				item.mirrorImage = 1;
-				sprintf(item.Name, "Insulated Boots");
-				sprintf(item.FullMagicalItemName, "Insulated Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Boots"));
 			}
 			else {
 				item.mirrorImage = 1;
@@ -6830,8 +7447,8 @@ void AdjustItemLook(Item& item)
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 715 + 3885;
 				item.mirrorImage = 1;
-				sprintf(item.Name, "Polar Boots");
-				sprintf(item.FullMagicalItemName, "Polar Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Polar Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Polar Boots"));
 			}
 			else {
 				item.GraphicValue = 3264 + 168;
@@ -6871,7 +7488,7 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 749 + 168) { // light hammer
 			item.mirrorImage = 1;
 		}
-		if (HasTrait(CurrentPlayerIndex, TraitId::Axepertise)) {
+		if (HasTrait(CurrentPlayerIndex, TraitId::Axepertise) || Players[CurrentPlayerIndex].fullClassId == PFC_GLADIATRIX) {
 			switch (item.GraphicValue) {
 			case 1686 + 168:
 			case 3396 + 168:
@@ -6916,16 +7533,16 @@ void AdjustItemLook(Item& item)
 			switch (item.GraphicValue) {
 			case 261 + 3885: // leather boots
 				item.GraphicValue = 291 + 3885;
-				sprintf(item.Name, "Insulated Boots");
-				sprintf(item.FullMagicalItemName, "Insulated Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Boots"));
 				break;
 			case 1911 + 168: // hard leather boots
 				item.GraphicValue = 714 + 3885;
 				break;
 			case 1551 + 168: // thick leather boots
 				item.GraphicValue = 715 + 3885;
-				sprintf(item.Name, "Polar Boots");
-				sprintf(item.FullMagicalItemName, "Polar Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Polar Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Polar Boots"));
 				break;
 			}
 		}
@@ -6936,8 +7553,8 @@ void AdjustItemLook(Item& item)
 		if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else{
 				item.GraphicValue = 1 + 3885; // blue
@@ -6954,8 +7571,8 @@ void AdjustItemLook(Item& item)
 		if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else {
 				item.GraphicValue = 2 + 3885; // beige
@@ -6971,19 +7588,19 @@ void AdjustItemLook(Item& item)
 	else if (Players[CurrentPlayerIndex].fullClassId == PFC_TEMPLAR) {
 		if (item.GraphicValue == 759 + 168) { // serrated sword
 			item.GraphicValue = 3337 + 168;
-			sprintf(item.Name, "Sharpened Sword");
-			sprintf(item.FullMagicalItemName, "Sharpened Sword");
+			strcpy(item.Name, LocalizedBaseItemName("Sharpened Sword"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Sharpened Sword"));
 		}
 		else if (item.GraphicValue == 1942 + 168) { // sallet with camail
 			item.GraphicValue = 3348 + 168;
-			sprintf(item.Name, "Light Faceplate");
-			sprintf(item.FullMagicalItemName, "Light Faceplate");
+			strcpy(item.Name, LocalizedBaseItemName("Light Faceplate"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Light Faceplate"));
 		}
 		else if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else {
 				item.GraphicValue = 3 + 3885; // crimson
@@ -7002,35 +7619,35 @@ void AdjustItemLook(Item& item)
 		}
 		if (baseItemIndex == BI_404_LEATHER_DEMI_GAUNTLETS) {
 			item.GraphicValue = 1099 + 3885;
-			sprintf(item.Name, "Thick Cloth Wraps");
-			sprintf(item.FullMagicalItemName, "Thick Cloth Wraps");
+			strcpy(item.Name, LocalizedBaseItemName("Thick Cloth Wraps"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Thick Cloth Wraps"));
 		}
 	}
 	else if (Players[CurrentPlayerIndex].fullClassId == PFC_KENSEI) {
 		if (item.GraphicValue == 3170 + 168) { // tanto
 			item.GraphicValue = 3338 + 168;
-			sprintf(item.Name, "Tsurugi");
-			sprintf(item.FullMagicalItemName, "Tsurugi");
+			strcpy(item.Name, LocalizedBaseItemName("Tsurugi"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Tsurugi"));
 		}
 		else if (item.GraphicValue == 1926 + 168) { // light kanabo
 			item.GraphicValue = 3339 + 168;
-			sprintf(item.Name, "Kanabo");
-			sprintf(item.FullMagicalItemName, "Kanabo");
+			strcpy(item.Name, LocalizedBaseItemName("Kanabo"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Kanabo"));
 		}
 		else if (item.GraphicValue == 2041 + 168) { // ritual mask
 			item.GraphicValue = 3376 + 168;
-			sprintf(item.Name, "Mempo");
-			sprintf(item.FullMagicalItemName, "Mempo");
+			strcpy(item.Name, LocalizedBaseItemName("Mempo"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Mempo"));
 		}
 		else if (item.GraphicValue == 1962 + 168) { // steel facemask
 			item.GraphicValue = 3625 + 168;
-			sprintf(item.Name, "Open Kabuto");
-			sprintf(item.FullMagicalItemName, "Open Kabuto");
+			strcpy(item.Name, LocalizedBaseItemName("Open Kabuto"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Open Kabuto"));
 		}
 		else if (item.GraphicValue == 1956 + 168) { // plate mask
 			item.GraphicValue = 3624 + 168;
-			sprintf(item.Name, "Skull Kabuto");
-			sprintf(item.FullMagicalItemName, "Skull Kabuto");
+			strcpy(item.Name, LocalizedBaseItemName("Skull Kabuto"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Skull Kabuto"));
 		}
 		else if (item.GraphicValue == 1949 + 168) { // hardened steel mask
 			item.GraphicValue = 3626 + 168;
@@ -7044,92 +7661,92 @@ void AdjustItemLook(Item& item)
 			switch (item.GraphicValue) {
 			case 1668 + 168: // siege helm
 				item.GraphicValue = 3340 + 168;
-				sprintf(item.Name, "Horned Helmet");
-				sprintf(item.FullMagicalItemName, "Horned Helmet");
+				strcpy(item.Name, LocalizedBaseItemName("Horned Helmet"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Horned Helmet"));
 				break;
 			case 2026 + 168: // nasal helm
 				item.GraphicValue = 3341 + 168;
-				sprintf(item.Name, "Horned Cap");
-				sprintf(item.FullMagicalItemName, "Horned Cap");
+				strcpy(item.Name, LocalizedBaseItemName("Horned Cap"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Horned Cap"));
 				break;
 			case 639 + 168: // barbute
 				item.GraphicValue = RngFrom(3342 + 168, 710 + 3885);
-				sprintf(item.Name, "Horned Battle Helmet");
-				sprintf(item.FullMagicalItemName, "Horned Battle Helmet");
+				strcpy(item.Name, LocalizedBaseItemName("Horned Battle Helmet"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Horned Battle Helmet"));
 				break;
 			case 1947 + 168: // nasal helm with aventail
 				item.GraphicValue = 3343 + 168;
-				sprintf(item.Name, "Barbaric Basset");
-				sprintf(item.FullMagicalItemName, "Barbaric Basset");
+				strcpy(item.Name, LocalizedBaseItemName("Barbaric Basset"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Barbaric Basset"));
 				break;
 			case 3344 + 168: // padded coif
 				item.GraphicValue = 566 + 168;
-				sprintf(item.Name, "Nomad Cap");
-				sprintf(item.FullMagicalItemName, "Nomad Cap");
+				strcpy(item.Name, LocalizedBaseItemName("Nomad Cap"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Nomad Cap"));
 				break;
 			case 1669 + 168: // burgonet
 				item.GraphicValue = 738 + 168;
-				sprintf(item.Name, "Winged Helm");
-				sprintf(item.FullMagicalItemName, "Winged Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Winged Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winged Helm"));
 				break;
 			case 961 + 168: // darkened burgonet
 				item.GraphicValue = 1054 + 168;
-				sprintf(item.Name, "Tusked Helm");
-				sprintf(item.FullMagicalItemName, "Tusked Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Tusked Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Tusked Helm"));
 				break;
 			case 63 + 168: // gothic sallet
 				item.GraphicValue = 1098 + 168;
-				sprintf(item.Name, "Taurus Helm");
-				sprintf(item.FullMagicalItemName, "Taurus Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Taurus Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Taurus Helm"));
 				break;
 			case 1840 + 168: // fluted close helm
 				item.GraphicValue = 1188 + 168;
-				sprintf(item.Name, "Brute Helm");
-				sprintf(item.FullMagicalItemName, "Brute Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Brute Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Brute Helm"));
 				break;
 			case 1839 + 168: // gorgetted burgonet
 				item.GraphicValue = 1233 + 168;
-				sprintf(item.Name, "Warlord Helm");
-				sprintf(item.FullMagicalItemName, "Warlord Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Warlord Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Warlord Helm"));
 				break;
 			case 69 + 168: // hounskull bascinet
 				item.GraphicValue = 2974 + 168;
-				sprintf(item.Name, "Bloodlord Helm");
-				sprintf(item.FullMagicalItemName, "Bloodlord Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Bloodlord Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Bloodlord Helm"));
 				break;
 			case 1573 + 168: // mail coif
 				item.GraphicValue = 1946 + 168;
-				sprintf(item.Name, "Chain Coif");
-				sprintf(item.FullMagicalItemName, "Chain Coif");
+				strcpy(item.Name, LocalizedBaseItemName("Chain Coif"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Chain Coif"));
 				break;
 			case 1367 + 168: // full helm
 				item.GraphicValue = 3672 + 168;
 				break;
 			case 1649 + 168: // reinforced armet
 				item.GraphicValue = 272 + 3885;
-				sprintf(item.Name, "Ancestor Helmet");
-				sprintf(item.FullMagicalItemName, "Ancestor Helmet");
+				strcpy(item.Name, LocalizedBaseItemName("Ancestor Helmet"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Ancestor Helmet"));
 				break;
 			case 1574 + 168: // iron hat
 				item.GraphicValue = 683 + 3885;
 				break;
 			case 1642 + 168: // open bascinet
 				item.GraphicValue = 684 + 3885;
-				sprintf(item.Name, "Open Helm");
-				sprintf(item.FullMagicalItemName, "Open Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Open Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Open Helm"));
 				break;
 			case 1575 + 168: // cone helmet
 				item.GraphicValue = 685 + 3885;
 				break;
 			case 122 + 168: // Nasal Helm with Aventail
 				item.GraphicValue = 686 + 3885;
-				sprintf(item.Name, "Nasal Helm");
-				sprintf(item.FullMagicalItemName, "Nasal Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Nasal Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Nasal Helm"));
 				break;
 			case 3420 + 168: // sallet with camail
 				item.GraphicValue = 708 + 3885;
-				sprintf(item.Name, "Orcish Helm");
-				sprintf(item.FullMagicalItemName, "Orcish Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Orcish Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Orcish Helm"));
 				break;
 			case 1419 + 168: // battle helm
 				item.GraphicValue = 709 + 3885;
@@ -7139,38 +7756,38 @@ void AdjustItemLook(Item& item)
 				break;
 			case 3419 + 168: // spangenhelm
 				item.GraphicValue = 1130 + 3885;
-				sprintf(item.Name, "Horned Battle Helm");
-				sprintf(item.FullMagicalItemName, "Horned Battle Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Horned Battle Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Horned Battle Helm"));
 				break;
 			case 1586 + 168: // camail
 				item.GraphicValue = 1131 + 3885;
-				sprintf(item.Name, "Barbaric Helm");
-				sprintf(item.FullMagicalItemName, "Barbaric Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Barbaric Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Barbaric Helm"));
 				break;
 			case 1944 + 168: // highlander helm
 				item.GraphicValue = 1132 + 3885;
-				sprintf(item.Name, "Dread Helm");
-				sprintf(item.FullMagicalItemName, "Dread Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Dread Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Dread Helm"));
 				break;
 			case 2375 + 168: // bycoque helm
 				item.GraphicValue = 1133 + 3885;
-				sprintf(item.Name, "Ironfang Helm");
-				sprintf(item.FullMagicalItemName, "Ironfang Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Ironfang Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Ironfang Helm"));
 				break;
 			case 270 + 3885: // grim bascinet
 				item.GraphicValue = 1134 + 3885;
-				sprintf(item.Name, "Barbaric Helm");
-				sprintf(item.FullMagicalItemName, "Barbaric Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Barbaric Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Barbaric Helm"));
 				break;
 			case 389 + 3885: // exceptional armet
 				item.GraphicValue = 1135 + 3885;
-				sprintf(item.Name, "Exceptional Helm");
-				sprintf(item.FullMagicalItemName, "Exceptional Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Exceptional Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Exceptional Helm"));
 				break;
 			case 452 + 3885: // pointed helm
 				item.GraphicValue = 1136 + 3885;
-				sprintf(item.Name, "Conqueror Helm");
-				sprintf(item.FullMagicalItemName, "Conqueror Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Conqueror Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Conqueror Helm"));
 				break;
 			case 455 + 3885: // Hell-Forged Helm
 				item.GraphicValue = 1137 + 3885;
@@ -7180,13 +7797,13 @@ void AdjustItemLook(Item& item)
 				break;
 			case 449 + 3885: // Hardened Steel Armet
 				item.GraphicValue = 1139 + 3885;
-				sprintf(item.Name, "Barbaric Helm");
-				sprintf(item.FullMagicalItemName, "Barbaric Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Barbaric Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Barbaric Helm"));
 				break;
 			case 460 + 3885: // Gothic Barbute
 				item.GraphicValue = 1140 + 3885;
-				sprintf(item.Name, "Barbaric Helm");
-				sprintf(item.FullMagicalItemName, "Barbaric Helm");
+				strcpy(item.Name, LocalizedBaseItemName("Barbaric Helm"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Barbaric Helm"));
 				break;
 			case 462 + 3885: // Great Siege Helm
 				item.GraphicValue = 1141 + 3885;
@@ -7198,56 +7815,59 @@ void AdjustItemLook(Item& item)
 		}
 		if (item.GraphicValue == 263 + 3885) { // BANDED leather
 			item.GraphicValue = 1110 + 168;
-			sprintf(item.Name, "Hardened Leather");
-			sprintf(item.FullMagicalItemName, "Hardened Leather");
+			strcpy(item.Name, LocalizedBaseItemName("Hardened Leather"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Hardened Leather"));
 		}
 		else if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 		}
 	}
 	else if (Players[CurrentPlayerIndex].fullClassId == PFC_GUARDIAN) {
-		if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
+		if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer) 
+			&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER) )
+			&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR))
+			&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT))) {
 			if (item.GraphicValue == 3344 + 168) { // padded coif
 				item.GraphicValue = 256+3885;
-				sprintf(item.Name, "Leather Hat");
-				sprintf(item.FullMagicalItemName, "Leather Hat");
+				strcpy(item.Name, LocalizedBaseItemName("Leather Hat"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Leather Hat"));
 			}
 			else if (item.GraphicValue == 1590 + 168) { // cloth tunic
 				item.GraphicValue = 257 + 3885;
-				sprintf(item.Name, "Light Tunic");
-				sprintf(item.FullMagicalItemName, "Light Tunic");
+				strcpy(item.Name, LocalizedBaseItemName("Light Tunic"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Light Tunic"));
 			}
 			else if (item.GraphicValue == 372 + 3885) { // lightened gambeson
 				item.GraphicValue = 258 + 3885;
 			}
 			else if (item.GraphicValue == 1626 + 168) { // sash
 				item.GraphicValue = 265 + 3885;
-				sprintf(item.Name, "Leather Sash");
-				sprintf(item.FullMagicalItemName, "Leather Sash");
+				strcpy(item.Name, LocalizedBaseItemName("Leather Sash"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Leather Sash"));
 			}
 			else if (item.GraphicValue == 3311 + 168) { // cloth armor
 				item.GraphicValue = 259 + 3885;
-				sprintf(item.Name, "Aketon");
-				sprintf(item.FullMagicalItemName, "Aketon");
+				strcpy(item.Name, LocalizedBaseItemName("Aketon"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Aketon"));
 			}
 			else if (item.GraphicValue == 1137 + 168) { // cape
 				item.GraphicValue = 260 + 3885;
-				sprintf(item.Name, "Silk Tunic");
-				sprintf(item.FullMagicalItemName, "Silk Tunic");
+				strcpy(item.Name, LocalizedBaseItemName("Silk Tunic"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Silk Tunic"));
 			}
 			else if (item.GraphicValue == 2026 + 168) { // nasal helm
 				item.GraphicValue = 281 + 3885;
-				sprintf(item.Name, "Gunslinger Hat");
-				sprintf(item.FullMagicalItemName, "Gunslinger Hat");
+				strcpy(item.Name, LocalizedBaseItemName("Gunslinger Hat"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Gunslinger Hat"));
 			}
 			else if (item.GraphicValue == 1574 + 168) { // iron hat
 				item.GraphicValue = 282 + 3885;
-				sprintf(item.Name, "Combat Hat");
-				sprintf(item.FullMagicalItemName, "Combat Hat");
+				strcpy(item.Name, LocalizedBaseItemName("Combat Hat"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Combat Hat"));
 			}
 			else if (item.GraphicValue == 1911 + 168) { // hard leather boots
 				if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) { // hard leather boots
@@ -7259,19 +7879,19 @@ void AdjustItemLook(Item& item)
 			}
 			else if (item.GraphicValue == 1551 + 168 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) { // thick leather boots
 				item.GraphicValue = 715 + 3885;
-				sprintf(item.Name, "Polar Boots");
-				sprintf(item.FullMagicalItemName, "Polar Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Polar Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Polar Boots"));
 			}
 			else if (item.GraphicValue == 1959 + 168) { // cervelliere
 				item.GraphicValue = 287 + 3885;
-				sprintf(item.Name, "Top Hat");
-				sprintf(item.FullMagicalItemName, "Top Hat");
+				strcpy(item.Name, LocalizedBaseItemName("Top Hat"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Top Hat"));
 			}
 			else if (item.GraphicValue == 1532 + 168) { // boots
 				if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) { 
 					item.GraphicValue = 286 + 3885;
-					sprintf(item.Name, "Winter Boots");
-					sprintf(item.FullMagicalItemName, "Winter Boots");
+					strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+					strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 				}
 				else {
 					item.GraphicValue = 284 + 3885; // black
@@ -7279,14 +7899,14 @@ void AdjustItemLook(Item& item)
 			}
 			else if (item.GraphicValue == 1497 + 168) { // leather demi gauntlets
 				item.GraphicValue = 285 + 3885; 
-				sprintf(item.Name, "Boiled Leather Gloves");
-				sprintf(item.FullMagicalItemName, "Boiled Leather Gloves");
+				strcpy(item.Name, LocalizedBaseItemName("Boiled Leather Gloves"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Boiled Leather Gloves"));
 			}
 		}
 		if (item.GraphicValue == 2026 + 168) { // nasal helm
 			item.GraphicValue = 1842 + 168;
-			sprintf(item.Name, "Kettle Hat");
-			sprintf(item.FullMagicalItemName, "Kettle Hat");
+			strcpy(item.Name, LocalizedBaseItemName("Kettle Hat"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Kettle Hat"));
 		}
 		else if (item.GraphicValue == 372 + 3885) { // lightened gambeson
 			item.GraphicValue = 273 + 3885;
@@ -7296,96 +7916,96 @@ void AdjustItemLook(Item& item)
 		}
 		else if (item.GraphicValue == 1842 + 168) { // kettle hat
 			item.GraphicValue = 3346 + 168;
-			sprintf(item.Name, "Kettle Hat with Padded Coif");
-			sprintf(item.FullMagicalItemName, "Kettle Hat with Padded Coif");
+			strcpy(item.Name, LocalizedBaseItemName("Kettle Hat with Padded Coif"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Kettle Hat with Padded Coif"));
 		}
 		else if (item.GraphicValue == 1942 + 168) { // sallet with camail
 			item.GraphicValue = 2887 + 168;
-			sprintf(item.Name, "Kettle Hat with Aventail");
-			sprintf(item.FullMagicalItemName, "Kettle Hat with Aventail");
+			strcpy(item.Name, LocalizedBaseItemName("Kettle Hat with Aventail"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Kettle Hat with Aventail"));
 		}
 		else if (item.GraphicValue == 1419 + 168) { // battle helm
 			item.GraphicValue = 2885 + 168;
-			sprintf(item.Name, "Eisenhut Helm");
-			sprintf(item.FullMagicalItemName, "Eisenhut Helm");			
+			strcpy(item.Name, LocalizedBaseItemName("Eisenhut Helm"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Eisenhut Helm"));			
 		}
 		else if (item.GraphicValue == 63 + 168) { // gothic sallet
 			item.GraphicValue = 2881 + 168;
-			sprintf(item.Name, "Full Plate Kettle Hat");
-			sprintf(item.FullMagicalItemName, "Full Plate Kettle Hat");
+			strcpy(item.Name, LocalizedBaseItemName("Full Plate Kettle Hat"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Full Plate Kettle Hat"));
 		}
 		else if (item.GraphicValue == 1649 + 168) { // reinforced armet
 			item.GraphicValue = 2027 + 168;
-			sprintf(item.Name, "Tower Helmet");
-			sprintf(item.FullMagicalItemName, "Tower Helmet");
+			strcpy(item.Name, LocalizedBaseItemName("Tower Helmet"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Tower Helmet"));
 		}
 		else if (item.GraphicValue == 3352 + 168) { // haubergeon
 			item.GraphicValue = 3353 + 168;
-			sprintf(item.Name, "Sleeveless Brigandine");
-			sprintf(item.FullMagicalItemName, "Sleeveless Brigandine");
+			strcpy(item.Name, LocalizedBaseItemName("Sleeveless Brigandine"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Sleeveless Brigandine"));
 		}
 		else if (item.GraphicValue == 3420 + 168) { // sallet with camail
 			item.GraphicValue = 3628 + 168;
-			sprintf(item.Name, "Kettlehat with Eyeslits");
-			sprintf(item.FullMagicalItemName, "Kettlehat with Eyeslits");
+			strcpy(item.Name, LocalizedBaseItemName("Kettlehat with Eyeslits"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Kettlehat with Eyeslits"));
 		}
 		else if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 		}
 	}
 	else if (Players[CurrentPlayerIndex].fullClassId == PFC_SHUGOKI) {
 		if (item.GraphicValue == 2041 + 168) {// Ritual Mask
 			item.GraphicValue = 3563 + 168;
-			sprintf(item.Name, "Mempo");
-			sprintf(item.FullMagicalItemName, "Mempo");
+			strcpy(item.Name, LocalizedBaseItemName("Mempo"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Mempo"));
 		}
 		else if (item.GraphicValue == 214 + 168) {// Wood Mask
 			item.GraphicValue = 3565 + 168;
-			sprintf(item.Name, "Oni Mask");
-			sprintf(item.FullMagicalItemName, "Oni Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Oni Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Oni Mask"));
 		}
 		else if (item.GraphicValue == 213 + 168) {// Death Mask
 			item.GraphicValue = 3570 + 168;
-			sprintf(item.Name, "Nightmare Mask");
-			sprintf(item.FullMagicalItemName, "Nightmare Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Nightmare Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Nightmare Mask"));
 		}
 		else if (item.GraphicValue == 1010 + 3885) {// Reaper Mask
 			item.GraphicValue = 1144 + 3885;
-			sprintf(item.Name, "Watcher Mask");
-			sprintf(item.FullMagicalItemName, "Watcher Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Watcher Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Watcher Mask"));
 		}
 		else if (item.GraphicValue == 3619 + 168) {// Imp Mask
 			item.GraphicValue = 1770 + 168;
-			//sprintf(item.FullMagicalItemName, "Imp Mask");
+			//strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Imp Mask"));
 		}
 		else if (item.GraphicValue == 1889 + 168) {// Leper Ironmask
 			item.GraphicValue = 3569 + 168;
-			sprintf(item.Name, "Blood Mask");
-			sprintf(item.FullMagicalItemName, "Blood Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Blood Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Blood Mask"));
 		}
 		else if (item.GraphicValue == 1885 + 168) {// Dragon Mask
 			item.GraphicValue = 3566 + 168;
-			sprintf(item.Name, "Ogre Mask");
-			sprintf(item.FullMagicalItemName, "Ogre Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Ogre Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Ogre Mask"));
 		}
 		else if (item.GraphicValue == 1962 + 168) {// Steel Facemask
 			item.GraphicValue = 3378 + 168;
-			sprintf(item.Name, "Deuce Mask");
-			sprintf(item.FullMagicalItemName, "Deuce Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Deuce Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Deuce Mask"));
 		}
 		else if (item.GraphicValue == 1956 + 168) {// Plate mask
 			item.GraphicValue = 3567 + 168;
-			sprintf(item.Name, "Demon Mask");
-			sprintf(item.FullMagicalItemName, "Demon Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Demon Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Demon Mask"));
 		}
 		else if (item.GraphicValue == 1949 + 168) {// Hardened Steel Mask
 			item.GraphicValue = 3568 + 168;
-			sprintf(item.Name, "Devil Mask");
-			sprintf(item.FullMagicalItemName, "Devil Mask");
+			strcpy(item.Name, LocalizedBaseItemName("Devil Mask"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Devil Mask"));
 		}
 		switch (baseItemIndex) {
 		case 1798: item.GraphicValue = 1181 + 3885; break;
@@ -7395,8 +8015,8 @@ void AdjustItemLook(Item& item)
 	else if (Players[CurrentPlayerIndex].fullClassId == PFC_NECROMANCER) {
 		if (item.GraphicValue == 2463 + 168) { // Summoner amulet
 			item.GraphicValue = 3372 + 168;
-			sprintf(item.Name, "Death Pendant");
-			sprintf(item.FullMagicalItemName, "Death Pendant");
+			strcpy(item.Name, LocalizedBaseItemName("Death Pendant"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Death Pendant"));
 		}
 		else if (item.GraphicValue == 1590 + 168) { // Cloth Tunic
 			item.GraphicValue = 3629 + 168;
@@ -7460,8 +8080,8 @@ void AdjustItemLook(Item& item)
 		case 261 + 3885: // leather boots	
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 291 + 3885;
-				sprintf(item.Name, "Insulated Boots");
-				sprintf(item.FullMagicalItemName, "Insulated Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Insulated Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Insulated Boots"));
 			}
 			else {
 				item.GraphicValue = 266 + 3885;
@@ -7475,14 +8095,14 @@ void AdjustItemLook(Item& item)
 		case 1551 + 168: 
 			if(Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) { // thick leather boots
 				item.GraphicValue = 715 + 3885;
-				sprintf(item.Name, "Polar Boots");
-				sprintf(item.FullMagicalItemName, "Polar Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Polar Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Polar Boots"));
 			}
 			break;
 		case 1626 + 168: // sash
 			item.GraphicValue = 265 + 3885;
-			sprintf(item.Name, "Leather Sash");
-			sprintf(item.FullMagicalItemName, "Leather Sash");
+			strcpy(item.Name, LocalizedBaseItemName("Leather Sash"));
+			strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Leather Sash"));
 			break;
 		}
 	}
@@ -7508,8 +8128,8 @@ void AdjustItemLook(Item& item)
 		else if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 		}
 	}
@@ -7517,8 +8137,8 @@ void AdjustItemLook(Item& item)
 		if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else {
 				item.GraphicValue = 1999 + 168; // blue
@@ -7532,8 +8152,8 @@ void AdjustItemLook(Item& item)
 		if (item.GraphicValue == 1532 + 168) { // boots
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 		}
 	}
@@ -7590,13 +8210,13 @@ void AdjustItemLook(Item& item)
 	}
 	if (item.GraphicValue == 3311 + 168 && Players[CurrentPlayerIndex].ClassID == PC_2_MAGE) { // cloth armor on all mages
 		item.GraphicValue = 2600 + 168;
-		sprintf(item.Name, "Cloak");
-		sprintf(item.FullMagicalItemName, "Cloak");
+		strcpy(item.Name, LocalizedBaseItemName("Cloak"));
+		strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Cloak"));
 	}
 	if (item.GraphicValue == 261 + 3885 && Players[CurrentPlayerIndex].ClassID == PC_3_MONK) { // leather boots on all monks
 		item.GraphicValue = 3356 + 168;
-		sprintf(item.Name, "Field Boots");
-		sprintf(item.FullMagicalItemName, "Field Boots");
+		strcpy(item.Name, LocalizedBaseItemName("Field Boots"));
+		strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Field Boots"));
 	}
 	if (item.GraphicValue == 2812 + 168) { // shortened dagger
 		item.GraphicValue = RngFrom(2812 + 168, 619 + 3885);
@@ -7611,8 +8231,8 @@ void AdjustItemLook(Item& item)
 		else if (Players[CurrentPlayerIndex].fullClassId == PFC_BERSERKER) {
 			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 				item.GraphicValue = 286 + 3885;
-				sprintf(item.Name, "Winter Boots");
-				sprintf(item.FullMagicalItemName, "Winter Boots");
+				strcpy(item.Name, LocalizedBaseItemName("Winter Boots"));
+				strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Winter Boots"));
 			}
 			else {
 				item.GraphicValue = 3602 + 168;
@@ -7621,24 +8241,24 @@ void AdjustItemLook(Item& item)
 	}
 	if (item.GraphicValue == 2822 + 168 && Players[CurrentPlayerIndex].fullClassId == PFC_ROGUE) { // concealed mail coif
 		item.GraphicValue = 1887 + 168;
-		sprintf(item.Name, "Chain Hood");
-		sprintf(item.FullMagicalItemName, "Chain Hood");
+		strcpy(item.Name, LocalizedBaseItemName("Chain Hood"));
+		strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Chain Hood"));
 	}
 	if (item.GraphicValue == 53 + 168 && Players[CurrentPlayerIndex].fullClassId == PFC_ASSASSIN) { // lamellar jacket
 		item.GraphicValue = 1968 + 168;
 	}
 	if (item.GraphicValue == 2803 + 168 && Players[CurrentPlayerIndex].fullClassId == PFC_SCOUT) { // THIN PLATE MAIL
 		item.GraphicValue = 556 + 168;
-		sprintf(item.Name, "Breastplate");
-		sprintf(item.FullMagicalItemName, "Breastplate");
+		strcpy(item.Name, LocalizedBaseItemName("Breastplate"));
+		strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Breastplate"));
 	}
 	if (item.GraphicValue == 1066 + 168 && Players[CurrentPlayerIndex].ClassID == PC_0_WARRIOR) { // Reinforced Cuirass
 		item.GraphicValue = 644 + 168;		
 	}
 	if (item.GraphicValue == 2389 + 168 && Players[CurrentPlayerIndex].fullClassId == PFC_SHINOBI) { // buckler
 		item.GraphicValue = 200 + 168;
-		sprintf(item.Name, "Wooden Buckler");
-		sprintf(item.FullMagicalItemName, "Wooden Buckler");
+		strcpy(item.Name, LocalizedBaseItemName("Wooden Buckler"));
+		strcpy(item.FullMagicalItemName, LocalizedBaseItemName("Wooden Buckler"));
 	}
 	if (item.GraphicValue == 1949 + 168 && Players[CurrentPlayerIndex].fullClassId == PFC_SHINOBI) { // hardened steel mask for Shinobi
 		item.GraphicValue = 3377 + 168;
@@ -7697,7 +8317,7 @@ void AdjustItemLook(Item& item)
 		item.GraphicValue = RngFrom(651 + 3885, 652 + 3885, 2596 + 168);
 	}
 	if (item.GraphicValue == 2597 + 168) { // amulet 21
-		item.GraphicValue = RngFrom(680 + 3885, 2597 + 168);
+		item.GraphicValue = RngFrom(680 + 3885, 2597 + 168, 1744 + 3885);	// (th4) 1744: new art; ItemFlipTable[1744+3885] = FL_12_RING (the flip every ring and amulet look uses)
 	}
 	if (item.GraphicValue == 1660 + 168) { // amulet 34
 		item.GraphicValue = RngFrom(681 + 3885, 1660 + 168);
@@ -7713,6 +8333,17 @@ void AdjustItemLook(Item& item)
 	}
 	if (item.GraphicValue == 103 + 3885) { // amulet  144 (battle)
 		item.GraphicValue = RngFrom(103 + 3885, 692 + 3885, 693 + 3885);
+	}
+
+	//-----------SIGILS--------------------
+	// (th4) ADDING A NEW SIGIL LOOK: append its raw art number +3885 to the RngFrom
+	// list below, AND set ItemFlipTable[raw+3885] = FL_68_SIGIL in dataseg.cpp, or the
+	// new art drops with the wrong pickup sound. The dimension tables are automatic and
+	// must not be touched. Read the edit notes above ItemFlipTable before changing it.
+	if (item.GraphicValue == 1500 + 3885) {
+		item.GraphicValue = RngFrom(1500+3885, 1501+3885, 1502+3885, 1503+3885, 1504+3885, 1505+3885, 1506+3885, 1507+3885, 1508+3885, 
+			1509+3885, 1510+3885, 1511+3885, 1512+3885, 1513+3885, 1514+3885, 1524+3885, 1525+3885, 1526+3885,
+			1730+3885, 1731+3885, 1732+3885, 1733+3885, 1743+3885);	// (th4) new sigil art; ItemFlipTable[raw+3885] set to FL_68_SIGIL to match
 	}
 
 	// MONK BOWS
@@ -7742,8 +8373,320 @@ void AdjustItemLook(Item& item)
 
 	if( (RelixToScrolls || GameMode == GM_CLASSIC) && is(item.MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET) ){
 		item.GraphicValue = 346 + 168;
-		if( memcmp(item.Name,                "Relict", 6) == 0 ) memcpy(item.Name,                "Scroll", 6);
-		if( memcmp(item.FullMagicalItemName, "Relict", 6) == 0 ) memcpy(item.FullMagicalItemName, "Scroll", 6);
+		if( GameLanguage == LANG_RU ){
+			// Russian names begin with "\xD0\xE5\xEB\xE8\xEA\xF2" (Реликт) -> "\xD1\xE2\xE8\xF2\xEE\xEA" (Свиток); both 6 bytes.
+			if( memcmp(item.Name,                "\xD0\xE5\xEB\xE8\xEA\xF2", 6) == 0 ) memcpy(item.Name,                "\xD1\xE2\xE8\xF2\xEE\xEA", 6);
+			if( memcmp(item.FullMagicalItemName, "\xD0\xE5\xEB\xE8\xEA\xF2", 6) == 0 ) memcpy(item.FullMagicalItemName, "\xD1\xE2\xE8\xF2\xEE\xEA", 6);
+		}else if( GameLanguage == LANG_ID ){
+			// (th4) Indonesian names begin with "Relik" (5) -> "Gulungan" (8). Lengths differ,
+			// so rebuild the string instead of an in-place memcpy like RU/EN can use.
+			char idbuf[64];
+			if( memcmp(item.Name, "Relik", 5) == 0 ){
+				sprintf(idbuf, "Gulungan%s", item.Name + 5); strcpy(item.Name, idbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relik", 5) == 0 ){
+				sprintf(idbuf, "Gulungan%s", item.FullMagicalItemName + 5); strcpy(item.FullMagicalItemName, idbuf);
+			}
+		}else if( GameLanguage == LANG_PT ){
+			// (th4) Portuguese names begin with "Rel\xEDquia" (8 bytes, i-acute) -> "Pergaminho" (10).
+			// Lengths differ, so rebuild like the Indonesian branch rather than in-place memcpy.
+			char ptbuf[64];
+			if( memcmp(item.Name, "Rel\xEDquia", 8) == 0 ){
+				sprintf(ptbuf, "Pergaminho%s", item.Name + 8); strcpy(item.Name, ptbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Rel\xEDquia", 8) == 0 ){
+				sprintf(ptbuf, "Pergaminho%s", item.FullMagicalItemName + 8); strcpy(item.FullMagicalItemName, ptbuf);
+			}
+		}else if( GameLanguage == LANG_ES ){
+			// (th4) Spanish names begin with "Reliquia" (8, all ASCII) -> "Pergamino" (9).
+			// Lengths differ, so rebuild the string like the ID/PT branches rather than
+			// patching in place. Keep this in sync with ES_BaseItem[] in LocalizationES.cpp:
+			// every "Relict of X" row there renders as "Reliquia de X".
+			char esbuf[64];
+			if( memcmp(item.Name, "Reliquia", 8) == 0 ){
+				sprintf(esbuf, "Pergamino%s", item.Name + 8); strcpy(item.Name, esbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Reliquia", 8) == 0 ){
+				sprintf(esbuf, "Pergamino%s", item.FullMagicalItemName + 8); strcpy(item.FullMagicalItemName, esbuf);
+			}
+		}else if( GameLanguage == LANG_IT ){
+			// (th4) Italian names begin with "Reliquia" (8, all ASCII) -> "Pergamena" (9).
+			// Lengths differ, so rebuild the string like the ID/PT/ES branches rather than
+			// patching in place. Keep this in sync with IT_BaseItem[] in LocalizationIT.cpp:
+			// every "Relict of X" row there renders as "Reliquia di X".
+			char itbuf[64];
+			if( memcmp(item.Name, "Reliquia", 8) == 0 ){
+				sprintf(itbuf, "Pergamena%s", item.Name + 8); strcpy(item.Name, itbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Reliquia", 8) == 0 ){
+				sprintf(itbuf, "Pergamena%s", item.FullMagicalItemName + 8); strcpy(item.FullMagicalItemName, itbuf);
+			}
+		}else if( GameLanguage == LANG_FR ){
+			// (th4) French names begin with "Relique" (7, all ASCII) -> "Parchemin" (9).
+			// Lengths differ, so rebuild the string like the ID/PT/ES/IT branches rather than
+			// patching in place. Keep this in sync with FR_BaseItem[] in LocalizationFR.cpp:
+			// every "Relict of X" row there renders as "Relique de X".
+			char frbuf[64];
+			if( memcmp(item.Name, "Relique", 7) == 0 ){
+				sprintf(frbuf, "Parchemin%s", item.Name + 7); strcpy(item.Name, frbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relique", 7) == 0 ){
+				sprintf(frbuf, "Parchemin%s", item.FullMagicalItemName + 7); strcpy(item.FullMagicalItemName, frbuf);
+			}
+		}else if( GameLanguage == LANG_PL ){
+			// (th4) Polish names begin with "Relikwia" (8, all ASCII) -> "Zw\xF3j" (4, o-acute).
+			// Lengths differ, so rebuild the string like the ID/PT/ES/IT/FR branches rather
+			// than patching in place. Keep this in sync with PL_BaseItem[] in
+			// LocalizationPL.cpp: every "Relict of X" row there renders as "Relikwia X",
+			// and those 34 rows reuse the PL_Spell genitive, so the tail needs no change
+			// (e.g. "Relikwia Sciany Ognia" -> "Zwoj Sciany Ognia", accents omitted here).
+			char plbuf[64];
+			if( memcmp(item.Name, "Relikwia", 8) == 0 ){
+				sprintf(plbuf, "Zw\xF3j%s", item.Name + 8); strcpy(item.Name, plbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relikwia", 8) == 0 ){
+				sprintf(plbuf, "Zw\xF3j%s", item.FullMagicalItemName + 8); strcpy(item.FullMagicalItemName, plbuf);
+			}
+		}else if( GameLanguage == LANG_HR ){
+			// (th4) Croatian names begin with "Relikvija " (10, all ASCII) -> "Svitak " (7). The rest is the GENITIVE spell
+			// name from HR_Spell, which both forms share. Lengths differ, so rebuild, never memcpy.
+			// Keep in sync with HR_BaseItem / HR_Ui ("Relict of %s") in LocalizationHR.cpp.
+			char lbuf[64];
+			if( memcmp(item.Name, "Relikvija ", 10) == 0 ){
+				sprintf(lbuf, "Svitak %s", item.Name + 10); strcpy(item.Name, lbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relikvija ", 10) == 0 ){
+				sprintf(lbuf, "Svitak %s", item.FullMagicalItemName + 10); strcpy(item.FullMagicalItemName, lbuf);
+			}
+		}else if( GameLanguage == LANG_CS ){
+			// (th4) Czech names begin with "Relikvie " (9, all ASCII) -> "Svitek " (7). The rest is
+			// the GENITIVE spell name from CS_Spell, which both forms share ("Relikvie Ohnive strely" ->
+			// "Svitek Ohnive strely"). Lengths differ, so rebuild like the other branches, never memcpy.
+			// Keep in sync with CS_BaseItem / CS_Ui ("Relict of %s" -> "Relikvie %s") in LocalizationCS.cpp.
+			char csbuf[64];
+			if( memcmp(item.Name, "Relikvie ", 9) == 0 ){
+				sprintf(csbuf, "Svitek %s", item.Name + 9); strcpy(item.Name, csbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relikvie ", 9) == 0 ){
+				sprintf(csbuf, "Svitek %s", item.FullMagicalItemName + 9); strcpy(item.FullMagicalItemName, csbuf);
+			}
+		}else if( GameLanguage == LANG_DE ){
+			// (th4) German names begin with "Relikt" (6, all ASCII) -> "Schriftrolle" (12).
+			// Lengths differ, so rebuild the string like the ID/PT/ES/IT/FR/PL branches rather
+			// than patching in place. Keep this in sync with DE_BaseItem[] in LocalizationDE.cpp:
+			// every "Relict of X" row there renders as "Relikt der/des X", and those 34 rows
+			// keep the genitive tail unchanged, so "Relikt der Apokalypse" -> "Schriftrolle der Apokalypse".
+			char debuf[64];
+			if( memcmp(item.Name, "Relikt", 6) == 0 ){
+				sprintf(debuf, "Schriftrolle%s", item.Name + 6); strcpy(item.Name, debuf);
+			}
+			if( memcmp(item.FullMagicalItemName, "Relikt", 6) == 0 ){
+				sprintf(debuf, "Schriftrolle%s", item.FullMagicalItemName + 6); strcpy(item.FullMagicalItemName, debuf);
+			}
+		}else if( GameLanguage == LANG_TR ){
+			// (th4) Turkish inverts "Relict of X" to "X Kalintisi", so unlike every other
+			// language the word to replace is a SUFFIX, not a prefix -- an in-place memcpy
+			// at offset 0 would corrupt the name. All 34 TR_BaseItem rows end in the same
+			// possessive form, so the tail swap is exact: "... Kalintisi" -> "... Parsomeni".
+			// NOTE: both literals use the FOLDED spelling (i / s, not the CP1254 dotless-i and
+			// s-cedilla), because TR_BaseItem is folded too -- see the fold pass in
+			// LocalizationTR.cpp. Matching the raw CP1254 bytes here would never compare equal.
+			// Lengths differ, so rebuild with sprintf rather than patch in place -- note that
+			// common.h macros strcpy to strncpy_s, which only accepts an array as its target.
+			const char* kal = "Kalintisi";
+			const char* par = "Pars�meni";
+			const int   kl  = (int)strlen(kal);
+			char trbuf[64];
+			int n = (int)strlen(item.Name);
+			if( n >= kl && memcmp(item.Name + n - kl, kal, kl) == 0 ){
+				sprintf(trbuf, "%.*s%s", n - kl, item.Name, par); strcpy(item.Name, trbuf);
+			}
+			n = (int)strlen(item.FullMagicalItemName);
+			if( n >= kl && memcmp(item.FullMagicalItemName + n - kl, kal, kl) == 0 ){
+				sprintf(trbuf, "%.*s%s", n - kl, item.FullMagicalItemName, par); strcpy(item.FullMagicalItemName, trbuf);
+			}
+		}else if( GameLanguage == LANG_DA ){
+			// (th4) Danish renders "Relict of X" as "Relikvie af X" and "Scroll of X" as
+			// "Skriftrulle med X" -- the PREPOSITION changes too, not just the noun, so the
+			// swap has to cover "Relikvie af " (12) -> "Skriftrulle med " (16). Replacing only
+			// the noun would leave "Skriftrulle af X", which contradicts the DA_Ui row the
+			// spell panel prints right next to it. Lengths differ, so rebuild with sprintf
+			// like the ID/PT/ES/IT/FR/PL/DE branches rather than patching in place. Keep in
+			// sync with the 34 "Relict of X" rows in DA_BaseItem[] (LocalizationDA.cpp).
+			const char* rel = "Relikvie af ";
+			const char* skr = "Skriftrulle med ";
+			const int   rl  = (int)strlen(rel);
+			char dabuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(dabuf, "%s%s", skr, item.Name + rl); strcpy(item.Name, dabuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(dabuf, "%s%s", skr, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, dabuf);
+			}
+		}else if( GameLanguage == LANG_SW ){
+			// (th4) Swahili renders "Relict of X" as "Masalio ya X" and "Scroll of X" as
+			// "Gombo la X". BOTH parts change: the noun (Masalio -> Gombo) AND the genitive
+			// concord, because Swahili agreement follows the NOUN CLASS of the head word --
+			// Masalio takes "ya", Gombo takes "la". Replacing only the noun would leave
+			// "Gombo ya X", which is simply ungrammatical and would contradict the
+			// SW_BaseItem row the item panel prints beside it. So the swap covers the whole
+			// prefix: "Masalio ya " (11) -> "Gombo la " (9). Lengths differ, so rebuild with
+			// sprintf like the ID/PT/ES/IT/FR/PL/DE/DA/BG/NL branches, never memcpy in place.
+			// Verified against LocalizationSW.cpp: all 35 "Relict of X" rows in SW_BaseItem
+			// begin with this exact prefix, and the longest result after the swap is well
+			// inside the 64-byte buffer.
+			const char* rel = "Masalio ya ";
+			const char* gom = "Gombo la ";
+			const int   rl  = (int)strlen(rel);
+			char swbuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(swbuf, "%s%s", gom, item.Name + rl); strcpy(item.Name, swbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(swbuf, "%s%s", gom, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, swbuf);
+			}
+		}else if( GameLanguage == LANG_BG ){
+			// (th4) Bulgarian renders "Relict of X" as "Relikva na X" and "Scroll of X" as
+			// "Svitak na X". Unlike Danish the PREPOSITION does NOT change -- Bulgarian is
+			// analytic and both containers take "na" (see the OFHEAD table in bg/bi_gen.py,
+			// where Book/Tome/Relict/Scroll take "na" and Potion/Elixir/Oil take "za") -- so
+			// only the noun is swapped: "Relikva " (11 bytes) -> "Svitak " (10 bytes).
+			// Lengths still differ, so rebuild with sprintf like the ID/PT/ES/IT/FR/PL/DE/DA
+			// branches rather than patching in place. Verified against the 34 "Relict of X"
+			// rows in BG_BaseItem[]: all begin with this exact prefix, and the longest result
+			// after the swap is 32 bytes, well inside the 64-byte buffer.
+			const char* rel = "\xd0\xe5\xeb\xe8\xea\xe2\xe0 \xed\xe0 ";   // "Relikva na "
+			const char* svi = "\xd1\xe2\xe8\xf2\xfa\xea \xed\xe0 ";       // "Svitak na "
+			const int   rl  = (int)strlen(rel);
+			char bgbuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(bgbuf, "%s%s", svi, item.Name + rl); strcpy(item.Name, bgbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(bgbuf, "%s%s", svi, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, bgbuf);
+			}
+		}else if( GameLanguage == LANG_NL ){
+			// (th4) Dutch renders "Relict of X" as "Reliek van X" and "Scroll of X" as
+			// "Rol van X". Like Bulgarian and unlike Danish the PREPOSITION does NOT change
+			// -- both containers take "van" (see the OFHEAD table in nl/bi_gen.py, where
+			// Book/Tome/Relict/Scroll/Rune take "van" and Potion/Elixir/Oil take "voor")
+			// -- so only the noun is swapped: "Reliek " (11 bytes) -> "Rol " (8 bytes).
+			// Lengths differ, so rebuild with sprintf like the other branches rather than
+			// patching in place. Verified against the 34 "Relict of X" rows in NL_BaseItem:
+			// all begin with this exact prefix, and the longest result after the swap is
+			// 24 bytes, well inside the 64-byte buffer.
+			const char* rel = "Reliek van ";
+			const char* rol = "Rol van ";
+			const int   rl  = (int)strlen(rel);
+			char nlbuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(nlbuf, "%s%s", rol, item.Name + rl); strcpy(item.Name, nlbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(nlbuf, "%s%s", rol, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, nlbuf);
+			}
+		}else if( GameLanguage == LANG_UK ){
+			// (th4) Ukrainian renders "Relict of X" as "Relikt X" and "Scroll of X" as
+			// "Suviy X" -- like Bulgarian and Dutch the tail does NOT change, because the
+			// UK spell table is already genitive and no preposition is written (see OF_HEAD
+			// in the UK base-item generator: Relict/Scroll/Book/Tome all take a bare genitive).
+			// So only the noun is swapped: "\xD0\xE5\xEBi\xEA\xF2 " (8 bytes, Latin i for the
+			// Ukrainian i -- the Cyrillic CELs have no glyph at CP1251 0xB3) -> "\xD1\xF3\xE2i\xE9 "
+			// (7 bytes). Lengths differ, so rebuild with sprintf like the other branches.
+			// Verified against the 34 "Relict of X" rows in UK_BaseItem[]: all begin with this
+			// exact prefix, and the longest result after the swap stays inside the 64-byte buffer.
+			const char* rel = "\xD0\xE5\xEBi\xEA\xF2 ";   // "Relikt "
+			const char* suv = "\xD1\xF3\xE2i\xE9 ";       // "Suviy "
+			const int   rl  = (int)strlen(rel);
+			char ukbuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(ukbuf, "%s%s", suv, item.Name + rl); strcpy(item.Name, ukbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(ukbuf, "%s%s", suv, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, ukbuf);
+			}
+		}else if( GameLanguage == LANG_JA ){
+			// (th4) Japanese builds these as "<spell> no seiibutsu" / "<spell> no makimono" --
+			// the noun is a SUFFIX, not a prefix, because Japanese puts the modifier first.
+			// So unlike every other branch this is a TAIL swap, not a head swap. Verified
+			// against the 35 "Relict of X" overrides in the JA base-item generator: all end
+			// with this exact suffix, and the replacement is SHORTER (6 bytes vs 8), so the
+			// result always fits the 64-byte buffer.
+			const char* rel = "\xA4\xCE\xC0\xBB\xB0\xE4\xCA\xAA";   // "no seiibutsu"
+			const char* mak = "\xA4\xCE\xB4\xAC\xCA\xAA";   // "no makimono"
+			const int   rl  = (int)strlen(rel);
+			char jabuf[64];
+			int nl = (int)strlen(item.Name);
+			if( nl >= rl && memcmp(item.Name + nl - rl, rel, rl) == 0 ){
+				memcpy(jabuf, item.Name, nl - rl); jabuf[nl - rl] = 0;
+				strcat(jabuf, mak); strcpy(item.Name, jabuf);
+			}
+			int fl = (int)strlen(item.FullMagicalItemName);
+			if( fl >= rl && memcmp(item.FullMagicalItemName + fl - rl, rel, rl) == 0 ){
+				memcpy(jabuf, item.FullMagicalItemName, fl - rl); jabuf[fl - rl] = 0;
+				strcat(jabuf, mak); strcpy(item.FullMagicalItemName, jabuf);
+			}
+		}else if( GameLanguage == LANG_AR ){
+			// (th4) Arabic builds "athar <spell>" / "lafifa <spell>" -- the noun is the HEAD
+			// word, so this is a normal PREFIX swap like every branch except Japanese, whose
+			// modifier-first order made it a tail swap. Replacement is the same length here
+			// (both nouns are 3 letters = 6 bytes), so the 64-byte buffer is never at risk.
+			const char* rel = "\xA1\xA3\xA1\xAB\xA1\xB1";   // athar
+			const char* mak = "\xA1\xBE\xA1\xBB\xA1\xC4\xA1\xBB\xA1\xA9";   // lafifa
+			const size_t rl = strlen( rel );
+			char arbuf[64];
+			if( memcmp(item.Name, rel, rl) == 0 ){
+				sprintf(arbuf, "%s%s", mak, item.Name + rl); strcpy(item.Name, arbuf);
+			}
+			if( memcmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(arbuf, "%s%s", mak, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, arbuf);
+			}
+		}else if( GameLanguage == LANG_HIN ){
+			// (th4) Hindi is head-first like Arabic -- "<noun> ka <spell>" -- so the noun is
+			// a PREFIX swap, not a tail one. Unlike Arabic the two nouns are NOT the same
+			// length (avshesh 8 bytes, lafeefa 6), so build into a scratch buffer rather
+			// than patching in place; sprintf keeps it inside the 64-byte name buffer.
+			const char* rel = "\xA1\xA1\xAC\xC7\xAC\xFD\xAD\xAB";        // avshesh (relict)
+			const char* mak = "\xAB\xC2\xB0\xD8\xB0\xA9";                // lafeefa (scroll)
+			const size_t rl = strlen(rel);
+			char hinbuf[64];
+			if( strncmp(item.Name, rel, rl) == 0 ){
+				sprintf(hinbuf, "%s%s", mak, item.Name + rl); strcpy(item.Name, hinbuf);
+			}
+			if( strncmp(item.FullMagicalItemName, rel, rl) == 0 ){
+				sprintf(hinbuf, "%s%s", mak, item.FullMagicalItemName + rl); strcpy(item.FullMagicalItemName, hinbuf);
+			}
+		}else if( GameLanguage == LANG_CHI ){
+			// (th4) Chinese puts the noun LAST: "Relict of X" is "X\xB5\xC4\xD2\xC5\xCE\xEF" (X de yiwu), so the
+			// word to swap is a SUFFIX: "\xD2\xC5\xCE\xEF" (yiwu) -> "\xBE\xED\xD6\xE1" (juanzhou), the noun
+			// CHI_BaseItem uses for "Scroll of X". Both are 4 bytes, so patch in place like RU/EN.
+			const char* yiwu = "\xD2\xC5\xCE\xEF";
+			const char* juanzhou = "\xBE\xED\xD6\xE1";
+			int n = (int)strlen(item.Name);
+			if( n >= 4 && memcmp(item.Name + n - 4, yiwu, 4) == 0 ) memcpy(item.Name + n - 4, juanzhou, 4);
+			n = (int)strlen(item.FullMagicalItemName);
+			if( n >= 4 && memcmp(item.FullMagicalItemName + n - 4, yiwu, 4) == 0 ) memcpy(item.FullMagicalItemName + n - 4, juanzhou, 4);
+		}else if( GameLanguage == LANG_KO ){
+			// (th4) Korean puts the noun LAST: "Relict of X" is "X\xC0\xC7 \xC0\xAF\xB9\xB0" (X-ui yumul),
+			// so like Turkish the word to swap is a SUFFIX: "\xC0\xAF\xB9\xB0" (yumul, 4 bytes) ->
+			// "\xB5\xCE\xB7\xE7\xB8\xB6\xB8\xAE" (durumari, 8 bytes), the noun KO_BaseItem uses for
+			// "Scroll of X". Lengths differ, so rebuild with sprintf rather than patch in place.
+			const char* yumul = "\xC0\xAF\xB9\xB0";
+			const char* durumari = "\xB5\xCE\xB7\xE7\xB8\xB6\xB8\xAE";
+			const int   yl  = (int)strlen(yumul);
+			char kobuf[64];
+			int n = (int)strlen(item.Name);
+			if( n >= yl && memcmp(item.Name + n - yl, yumul, yl) == 0 ){
+				sprintf(kobuf, "%.*s%s", n - yl, item.Name, durumari); strcpy(item.Name, kobuf);
+			}
+			n = (int)strlen(item.FullMagicalItemName);
+			if( n >= yl && memcmp(item.FullMagicalItemName + n - yl, yumul, yl) == 0 ){
+				sprintf(kobuf, "%.*s%s", n - yl, item.FullMagicalItemName, durumari); strcpy(item.FullMagicalItemName, kobuf);
+			}
+		}else{
+			if( memcmp(item.Name,                "Relict", 6) == 0 ) memcpy(item.Name,                "Scroll", 6);
+			if( memcmp(item.FullMagicalItemName, "Relict", 6) == 0 ) memcpy(item.FullMagicalItemName, "Scroll", 6);
+		}
 	}
 }
 
@@ -7762,8 +8705,14 @@ void __fastcall GetItemAttrs(int itemIndex, int baseItemIndex, int qlvl)
 	item.playAnimation = 0;
 	item.ItemCode = (ITEM_CODE)baseItem.ItemCode;
 	item.GraphicValue = baseItem.GraphicValue;
-	strcpy(item.Name, baseItem.NamePtr);
-	strcpy(item.FullMagicalItemName, baseItem.NamePtr);
+	strcpy(item.Name, LocalizedBaseItemName(baseItem.NamePtr)); // (th4) display-only
+	strcpy(item.FullMagicalItemName, LocalizedBaseItemName(baseItem.NamePtr)); // (th4)
+	// (th4) DC mission 15: the smith on the Anvil rewards is Hephasto in the Dark
+	// Campaign. Applied to BOTH buffers because 120 BASE items are named after him
+	// too -- Name is the unidentified view, FullMagicalItemName the identified one,
+	// and an unidentified reward would otherwise still read Griswold.
+	DarkCampaignRenameSmith( item.Name,                sizeof(item.Name) );
+	DarkCampaignRenameSmith( item.FullMagicalItemName, sizeof(item.FullMagicalItemName) );
 	item.EquippedLocation = baseItem.EquippedLocation;
 	item.TypeID = baseItem.ItemType;
 	item.throwing = (char)baseItem.throwing;
@@ -7807,7 +8756,7 @@ void __fastcall GetItemAttrs(int itemIndex, int baseItemIndex, int qlvl)
 		FlaskInfo& flask = FlasksInfo[baseItem.FlaskOrTrapCode];
 		item.overTime = flask.MinOverTime || flask.MaxOverTime ? RngFromRange(flask.MinOverTime, flask.MaxOverTime) : 0;
 	}
-	memzero(item.effect); // в перпективе это поле заменит ВСЕ остальные поля с эффективными характиристиками предмета
+	memzero(item.effect); // (rt) in the long run this field will replace ALL the other fields with the item's effective characteristics
 	each(item.effect).id = AE_NO;
 
 	item.isShadow = false;
@@ -7867,7 +8816,7 @@ void __fastcall GetItemAttrs(int itemIndex, int baseItemIndex, int qlvl)
 //		}
 		LimitToMax(goldAmount, 5000);
 		item.amount = goldAmount;
-		SetGraphicToGold(item);// оптимизация
+		SetGraphicToGold(item);// (rt) optimization
 	}
 	
     // Prevent random generator from damage
@@ -7928,7 +8877,7 @@ void Item_ApplyAffixIdentified(Item& i, BaseEffect be, int goldMin, int goldMax,
 	};
 	if( ae.use & AffixEffect::Max ){
 		e.maxVal = RngFromRange( be.maxLow, be.maxHigh );
-		priceVal = e.maxVal; // можно переделать на цену по среднему
+		priceVal = e.maxVal; // (rt) could be changed to an average price
 		priceMin = be.maxLow;
 		priceMax = be.maxHigh;
 	};
@@ -7942,12 +8891,12 @@ void Item_ApplyAffixIdentified(Item& i, BaseEffect be, int goldMin, int goldMax,
 	};
 	
 	switch( be.id ){
-	case AE_SPECIAL_AC	        : i.ArmorClass       = e.minVal; break; // особый случай, устанавливает фикс, вместо прибавления
-	case AE_UNUSUAL_ITEM_DAMAGE	: i.MinDamage        = be.minLow; i.MaxDamage = be.minHigh; break; // особый случай, устанавливает фикс, вместо прибавления
-	case AE_UNUSUAL_DURABILITY	: i.CurDurability    = be.minLow; i.BaseDurability = be.minLow; break; // особый случай, устанавливает фикс, вместо прибавления
-	case AE_REQUIRED_CLVL	    : i.RequiredLevel    = (uchar)e.minVal; i.fixedReqClvl = 1; break;  // особый случай, устанавливает фикс, вместо прибавления
+	case AE_SPECIAL_AC	        : i.ArmorClass       = e.minVal; break; // (rt) special case: sets a fixed value instead of adding
+	case AE_UNUSUAL_ITEM_DAMAGE	: i.MinDamage        = be.minLow; i.MaxDamage = be.minHigh; break; // (rt) special case: sets a fixed value instead of adding
+	case AE_UNUSUAL_DURABILITY	: i.CurDurability    = be.minLow; i.BaseDurability = be.minLow; break; // (rt) special case: sets a fixed value instead of adding
+	case AE_REQUIRED_CLVL	    : i.RequiredLevel    = (uchar)e.minVal; i.fixedReqClvl = 1; break;  // (rt) special case: sets a fixed value instead of adding
 	case AE_EXTRA_CHARGES       : i.CurCharges      += e.minVal; i.BaseCharges += e.minVal; break;
-	case AE_SPELL	            : i.SpellIndex       = (char) e.type; i.CurCharges = e.minVal; i.BaseCharges = e.minVal; break; // требует переработки в массив или убрать в CalcChar
+	case AE_SPELL	            : i.SpellIndex       = (char) e.type; i.CurCharges = e.minVal; i.BaseCharges = e.minVal; break; // (rt) needs to be reworked into an array or moved into CalcChar
 	case AE_HIGH_DURABILITY	    : addTo(i.BaseDurability * e.minVal / 100, i.BaseDurability, i.CurDurability); break;
 	case AE_DECREASED_DURABILITY: i.BaseDurability  -= i.BaseDurability * e.minVal / 100; i.CurDurability = i.BaseDurability; break;
 	case AE_INDESTRUCTIBLE_DIS	: i.CurDurability    = i.BaseDurability = ITEM_DUR_INDESTRUBLE; break;
@@ -7957,56 +8906,7 @@ void Item_ApplyAffixIdentified(Item& i, BaseEffect be, int goldMin, int goldMax,
 	case AE_UNIQUE_GRAPHIC	    : i.GraphicValue     = be.minLow; break;
 	case AE_SOCKET              : i.socketsBase      = (uchar)e.minVal; break;
 	case AE_ATTACK_SPEED or AE_CAST_SPEED or AE_HIT_RECOVERY
-	  or AE_MANA_STEAL_PERCENT or AE_LIFE_STEAL_PERCENT: e.minVal = be.minLow; break; // "Max flag" effects, still does not use min low/high value ranges
-
-	// ====== обдуманные =================================
-
-	// transform fire/ligning hit on weapons to one hit and X-Y damage!
-	// частично реализовано, возможно надо добавить удаление закла после нанесения им урона
-
-	// ====== еще не обработанные ====================================
-
-	// корс это отдельная магия вообще
-	// она используется в тх как способ обезвредить монстра на время, превратив в неуязвимый камень
-	// чисто тактическое решение
-	// иногда умелый игрок может корсанными монстрами отгородиться от других монстров и расстреливать вторых через корсанных, выиграв время
-	// там много применений
-	// просто это для тех кто играет тактично а не пытаясь закидать ДПСом мобов
-	// в дарке был еще взгляд медузы, который вызывал окаменение на время всех монстров в радиусе зрения игрока.
-	// ну если неуязвимый, то да, это на холод не похоже, проклятья как отдельный типа магии тоже интересно
-	// к слову такой тип магии можно будет и назвать проклятиями и нечто похожее как у некроманта в д2 сделать.
-	// добавив другие ослабления монстрам в этот вид магии
-	// типа + Х % урона монстр получает, -Х % урона - наносит, итп
-	// кстати да!замечательная идея так если вдуматься
-	// у колда вижу может быть или иммун или зеленый свет..так и у пойзона
-	// это надо исправить чтобы были отдельно от корса и резист к колду, и иммун.и у пойзона тоже.и резист, и иммун
-	// в противном случае монстры от колда и пойзона начнут огребать 400 % урон
-	// и нахер никому не нужными станут любые спеллы физики, огня, магии и молнии
-	
-	// отдельным пунктом, значительным улучшением могло бы быть если бы ты заменил флаговое присвоение резиста - значением.
-	// и можно было бы задавать процент сопротивления гибко.хоть от 1 % и до 99 %
-	// ладно.раз к вечеру то к вечеру
-	// всмысле у монстров ? я уже думал над этим, и хотел тебя спросить, надо или нет
-	// да.у монстров.конечно
-	// дженерику, бланту, шарпу, и стрелам / болтам, было бы идеально
-	// было бы на самом деле просто обалденно, чего уж там
-	// потому что ситуация такая.смотри.по мертвым оружие дробящее дает больше урона, а рубящее - меньше.
-	// но это подразумевалось что мертвыми будут скелеты.а кости надо крошить а не резать
-
-	// но в тх2 есть и мертвые которые из гнилой плоти.зомби, гротески.
-	// и против них явно напрашивается как раз рубящее.
-
-	// а всякие демоны и големы..по любой логике их лучше должно брать дробящее оружие.
-	// вазу или камень ведь легче разбить каким - нибудь молотом
-	// ну какое то разделение по урону от вида оружия уже есть для мертвяков
-	// вот выше я и объяснил чем текущая ситуация не идеаль на
-	// ну то есть чтобы не в коде задавать различие, а в таблице монстров и желательно по процентно
-	// да
-	// понял
-	// еще вдогонку.можно сделать отрицательные значения ? чтобы они давали повышение урона
-	// ну да, поля добавлю знаковые, будут и отрицательные
-	// 50 %
-	// отлично.больше вопросов по этой теме тогда нет
+	  or AE_MANA_STEAL_PERCENT or AE_LIFE_STEAL_PERCENT: e.minVal = be.minLow; break; // "Max flag" effects, still does not use min low/high value ranges	
 	}
 	
 	// 00426613
@@ -8017,12 +8917,12 @@ void Item_ApplyAffixIdentified(Item& i, BaseEffect be, int goldMin, int goldMax,
 		LimitToMin(i.RequiredLevel, RngFromRange(affixMinReqClvl, affixMaxReqClvl));
 	}
 
-	// весь этот блок лимитов был добавлен давно и по ныне неизвестной причиние
-	// но пусть пока побудет тут закомменченым в назидание что такие лимиты в этом месте не нужны
+	// (rt) this whole block of limits was added long ago for a now-unknown reason
+	// (rt) but let it stay here commented out, as a reminder that such limits are not needed here
 	//LimitToMin( i.ResistFire, 0 );
 	//LimitToMin( i.ResistLightning, 0 );
 	//LimitToMin( i.ResistArcan, 0 );
-	//LimitToMin( i.BaseDurability, 1 ); // ставилось 1 вместо положенного 0 у неразрушаемых предметов
+	//(rt) LimitToMin( i.BaseDurability, 1 ); // indestructible items got 1 instead of the proper 0
 	//LimitToMin( i.CurDurability, 1 );
 }
 
@@ -8057,12 +8957,19 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 	uchar prefixExcludedCombinations = 0;
 	vector<int> affixMap;
 	affixMap.reserve(1000);
-	Affix* affixes = CurAffixesMagic();
+	//Affix* affixes = CurAffixesMagic();
+	Affix* affixes;
+	if (IsSigil(item)) {
+		affixes = AffixesSigil;  // Use sigil affixes
+	}
+	else {
+		affixes = CurAffixesMagic();  // Use normal affixes
+	}
 	Affix* prefix;
 	Affix* post;
-	disablePrefix = RNG(4);           //	вероятность префикса 0.25
-	enablePostfix = RNG(3);           //	вероятность постфикса 0.66(6)
-	if( disablePrefix && !enablePostfix ){ //	если не получилось ни префикса не постфикса то что нибудь всё равно включаем
+	disablePrefix = RNG(4);           //	(rt) prefix probability 0.25
+	enablePostfix = RNG(3);           //	(rt) suffix probability 0.66(6)
+	if( disablePrefix && !enablePostfix ){ //	(rt) if neither a prefix nor a suffix came out, enable something anyway
 		if( RNG(2) ){
 			enablePostfix = 1;
 		}else{
@@ -8095,7 +9002,7 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 			//.text:0x004269D8 4A4 8B 84 85 6C FB FF FF                 mov     eax, [ebp+eax*4+AffixMap]
 			//prefixIndex = 78; // test new affix
 			prefix = &affixes[prefixIndex];
-			sprints(item.FullMagicalItemName, "%s %s", prefix->Name, item.FullMagicalItemName);
+			sprints(item.FullMagicalItemName, "%s %s", LocalizedAffixPrefix(prefix->Name), item.FullMagicalItemName);
 			item.MagicLevel = ML_1_MAGIC;
 			BaseEffect e = prefix->effect;
 			Item_ApplyAffix(item, e, prefix->MinGoldValue, prefix->MaxGoldValue, prefix->Multiplier, 0, prefix->minReqClvl, prefix->maxReqClvl, false );
@@ -8125,7 +9032,7 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 			postfixIndex = affixMap[RNG(affixMap.size())];
 			//.text:0x004268DD 4A4 8B 84 85 6C FB FF FF                 mov     eax, [ ebp + eax * 4 + AffixMap ]
 			post = &affixes[postfixIndex + firstSuffix];// original 87
-			sprints(item.FullMagicalItemName, "%s of %s", item.FullMagicalItemName, post->Name);
+			sprints(item.FullMagicalItemName, L("%s of %s"), item.FullMagicalItemName, LocalizedAffixSuffix(post->Name));
 			item.MagicLevel = ML_1_MAGIC; // TODO: move upper func
 			BaseEffect e = post->effect;
 			Item_ApplyAffix(item, e, post->MinGoldValue, post->MaxGoldValue, post->Multiplier, 1, post->minReqClvl, post->maxReqClvl, false );
@@ -8133,20 +9040,21 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 	}
 	if( !CheckLetterWidth(item.FullMagicalItemName) ){
 		if( BaseItems[item.baseItemIndex].Name2 ){
-			strcpy(item.FullMagicalItemName, BaseItems[item.baseItemIndex].Name2);
+			strcpy(item.FullMagicalItemName, LocalizedBaseName2(BaseItems[item.baseItemIndex].Name2)); // (th4) display
 		}else{
 			item.Name[0] = 0;
 		}
 		if( prefixIndex != -1 ){
-			sprints(item.FullMagicalItemName, "%s %s", affixes[prefixIndex].Name, item.FullMagicalItemName);
+			sprints(item.FullMagicalItemName, "%s %s", LocalizedAffixPrefix(affixes[prefixIndex].Name), item.FullMagicalItemName);
 		}
 		if( postfixIndex != -1 ){
-			sprints(item.FullMagicalItemName, "%s of %s", item.FullMagicalItemName, affixes[postfixIndex + firstSuffix].Name);
+			sprints(item.FullMagicalItemName, L("%s of %s"), item.FullMagicalItemName, LocalizedAffixSuffix(affixes[postfixIndex + firstSuffix].Name));
 		}
 	}
 	if( prefixIndex != AE_NO || postfixIndex != AE_NO ){
 		Item_RecalculatePrice(item);
 	}
+	RingNameFixup( item );
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -8211,7 +9119,7 @@ void __fastcall SetupItemAnim(int itemIndex)
 	item.subOffsetX = 16;
 	//item.Identified = 0;
 	item.dropping = 0;
-	//item.gottenFromLand = 0; возможно это защита от дублирования в курсоре
+	//(rt) item.gottenFromLand = 0; maybe this is protection against duplication on the cursor
 	Player& player = Players[CurrentPlayerIndex];
 	if( player.SomeSoundMuteDelay ){
 		item.FrameIndex = item.FramesCount;
@@ -8225,30 +9133,32 @@ void __fastcall SetupItemAnim(int itemIndex)
 }
 
 //----- (00426C7C) --------------------------------------------------------
-int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
+int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex ) // drop from monsters (not bosses)
 {
-	//return 240; // дроп масла для ремонта для сверки
 	vla( /*BASE_ITEM*/int, goodItems, GOOD_ITEM_COUNT);
 	int goodItemsCount = 0;
 
 	Monster& monster = Monsters[monsterIndex];
 	ushort specialDrop = monster.BasePtr->ItemDropSpecials;
 
-	//goto elix; // проверял выпадание эликсиров
 	if( specialDrop & 0x8000 ){
-		return -1 - (specialDrop & 0xFFF);// дроп уника
+		return -1 - (specialDrop & 0xFFF);// (rt) unique drop
 	}
-	if( specialDrop & 0x4000 || RNG(100) > 40 ){
-		return 0;// нет дропа
+	int drop_chance = 40;
+	if (GameMode == GM_OUTBREAK) {
+		drop_chance = 28;
+	}
+	if( specialDrop & 0x4000 || RNG(100) > drop_chance ){
+		return 0;// (rt) no drop
 	}
 	if( RNG(100) > 25 ){
-		// шанс выпадения золота дополнительно уменьшается в 3 раза
+		// further decrease of gold drop chance, by difficulty
 		return RNG(100) < by(Difficulty, 43, 29, 17, 16, 15, 14, 13, 12, 11 );
 	}
 	
 	PLAYER_FULL_CLASS fullClassId = Players[CurrentPlayerIndex].fullClassId;
 	
-	//elix: // проверял выпадание эликсиров
+	//(rt) elix: // was checking elixir drops
 	int mode = (GameMode == GM_CLASSIC) + 1;
 	for( uint baseItemIndex = 0; goodItemsCount < GOOD_ITEM_COUNT && baseItemIndex < count_BaseItems; ++baseItemIndex ){
 		BaseItem& baseItem = BaseItems[baseItemIndex];
@@ -8256,14 +9166,14 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 		int spell = baseItem.SpellNumber;
 		int chanceToDrop = baseItem.ChanceToDrop;
 		int oilQuality = IsOilQuality( baseItemIndex );
-		if( oilQuality && chanceToDrop == 2 ){// TODO: плохо сделано. Точно будут лаги
+		if( oilQuality && chanceToDrop == 2 ){// (rt) TODO: badly done. There will definitely be lag
 			// mor: (2023-01-16) seems that it doesn't check for base item level after Purgatory here, so I commented out difficulty check in this condition
 			if( /*Difficulty >= DL_2_DOOM ||*/ monster.MonsterLevel >= baseItem.itemLevel) { // did not change that yet, just fixed for now
 				if( goodItemsCount < GOOD_ITEM_COUNT ){
                     if( MaxCountOfPlayersInGame == 1 && (spell == PS_32_BONE_SPIRIT_REAL_RESSURECT || spell == PS_34_HEAL_OTHER) ){
                         // Forbidden in mp
                     }
-					else if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) ){
+					else if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) || IsSpellBannedInDarkCampaign(spell) ){ // (th4) DC ban list
                         // Forbidden in NM & IM game modes
                     }
 					else{
@@ -8273,10 +9183,10 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 			}
 		}
 
-		if( oilQuality && chanceToDrop && monster.MonsterLevel >= baseItem.itemLevel ){
+		Player& player = Players[CurrentPlayerIndex];//GetCurrentPlayerOffset();
+		if (oilQuality && chanceToDrop && monster.MonsterLevel >= baseItem.itemLevel) {
 			// if( MaxCountOfPlayersInGame == 1) // MP smart drop
 			{
-				Player& player = Players[CurrentPlayerIndex];//GetCurrentPlayerOffset();
 				// mor: new exclusions ('23-1-23). copied from boss routine. watch it!
 				if ((Difficulty >= DL_2_DOOM && Difficulty < DL_8_INFERNO) && monster.MonsterLevel / 8 + Difficulty * 8 + 45 < baseItem.itemLevel) {
 					continue; // skip such drops
@@ -8284,55 +9194,60 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 				else if (Difficulty == DL_1_PURGATORY && baseItem.itemLevel > 63) {
 					continue; // skip such drops
 				}
-				
+
 				if (GameMode == GM_CLASSIC) { goto SKIP_CHECKS; }
 
-				if( ((player.CharLevel / 2) + player.BaseStrength + 25) < baseItem.RequiredStrengthMax // clvl adjustments will be required here when looting is updated
-				 || ((player.CharLevel / 2) + player.BaseMagic + 25) < baseItem.RequiredMagicMax
-				 || ((player.CharLevel / 2) + player.BaseDexterity + 25) < baseItem.RequiredDexterityMax
-				 || ((player.CharLevel / 2) + player.BaseVitality + 25) < baseItem.RequiredVitalityMax ){
+				if (((player.CharLevel / 2) + player.BaseStrength + 25) < baseItem.RequiredStrengthMax // clvl adjustments will be required here when looting is updated
+					|| ((player.CharLevel / 2) + player.BaseMagic + 25) < baseItem.RequiredMagicMax
+					|| ((player.CharLevel / 2) + player.BaseDexterity + 25) < baseItem.RequiredDexterityMax
+					|| ((player.CharLevel / 2) + player.BaseVitality + 25) < baseItem.RequiredVitalityMax) {
 					continue;
 				}
 
-				if( !CheckBaseItemClassReq( CurrentPlayerIndex, baseItemIndex ) )
+				if (!CheckBaseItemClassReq(CurrentPlayerIndex, baseItemIndex))
 				{
 					continue;
 				}
 			}
 			//-------------------------------------------------basic monster drop limits (from above and from below)-------------------------------
 			// cut from above
-			int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;
-			if (maxReqParam < baseItem.RequiredStrengthMax
-				|| maxReqParam < baseItem.RequiredMagicMax
-				|| maxReqParam < baseItem.RequiredDexterityMax
-				|| maxReqParam < baseItem.RequiredVitalityMax) {
-				continue;
-			}
-
 			int itemCode = baseItem.ItemCode;
-			if( Difficulty == DL_0_HORROR || Players[CurrentPlayerIndex].gameChanger & BIT(GC_7_PROHIBITION)){
-				int magicCode = baseItem.MagicCode;
-				if( magicCode == MC_10_ELIXIR_OF_STRENGTH 
-				 || magicCode == MC_11_ELIXIR_OF_MAGIC 
-				 || magicCode == MC_12_ELIXIR_OF_DEXTERITY 
-				 || magicCode == MC_13_ELIXIR_OF_VITALITY 
-				 || magicCode == MC_44_SPECTRAL_ELIXIR ){
-					continue;// no elixirs on Horror (or never - with Prohibition GC)
+			if (GameMode != GM_OUTBREAK) {// Outbreak allows for dropping items that exceed dungeon limitation in item stat requirements formula
+				int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;
+				if (GameMode == GM_DARK_CAMPAIGN) { goto DC_OUTTAKE_1; }
+				if (maxReqParam < baseItem.RequiredStrengthMax
+					|| maxReqParam < baseItem.RequiredMagicMax
+					|| maxReqParam < baseItem.RequiredDexterityMax
+					|| maxReqParam < baseItem.RequiredVitalityMax) {
+					continue;
 				}
-			}
-			// cut from below
-			else if( Difficulty >= DL_1_PURGATORY ){
-				if (is(itemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR, IC_7_HELM, IC_5_SHIELD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_10_STAFF, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET,
-					IC_23_PISTOL, IC_19_TRAP, IC_18_FLASK, IC_17_BELT, IC_16_BOOTS, IC_15_GLOVE, IC_1_SWORD)) {
-					int limiter = Difficulty * 6 + Dungeon->level / 4;
-					if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE)) {
-						limiter = Difficulty * 8 + Dungeon->level / 3;
-					}
-						if (baseItem.itemLevel < limiter) {
+				DC_OUTTAKE_1:
+				// no elixirs on Horror (or never - with Prohibition GC)
+				if (Difficulty == DL_0_HORROR || Players[CurrentPlayerIndex].gameChanger & BIT(GC_7_PROHIBITION)) {
+					int magicCode = baseItem.MagicCode;
+					if (magicCode == MC_10_ELIXIR_OF_STRENGTH
+						|| magicCode == MC_11_ELIXIR_OF_MAGIC
+						|| magicCode == MC_12_ELIXIR_OF_DEXTERITY
+						|| magicCode == MC_13_ELIXIR_OF_VITALITY
+						|| magicCode == MC_44_SPECTRAL_ELIXIR) {
 						continue;
 					}
 				}
+				// cut from below
+				else if (Difficulty >= DL_1_PURGATORY) {
+					if (is(itemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR, IC_7_HELM, IC_5_SHIELD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_10_STAFF, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET,
+						IC_23_PISTOL, IC_19_TRAP, IC_18_FLASK, IC_17_BELT, IC_16_BOOTS, IC_15_GLOVE, IC_1_SWORD)) {
+						int limiter = Difficulty * 6 + Dungeon->level / 4;
+						if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE)) {
+							limiter = Difficulty * 8 + Dungeon->level / 3;
+						}
+						if (baseItem.itemLevel < limiter) {
+							continue;
+						}
+					}
+				}
 			}
+
 			if (Difficulty > 0 && (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_7_PROHIBITION))) && baseItem.MagicCode == MC_44_SPECTRAL_ELIXIR) {
 				if (RNG(9) >= 1) {
 					continue;
@@ -8377,12 +9292,50 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 			if (itemCode == IC_22_MALLET && (RNG(100) < 66 || HasTrait(CurrentPlayerIndex, TraitId::Paladin))) { // mallets are dropped with 33% chance, and not dropped for Paladin (0% chance)
 				continue;
 			}
-			if (itemCode == IC_23_PISTOL && !HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
+			if (itemCode == IC_23_PISTOL && !HasTrait(player, TraitId::Pistoleer)) {
 				continue;
 			}
-			if ((HasTrait(CurrentPlayerIndex, TraitId::Pistoleer))
-				&& (itemCode == IC_1_SWORD || itemCode == IC_4_MACE || itemCode == IC_3_BOW)) {
-				continue;
+			// non ES Guardians don't get full armor suits, and ES guardians don't get full suits..
+			if (fullClassId == PFC_GUARDIAN) {
+				if (is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
+					if (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))
+						&& (baseItem.baseId >= BI_2767_STANDARD_FATIGUES && baseItem.baseId <= BI_2787_PXA20_PA)) {
+						continue;
+					}
+					else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER) && baseItem.baseId < BI_2767_STANDARD_FATIGUES) {
+						continue;
+					}
+				}
+				else if (is(baseItem.ItemCode, IC_16_BOOTS, IC_17_BELT, IC_7_HELM, IC_15_GLOVE) && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+					continue;
+				}
+			}
+			if (HasTrait(player, TraitId::Pistoleer)) {
+				if (itemCode == IC_1_SWORD || itemCode == IC_4_MACE || itemCode == IC_3_BOW) {
+					continue;
+				}
+				else if (itemCode == IC_23_PISTOL) {
+					if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_27_TERMINATOR)) {
+						if ( baseItem.baseId <= BI_2446_INFERNAL_PISTOL || baseItem.baseId > BI_2732_PROTOPLASMA_THROWER) {
+							continue;// terminator doesn't get old guns
+						}
+					}
+					else if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+						if (baseItem.baseId < BI_2733_MINIGUN_01 || baseItem.baseId > BI_2757_F7_MINIGUN) {
+							continue;
+						}
+					}
+					else if (MaxCountOfPlayersInGame == 1 && player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+						if (baseItem.baseId <= BI_2757_F7_MINIGUN) {
+							continue;
+						}
+					}
+					else {
+						if (baseItem.baseId >= BI_2708_38_SW_MODEL_15 /*new guns*/) {
+							continue;// pistoleer doesn't get new guns
+						}
+					}
+				}
 			}
 			if (itemCode == IC_3_BOW) {
 				if (fullClassId == PFC_SHINOBI || fullClassId == PFC_TEMPLAR) {// shinobi & templar have 10% to get xbows, because they are better off with their class weapons (shuriken/mallet)
@@ -8390,9 +9343,26 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 						continue;
 					}
 				}
+				else if (fullClassId == PFC_SCOUT && baseItem.RequiredClassMask != IPCM_SCOUT) {
+					if (RNG(100) < 70) {
+						continue;
+					}
+				}
 			}
 			if ((itemCode == IC_6_LIGHT_ARMOR || itemCode == IC_8_MID_ARMOR || itemCode == IC_9_HEAVY_ARMOR) && HasTrait(CurrentPlayerIndex, TraitId::OldFashioned)) {
 				continue;
+			}
+			if (fullClassId == PFC_SECUTOR) {
+				if (HasTrait(CurrentPlayerIndex, TraitId::Scissor)) {
+					if (itemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh > 0) {
+						continue;
+					}
+				}
+				else {
+					if (itemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh == 0) {
+						continue;
+					}
+				}
 			}
 			if ((itemCode == IC_4_MACE || itemCode == IC_1_SWORD)
 				&& baseItem.EquippedLocation == EL_1_ONE_HANDED
@@ -8411,7 +9381,7 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 					continue;
 				}
 				// removal of STR gloves for girls
-				if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER))
+				if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_GLADIATRIX))
 					&& (is(baseItem.itemLevel, 12, 16, 24, 32, 38, 47, 57, 62))) {
 					continue;
 				}
@@ -8426,7 +9396,7 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 			}
 			if (itemCode == IC_16_BOOTS) {
 				if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN,
-					PFC_BOMBARDIER, PFC_MAGE, PFC_ELEMENTALIST, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER, PFC_WARLOCK))
+					PFC_BOMBARDIER, PFC_GLADIATRIX, PFC_MAGE, PFC_ELEMENTALIST, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER, PFC_WARLOCK))
 					&& (is(baseItem.itemLevel, 5, 11, 19, 27, 36, 57, 79, 94, 118, 147)) && (!(HasTrait(CurrentPlayerIndex, TraitId::Mamluk)))) { // boot base is checked by qlvl, and qlvls now can't change
 					continue;
 				}
@@ -8445,7 +9415,7 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 					&& (is(baseItem.itemLevel, 7, 19, 31, 41, 49, 56, 76, 96, 116, 136, 156))) {
 					continue;
 				}
-				if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER))
+				if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_GLADIATRIX))
 					// newly added expansion belts are available to Warrior and Savage types, so I am not excluding them here
 					&& (is(baseItem.itemLevel, 13, 25, 37, 46, 53 /* 57 & 61 are segregated already*/))) {// belt base is checked by qlvl, and qlvls now can't change
 					continue;
@@ -8552,13 +9522,13 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 				}
 			}
 			SKIP_CHECKS:
-			// проверял выпадание эликсиров
+			// (rt) was checking elixir drops
 			//if( baseItem.MagicCode < MC_10_ELIXIR_OF_STRENGTH || baseItem.MagicCode > MC_13_ELIXIR_OF_VITALITY ) continue;
 			if (goodItemsCount < GOOD_ITEM_COUNT) {
 				if (MaxCountOfPlayersInGame == 1 && (spell == PS_32_BONE_SPIRIT_REAL_RESSURECT || spell == PS_34_HEAL_OTHER)) {
 					// Forbidden in mp
 				}
-				else if (isTownPortalForbidden() && (spell == PS_7_TOWN_PORTAL)) {
+				else if (isTownPortalForbidden() && (spell == PS_7_TOWN_PORTAL) || IsSpellBannedInDarkCampaign(spell)) { // (th4) DC ban list
 					// Forbidden in game modes
 				}
 				else if (is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER) && (spell == PS_9_INFRAVISION)) {
@@ -8573,7 +9543,7 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 				else if (is(fullClassId, PFC_MONK, PFC_KENSEI, PFC_SHUGOKI, PFC_SHINOBI) && (spell == PS_33_TELEKINES)) {
 					// Telekinesis relicts Forbidden if it's available as class skill
 				}
-				else if ((is(fullClassId, PFC_WARRIOR, PFC_INQUISITOR, PFC_GUARDIAN, PFC_TEMPLAR, PFC_IRON_MAIDEN) && !HasTrait(CurrentPlayerIndex, TraitId::Paladin))
+				else if ((is(fullClassId, PFC_WARRIOR, PFC_INQUISITOR, PFC_GUARDIAN, PFC_TEMPLAR, PFC_IRON_MAIDEN, PFC_GLADIATRIX) && !HasTrait(CurrentPlayerIndex, TraitId::Paladin))
 					&& (spell == PS_26_ITEM_REPAIR)) {
 					// Item Repair relicts Forbidden if it's available as class skill
 				}
@@ -8586,6 +9556,9 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 				else if ((Dungeon >= DUN_60_HAUNTED_LABYRINTH && Dungeon <= DUN_108_ARCANE_PRISON) && (spell == PS_42_WARP)) {
 					// Monsters don't drop Warp relicts in AR dungeons
 				}
+				//else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR) && spell != PS_7_TOWN_PORTAL/*spell == PS_22_FURY*/) {
+					// Machine dont rage...
+				//}
 				else {
 					goodItems[goodItemsCount++] = /*(BASE_ITEM)*/ baseItemIndex;
 				}
@@ -8594,6 +9567,7 @@ int __fastcall GetRandomBaseForMonsterDrop( int monsterIndex )
 	}
 	int result = goodItemsCount ? goodItems[ RNG(goodItemsCount) ] : 0;
 	//if( result >= MC_10_ELIXIR_OF_STRENGTH && result <= MC_13_ELIXIR_OF_VITALITY ) __debugbreak();
+
 	return result + 1;
 }
 
@@ -8672,22 +9646,26 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 		}
 		//------------------------------------------------- boss drop limits (from above and from below)---------------------------------
 		// cut from above
-		int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;
-		if (maxReqParam < baseItem.RequiredStrengthMax
-			|| maxReqParam < baseItem.RequiredMagicMax
-			|| maxReqParam < baseItem.RequiredDexterityMax
-			|| maxReqParam < baseItem.RequiredVitalityMax) {
-			continue;
-		}
-		// cut from below
-		if ((is(itemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR, IC_7_HELM, IC_5_SHIELD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_10_STAFF, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET,
-			IC_23_PISTOL, IC_19_TRAP, IC_18_FLASK, IC_17_BELT, IC_16_BOOTS, IC_15_GLOVE, IC_1_SWORD)) && Difficulty >= DL_1_PURGATORY) {
-			int limiter = Difficulty * 8 + Dungeon->level / 3;
-			if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE)) {
-				limiter = Difficulty * 10 + 5 * Dungeon->level / 12;
-			}
-			if (baseItem.itemLevel < limiter) {			
+		if (GameMode != GM_OUTBREAK) {
+			int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;
+			if (GameMode == GM_DARK_CAMPAIGN) { goto DC_OUTTAKE_2; }
+			if (maxReqParam < baseItem.RequiredStrengthMax
+				|| maxReqParam < baseItem.RequiredMagicMax
+				|| maxReqParam < baseItem.RequiredDexterityMax
+				|| maxReqParam < baseItem.RequiredVitalityMax) {
 				continue;
+			}
+			DC_OUTTAKE_2:
+			// cut from below
+			if ((is(itemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR, IC_7_HELM, IC_5_SHIELD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_10_STAFF, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET,
+				IC_23_PISTOL, IC_19_TRAP, IC_18_FLASK, IC_17_BELT, IC_16_BOOTS, IC_15_GLOVE, IC_1_SWORD)) && Difficulty >= DL_1_PURGATORY) {
+				int limiter = Difficulty * 8 + Dungeon->level / 3;
+				if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE)) {
+					limiter = Difficulty * 10 + 5 * Dungeon->level / 12;
+				}
+				if (baseItem.itemLevel < limiter) {
+					continue;
+				}
 			}
 		}
 		//-----------------------------------------------------------extra conditions----------------------------------------------------------
@@ -8740,9 +9718,46 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 		if (itemCode == IC_23_PISTOL && !HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
 			continue;
 		}
-		if ((HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) 
-			&& (itemCode == IC_1_SWORD || itemCode == IC_4_MACE || itemCode == IC_3_BOW)) { 
-			continue;
+		if (fullClassId == PFC_GUARDIAN) {
+			if (is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) { // torso drop rules here....
+				if (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) //  of non-ES
+					&& (baseItem.baseId >= BI_2767_STANDARD_FATIGUES && baseItem.baseId <= BI_2787_PXA20_PA) // rolls full suits
+					) {	continue;}// then skip drop
+				else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)// if ES
+					&& baseItem.baseId < BI_2767_STANDARD_FATIGUES){ // and is about to get non-full suit armor
+					continue; // skip drop too
+				}
+			}
+			else if (is(baseItem.ItemCode, IC_16_BOOTS, IC_17_BELT, IC_7_HELM, IC_15_GLOVE) && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				continue;
+			}
+		}
+		if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
+			if (itemCode == IC_1_SWORD || itemCode == IC_4_MACE || itemCode == IC_3_BOW) {
+				continue;
+			}
+			else if (itemCode == IC_23_PISTOL) {
+				if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+					if (baseItem.baseId <= BI_2446_INFERNAL_PISTOL || baseItem.baseId > BI_2732_PROTOPLASMA_THROWER) {
+						continue;// terminator doesn't get old guns
+					}
+				}
+				else if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+					if (baseItem.baseId < BI_2733_MINIGUN_01 || baseItem.baseId > BI_2757_F7_MINIGUN) {
+						continue;
+					}
+				}
+				else if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+					if (baseItem.baseId <= BI_2757_F7_MINIGUN) {
+						continue;
+					}
+				}
+				else {
+					if (baseItem.baseId >= BI_2708_38_SW_MODEL_15) {
+						continue;// pistoleer doesn't get new guns
+					}
+				}
+			}
 		}
 
 		// ------------------------------- (x)bow conditions -----------------------
@@ -8761,11 +9776,32 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 					continue;
 				}
 			}
+			else if (fullClassId == PFC_SCOUT && baseItem.RequiredClassMask != IPCM_SCOUT) {
+				if (RNG(100) < 70) {
+					continue;
+				}
+			}
 		}
 		//------------------------------------------------------------------------
-
+		if (fullClassId == PFC_SECUTOR){
+			if (HasTrait(CurrentPlayerIndex, TraitId::Scissor)) {
+				if (itemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh > 0) {
+					continue;
+				}
+			}
+			else {
+				if (itemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh == 0) {
+					continue;
+				}
+			}
+		}
 		if ((itemCode == IC_6_LIGHT_ARMOR || itemCode == IC_8_MID_ARMOR || itemCode == IC_9_HEAVY_ARMOR) && HasTrait(CurrentPlayerIndex, TraitId::OldFashioned)) {
 			continue;
+		}
+		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+			if (is(itemCode, IC_7_HELM, IC_17_BELT, IC_16_BOOTS, IC_15_GLOVE)) {
+				continue;
+			}
 		}
 		if( ( itemCode == IC_4_MACE || itemCode == IC_1_SWORD )
 			&& baseItem.EquippedLocation == EL_1_ONE_HANDED 
@@ -8781,7 +9817,7 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 				&& ( baseItem.RequiredDexterityMax > baseItem.RequiredStrengthMax ) ){
 				continue;
 			}
-			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER))
+			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_GLADIATRIX))
 				&& (is(baseItem.itemLevel, 12, 16, 24, 32, 38, 47, 57, 62))) {
 				continue;
 			}
@@ -8795,7 +9831,7 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 			}
 		}
 		if (itemCode == IC_16_BOOTS) {
-			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN,
+			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_GLADIATRIX,
 				PFC_BOMBARDIER, PFC_MAGE, PFC_ELEMENTALIST, PFC_DEMONOLOGIST, PFC_NECROMANCER, PFC_BEASTMASTER, PFC_WARLOCK))
 				&& (is(baseItem.itemLevel, 5, 11, 19, 27, 36, 57, 79, 94, 118, 147)) && (!(HasTrait(CurrentPlayerIndex, TraitId::Mamluk)))) { // boot base is checked by qlvl, and qlvls now can't change
 				continue;
@@ -8814,7 +9850,7 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 				&& (is(baseItem.itemLevel, 7, 19, 31, 41, 49, 56, 76, 96, 116, 136, 156))) {
 				continue;
 			}
-			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER))
+			if ((is(fullClassId, PFC_ARCHER, PFC_SCOUT, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN, PFC_IRON_MAIDEN, PFC_BOMBARDIER, PFC_GLADIATRIX))
 				&& (is(baseItem.itemLevel, 13, 25, 37, 46, 53 /* 57 & 61 are segregated already*/))) {// belt base is checked by qlvl, and qlvls now can't change
 				continue;
 			}
@@ -8943,7 +9979,7 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
             if( MaxCountOfPlayersInGame == 1 && (spell == PS_32_BONE_SPIRIT_REAL_RESSURECT || spell == PS_34_HEAL_OTHER) ){
                 // Forbidden in mp
             }
-			else if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) ){
+			else if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) || IsSpellBannedInDarkCampaign(spell) ){ // (th4) DC ban list
                 // Forbidden in game modes
             }
 			else if ( HasTrait(CurrentPlayerIndex, TraitId::Paladin) && spell == PS_36_BONE_SPIRIT ) {
@@ -8952,6 +9988,9 @@ int __fastcall GetRandomBaseForHiQualityObjectAndBossDrop( int monsterIndex )
 			else if (fullClassId == PFC_WARLOCK && (spell == PS_31_HOLY_BOLT || spell == PS_39_HOLY_NOVA)) {
 				// Warlock doesn't have access to Holy Bolt and Holy Nova books drops
 			}
+			//else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR) && spell != PS_7_TOWN_PORTAL) {
+				// skip all books except TP
+			//}
 			else{
                 goodItems[goodItemsCount++] = static_cast<BASE_ITEM>( baseItemIndex );
             }
@@ -8984,13 +10023,14 @@ int GetRandomBaseForLowQualityObjectDrop() // drop from objects
 		 && goodItemsCount < GOOD_ITEM_COUNT ){
 
 			if (GameMode == GM_CLASSIC) goto SKIP_CHECKS;
-
-			int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;		
-			if (maxReqParam < baseItem.RequiredStrengthMax
-				|| maxReqParam < baseItem.RequiredMagicMax
-				|| maxReqParam < baseItem.RequiredDexterityMax
-				|| maxReqParam < baseItem.RequiredVitalityMax) {
-				continue;
+			if (GameMode != GM_OUTBREAK && GameMode != GM_DARK_CAMPAIGN) {
+				int maxReqParam = 20 + 110 * Difficulty + 5 * Dungeon->level;
+				if (maxReqParam < baseItem.RequiredStrengthMax
+					|| maxReqParam < baseItem.RequiredMagicMax
+					|| maxReqParam < baseItem.RequiredDexterityMax
+					|| maxReqParam < baseItem.RequiredVitalityMax) {
+					continue;
+				}
 			}
 			// base item level cut from below. doubtful. needs check
 			if ((is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR, IC_7_HELM, IC_5_SHIELD, IC_2_AXE, IC_3_BOW, IC_4_MACE, IC_10_STAFF, IC_20_CLAW, IC_21_KNIFE, IC_22_MALLET,
@@ -9016,8 +10056,20 @@ int GetRandomBaseForLowQualityObjectDrop() // drop from objects
 				continue; // guardian and axepert rogue don't get 1H sharps and blunts
 			}
 
-			if (player.fullClassId == PFC_GUARDIAN && (!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) && baseItem.ItemCode == IC_23_PISTOL) {
-				continue;
+			if (player.fullClassId == PFC_GUARDIAN) {
+				if ((!HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) && baseItem.ItemCode == IC_23_PISTOL) {
+					continue;
+				}
+				if (is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
+					if (!(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))// if non - ES
+						&& (baseItem.baseId >= BI_2767_STANDARD_FATIGUES && baseItem.baseId <= BI_2787_PXA20_PA)) { // rolls full suit
+						continue; // skip drop
+					}
+					else if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)// if ES
+						&& baseItem.baseId < BI_2767_STANDARD_FATIGUES) { // and is about to get non-full suit armor
+						continue; // skip drop too
+					}
+				}
 			}
 
 			if (player.fullClassId == PFC_ROGUE) {
@@ -9054,13 +10106,50 @@ int GetRandomBaseForLowQualityObjectDrop() // drop from objects
 			if (HasTrait(CurrentPlayerIndex, TraitId::Paladin) && baseItem.ItemCode == IC_22_MALLET) {
 				continue;
 			}
-			if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer) && is(baseItem.ItemCode, IC_1_SWORD, IC_3_BOW, IC_4_MACE)) {
-				continue;
+			
+			if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
+				if (baseItem.ItemCode == IC_1_SWORD || baseItem.ItemCode == IC_4_MACE || baseItem.ItemCode == IC_3_BOW) {
+					continue;
+				}
+				else if (baseItem.ItemCode == IC_23_PISTOL) {
+					if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
+						if (baseItem.baseId <= BI_2446_INFERNAL_PISTOL || baseItem.baseId > BI_2732_PROTOPLASMA_THROWER) {
+							continue;// terminator doesn't get old guns
+						}
+					}
+					else if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)) {
+						if (baseItem.baseId < BI_2733_MINIGUN_01 || baseItem.baseId > BI_2757_F7_MINIGUN) {
+							continue;
+						}
+					}
+					else if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+						if (baseItem.baseId <= BI_2757_F7_MINIGUN) {
+							continue;
+						}
+					}
+					else {
+						if (baseItem.baseId >= BI_2708_38_SW_MODEL_15) {
+							continue;// pistoleer doesn't get new guns
+						}
+					}
+				}
 			}
+
 			if (HasTrait(CurrentPlayerIndex, TraitId::Black_Witchery) && baseItem.ItemCode == IC_21_KNIFE) {
 				continue;
 			}
 			if (HasTrait(CurrentPlayerIndex, TraitId::OldFashioned) && is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
+				continue;
+			}	
+			if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				if (is(baseItem.ItemCode, IC_7_HELM, IC_16_BOOTS, IC_15_GLOVE, IC_17_BELT)){
+					continue;
+				}
+			}
+			if (HasTrait(CurrentPlayerIndex, TraitId::Scissor) && baseItem.ItemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh > 0) {
+				continue;
+			}
+			if (player.fullClassId == PFC_SECUTOR && (!HasTrait(CurrentPlayerIndex, TraitId::Scissor)) && baseItem.ItemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh == 0) {
 				continue;
 			}
 			if (HasTrait(CurrentPlayerIndex, TraitId::TwoTowers, TraitId::Ranger) && is(baseItem.ItemCode, IC_1_SWORD, IC_4_MACE)) {
@@ -9077,10 +10166,15 @@ int GetRandomBaseForLowQualityObjectDrop() // drop from objects
 					continue;
 				}
 			}
+			if (player.fullClassId == PFC_SCOUT && baseItem.ItemCode == IC_3_BOW && baseItem.RequiredClassMask != IPCM_SCOUT) {
+				if (RNG(100) < 70) {// Scout getting elemental bows with 70% chance
+					continue;
+				}
+			}
 			SKIP_CHECKS:
             int spell = baseItem.SpellNumber;
 
-            if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) ){
+            if( isTownPortalForbidden() && ( spell == PS_7_TOWN_PORTAL ) || IsSpellBannedInDarkCampaign(spell) ){ // (th4) DC ban list
                 continue;
             }
 
@@ -9127,7 +10221,15 @@ int __fastcall RndTypeItems( int itemCode, int magicCode, int qlvl, int smartDro
 			 || smartDropFlag & IF_NO_BOW && strcmpi(baseItem.Name2, "crossbow") 
 			 || smartDropFlag & IF_CASTER_HARNESS && baseItem.EquippedLocation == EL_3_TORSO && baseItem.RequiredMagicMax > 0
 			 || smartDropFlag & IF_NON_THORNS_HARNESS && baseItem.EquippedLocation == EL_3_TORSO && baseItem.MaxThornsHigh == 0
+			 || smartDropFlag & IF_FULL_SUIT_ARMOR && baseItem.EquippedLocation == EL_3_TORSO && baseItem.baseId < BI_2767_STANDARD_FATIGUES
+			 || smartDropFlag & IF_GUARD_BASE_ARMOR && baseItem.EquippedLocation == EL_3_TORSO && baseItem.baseId >= BI_2767_STANDARD_FATIGUES
 			 || smartDropFlag & IF_MAMLUK_HARNESS && baseItem.EquippedLocation == EL_3_TORSO && baseItem.RequiredMagicMax == 0
+			 || smartDropFlag & IF_TERMINATOR_GUNS 
+				&&( (baseItem.baseId >= BI_2426_SHORT_PISTOL && baseItem.baseId <= BI_2446_INFERNAL_PISTOL) 
+				|| (baseItem.baseId >= BI_2733_MINIGUN_01 /*&& baseItem.baseId <= BI_2757_F7_MINIGUN*/))
+			 || smartDropFlag & IF_PISTOLEER_GUNS && baseItem.baseId >= BI_2708_38_SW_MODEL_15
+			 || smartDropFlag & IF_SUPERMUTANT_GUNS && !(baseItem.baseId >= BI_2733_MINIGUN_01 && baseItem.baseId <= BI_2757_F7_MINIGUN)
+			 || smartDropFlag & IF_ENCLAVE_GUNS && !(baseItem.baseId >= 2788 && baseItem.baseId <= 2887)
 				){
 				continue;
 			}
@@ -9164,14 +10266,14 @@ int __fastcall SelectRandomUnique(int itemIndex, int mlvl_quality, int chanceInP
 			drop[i--] = drop[--countOfDropableUniqs];
 		}
 	}
-	// для рандомизации без морфинга старых вещей можно использовать флаг D_MAGIC_FIND
-	// но если сделать в th1-hd случайный выбор, то будут морфится вещи при переносе обратно в TH1
-	// поэтому это оставляется до перехода полностью на TH1-HD
+	// (rt) the D_MAGIC_FIND flag can be used for randomization without morphing old items
+	// (rt) but if th1-hd picks randomly, items will morph when moved back to TH1
+	// (rt) so this is left until the full switch to TH1-HD
 	if( countOfDropableUniqs ){
 		return drop[RNG(countOfDropableUniqs)];
 	}else{
-		// подходящий по базе уник не найден
-		// тут можно добавить генерацию случайного уника (rare/epic)
+		// (rt) no unique suitable for this base was found
+		// (rt) generation of a random unique (rare/epic) could be added here
 		//return 863; // test unique drop
 	}
 	return uniqueItemIndex;
@@ -9278,21 +10380,25 @@ void __fastcall GetUniqueItem(int itemIndex, int uniqueItemIndex) // #unique ite
 	}else{
 		item.MagicLevel = ML_2_UNIQUE;
 	}
-	strcpy(item.FullMagicalItemName, uniq.Name);
+	strcpy(item.FullMagicalItemName, LocalizedUniqueItemName(uniq.Name)); // (th4) localized
+	// (th4) DC mission 15: the Anvil rewards come from Hephasto in the Dark Campaign.
+	// Name as well as FullMagicalItemName -- see the base-item sites above.
+	DarkCampaignRenameSmith( item.FullMagicalItemName, sizeof(item.FullMagicalItemName) );
+	DarkCampaignRenameSmith( item.Name,                sizeof(item.Name) );
 	item.Price = uniq.GoldValue;
-	if( item.MagicCode == MC_27_QUEST_UNIQUE || item.dropType & D_UNIQ ){ // Квестовый уник (0x1B - Quest Unique Item) 
-		// пробуем убрать фиксирование параметров квестовых уников
-		// раньше в seed( random seed ) квестового уника записывался индекс предмета в таблице уников
-		// так и не морфятся, и нельзя получить два квестовых уника с одним индексом, так как дубликаты проверяются по seed, а он у них одинаковых
-		// побочный эффект - фиксированные параметры, такак рандомный исходный ключ всегда один
-		// поскольку сид занимает 4 байта( 32 бита ), а индекс уника можно запихать в 12 бит( 4095 максимум )
-		// то я поменял полную заменую сида индексом, на запись индекса в младшие 12 бит сида
-		// так он остается случайным
-		// полные дубликаты так все равно не пройдут, а квестовые уники с разными параметрами пожалуйста
-		item.uniqIndexSeed = uniqueItemIndex; // Защита от дублирования квестовых уников (вроде оригинальная) // здесь фиксируется одиноковый сид для квестовых уников
+	if( item.MagicCode == MC_27_QUEST_UNIQUE || item.dropType & D_UNIQ ){ // (rt) Quest unique (0x1B - Quest Unique Item) 
+		// (rt) trying to remove the fixed parameters of quest uniques
+		// (rt) previously the item's index in the uniques table was written into the quest unique's seed (random seed)
+		// (rt) so they don't morph, and you can't get two quest uniques with the same index, since duplicates are checked by seed, which is the same for them
+		// (rt) side effect - fixed parameters, since the random source key is always the same
+		// (rt) since the seed takes 4 bytes (32 bits) and the unique's index fits into 12 bits (4095 max)
+		// (rt) I changed the full replacement of the seed by the index into writing the index into the seed's lower 12 bits
+		// (rt) so it stays random
+		// (rt) exact duplicates still won't pass, but quest uniques with different parameters are welcome
+		item.uniqIndexSeed = uniqueItemIndex; // (rt) Protection against duplicating quest uniques (apparently original) // the same seed is fixed here for quest uniques
 		if( ! (item.dropType & D_UNIQ) ){ // check for needs
 			item.dropType = D_0_SIMPLE;
-			item.quality = 63; // TODO: review max qlvl для квестовых уников
+			item.quality = 63; // (rt) TODO: review max qlvl for quest uniques
 		}
 	}
 	item.UniqueItemIndex = uniqueItemIndex;
@@ -9340,7 +10446,7 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 	const BaseItem& baseItem = BaseItems[baseItemIndex];
 
 	// TODO: move player specific to smart drop filter function
-	// removing equippable item drops for characters with "Clean Hands" GCы
+	// (rt) removing equippable item drops for characters with "Clean Hands" GCs
 	if( ( (Players[CurrentPlayerIndex].gameChanger & BIT(GC_14_CLEAN_HANDS)) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN) ) // << check for th GC
 	 && (is(baseItem.EquippedLocation, EL_10_HANDS, EL_11_FEET, EL_1_ONE_HANDED, EL_2_TWO_HANDED, EL_3_TORSO, EL_4_HEAD, EL_5_FINGER, EL_6_NECK, EL_9_WAIST)) // check for item types (equippable on body slots)
 	 && (BaseItems[baseItemIndex].MagicCode != MC_27_QUEST_UNIQUE) ){ // and this is for quest uniques (otherwise they morph to gold in inventory within seconds)
@@ -9376,9 +10482,9 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 	}else if( chanceInPercent == ChanceUniqueMob ){
 		item.dropType |= D_MOB;
 	}
-	if( item.MagicCode == MC_27_QUEST_UNIQUE ){ // Квестовый уник
+	if( item.MagicCode == MC_27_QUEST_UNIQUE ){ // (rt) Quest unique
 		if( item.EquippedLocation != EL_7_INVENTORY ){
-			// пробуем убрать фиксирование параметров квестовых уников
+			// (rt) trying to remove the fixed parameters of quest uniques
 			GetUniqueItem( itemIndex, uniqIndex );
 		}
 	}else{
@@ -9400,7 +10506,7 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 			itemQuality = qlvl + 4;
 		}
 		if (itemQuality != -1) {
-			// базовый шанс на дроп уника/рарки в th2 для обычных монстров 0,1%
+			// (rt) base chance to drop a unique/rare in th2 for normal monsters: 0.1%
 			//int uniqueChance = chanceInPercent * (th2 ? (chanceInPercent == ChanceUniqueBoss ? 10 : 1) : 1);  old braintwister code, replaced with the one below
 			int uniqueChance = chanceInPercent;
 			if (chanceInPercent == ChanceUniqueBoss[genVersion]) {
@@ -9441,9 +10547,6 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 			}
 			if (!rare) {
 				if( uniqueItemIndex == -1 || magicLevel == ML_1_MAGIC ){
-					#ifdef ALLOW_CURSE_ON_DOOM // патч пока отменен, так как приводил к морфингу вещей
-					if( IsGoodMagicItem == 123 ) IsGoodMagicItem = 0; // патч на корсы
-					#endif
 					ApplyAffixesToItem(itemIndex, baseItemIndex, itemQuality >> 1, itemQuality, IsGoodMagicItem, 2); // Magic item generation 
 				}else{
 					GetUniqueItem(itemIndex, uniqueItemIndex);
@@ -9457,7 +10560,7 @@ void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int ql
 		}
 		
 		if( item.MagicLevel != ML_2_UNIQUE ){
-			SetRandomDurability(itemIndex); // случайное получение текущей прочности ( 25% - 75% от базовой )
+			SetRandomDurability(itemIndex); // (rt) random current durability (25% - 75% of base)
 		}
 	}
 	SetupItemAnim(itemIndex);
@@ -9526,14 +10629,14 @@ int __fastcall SpawnItem(int monsterIndex, int row, int col, int sendMsg)
 	int baseItemIndex = 0;
 	int isGoodMagicItem = 0;
 	Monster& monster = Monsters[monsterIndex];
-	// (20) расширение номера босса 00427444
+	// (rt) (20) boss number extension 00427444
 	if( !monster.newBossId && (!(Monsters[monsterIndex].BasePtr->ItemDropSpecials & 0x8000) || MaxCountOfPlayersInGame == 1) ){
 		Quest& blackMushroomQuest = Quests[Q_1_BLACK_MUSHROOM];
 		if( blackMushroomQuest.status == QS_2_IN_PROGRESS && blackMushroomQuest.status2 == 5 ){
 			baseItemIndex = BI_331_BRAIN;
 			blackMushroomQuest.status2 = 6;
 		}else{
-			baseItemIndex = GetRandomBaseForMonsterDrop(monsterIndex); // baseItemIndex = -833; // вариант теста уника
+			baseItemIndex = GetRandomBaseForMonsterDrop(monsterIndex); // (rt) baseItemIndex = -833; // unique test variant
 			if( baseItemIndex == 0 ){
 				return -1; // no drop
 			}else if( baseItemIndex > 0 ){
@@ -9543,7 +10646,7 @@ int __fastcall SpawnItem(int monsterIndex, int row, int col, int sendMsg)
 				return SpawnUnique(-1 - baseItemIndex, row, col, sendMsg);
 			}
 		}
-	}else{ // дроп боссов и квестовых монстров
+	}else{ // (rt) drops from bosses and quest monsters
         bool dropBook = false;
         if( /*MaxCountOfPlayersInGame == 1 && */ ( is( GameModeType(), GAME_MODE_TYPE::NIGHTMARE, GAME_MODE_TYPE::IRON ) ) ) {
 			int treasure_hunter_divider_for_book_drops = 0;
@@ -9579,12 +10682,7 @@ int __fastcall SpawnItem(int monsterIndex, int row, int col, int sendMsg)
 		    if( baseItemIndex < 0 ){
 			    return SpawnUnique(-1 - baseItemIndex, row, col, sendMsg);
 		    }else{ // baseItemIndex >= 0
-			    isGoodMagicItem = 1; // нет проклятых вещей с боссов
-			    #ifdef ALLOW_CURSE_ON_DOOM // патч пока отменен, так как приводил к морфингу вещей
-			    if( Difficulty == 2 ){
-				    isGoodMagicItem = 123; // патч на корс
-			    }
-			    #endif
+			    isGoodMagicItem = 1; // (rt) no cursed items from bosses
 		    }
         }
 	}
@@ -9632,7 +10730,9 @@ void __fastcall SetupAllUseful( int itemIndex, int seed, int qlvl )
 	SetRndSeed(seed);
 	int randFactor = RNG(7);
 	int baseItemIndex = GameMode == GM_CLASSIC ? BI_2652_POTION_OF_HEAL_CLS : BI_24_POTION_OF_HEALING;
-    bool isTPForbidden = isTownPortalForbidden();
+    // (th4) Dark Campaign bans Town Portal, so this guaranteed-useful table hands out a
+    // healing potion instead of the TP relic, exactly as the TP-forbidden modes do.
+    bool isTPForbidden = isTownPortalForbidden() || IsSpellBannedInDarkCampaign(PS_7_TOWN_PORTAL);
 	switch (randFactor ){
 	case 0:
 		if( qlvl > 1 && !isTPForbidden ){
@@ -9737,8 +10837,8 @@ void __fastcall RecreateItem( int itemIndex, short baseItemIndex, int dropType, 
 	}else if( dropType & D_SHOP ){
 		RestoreTownersItems(itemIndex, baseItemIndex, dropType, (int)seed, amount, genVersion, quality, magicFind); // TODO: expand seed
 	}else if( dropType & D_USEFUL ){
-		/*if( IsExeValidating )*/ forceCallforSync = RNG(baseItemIndex); // для синхронизации с генерацией бутылок
-		//else SetupAllUseful(itemIndex, seed, qlvl); // выбор базы для бутылок
+		/*if( IsExeValidating )*/ forceCallforSync = RNG(baseItemIndex); // (rt) for synchronization with potion generation
+		//(rt) else SetupAllUseful(itemIndex, seed, qlvl); // pick the base for potions
 		SetPlayerHandItem( item, baseItemIndex );
 		item.SetSeed(seed, genVersion);
 	}else{
@@ -9989,7 +11089,7 @@ void ProcessItems()
 					}
 				}
 			}else{
-				if( item.FrameIndex == item.FramesCount >> 1 ){// на середине анимации играем звук
+				if( item.FrameIndex == item.FramesCount >> 1 ){// (rt) play the sound in the middle of the animation
 					PlayLocalSound(Flip_DropSound[ItemFlipTable[item.GraphicValue]], item.MapRow, item.MapCol);
 				}
 				if( item.FrameIndex >= item.FramesCount ){
@@ -10006,7 +11106,7 @@ void ProcessItems()
 //----- (004280D9) --------------------------------------------------------
 void FreeUniqueItemCELFilesPtrs()
 {
-	for( int flipItemIndex = 0; flipItemIndex < FL_68_COUNT; flipItemIndex++ ){
+	for( int flipItemIndex = 0; flipItemIndex < FL_81_COUNT; flipItemIndex++ ){
 		FreeMemZero(FlipItemCELFiles[flipItemIndex]);
 	}
 }
@@ -10014,8 +11114,8 @@ void FreeUniqueItemCELFilesPtrs()
 //----- (004280F6) --------------------------------------------------------
 void __fastcall SetUniqueItemCELFile(int itemIndex)
 {
-	// баг при загрузке сингл сейва старой версии, если его пересохраняли в городе, в подземелье остаются структуры старых размеров
-	// нужно таки добавить версию в Item и смотреть на загрузке каждого итема
+	// (rt) bug when loading an old-version single-player save that was re-saved in town: the dungeon keeps structures of the old sizes
+	// (rt) really need to add a version to Item and check it when loading each item
 	Item* NewItem = &Items[itemIndex];
 	NewItem->ItemCELFilePtr = FlipItemCELFiles[ItemFlipTable[NewItem->GraphicValue]];
 }
@@ -10025,12 +11125,13 @@ TEXT_COLOR ItemColor(const Item& item)
 {
 	if( item.dropType & D_ENCHANT ) return C_10_Enchanted;
 	if(IsQuestItem(item.baseItemIndex)) return C_11_Quest;
+	if( is(item.MagicCode, MC_44_SPECTRAL_ELIXIR, MC_10_ELIXIR_OF_STRENGTH, MC_11_ELIXIR_OF_MAGIC, MC_12_ELIXIR_OF_DEXTERITY, MC_13_ELIXIR_OF_VITALITY) && GameMode != GM_CLASSIC ) return C_8_Pink;
 	if( item.ItemCode == IC_11_GOLD ) return C_3_Gold;
 	if( item.MagicCode == MC_2_POTION_OF_FULL_HEALING || item.MagicCode == MC_3_POTION_OF_HEALING ) return C_2_Red;
 	if( item.MagicCode == MC_6_POTION_OF_MANA || item.MagicCode == MC_7_POTION_OF_FULL_MANA ) return C_10_Enchanted;
 	if( item.MagicCode == MC_18_POTION_OF_REJUVENATION || item.MagicCode == MC_19_POTION_OF_FULL_REJUVENATION ) return C_3_Gold;
 	if( item.MagicCode == MC_GEM ) return C_4_Orange;
-	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_6_Brownish;
+	if( item.MagicCode >= MC_30_OIL_OF_SOMETHING && item.MagicCode <= MC_40_OIL_OF_HARDENING ) return C_6_Banana;
 	if( item.MagicCode == MC_24_BOOKS ) return C_3_Gold;
 	if( is(item.MagicCode, MC_21_RELIC_NEED_NO_TARGET, MC_22_RELIC_NEED_TARGET) ){
 		if( item.SpellIndex == PS_5_IDENTIFY      ) return C_4_Orange;
@@ -10050,8 +11151,8 @@ TEXT_COLOR ItemColor(const Item& item)
 void __fastcall Item_ShowInfo(int itemIndex)
 {
 	Item& item = Items[itemIndex];
-	if( item.ItemCode == IC_11_GOLD ){ //	если это золото
-		sprintf(InfoPanelHeader, "%i gold %s", item.amount, formatGoldAmount(item.amount));
+	if( item.ItemCode == IC_11_GOLD ){ //	(rt) if this is gold
+		sprintf(InfoPanelHeader, L("%i gold %s"), item.amount, formatGoldAmount(item.amount));
 	}else{
 		const bool identified = item.Identified || item.MagicLevel == ML_0_USUAL;
 		strcpy(InfoPanelHeader, identified ? item.FullMagicalItemName : item.Name);
@@ -10062,9 +11163,22 @@ void __fastcall Item_ShowInfo(int itemIndex)
 //----- (0042818A) --------------------------------------------------------
 void __fastcall IdentifyItemWithCursor(uint playerIndex, uint onBodySlotIndex)
 {
+	extern bool IsSigilInventoryOpen;
 	Player& player = Players[playerIndex];
-	Item& item = player.OnBodySlots[onBodySlotIndex];
-	if( item.MagicLevel && !item.Identified && playerIndex == CurrentPlayerIndex ){// в th1 нет этих проверок, но возможно они нужны
+	// by (th4): GetSlotMouseAbove_Inv encodes a sigil cell as (talIndex + IS_Inventory),
+	// identical to a normal inventory cell. OnBodySlots[IS_Inventory + k] overruns into the
+	// contiguous InventorySlots[k], which is correct for the normal inventory but WRONG for
+	// sigils -- TalismanSlots is a separate, non-contiguous array. So identify silently hit
+	// the wrong slot and never identified the sigil. Redirect to TalismanSlots when the sigil
+	// inventory is open and the index is in the inventory band.
+	Item* itemPtr;
+	if( IsSigilInventoryOpen && onBodySlotIndex >= (uint)IS_Inventory && onBodySlotIndex < (uint)IS_50_47_Belt_Start ){
+		itemPtr = &player.TalismanSlots[ onBodySlotIndex - IS_Inventory ];
+	}else{
+		itemPtr = &player.OnBodySlots[onBodySlotIndex];
+	}
+	Item& item = *itemPtr;
+	if( item.MagicLevel && !item.Identified && playerIndex == CurrentPlayerIndex ){// (rt) th1 has no such checks, but they may be needed
 		item.Identified = 1;
 		UpdateItem( item );
 		PlayLocalSound(S_1291, player.Row, player.Col);
@@ -10074,9 +11188,9 @@ void __fastcall IdentifyItemWithCursor(uint playerIndex, uint onBodySlotIndex)
 				ClearPlayerItemBySeed(playerIndex, Cur.UsedItemSeed, Cur.UsedItemBase);
 			}
 		}
-		//MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_5_IDENTIFY); // в th1 нет этого вызова
+		//(rt) MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_5_IDENTIFY); // th1 has no such call
 	}
-	if( playerIndex == CurrentPlayerIndex ){// странная проверка. Единственное место откуда вызывается передает как playerIndex - CurrentPlayerIndex
+	if( playerIndex == CurrentPlayerIndex ){// (rt) questionable check. The only caller passes CurrentPlayerIndex as playerIndex
 		SetCursorGraphics(CM_1_NORMAL_HAND);
 	}
 }
@@ -10086,11 +11200,11 @@ void __fastcall RepairItemWithCursor(uint playerIndex, uint onBodySlotIndex)
 {
 	Player& player = Players[playerIndex];
 	Item& item = player.OnBodySlots[onBodySlotIndex];
-	if( item.CurDurability < item.BaseDurability && playerIndex == CurrentPlayerIndex ){ // в th1 этих проверок нет, но похоже они нужны
+	if( item.CurDurability < item.BaseDurability && playerIndex == CurrentPlayerIndex ){ // (rt) th1 has no such checks, but they seem to be needed
 		PlayLocalSound(91, player.Row, player.Col);
 		RepairItemWithBreaking(item, playerIndex);
 		RecalcPlayer(playerIndex, 1);
-		//MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_26_ITEM_REPAIR); // в th1 нет этого вызова
+		//(rt) MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_26_ITEM_REPAIR); // th1 has no such call
 		if( playerIndex == CurrentPlayerIndex ){
 			ClearPlayerItemBySeed(CurrentPlayerIndex, Cur.UsedItemSeed, Cur.UsedItemBase);
 		}
@@ -10123,7 +11237,7 @@ void __fastcall RechargeStaffWithCursor(int playerIndex, int itemCellIndex)
 {
 	Player& player = Players[playerIndex];
 	Item& item = player.OnBodySlots[itemCellIndex];
-	if( item.SpellIndex && ( item.CurCharges < item.BaseCharges && playerIndex == CurrentPlayerIndex ) ){ // в th1 этих проверок нет, но похоже они нужны
+	if( item.SpellIndex && ( item.CurCharges < item.BaseCharges && playerIndex == CurrentPlayerIndex ) ){ // (rt) th1 has no such checks, but they seem to be needed
 		if (player.SpellType == SO_0_SKILL && (item.ItemCode == IC_12_RING || item.ItemCode == IC_13_AMULET)) {
 			PlayGlobalSound(S_531_SOR_14+2);
 			return;
@@ -10132,7 +11246,7 @@ void __fastcall RechargeStaffWithCursor(int playerIndex, int itemCellIndex)
 		RechargeStaffWithBreaking(item, RNG(rechargeFactor) + 1);
 		PlayLocalSound(1295, player.Row, player.Col);
 		RecalcPlayer(playerIndex, 1);
-		//MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_27_STAFF_RECHARGE); // в th1 нет этого вызова
+		//(rt) MinusManaOrChargeOrRelicByPriceOfSSpell (playerIndex, PS_27_STAFF_RECHARGE); // th1 has no such call
 	}
 	if( playerIndex == CurrentPlayerIndex ){
 		SetCursorGraphics(CM_1_NORMAL_HAND);
@@ -10148,8 +11262,8 @@ void __fastcall RechargeStaffWithBreaking(Item& item, int chargesPerOneDur)
 	int chargesToMax = item.BaseCharges - item.CurCharges;
 	int durabilityLeft = item.CurDurability - 1;
 	int durabilityNeed = chargesToMax / chargesPerOneDur;
-	if( durabilityNeed * chargesPerOneDur < chargesToMax ){// если округлилось до меньшего
-		durabilityNeed++;// Округляем до большего
+	if( durabilityNeed * chargesPerOneDur < chargesToMax ){// (rt) if it rounded down
+		durabilityNeed++;// (rt) Round up
 	}
 	if( durabilityLeft >= durabilityNeed ){
 		item.CurDurability -= durabilityNeed;
@@ -10302,7 +11416,7 @@ bool __fastcall ApplyOilToItem(Item& item, Player& player)
 	default:
 		return true;
 	}
-	return true; // по идее до сюда не должны дойти. Просто страховка
+	return true; // (rt) in theory we should never get here. Just a safeguard
 }
 
 // TODO: remove affixEffect param, add playerIndex or use only Effect& e
@@ -10461,7 +11575,7 @@ bool IsValidBaseForGriswoldBasicalItemsOld(int baseItemIndex)
 	switch (itemCode ){
 	case IC_0_OTHER:
 	case IC_11_GOLD:
-	case IC_14_EAR:/* Такого ни разу не было*/
+	case IC_14_EAR:/* (rt) This has never happened*/
 	case IC_12_RING:
 	case IC_13_AMULET:				return false;
 	case IC_10_STAFF:
@@ -10532,14 +11646,14 @@ void BasicalItemsSorting()
 		}
 	}
 	LimitToMax(itemsCount, 25);
-	// unstable selection sort http://ru.wikipedia.org/wiki/Сортировка_выбором
+	// (rt) unstable selection sort https://en.wikipedia.org/wiki/Selection_sort
 	for( int firstItemIndex = 0; firstItemIndex < itemsCount - 1; ++firstItemIndex ){
 		Item& firstItem = BasicalItemsArray[firstItemIndex];
-		int minItemIndex = firstItemIndex;// это номер вещи с наименьшим индексом
+		int minItemIndex = firstItemIndex;// (rt) this is the number of the item with the lowest index
 		for( int secondItemIndex = firstItemIndex + 1; secondItemIndex < itemsCount; ++secondItemIndex ){
 			Item& secondItem = BasicalItemsArray[secondItemIndex];
 			Item& minItem = BasicalItemsArray[minItemIndex];
-			 // в th2 предлагалось сортировать по ItemCode
+			 // (rt) in th2 it was proposed to sort by ItemCode
 			if( secondItem.baseItemIndex < minItem.baseItemIndex ){
 				minItemIndex = secondItemIndex;
 			}
@@ -10747,9 +11861,12 @@ int __fastcall IsValidBaseForAdriaItems(int baseItemIndex)
 	int itemCode = item.ItemCode;
 	int magicCode = item.MagicCode;
 	int spellNumber = item.SpellNumber;
+	if (IsSpellBannedInDarkCampaign(spellNumber)) { // (th4) Dark Campaign ban list -- covers
+		return false;                              // staves, relics, scrolls AND books
+	}
 	if (itemCode == IC_0_OTHER || itemCode == IC_10_STAFF) { // conditions for OTHER items and STAVES (NOT books)
 		if (magicCode == MC_6_POTION_OF_MANA
-			) { // зелья маны ибо уже есть
+			) { // (rt) mana potions, since there already are some
 			return false;
 		}
 		else if (GameMode == GM_COLISEUM &&
@@ -10758,16 +11875,16 @@ int __fastcall IsValidBaseForAdriaItems(int baseItemIndex)
 				|| magicCode == MC_19_POTION_OF_FULL_REJUVENATION)) {
 			return false;
 		}
-		else if (spellNumber == PS_7_TOWN_PORTAL) { // тоже есть
+		else if (spellNumber == PS_7_TOWN_PORTAL) { // (rt) also already present
 			return false;
 		}
-		else if (magicCode == MC_2_POTION_OF_FULL_HEALING || magicCode == MC_3_POTION_OF_HEALING) {// зелья лечения ибо не хилер
+		else if (magicCode == MC_2_POTION_OF_FULL_HEALING || magicCode == MC_3_POTION_OF_HEALING) {// (rt) healing potions, since not a healer
 			return false;
 		}
-		else if (magicCode >= MC_30_OIL_OF_SOMETHING && magicCode <= MC_40_OIL_OF_HARDENING) { // масла
+		else if (magicCode >= MC_30_OIL_OF_SOMETHING && magicCode <= MC_40_OIL_OF_HARDENING) { // (rt) oils
 			return false;
 		}
-		else if ((spellNumber == PS_32_BONE_SPIRIT_REAL_RESSURECT || spellNumber == PS_34_HEAL_OTHER) && MaxCountOfPlayersInGame == 1) {// заклинания бессмысленные в сингле
+		else if ((spellNumber == PS_32_BONE_SPIRIT_REAL_RESSURECT || spellNumber == PS_34_HEAL_OTHER) && MaxCountOfPlayersInGame == 1) {// (rt) spells that are pointless in single player
 			return false;
 		}
 		else if (isTownPortalForbidden() && (spellNumber == PS_7_TOWN_PORTAL)) {
@@ -10836,10 +11953,10 @@ void AdriaItemsSorting()
 		}
 	}
 	LimitToMax(itemsCount, 25);
-	// unstable selection sort  http://ru.wikipedia.org/wiki/Сортировка_выбором
+	// (rt) unstable selection sort  https://en.wikipedia.org/wiki/Selection_sort
 	for( int firstItemIndex = FORCED_ADRIA_ITEMS_COUNT; firstItemIndex < itemsCount - 1; ++firstItemIndex ){
 		Item& firstItem = WitchAdriaItems[firstItemIndex];
-		int minItemIndex = firstItemIndex;// это номер вещи с наименьшим индексом
+		int minItemIndex = firstItemIndex;// (rt) this is the number of the item with the lowest index
 		for( int secondItemIndex = firstItemIndex + 1; secondItemIndex < itemsCount; ++secondItemIndex ){
 			Item& secondItem = WitchAdriaItems[secondItemIndex];
 			Item& minItem = WitchAdriaItems[minItemIndex];
@@ -10903,7 +12020,10 @@ void __fastcall WitchAdriaItemsGeneration(int qlvl)
 		adriaItem1.IsReqMet = true;
 
 		int adriaItem2Base = GameMode == GM_CLASSIC ? BI_2660_RELICT_OF_TP_CLS : BI_27_RELICT_OF_TOWN_PORTAL;
-		if (isTownPortalForbidden()) {
+		// (th4) This slot is a GUARANTEED stock item placed by base-item index, so it never
+		// passes through IsValidBaseForAdriaItems and the Dark Campaign ban list cannot catch
+		// it. Substitute Identify, exactly as the town-portal-forbidden modes already do.
+		if (isTownPortalForbidden() || IsSpellBannedInDarkCampaign(PS_7_TOWN_PORTAL)) {
 			adriaItem2Base = BI_187_RELICT_OF_IDENTIFY;
 		}
 		GetItemAttrs(MaxItems_255, adriaItem2Base, BI_1_SHORT_KNIFE ); // what is this "1"? (same in th3)
@@ -10918,13 +12038,13 @@ void __fastcall WitchAdriaItemsGeneration(int qlvl)
 	int currentAdriaItemIndex = 3;
 	for( int baseItemIndex = bookStart; baseItemIndex <= bookEnd && currentAdriaItemIndex - 3 < booksCount; ++baseItemIndex ){
 		BaseItem& baseItem = BaseItems[baseItemIndex];
-		// в th1 тут ошибка, неправильная ссылка на baseItem.QualityLevel
-		// и еще одна где-то рядом, исправить
+		// (rt) th1 has a bug here, wrong reference to baseItem.QualityLevel
+		// (rt) and one more somewhere nearby, fix it
 		if( IsValidBaseForAdriaItems(baseItemIndex) && baseItem.itemLevel <= qlvl ){
 			Item& adriaItem = WitchAdriaItems[currentAdriaItemIndex];
 			tempItem.MakeSeed();
 			SetRndSeed(tempItem.seed);
-			forceCallforSync = RNG(1); // синхронизация с GetRandomBaseForAdriaItems ниже
+			forceCallforSync = RNG(1); // (rt) synchronization with GetRandomBaseForAdriaItems below
 			GetItemAttrs(MaxItems_255, baseItemIndex, qlvl);
 			if (IsItemFiltered(player, tempItem)) {//No summon books in store for non summoners (guaranteed books)
 				baseItemIndex--;
@@ -11106,7 +12226,8 @@ bool __fastcall IsValidBaseForPepinItems( int baseItemIndex )
 	if( magicCode == MC_22_RELIC_NEED_TARGET && baseItem.SpellNumber == PS_34_HEAL_OTHER && MaxCountOfPlayersInGame != 1 )	{
 		return true;
 	}
-    if( magicCode == MC_22_RELIC_NEED_TARGET && baseItem.SpellNumber == PS_7_TOWN_PORTAL && isTownPortalForbidden() ){
+    if( magicCode == MC_22_RELIC_NEED_TARGET && baseItem.SpellNumber == PS_7_TOWN_PORTAL && isTownPortalForbidden()
+     || IsSpellBannedInDarkCampaign(baseItem.SpellNumber) ){ // (th4) Dark Campaign ban list
         return false;
     }
 	if( MaxCountOfPlayersInGame == 1 || GameMode == GM_COLISEUM || GameMode == GM_CLASSIC){
@@ -11165,10 +12286,10 @@ void PepinItemsSorting()
 		}
 	}
 	LimitToMax(itemsCount, 20);
-	// unstable selection sort  http://ru.wikipedia.org/wiki/Сортировка_выбором
-	for( int firstItemIndex = FORCED_PEPIN_ITEMS_COUNT; firstItemIndex < itemsCount - 1; firstItemIndex++ ){// Сортировка с выбором
+	// (rt) unstable selection sort  https://en.wikipedia.org/wiki/Selection_sort
+	for( int firstItemIndex = FORCED_PEPIN_ITEMS_COUNT; firstItemIndex < itemsCount - 1; firstItemIndex++ ){// (rt) Selection sort
 		Item& firstItem = PepinItems[firstItemIndex];
-		int minItemIndex = firstItemIndex;// это номер вещи с наименьшим индексом
+		int minItemIndex = firstItemIndex;// (rt) this is the number of the item with the lowest index
 		for( int secondItemIndex = firstItemIndex + 1; secondItemIndex < itemsCount; secondItemIndex++ ){
 			Item& secondItem = PepinItems[secondItemIndex];
 			Item& minItem = PepinItems[minItemIndex];
@@ -11261,8 +12382,8 @@ void __fastcall RestoreGriswoldBasicalItem( int itemIndex, int baseItemIndex, in
 	item.dropType = D_GRISWOLD_BASIC;
 	item.quality = qlvl;
 	SetRndSeed(seed);
-	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex); // код в одной из версий TH
-	else /*baseItemIndex = */ forceCallforSync = GetRandomBaseForGriswoldBasicalItems( qlvl ) - 1; // результат не учитывается (?) но нужно для синхронизации с генерацией
+	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex); // (rt) code in one of the TH versions
+	else /*baseItemIndex = */ forceCallforSync = GetRandomBaseForGriswoldBasicalItems( qlvl ) - 1; // (rt) the result isn't used (?) but is needed for synchronization with the generation
 	GetItemAttrs(itemIndex, baseItemIndex, qlvl);
 	item.Identified = true;
 }
@@ -11287,8 +12408,8 @@ void __fastcall RestoreGriswoldMagicalItem( int itemIndex, int baseItemIndex, in
 	}
 	LimitToRange(qlvl, 1, 10 + (challenge_Mode_Bonus * Players[CurrentPlayerIndex].CharLevel / 10));// this is Griswold shop affix level limitation
 	SetRndSeed(seed);
-	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex);// код в одной из версий TH
-	else /*baseItemIndex =*/ forceCallforSync = GetRandomBaseItemIndexForGriswoldMagicalItem(qlvl / 4, qlvl) - 1; // результат не учитывается (?) но нужно для синхронизации с генерацией
+	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex);// (rt) code in one of the TH versions
+	else /*baseItemIndex =*/ forceCallforSync = GetRandomBaseItemIndexForGriswoldMagicalItem(qlvl / 4, qlvl) - 1; // (rt) the result isn't used (?) but is needed for synchronization with the generation
 	GetItemAttrs(itemIndex, baseItemIndex, qlvl); // TODO: check unifying with SetPlayerHandItem (which zeroing item), GetItemAttrs called after setting params
 	item.Identified = true;
 	ApplyAffixesToItem(itemIndex, baseItemIndex, qlvl / 2, qlvl + extras, 1, 0);
@@ -11315,8 +12436,8 @@ void __fastcall RestoreWirtItem( int itemIndex, int baseItemIndex, int qlvl, int
 	}
 	LimitToRange(qlvl, 1, 15 + (challenge_Mode_Bonus2 * Players[CurrentPlayerIndex].CharLevel / 10)); // Wirt item level
 	SetRndSeed(seed);
-	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex);// код в одной из версий TH
-	else /*baseItemIndex =*/ forceCallforSync = GetRandomBaseItemIndexForWirtItem(qlvl) - 1; // результат не учитывается (?) но нужно для синхронизации с генерацией
+	if( false ) /*baseItemIndex = */forceCallforSync = RNG(baseItemIndex);// (rt) code in one of the TH versions
+	else /*baseItemIndex =*/ forceCallforSync = GetRandomBaseItemIndexForWirtItem(qlvl) - 1; // (rt) the result isn't used (?) but is needed for synchronization with the generation
 	GetItemAttrs(itemIndex, baseItemIndex, qlvl);
 	item.Identified = true;
 	ApplyAffixesToItem(itemIndex, baseItemIndex, 2 * qlvl / 3, qlvl + extras, 1, 1); // another Wirt item level limit
@@ -11342,11 +12463,11 @@ void __fastcall RestoreAdriaItem( int itemIndex, int baseItemIndex, int qlvl, in
 	}else if( baseItemIndex >= BI_114_BOOK_OF_ && baseItemIndex <= BI_117_BOOK_OF_
         || baseItemIndex >= BI_225_BOOK_OF_ && baseItemIndex <= BI_228_BOOK_OF_ ){
 		SetRndSeed(seed);
-		forceCallforSync = RNG(1); // синхронизация с GetRandomBaseForAdriaItems ниже
+		forceCallforSync = RNG(1); // (rt) synchronization with GetRandomBaseForAdriaItems below
 		GetItemAttrs(itemIndex, baseItemIndex, qlvl);
 	}else{
 		SetRndSeed(seed);
-		forceCallforSync = GetRandomBaseForAdriaItems(qlvl) - 1; // результат не учитывается (?) но нужно для синхронизации с генерацией
+		forceCallforSync = GetRandomBaseForAdriaItems(qlvl) - 1; // (rt) the result isn't used (?) but is needed for synchronization with the generation
 		//int calcedBaseItemIndex = GetRandomBaseForAdriaItems(qlvl) - 1;
 		GetItemAttrs(itemIndex, baseItemIndex /*calcedBaseItemIndex*/, qlvl);
 		item.Identified = true;
@@ -11451,9 +12572,9 @@ int __fastcall CreateMagicItemFormSlainHero( int row, int col, int itemCode, int
 	int itemLevel = ItemLevelByDungeonLevel();
 	if( GetItemSpace(row, col, itemIndex) ){
 		int baseItemIndex = RndTypeItems( itemCode, magicCode, itemLevel );
-		for( int attempts = 0; attempts < 100; ++attempts ){ // пока что ввел ограничение на 100 попыток, чтобы гарантировано не висло
+		for( int attempts = 0; attempts < 100; ++attempts ){ // (rt) for now limited to 100 attempts so it is guaranteed not to hang
 			SetupAllItemsSmartdrop( itemIndex, baseItemIndex, GetRndSeed(), 2 * itemLevel, 1, 1, 0, delta );
-			// потом возможно переделать на сравнение с baseitem.SubType или .Material (заполнение списка и случайный выбор, без "бесконечного" цикла)
+			// (rt) later maybe change to comparing with baseitem.SubType or .Material (fill a list and pick randomly, without an "infinite" loop)
 			if( Items[ itemIndex ].GraphicValue == itemGfxId ) break;
 			baseItemIndex = RndTypeItems( itemCode, magicCode, itemLevel );
 		}
@@ -11557,6 +12678,8 @@ bool IsQuestItem( int baseItemIndex )
 		case BI_2510_DUSTY_CRATE:
 		case BI_2511_MT_CONTAINERS:
 		case BI_2512_FULL_CONTAINERS:
+		case BI_2706_SCROLL_OF_MAGIC:
+		case BI_2707_SCROLL_OF_MAGIC:
 			return true;
 		}
 	//}
@@ -11878,3 +13001,15 @@ void SetItem_GetActiveSetItemEffects( uint playerIndex, std::vector<Item*>& resu
 // ==============================
 // End of set items section
 // ==============================
+
+void ToggleSigilPanel()
+{
+	if (CurrentPlayerIndex != -1)
+	{
+		IsSigilPanelVisible = !IsSigilPanelVisible;
+		if (IsSigilPanelVisible)
+		{
+			IsINVPanelVisible = false;
+		}
+	}
+}

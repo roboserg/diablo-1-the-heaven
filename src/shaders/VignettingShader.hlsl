@@ -14,6 +14,8 @@ float4 main_vignetting(float2 cr : TEXCOORD0) : COLOR
 sampler tx : register(s0);
 sampler pl : register(s1);
 
+static const float LIGHT_SCALE = 1.0; // A byte range is 0-255
+
 struct PSInput {
 	float2 sp : vPos;
 	float2 cr : TEXCOORD0;
@@ -23,7 +25,9 @@ float4 main_vignetting(PSInput i) : COLOR
 {
 	float w = i.cr.x / i.sp.x;
 	float h = i.cr.y / i.sp.y;
-	float4 px = tex1D(pl, tex2D(tx, i.cr).r);
+	float4 samp = tex2D(tx, i.cr);
+	float4 px = tex1D(pl, samp.r * (255./256) + (0.5/256));
+	px.rgb *= saturate(1.0 - samp.a * LIGHT_SCALE);
 	if (tex2D(tx, i.cr).r >= .5) return px;
 	float ven = 1.0 - (abs((i.cr.x - .5) * 1.8 * ((i.cr.y - .5) * 1.8)));
 	return px * float4(ven * .9, ven, ven * .95, .9);

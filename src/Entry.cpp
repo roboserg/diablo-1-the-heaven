@@ -28,7 +28,7 @@ void __fastcall AddWarpMissile( int playerIndex, int row, int col )
 	MissilesMap[ row ][ col ] = 0;
 	int spellCastIndex = CastMissile(0, 0, row, col, 0, MI_10_TOWN_PORTAL, CT_0_PLAYER, playerIndex, 0, 0, 0 );
 	if( spellCastIndex == -1 ){
-		return;// если не скастуется, то звук не восстановится?
+		return;// (rt) if the cast fails, the sound won't be restored?
 	}
 	SetMissileDirection(spellCastIndex, 1);
 	if( Dungeon != DUN_0_TOWN ){
@@ -123,12 +123,12 @@ void __fastcall ClearAllTownPortalsOwnedThisPlayer( int playerIndex )
 void GetLevelEntryPoint()
 {
 	if( Dungeon != DUN_0_TOWN ){ // in Dungeon
-		PlayerRowPos = Portals[CurrentPortal].row; // установка координат игрока в после портала
+		PlayerRowPos = Portals[CurrentPortal].row; // (rt) setting the player's coordinates after a portal
 		PlayerColPos = Portals[CurrentPortal].col;
 		if( CurrentPortal != CurrentPlayerIndex ){
-			++PlayerRowPos; // здесь игрок уходит в стену
+			++PlayerRowPos; // (rt) the player walks into the wall here
 			++PlayerColPos;
-			if( IsCellBlocking(PlayerRowPos, PlayerColPos) ){ // добавляем проверку на стену
+			if( IsCellBlocking(PlayerRowPos, PlayerColPos) ){ // (rt) add a wall check
 				PlayerRowPos -= 2;
 				PlayerColPos -= 2;
 			}
@@ -177,7 +177,7 @@ bool RadialsCellFound(int& row, int& col, int playerIndex, int (__fastcall *cell
 void FixTPandStairEntryPoint(int lvlDir) // Handle player position collision upon taking stairs and TP.  TP has loadingMode = 5.
 {
 	// Player is no longer put inside stair when loading Crypt levels, which caused screen to shake after moving, and the fix to fail
-	if( Dungeon->graphType == DT_5_CRYPT && not(lvlDir, LVL_1_UP, LVL_5_WARP) ){
+	if( Dungeon->graphType == DT_5_CRYPT && not(lvlDir, LVL_1_UP, LVL_5_WARP) && Dungeon != DUN_117_DARKLORD_HIDEOUT ){ // (th4) hub is crypt-typed but must not get the +2 shift on mission return
 		PlayerColPos += 2;
 	}
 

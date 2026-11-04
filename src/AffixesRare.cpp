@@ -536,8 +536,8 @@ Affix AffixesRare[] = {
 	{186,	"Thorned",	AE_THORNS_PERCENT,	0,	46,	50,	0,	0,	0,	0,	32,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	3'100,	3'100,	5,	20,	22},
 	{187,	"Thorned",	AE_THORNS_PERCENT,	0,	52,	56,	0,	0,	0,	0,	48,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	5'100,	5'100,	6,	26,	28},
 	{188,	"Thorned",	AE_THORNS_PERCENT,	0,	70,	75,	0,	0,	0,	0,	56,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	1,	1,	7'100,	7'100,	7,	32,	34},
-	{189,	"Thorned",	AE_THORNS_PERCENT,	0,	78,	90,	0,	0,	0,	0,	62,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	1,	1,	11'100,	11'100,	8,	38,	40},
-	{189,	"Thorned",	AE_THORNS_PERCENT,	0,	93,	105,	0,	0,	0,	0,	98,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	1,	1,	24'200,	28'000,	12,	55,	59},
+	{189,	"Thorned",	AE_THORNS_PERCENT,	0,	78,	90,	0,	0,	0,	0,	62,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	1,	1,	11'100,	11'100,	8,	38,	40},
+	{189,	"Thorned",	AE_THORNS_PERCENT,	0,	93,	105,	0,	0,	0,	0,	98,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	1,	1,	24'200,	28'000,	12,	55,	59},
 	//{ 189,	"Thorned",	AE_THORNS_PERCENT,	0,	141,	150,	0,	0,	0,	0,	178,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	0,	56'400,	60'000,	16,	100,	121 },
 
 	//	{ 0,	"Fire Enchanted",	AE_SPELL_DAMAGE,	PS_1_FIREBOLT,	2,	4,	8,	10,	0,	0,	10,	IA_STAFF|IA_SHIELD,	IS_MAGIC,	0,	0,	1,	900,	900,	3, 0, 0+2 },
@@ -1051,13 +1051,13 @@ Affix AffixesRare[] = {
 	{ 402,	"Thorns",	AE_ACTION,	EA_THORNS,	 16,	 18,	 20,	 22,	61,	 70,	 34,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	 3'500,	 3'500,	 6,	 13,	 15 },
 	{ 403,	"Spikes",	AE_ACTION,	EA_THORNS,	 30,	 35,	 42,	 52,	41,	 55,	 42,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	 6'500,	 6'500,	 7,	 17,	 19 },
 	{ 404,	"Razors",	AE_ACTION,	EA_THORNS,	 31,	 36,	 40,	 42,	71,	 80,	 51,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	11'500,	11'500,	 8,	 21,	 23 },
-	{ 405,	"Lances",	AE_ACTION,	EA_THORNS,	257,	275,	325,	375,	11,	 15,	 59,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	22'500,	22'500,	 9,	 25,	 28 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	 50,	 55,	 57,	 72,	81,	 90,	 75,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	32'500,	32'500,	10,	 41,	 44 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	185,	200,	210,	255,	27,	 30,	 95,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	44'500,	44'500,	11,	 55,	 60 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	150,	165,	175,	200,	40,	 45,	115,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	53'500,	55'500,	12,	 66,	 69 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	675,	750,	825,	900,	13,	 15,	135,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	58'500,	58'500,	13,	 74,	 81 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	650,	700,	750,	800,	20,	 22,	155,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	63'500,	64'500,	14,	 86,	 93 },
-	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	425,	450,	475,	500,	40,	 45,	175,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD,	IS_THORNS,	0,	0,	1,	68'500,	70'500,	15,	 97,	105 },
+	{ 405,	"Lances",	AE_ACTION,	EA_THORNS,	257,	275,	325,	375,	11,	 15,	 59,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	22'500,	22'500,	 9,	 25,	 28 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	 50,	 55,	 57,	 72,	81,	 90,	 75,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	32'500,	32'500,	10,	 41,	 44 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	185,	200,	210,	255,	27,	 30,	 95,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	44'500,	44'500,	11,	 55,	 60 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	150,	165,	175,	200,	40,	 45,	115,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	53'500,	55'500,	12,	 66,	 69 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	675,	750,	825,	900,	13,	 15,	135,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	58'500,	58'500,	13,	 74,	 81 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	650,	700,	750,	800,	20,	 22,	155,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	63'500,	64'500,	14,	 86,	 93 },
+	{ 406,	"Swords",	AE_ACTION,	EA_THORNS,	425,	450,	475,	500,	40,	 45,	175,	IA_BODY_ARMOR | IA_HELM | IA_SHIELD | IA_GLOVE | IA_BOOTS,	IS_THORNS,	0,	0,	1,	68'500,	70'500,	15,	 97,	105 },
 
 
 	//	{ 0,	"To Thorns",	AE_ACTION_PERCENT,	EA_THORNS,	0,	0,	0,	0,	0,	0,	11,	IA_ALL,	IS_ALL,	0,	0,	1,	1000,	1000,	5,	5+2 },
@@ -2947,9 +2947,9 @@ void __fastcall Item_AddAffixesRare( Item& item, int minQLVL, int maxQLVL, int o
 	int affixMap[ countof( AffixesRare ) ];
 	Affix* prefix;
 	Affix* post;
-	disablePrefix = 0; // RNG(4);           //	вероятность префикса 0.25
-	enablePostfix = 1; // RNG(3);           //	вероятность постфикса 0.66(6)
-	if( disablePrefix && !enablePostfix ){ //	если не получилось ни префикса не постфикса то что нибудь всё равно включаем
+	disablePrefix = 0; // (rt) RNG(4);           //	prefix probability 0.25
+	enablePostfix = 1; // (rt) RNG(3);           //	suffix probability 0.66(6)
+	if( disablePrefix && !enablePostfix ){ //	(rt) if neither a prefix nor a suffix came out, enable something anyway
 		if( RNG(2) ){
 			enablePostfix = 1;
 		} else{
@@ -3029,7 +3029,7 @@ void __fastcall Item_AddPrefixRare( Item& item, int MaxAffixQLVL, int Spell_ID, 
 	int AffixMap[ countof( AffixesRare ) ];
 	//char Source[128];
 	BaseItem& baseItem = BaseItems[ item.baseItemIndex ];
-	Affix* pref = 0; // &Affixes[185]; // Инициация нулевым маркером // TODO: find out wtf is this
+	Affix* pref = 0; // (rt) &Affixes[185]; // Initialized with the zero marker // TODO: find out what this is
 	if( !RNG(10) || IsMagicItem || rare ){
 		while( AffixesRare[ Affix_ID + 1 ].effect.id != AE_NO ){
 			pref = &AffixesRare[ ++Affix_ID ];
@@ -3083,6 +3083,7 @@ void InitRare( int itemIndex, int minQuality, int maxQuality, int uniqueChance, 
 	}
 	item.MagicLevel = ML_2_UNIQUE;
 	strcpy_s( item.FullMagicalItemName, RareName( item.ItemCode, BaseItems[item.baseItemIndex].Material ) );
+	RingNameFixup( item );
 	item.Price = maxQuality * 750;
 	item.UniqueItemIndex = 0;
 	item.dropType |= D_RARE;

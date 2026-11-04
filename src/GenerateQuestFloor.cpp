@@ -226,16 +226,21 @@ void __fastcall LoadQuestHallMap( char* dunFileName )
 	}
 	LoadQuestDungeonAltMapChurch("Levels\\L1Data\\SklKng1.DUN", 83, 45);
 	char* dunName; 
-	switch (RNG(8)) {
-	case 1:  dunName = "Levels\\L1Data\\SklKng2.DUN";	break;
-	case 2:  dunName = "Levels\\L1Data\\SklKng3.DUN";	break;
-	case 3:  dunName = "Levels\\L1Data\\SklKng4.DUN";	break;
-	case 4:  dunName = "Levels\\L1Data\\SklKng5.DUN";	break;
-	case 5:  dunName = "Levels\\L1Data\\SklKng7.DUN";	break;
-	case 6:  dunName = "Levels\\L1Data\\SklKng8.DUN";	break;
-	case 7:  dunName = "Levels\\L1Data\\SklKng9.DUN";	break;
-	default: dunName = "Levels\\L1Data\\SklKng6.DUN";	break;
-	}
+	//if (Difficulty < DL_6_TERROR) {
+		switch (RNG(8)) {
+		case 1:  dunName = "Levels\\L1Data\\SklKng2.DUN";	break;
+		case 2:  dunName = "Levels\\L1Data\\SklKng3.DUN";	break;
+		case 3:  dunName = "Levels\\L1Data\\SklKng4.DUN";	break;
+		case 4:  dunName = "Levels\\L1Data\\SklKng5.DUN";	break;
+		case 5:  dunName = "Levels\\L1Data\\SklKng7.DUN";	break;
+		case 6:  dunName = "Levels\\L1Data\\SklKng8.DUN";	break;
+		case 7:  dunName = "Levels\\L1Data\\SklKng9.DUN";	break;
+		default: dunName = "Levels\\L1Data\\SklKng6.DUN";	break;
+		}
+	//}
+	//else { // variation received negative feedback and is thus turned off
+	//	dunName = "Levels\\L1Data\\SklKng10.DUN";
+	//}
 	if (GameMode == GM_CLASSIC) { dunName = "Levels\\L1Data\\SklKng_base.DUN"; }
 	LoadQuestDungeonMainMapChurch(dunName, 83, 45);
 	if (GameMode == GM_CLASSIC) {
@@ -309,22 +314,28 @@ void GenerateQuestFloor_109_Hall_of_Heroes()
 			default: dunName = "Levels\\L2Data\\Bonechahoror6.DUN";	break;
 			} 
 			break;
-
 		case DL_1_PURGATORY:	dunName = "Levels\\L2Data\\Bonechax.DUN";	break;
 		case DL_2_DOOM:			dunName = "Levels\\L2Data\\Bonechaz.DUN";	break;
 		case DL_3_CRUCIBLE:
 		case DL_4_TORMENT:
 		case DL_5_AGONY:
-		case DL_6_TERROR:
-		case DL_7_DESTRUCTION:
-		case DL_8_INFERNO:	
 			switch (RNG(3)) {
 			case  1: dunName = "Levels\\L2Data\\Bonechaz2.DUN";	break;
 			case  2: dunName = "Levels\\L2Data\\Bonechaz3.DUN";	break;
 			default: dunName = "Levels\\L2Data\\Bonechaz.DUN";	break;
 			}
 			break;
-
+		case DL_6_TERROR:
+		case DL_7_DESTRUCTION:
+		case DL_8_INFERNO:	
+			switch (RNG(6)) {
+			case  1: dunName = "Levels\\L2Data\\Bonechaz2.DUN";	break;
+			case  2: dunName = "Levels\\L2Data\\Bonechaz3.DUN";	break;
+			case  3: dunName = "Levels\\L2Data\\Bonechaz4.DUN";	break;
+			case  4: dunName = "Levels\\L2Data\\Bonechaz.DUN";	break;
+			default: dunName = "Levels\\L2Data\\Bonechaz5.DUN";	break;// 2x proc chance
+			}
+			break;
 		}
 	}
 	if (GameMode == GM_CLASSIC) { dunName = "Levels\\L2Data\\bonecha1_orig.DUN"; }
@@ -408,11 +419,34 @@ void GenerateQuestFloor_59_Hall_of_Fire()
 
 	//LoadQuestDungeonMapAltCatacomb("Levels\\L2Data\\Vaultkeep_01.DUN");
 	char* dunName = "Levels\\L2Data\\hof_v01.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN){ dunName = "Levels\\L2Data\\hof_vDC.DUN"; }
 	LoadQuestDungeonMapMainCatacomb(dunName, 23, 33);
 	char* palletteName = "Levels\\L2Data\\hof_v1.pal";//adjust
 	LoadPalette(palletteName);
 	//AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(48, 79, WM_1029_GOTO_QUEST_DUNGEON, DUN_58_GATEWAY_OF_BLOOD);
+	// (th4) Dark Campaign has no business in the Gateway of Blood -- this exit sits two tiles
+	// from the mission entry point and would let the player walk straight out of the mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(48, 79, WM_1029_GOTO_QUEST_DUNGEON, DUN_58_GATEWAY_OF_BLOOD);
+	}
+	PlayerRowPos = 49;
+	PlayerColPos = 80;
+}
+
+void GenerateQuestFloor_115_Valor_Tomb()
+{
+	Quest& valorMP_Quest = Quests[Q_39_VALOR_MP];
+	if (valorMP_Quest.status == QS_1_ACCEPT) {
+		valorMP_Quest.status = QS_2_IN_PROGRESS;
+		valorMP_Quest.talkToFlag = true;
+	}
+	//char* dunName = "Levels\\L2Data\\hof_v01.DUN";
+	char* dunName = "Levels\\L2Data\\ValorTomb.DUN";
+	LoadQuestDungeonMapMainCatacomb(dunName, 23, 33);
+	char* palletteName = "Levels\\L2Data\\hof_v1.pal";//adjust
+	LoadPalette(palletteName);
+	//AddDoorsObjectInCatacomb(0, 0, 112, 112);
+	AddWarp(48, 79, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_5_CATACOMB_1);
 	PlayerRowPos = 49;
 	PlayerColPos = 80;
 }
@@ -429,10 +463,15 @@ void GenerateQuestFloor_27_TheInfestedCellar()
 	}	
 
 	char* dunName;
-	switch (RNG(3)) {
-	case 1:	 dunName = "Levels\\L3Data\\lair02x1.DUN";	break;
-	case 2:	 dunName = "Levels\\L3Data\\lair02x2.DUN";	break;
-	default: dunName = "Levels\\L3Data\\lair02.DUN";	break;
+	if (Difficulty <= DL_5_AGONY) {
+		switch (RNG(3)) {
+		case 1:	 dunName = "Levels\\L3Data\\lair02x1.DUN";	break;
+		case 2:	 dunName = "Levels\\L3Data\\lair02x2.DUN";	break;
+		default: dunName = "Levels\\L3Data\\lair02.DUN";	break;
+		}
+	}
+	else {
+		dunName = "Levels\\L3Data\\lair02x3.DUN";
 	}
 	LoadQuestDungeonMainMapCave(dunName, 19, 50);
 	LoadPalette("levels\\l3data\\worms01.pal");
@@ -483,7 +522,11 @@ void GenerateQuestFloor_49_Sick_Villagers_Basement()
 /*__forceinline*/ void GenerateQuestFloor_28_PoisonedWaterSupply()
 {
 	Quest& poisonedWaterQuest = Quests[Q_13_POISONED_WATER_SUPPLY];
-	if( poisonedWaterQuest.status == QS_1_ACCEPT ){
+	// (th4) DARK CAMPAIGN uses its own mission system for this level, not the vanilla water
+	// quest. Leaving the quest at QS_1_ACCEPT disables the vanilla clear-detection and
+	// ResyncQuests logic (both gate on != QS_1_ACCEPT) -- otherwise clearing the level would
+	// trip the vanilla cleanse and load the purified (blue) water palette. DC keeps it foul.
+	if( GameMode != GM_DARK_CAMPAIGN && poisonedWaterQuest.status == QS_1_ACCEPT ){
 		poisonedWaterQuest.status = QS_2_IN_PROGRESS;
 		poisonedWaterQuest.talkToFlag = 1;//If player enters PWS before talking to Pepin, make sure quest log still shows PWS quest.
 	}
@@ -544,10 +587,86 @@ void GenerateQuestFloor_49_Sick_Villagers_Basement()
 		}
 	}
 	if (GameMode == GM_CLASSIC) { dunName = "Levels\\L3Data\\Foulwatr_orig.DUN"; }
+	if (GameMode == GM_DARK_CAMPAIGN) { dunName = "Levels\\L3Data\\foulwatr11.dun"; }
 	LoadQuestDungeonAltMapCave(dunName, 19, 50);
 	LoadQuestDungeonMainMapCave(dunName, 20, 50);
 	LoadPalette("Levels\\L3Data\\L3pfoul_th3.pal");
 	AddWarpFromPoisonWell();
+}
+
+// (th4) DARK CAMPAIGN mission 10: the heroes come back to cleanse the water supply.
+// Separate dungeon id from DUN_28 so the mission-1 wiring (boss, portal row, entry) does
+// not collide -- everything DC keys off the dungeon, not the mission index.
+// Layout/palette copied from GenerateQuestFloor_28_PoisonedWaterSupply above; only the map
+// and the DC arena rules differ. Like the Dark Nest, this level is closed: no return warp
+// is added, the way out is the portal Quests.cpp drops once the level is cleared.
+void GenerateQuestFloor_118_PoisonedWaterSupply_DC()
+{
+	char* dunName = "Levels\\L3Data\\foulwatr_getback.dun";
+
+	LoadQuestDungeonAltMapCave(dunName, 19, 50);
+	LoadQuestDungeonMainMapCave(dunName, 20, 50);
+	LoadPalette("Levels\\L3Data\\L3pfoul_th3.pal");
+
+	PlayerRowPos = 33;	// (th4) DC mission 10 entry point
+	PlayerColPos = 83;
+}
+
+// (th4) DARK CAMPAIGN mission 11: the Anvil of Fury. The heroes reached it first, so the
+// squad carrying it out has to be taken apart down here. Closed arena like the other mission
+// levels -- no warps are added; the way out is the return portal Quests.cpp drops once the
+// level is clear (DarkMissions[] row).
+void GenerateQuestFloor_119_DeeperCaves()
+{
+	char* dunName = "Levels\\L3Data\\dun_DCDC.dun";
+
+	LoadQuestDungeonAltMapCave(dunName, 19, 50);
+	LoadQuestDungeonMainMapCave(dunName, 20, 50);
+
+	// (th4) Same palette scheme as GenerateQuestFloor_75_River_of_Fire: one of the 94 L3
+	// cave palettes at random, or the lava palette under Ice Age. NOTE: this is rolled on
+	// every entry, so the cavern is a different colour each visit and after every reload --
+	// that is how River of Fire behaves. Pin `pal` to a constant if mission 11 should look
+	// the same every time.
+	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
+		LoadPalette("LEVELS\\L3Data\\lava_pits.pal");
+	}
+	else {
+		int pal = RNG(94) + 1;
+		char paletteFile[260];
+		sprintf(paletteFile, "Levels\\L3Data\\l3_%i.pal", pal);
+		LoadPalette(paletteFile);
+	}
+
+	PlayerRowPos = 80;	// (th4) DC mission 11 entry point
+	PlayerColPos = 31;
+}
+
+void GenerateQuestFloor_120_Pandemonium_DC()
+{
+	// (th4) DC mission 12: PLACEHOLDER. The .dun does not exist yet -- Mordor is building it.
+	// Everything below is scaffolding so the level enum, descriptor, mission row and portal
+	// can be wired and compiled now; it will NOT produce a playable floor until the file
+	// lands and the three TODO values are filled in.
+	char* dunName = "Levels\\L4Data\\dun_DCPN.dun";	// TODO: real filename once the dun exists
+
+	// TODO: stamp offsets -- where the dun is placed on the 112x112 map. DUN_87 uses 33,77
+	// for reference, but these depend entirely on the new dun's own size, so they are left
+	// at 0,0 rather than guessed.
+	LoadQuestDungeonMainMapHell(dunName, 0, 0);
+
+	// (th4) Full L4 palette range. 900 matches DT_4_HELL's palRange in palette.cpp (~221),
+	// which is what the non-quest hell levels roll from -- the older quest generators in this
+	// file still say 72 and are stale by that measure. No Ice Age branch here on purpose.
+	int pal = RNG(900) + 1;
+	char paletteFile[260];
+	sprintf(paletteFile, "Levels\\L4Data\\l4_%i.pal", pal);
+	LoadPalette(paletteFile);
+
+	// (th4) Entry sits one tile diagonally off the return portal at 51,51 in DarkMissions[],
+	// so the player does not spawn standing inside it.
+	PlayerRowPos = 52;
+	PlayerColPos = 52;
 }
 
 void GenerateQuestFloor_110_Black_Chapel()
@@ -572,6 +691,10 @@ void GenerateQuestFloor_110_Black_Chapel()
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
 	//SetupLeoricTombLevers();
 	AddWarp(23, 26, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_2_CHURCH_2);
+
+	if (graveMattersQuest.status == QS_3_COMPLETE && MaxCountOfPlayersInGame == 1) {
+		Open_the_Gates_Black_Chapel();
+	}
 }
 
 void GenerateQuestFloor_111_Sacristy()
@@ -581,10 +704,20 @@ void GenerateQuestFloor_111_Sacristy()
 		oathQuest.status = QS_2_IN_PROGRESS; 
 		oathQuest.status2 = 1;	
 	}
-	LoadQuestDungeonMainMapChurch("Levels\\L1Data\\church_Cellar_01.DUN", 47, 54);
+	char* dunName = "Levels\\L1Data\\church_Cellar_01.DUN";
+	int x = 47, y = 54;
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 25: own layout and arrival
+		dunName = "Levels\\L1Data\\church_Cellar_DC.DUN";
+		x = 50; y = 56;
+	}
+	LoadQuestDungeonMainMapChurch(dunName, x, y);
 	LoadPalette("Levels\\L1Data\\zContrastique.pal");
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(47, 52, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_1_CHURCH_1);
+	// (th4) DC mission 25: the way home is the return portal, so the exit back to the
+	// Cathedral would let the player walk out mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(47, 52, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_1_CHURCH_1);
+	}
 
 	if (oathQuest.status == QS_3_COMPLETE) {
 		Open_the_Gates_Sacristy();
@@ -603,6 +736,10 @@ void GenerateQuestFloor_60_Haunted_Labyrinth()
 	case 1:  dunName = "Levels\\L1Data\\dun_60_01.DUN";	break;
 	default: dunName = "Levels\\L1Data\\dun_60_02.DUN";	break;
 	}
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 24: own layout and arrival
+		dunName = "Levels\\L1Data\\dun_60_DC.DUN";
+		x = 54; y = 44;
+	}
 	LoadQuestDungeonMainMapChurch(dunName, x, y);
 	char pal[50] = "Levels\\L1Data\\l1_1.pal";
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
@@ -611,7 +748,11 @@ void GenerateQuestFloor_60_Haunted_Labyrinth()
 	}
 	LoadPalette(pal);
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(23, 40, WM_1029_GOTO_QUEST_DUNGEON, DUN_61_CURSED_SANCTUM);
+	// (th4) DC mission 24: the way home is the return portal, so the neighbour exit
+	// (Cursed Sanctum) would let the player walk out mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(23, 40, WM_1029_GOTO_QUEST_DUNGEON, DUN_61_CURSED_SANCTUM);
+	}
 }
 
 void GenerateQuestFloor_61_Cursed_Sanctum()
@@ -648,6 +789,10 @@ void GenerateQuestFloor_62_Dim_Undercroft()
 	case 1:  dunName = "Levels\\L1Data\\dun_62_01.DUN";	break;
 	default: dunName = "Levels\\L1Data\\dun_62_02.DUN";	break;
 	}
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 23: own layout and arrival
+		dunName = "Levels\\L1Data\\dun_62_DC.DUN";
+		x = 20; y = 44;
+	}
 	LoadQuestDungeonMainMapChurch(dunName, x, y);
 	char pal[50] = "Levels\\L1Data\\l1_3.pal";
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
@@ -656,8 +801,12 @@ void GenerateQuestFloor_62_Dim_Undercroft()
 	}
 	LoadPalette(pal);
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(23, 28, WM_1029_GOTO_QUEST_DUNGEON, DUN_63_FORGOTTEN_OSSUARY);
-	AddWarp(81, 22, WM_1029_GOTO_QUEST_DUNGEON, DUN_61_CURSED_SANCTUM);
+	// (th4) DC mission 23: the way home is the return portal, so both neighbour exits
+	// (Ossuary, Cursed Sanctum) would let the player walk out mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(23, 28, WM_1029_GOTO_QUEST_DUNGEON, DUN_63_FORGOTTEN_OSSUARY);
+		AddWarp(81, 22, WM_1029_GOTO_QUEST_DUNGEON, DUN_61_CURSED_SANCTUM);
+	}
 }
 
 void GenerateQuestFloor_63_Forgotten_Ossuary()
@@ -689,10 +838,20 @@ void GenerateQuestFloor_64_Mausoleum()
 	if (Dungeon.prev == DUN_63_FORGOTTEN_OSSUARY) {
 		x = 81; y = 22;
 	}
+	// (th4) DARK CAMPAIGN arrives from the Deep Sanctum portal, not from the Ossuary or
+	// the Ruined Temple, so it needs its own landing tile.
+	if (Dungeon.prev == DUN_117_DARKLORD_HIDEOUT) {
+		x = 84; y = 22;
+	}
 	char* dunName;
 	switch (RNG(2)) {
 	case 1:  dunName = "Levels\\L1Data\\dun_64_01.DUN";	break;
 	default: dunName = "Levels\\L1Data\\dun_64_02.DUN";	break;
+	}
+	// (th4) DC uses one authored layout, so it overrides the RNG(2) pick above -- fixed
+	// arrival, boss and return-portal tiles could not be valid in both random variants.
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		dunName = "Levels\\L1Data\\dun_64_M.DUN";
 	}
 	LoadQuestDungeonMainMapChurch(dunName, x, y);
 	char pal[50] = "Levels\\L1Data\\l1_33.pal";
@@ -702,8 +861,14 @@ void GenerateQuestFloor_64_Mausoleum()
 	}
 	LoadPalette(pal);
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(81, 20, WM_1029_GOTO_QUEST_DUNGEON, DUN_63_FORGOTTEN_OSSUARY);
-	AddWarp(33, 31, WM_1029_GOTO_QUEST_DUNGEON, DUN_65_RUINED_TEMPLE);
+	// (th4) DARK CAMPAIGN has no way out of a mission until it is cleared, and the way home
+	// is the return portal placed by QuestsActions. Both of these would let the player walk
+	// out mid-mission. Dropping the warps also drops their hover labels, since
+	// ShowDungeonEntryDescriptions_Alternatives builds them by walking the warp list.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(81, 20, WM_1029_GOTO_QUEST_DUNGEON, DUN_63_FORGOTTEN_OSSUARY);
+		AddWarp(33, 31, WM_1029_GOTO_QUEST_DUNGEON, DUN_65_RUINED_TEMPLE);
+	}
 }
 
 void GenerateQuestFloor_114_LOWER_SCRIPTORIUM()
@@ -714,7 +879,14 @@ void GenerateQuestFloor_114_LOWER_SCRIPTORIUM()
 		osMP.status2 = 1;
 	}	
 	char* dunName = "Levels\\L1Data\\lower_scriptorium_v01.DUN";
-	LoadQuestDungeonMainMapChurch(dunName, 23, 25);
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		dunName = "Levels\\L1Data\\lower_scriptorium_DC.DUN";
+	}
+	// (th4) DARK CAMPAIGN arrives from the Deep Sanctum portal, not the Church 4 stair,
+	// so it needs its own landing tile. Same shape as GenerateQuestFloor_65_Ruined_Temple.
+	int startRow = 23, startCol = 25;
+	if( Dungeon.prev == DUN_117_DARKLORD_HIDEOUT ){ startRow = 82; startCol = 22; }
+	LoadQuestDungeonMainMapChurch(dunName, startRow, startCol);
 	char pal[50] = "Levels\\L1Data\\l1_33.pal";
 	/*if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 		int pal_number = RNG(6) + 1;
@@ -722,14 +894,23 @@ void GenerateQuestFloor_114_LOWER_SCRIPTORIUM()
 	}*/
 	LoadPalette(pal);
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(23, 24, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_4_CHURCH_4);	
+	// (th4) DARK CAMPAIGN has no way out of a mission until it is cleared, and the way home
+	// is the return portal placed by QuestsActions -- not this stair. Adding it in DC would
+	// let the player walk out to Church 4 mid-mission and strand the campaign state.
+	if( GameMode != GM_DARK_CAMPAIGN ){
+		AddWarp(23, 24, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_4_CHURCH_4);
+	}
 }
 
 void GenerateQuestFloor_65_Ruined_Temple()
 {
 	char* dunName = "Levels\\L1Data\\dun_65_01.DUN";
 	int x = 81, y = 23;
-	if (Dungeon.prev == DUN_64_MAUSOLEUM) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 22: own layout and arrival
+		dunName = "Levels\\L1Data\\dun_65_DC.DUN";
+		x = 81; y = 22;
+	}
+	else if (Dungeon.prev == DUN_64_MAUSOLEUM) {
 		x = 60; y = 58;
 	}
 	LoadQuestDungeonMainMapChurch(dunName, x, y);
@@ -740,8 +921,12 @@ void GenerateQuestFloor_65_Ruined_Temple()
 	}
 	LoadPalette(pal);
 	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-	AddWarp(58, 58, WM_1029_GOTO_QUEST_DUNGEON, DUN_64_MAUSOLEUM);
-	AddWarp(81, 22, WM_1029_GOTO_QUEST_DUNGEON, DUN_66_SEWERS);
+	// (th4) DC mission 22: the way home is the return portal placed by QuestsActions, so both
+	// neighbour exits (Mausoleum, Sewers) would let the player walk out mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(58, 58, WM_1029_GOTO_QUEST_DUNGEON, DUN_64_MAUSOLEUM);
+		AddWarp(81, 22, WM_1029_GOTO_QUEST_DUNGEON, DUN_66_SEWERS);
+	}
 }
 
 void GenerateQuestFloor_66_Sewers()
@@ -755,6 +940,7 @@ void GenerateQuestFloor_66_Sewers()
 	case 1:  dunName = "Levels\\L2Data\\dun_66_01.DUN";	break;
 	default: dunName = "Levels\\L2Data\\dun_66_02.DUN";	break;
 	}
+	if (GameMode == GM_DARK_CAMPAIGN) { dunName = "Levels\\L2Data\\dun_66_DC.DUN"; x = 88; y = 88; }
 	LoadQuestDungeonMapMainCatacomb(dunName, x, y);
 	char pal[50] = "Levels\\L2Data\\l2_95.pal";
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
@@ -763,20 +949,31 @@ void GenerateQuestFloor_66_Sewers()
 	}
 	LoadPalette(pal); 
 	AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(24, 24, WM_1029_GOTO_QUEST_DUNGEON, DUN_65_RUINED_TEMPLE);
-	AddWarp(36, 53, WM_1029_GOTO_QUEST_DUNGEON, DUN_67_SEPULCHER);
+	// (th4) Dark Campaign confines the player to the Sewers -- these two exits lead to adjacent
+	// quest dungeons (Ruined Temple, Sepulcher) that have no place in the mission and would let
+	// the player walk straight out of it.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(24, 24, WM_1029_GOTO_QUEST_DUNGEON, DUN_65_RUINED_TEMPLE);
+		AddWarp(36, 53, WM_1029_GOTO_QUEST_DUNGEON, DUN_67_SEPULCHER);
+	}
 }
 
 void GenerateQuestFloor_67_Sepulcher()
 {
 	int x = 25, y = 25;
-	if (Dungeon.prev == DUN_66_SEWERS) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 21
+		x = 18; y = 18;
+	}
+	else if (Dungeon.prev == DUN_66_SEWERS) {
 		x = 85; y = 85;
 	}
 	char* dunName;
 	switch (RNG(2)) {
 	case 1:  dunName = "Levels\\L2Data\\dun_67_01.DUN";	break;
 	default: dunName = "Levels\\L2Data\\dun_67_02.DUN";	break;
+	}
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 21: one fixed map, not the random pair
+		dunName = "Levels\\L2Data\\dun_67_DC.DUN";
 	}
 	LoadQuestDungeonMapMainCatacomb(dunName, x, y);
 	char pal[50] = "Levels\\L2Data\\l2_11.pal";
@@ -786,8 +983,10 @@ void GenerateQuestFloor_67_Sepulcher()
 	}
 	LoadPalette(pal);
 	AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(84, 85, WM_1029_GOTO_QUEST_DUNGEON, DUN_66_SEWERS);
-	AddWarp(26, 25, WM_1029_GOTO_QUEST_DUNGEON, DUN_68_OUBLIETTE);
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 21 leaves by the mission return portal only
+		AddWarp(84, 85, WM_1029_GOTO_QUEST_DUNGEON, DUN_66_SEWERS);
+		AddWarp(26, 25, WM_1029_GOTO_QUEST_DUNGEON, DUN_68_OUBLIETTE);
+	}
 }
 
 void GenerateQuestFloor_68_Oubliette()
@@ -818,8 +1017,14 @@ void GenerateQuestFloor_68_Oubliette()
 void GenerateQuestFloor_69_Gibbet()
 {
 	char* dunName = "Levels\\L2Data\\dun_69_01.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 20
+		dunName = "Levels\\L2Data\\dun_69_DC.DUN";
+	}
 	int x = 61, y = 21;
-	if (Dungeon.prev == DUN_68_OUBLIETTE) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 20
+		x = 42; y = 33;
+	}
+	else if (Dungeon.prev == DUN_68_OUBLIETTE) {
 		x = 83; y = 21;
 	}
 	LoadQuestDungeonMapMainCatacomb(dunName, x, y);
@@ -836,16 +1041,24 @@ void GenerateQuestFloor_69_Gibbet()
 		LoadPalette(paletteFile);
 	}
 	AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(82, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_68_OUBLIETTE);
-	AddWarp(62, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_70_CITADEL);
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 20 leaves by the mission return portal only
+		AddWarp(82, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_68_OUBLIETTE);
+		AddWarp(62, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_70_CITADEL);
+	}
 }
 
 void GenerateQuestFloor_70_Citadel()
 {
 	char* dunName = "Levels\\L2Data\\dun_70_01.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		dunName = "Levels\\L2Data\\dun_70_DC.DUN";
+	}
 	int x = 53, y = 21;
 	if (Dungeon.prev == DUN_69_GIBBET) {
 		x = 51; y = 21;
+	}
+	else if (Dungeon.prev == DUN_117_DARKLORD_HIDEOUT) {
+		x = 52; y = 20;
 	}
 	LoadQuestDungeonMapMainCatacomb(dunName, x, y);
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
@@ -861,8 +1074,14 @@ void GenerateQuestFloor_70_Citadel()
 		LoadPalette(paletteFile);
 	}
 	AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(50, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_69_GIBBET);
-	AddWarp(54, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_71_GRIM_VAULTS);
+	// (th4) DARK CAMPAIGN has no way out of a mission until it is cleared, and the way home
+	// is the return portal placed by QuestsActions. Both of these would let the player walk
+	// out mid-mission. Dropping the warps also drops their hover labels: the Citadel routes
+	// to ShowDungeonEntryDescriptions_Alternatives, which builds them from the warp list.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(50, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_69_GIBBET);
+		AddWarp(54, 21, WM_1029_GOTO_QUEST_DUNGEON, DUN_71_GRIM_VAULTS);
+	}
 }
 
 void GenerateQuestFloor_71_Grim_Vaults()
@@ -911,8 +1130,10 @@ void GenerateQuestFloor_72_Necropolis()
 		LoadPalette(paletteFile);
 	}
 	AddDoorsObjectInCatacomb(0, 0, 112, 112);
-	AddWarp(22, 85, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1);
-	AddWarp(48, 29, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1);
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 19 leaves by the mission return portal only
+		AddWarp(22, 85, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1);
+		AddWarp(48, 29, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1);
+	}
 }
 
 void GenerateQuestFloor_73_Lava_Pits()
@@ -1125,6 +1346,9 @@ void GenerateQuestFloor_80_Hell_Gate()
 {
 	// dun selection
 	char* dunName = "Levels\\L3Data\\dun_80_01.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 18
+		dunName = "Levels\\L3Data\\dun_80_DC.DUN";
+	}
 	LoadQuestDungeonMainMapCave(dunName, 1, 1);// coordinates don't work for this cave function
 
 	// level color palette
@@ -1140,14 +1364,19 @@ void GenerateQuestFloor_80_Hell_Gate()
 
 	// arrive coordinates
 	int x = 45, y = 43;
-	if (Dungeon.prev == Dungeon - 1) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 18
+		x = 46; y = 43;
+	}
+	else if (Dungeon.prev == Dungeon - 1) {
 		x = 85; y = 19;
 	}
 	PlayerRowPos = x; PlayerColPos = y;
 
 	// warps
-	AddWarp(85, 18, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
-	AddWarp(44, 43, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 18 leaves by the mission return portal only
+		AddWarp(85, 18, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
+		AddWarp(44, 43, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	}
 	AddCaveDoors(0, 0, 112, 112);
 }
 
@@ -1225,6 +1454,15 @@ void GenerateQuestFloor_83_Blood_Keep()
 	if (Dungeon.prev == Dungeon - 1) {
 		x = 24; y = 88;
 	}
+
+	// (th4) DC mission 14 reuses this level with its own layout: the Alternative Route dun
+	// is threaded between neighbouring floors by the two warps at the bottom of this
+	// function, which the Dark Campaign has no use for -- it arrives and leaves by portal.
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		dunName = "Levels\\L4Data\\dun_83_DC.DUN";
+		x = 18; y = 18;
+	}
+
 	LoadQuestDungeonMainMapHell(dunName, x, y);
 
 	// level color palette
@@ -1239,8 +1477,13 @@ void GenerateQuestFloor_83_Blood_Keep()
 	}
 
 	// warps
-	AddWarp(23, 88, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
-	AddWarp(24, 23, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	// (th4) ...and those neighbours do not exist in the Dark Campaign, where this floor is
+	// reached only through the Dark Lord's portal. Leaving them in would offer a way out to
+	// DUN_82 / DUN_84 in the middle of a mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(23, 88, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
+		AddWarp(24, 23, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	}
 }
 
 void GenerateQuestFloor_84_Armories_of_Hell()
@@ -1686,9 +1929,11 @@ void GenerateQuestFloor_99_Ancient_Crypts()
 	if (Dungeon.prev == Dungeon - 1) {
 		x = 23; y = 19;
 	}
+	if (GameMode == GM_DARK_CAMPAIGN) { x = 85; y = 22; }	// (th4) DC mission 8 entry point (col shifted -3 from 25)
 
 	// dun select
 	char* dunName = "Levels\\L5Data\\dun_99_01.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN) { dunName = "Levels\\L5Data\\dun_99_DC.dun"; }	// (th4) DC mission 8 map (monsters stripped, placed via code)
 	LoadQuestDungeonMainMapChurch(dunName, x, y);
 
 	// dun color palette
@@ -1708,8 +1953,12 @@ void GenerateQuestFloor_99_Ancient_Crypts()
 	AddCryptDoors(0, 0, 112, 112);
 
 	// warps
-	AddWarp(22, 20, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
-	AddWarp(85, 24, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	// (th4) Dark Campaign confines the player to the Crypts -- these exits lead to the adjacent
+	// quest dungeons and would let the player walk straight out of the mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(22, 20, WM_1029_GOTO_QUEST_DUNGEON, Dungeon - 1); // warp to previous dungeon
+		AddWarp(85, 24, WM_1029_GOTO_QUEST_DUNGEON, Dungeon + 1); // warp to next dungeon
+	}
 }
 
 void GenerateQuestFloor_100_Horadrim_Treasury()
@@ -1983,21 +2232,42 @@ void GenerateQuestFloor_108_Arcane_Prison()
 
 //--------- end of AR =------------------
 
+// (th4): Dark Campaign hub -- the Dark Lord's Hideout. Crypt shell, town semantics.
+// No warps out yet (missions are not wired), no monsters in the .dun yet.
+void GenerateQuestFloor_117_DarkLord_Hideout()
+{
+	LoadQuestDungeonMainMapChurch( "Levels\\L5Data\\DC.DUN", 20, 46 );	// (th4) hub player appear tile
+	LoadPalette( "Levels\\L5Data\\l5_52.pal" );
+	AddCryptDoors( 0, 0, 112, 112 );
+	// NOTE: the outbound mission portal is NOT placed here. Its visible half is a red-portal
+	// missile, and InitMissiles() runs AFTER level generation and would wipe it. It is placed
+	// from QuestsActions() instead, which is also how the Lazarus and Sunless Sea portals work.
+}
+
 void GenerateQuestFloor_44_Ravenholm()
 {
+	char* dunName = "LEVELS\\TOWNDATA\\RAVENHOLM.DUN";
 	int row = 93, col = 90;
-	if (Dungeon.prev == DUN_45_THE_DEN) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 26: own layout and arrival
+		dunName = "LEVELS\\TOWNDATA\\RavenholmDC.DUN";
+		row = 48; col = 16;
+	}
+	else if (Dungeon.prev == DUN_45_THE_DEN) {
 		row = 83; col = 56;
 	}
-	LoadQuestDungeonMainMapTown("LEVELS\\TOWNDATA\\RAVENHOLM.DUN", row, col);
+	LoadQuestDungeonMainMapTown(dunName, row, col);
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
-		LoadPalette("LEVELS\\iceage\\0town.PAL");
+		LoadPalette("LEVELS\\iceage\\0town_P.PAL");
 	}
 	else {
-		LoadPalette("LEVELS\\L0DATA\\L0_DARK04.PAL");
+		LoadPalette("LEVELS\\L0DATA\\L0_DARK05.PAL");
 	}
 	//SelectRandomLevelPalette( 0 );
-	AddWarpFromRavenholm();
+	// (th4) DC mission 26: the way home is the return portal, so neither the Den nor the
+	// road back to Tristram may be walked out of mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarpFromRavenholm();
+	}
 
 }
 
@@ -2034,16 +2304,20 @@ void GenerateQuestFloor_112_StillSprings()
 		clearWaterQuest.talkToFlag = 1;
 	}
 	char* dunName = "Levels\\L3Data\\springs_1.DUN";
-	/*if (is(GameMode, GM_IRONMAN, GM_SURVIVAL)) {
-		dunName = "Levels\\L3Data\\fetid_cavern_01-im.DUN";
-	}*/
+	if (GameMode == GM_DARK_CAMPAIGN){ dunName = "Levels\\L3Data\\springs_dc.DUN"; }
 
 	LoadQuestDungeonAltMapCave(dunName, 19, 50);
 	LoadQuestDungeonMainMapCave(dunName, 20, 50);
 	LoadPalette("Levels\\L3Data\\mossy_grotto_v03.pal");
 	
-	PlayerRowPos = 55;
-	PlayerColPos = 57;
+	if (Dungeon.prev == DUN_117_DARKLORD_HIDEOUT) {
+		PlayerRowPos = 27;
+		PlayerColPos = 30;
+	}
+	else {
+		PlayerRowPos = 55;
+		PlayerColPos = 57;
+	}
 
 	AddWarp(55, 56, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_11_CAVE_3);
 
@@ -2060,16 +2334,25 @@ void GenerateQuestFloor_51_FetidCavern()
 		ironFigurineQuest.talkToFlag = 1;//If player enters SC before talking to Griz, make sure quest log still shows IF quest.
 	}
 	char* dunName = "Levels\\L3Data\\fetid_cavern_01.DUN";
-	if (is(GameMode, GM_IRONMAN, GM_SURVIVAL)) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 16
+		dunName = "Levels\\L3Data\\fetid_cavern_DC.DUN";
+	}
+	else if (is(GameMode, GM_IRONMAN, GM_SURVIVAL)) {
 		dunName = "Levels\\L3Data\\fetid_cavern_01-im.DUN"; 
 	}
 
 	LoadQuestDungeonAltMapCave(dunName, 19, 50);
 	LoadQuestDungeonMainMapCave(dunName, 20, 50);
 	LoadPalette("Levels\\L3Data\\swamp_v02.pal");
-	AddWarpFromFetidCavern();
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 16 leaves by the mission return portal only
+		AddWarpFromFetidCavern();
+	}
 
-	if (Dungeon.prev == DUN_27_THE_INFESTED_CELLAR) {
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 16: arrive from the hub portal
+		PlayerRowPos = 41;
+		PlayerColPos = 20;
+	}
+	else if (Dungeon.prev == DUN_27_THE_INFESTED_CELLAR) {
 		PlayerRowPos = 41;
 		PlayerColPos = 21;
 	}
@@ -2081,6 +2364,36 @@ void GenerateQuestFloor_51_FetidCavern()
 	if (ironFigurineQuest.status == QS_3_COMPLETE) {
 		Open_the_Gates_Fetid_Cavern();
 	}
+}
+
+void GenerateQuestFloor_116_Mining_Caves()
+{
+	Quest& som_Quest = Quests[Q_40_SECRETS_OF_MAGIC];
+	if (som_Quest.status == QS_1_ACCEPT) {
+		som_Quest.status = QS_2_IN_PROGRESS;
+		som_Quest.talkToFlag = 1;//If player enters SC before talking to Griz, make sure quest log still shows IF quest.
+	}
+	char* dunName = "Levels\\L3Data\\shfl.DUN";
+	if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 17
+		dunName = "Levels\\L3Data\\ShFlDC.DUN";
+	}
+	//if (is(GameMode, GM_IRONMAN, GM_SURVIVAL)) {
+	//	dunName = "Levels\\L3Data\\fetid_cavern_01-im.DUN";
+	//}
+
+	LoadQuestDungeonAltMapCave(dunName, 19, 50);
+	LoadQuestDungeonMainMapCave(dunName, 20, 50);
+	LoadPalette("Levels\\L3Data\\mining_caves.pal");
+	if (GameMode != GM_DARK_CAMPAIGN) {	// (th4) DC mission 17 leaves by the mission return portal only
+		AddWarp(83, 82, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_10_CAVE_2);
+	}
+
+	PlayerRowPos = 83;
+	PlayerColPos = 83;
+	
+	//if (som_Quest.status == QS_3_COMPLETE) {
+	//	Open_the_Gates_Fetid_Cavern();
+	//}
 }
 
 void GenerateQuestFloor_52_Mossy_Grotto()
@@ -2153,6 +2466,19 @@ void GenerateQuestFloor_52_Mossy_Grotto()
 	ClearWarps(); // TODO: check diz out
 }
 
+//!---- (th4) ---------------------------------------------------------------
+void GenerateQuestFloor_121_UnholyAltar_DC()
+{
+	// (th4) DC mission 13. Church tileset, same stamp offsets and palette as the vanilla
+	// lair in GenerateQuestFloor_29_ArchbishopLazarusLair() below.
+	LoadQuestDungeonMainMapChurch("Levels\\L1Data\\dun_DCUA.dun", 35, 36);
+	LoadPalette("Levels\\L1Data\\Laz1.pal");
+	AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
+	PlayerRowPos = 35;
+	PlayerColPos = 36;
+	ClearWarps();
+}
+
 //!---- (00715A90) --------------------------------------------------------
 /*__forceinline*/ void GenerateQuestFloor_30_HallsOfAnguish()
 {
@@ -2207,7 +2533,12 @@ void GenerateQuestFloor_52_Mossy_Grotto()
 		hubrisQuest.status = QS_2_IN_PROGRESS;
 		hubrisQuest.talkToFlag = 1;
 	}
-	LoadQuestDungeonMainMapHell("levels\\l4data\\maze1.dun", 55, 57);
+	if (is(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_HARDCORE, GM_SPEEDRUN) && Difficulty >= DL_2_DOOM) {
+		LoadQuestDungeonMainMapHell("levels\\l4data\\maze1_easier_version.dun", 55, 57);
+	}
+	else {
+		LoadQuestDungeonMainMapHell("levels\\l4data\\maze1.dun", 55, 57);
+	}
 	LoadPalette("levels\\l4data\\maze_01.pal");
 	AddWarp(55, 56, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_13_HELL_1);
 }
@@ -2329,8 +2660,8 @@ void GenerateQuestFloor_54_Abandoned_Fane()
 /*__forceinline*/ void GenerateQuestFloor_34_ThePit()
 {
 	Quest& horazonQuest = Quests[Q_16_HORAZON_S_DEMONS];
-	if( horazonQuest.status3 == 0 ){// не заходили ранее
-		horazonQuest.status3 = 1;// только зашли
+	if( horazonQuest.status3 == 0 ){// (rt) not entered before
+		horazonQuest.status3 = 1;// (rt) just entered
 		PlayerSoundMessageDelay = 10;
 		SoundMessage = S_967_M_WLOCK01;
 	}
@@ -2351,8 +2682,8 @@ void GenerateQuestFloor_54_Abandoned_Fane()
 	AddWarp(25, 22, WM_1029_GOTO_QUEST_DUNGEON, DUN_32_HORAZONS_HAVEN);
 	AddWarp(17, 45, WM_1029_GOTO_QUEST_DUNGEON, DUN_33_SUMMONING_ROOMS);
 	SetupHorazon3Books();
-	if( horazonQuest.status3 >= 3 ){// уже открыли
-		OpenGrimspikeRoom(false);// бесшумное открытие дверей
+	if( horazonQuest.status3 >= 3 ){// (rt) already opened
+		OpenGrimspikeRoom(false);// (rt) silent door opening
 	}
 }
 
@@ -2492,14 +2823,25 @@ void GenerateQuestFloor_47_Dark_Nest()
 	case 1:		dunName = "levels\\l6data\\dd_02.dun";	break;
 	default:	dunName = "levels\\l6data\\dd_01.dun";	break;
 	}
+	if (GameMode == GM_DARK_CAMPAIGN) { dunName = "levels\\l6data\\dd_dc.dun"; }	// (th4) DC mission 9 map (monsters stripped, placed via code)
 	LoadQuestDungeonMainMapCave(dunName, 19, 50);
 	LoadPalette("levels\\l6data\\zCaramel_avec_blood_v3.pal");
 	if (lockedChestQuest.status2) {
 		lockedChestQuest.status3 = 1;
 	}
-	AddWarp(88, 19, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_18_ABYSS_2);
 
-	if (Dungeon.prev == DUN_55_DEEP_HOLLOW) {
+	// (th4) DARK CAMPAIGN mission 9. The Dark Nest is a closed arena in DC: neither the way
+	// back up to the Abyss nor the way down to Deep Hollow exists, so the only exit is the
+	// return portal Quests.cpp drops once the level is cleared (DarkMissions[] row).
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(88, 19, WM_1028_RETURN_FROM_QUEST_DUNGEON, DUN_18_ABYSS_2);
+	}
+
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		PlayerRowPos = 18;			// (th4) DC mission 9 entry point
+		PlayerColPos = 91;
+	}
+	else if (Dungeon.prev == DUN_55_DEEP_HOLLOW) {
 		PlayerRowPos = 17;
 		PlayerColPos = 87;
 	}
@@ -2508,7 +2850,9 @@ void GenerateQuestFloor_47_Dark_Nest()
 		PlayerColPos = 19;
 	}
 
-	AddWarp(16, 87, WM_1029_GOTO_QUEST_DUNGEON, DUN_55_DEEP_HOLLOW);
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(16, 87, WM_1029_GOTO_QUEST_DUNGEON, DUN_55_DEEP_HOLLOW);
+	}
 }
 
 void GenerateQuestFloor_55_Deep_Hollow()
@@ -2798,6 +3142,15 @@ void Open_the_Gates_Temple_of_Sunset()
 	InitDungeonTiles();
 }
 
+void Open_the_Gates_Black_Chapel()
+{
+	ChangeMapTile(21, 21,   6);
+	ChangeMapTile(21, 20,  16);
+	ChangeMapTile(20, 20, 142);
+	ChangeMapTile(20, 19, 139);
+	InitDungeonTiles();
+}
+
 void Open_the_Gates_Fetid_Cavern()
 {
 	ChangeMapTile(10,  5, 13);
@@ -2947,12 +3300,28 @@ void Open_the_Gates_Blood_Hive()
 
 		}
 	}
+
+	// (th4) DC mission 15 uses its own layout instead of the randomised set above -- the
+	// mission places Hephasto and the hero force at fixed tiles, which a random floor
+	// cannot support. Overridden after the switch so the normal campaign is untouched.
+	int arriveRow = 19, arriveCol = 55;
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		dunName = "levels\\l4data\\FDdun3v2DC.DUN";
+		arriveRow = 18; arriveCol = 91;
+	}
+
 	LoadQuestDungeonAltMapHell(dunName, 20, 50);
-	LoadQuestDungeonMainMapHell(dunName, 19, 55);
+	LoadQuestDungeonMainMapHell(dunName, arriveRow, arriveCol);
 	LoadPalette("levels\\l4data\\Fleshdoom02.pal");
-	AddWarp(17, 55, WM_1029_GOTO_QUEST_DUNGEON, DUN_42_WIELDER);
+	// (th4) DC mission 15: no staircase out. The Dark Campaign reaches this floor only
+	// through the Dark Lord portal and leaves the same way, so the City of the Damned is
+	// not part of the run -- leaving the warp in would hand the player an exit mid-mission.
+	if (GameMode != GM_DARK_CAMPAIGN) {
+		AddWarp(17, 55, WM_1029_GOTO_QUEST_DUNGEON, DUN_42_WIELDER);
+	}
 
 }
+
 
 //----- (0046B28C) --------------------------------------------------------
 void LoadSetMap()
@@ -2962,6 +3331,10 @@ void LoadSetMap()
 	case DUN_26_BONE_CHAMBER           : GenerateQuestFloor_26_BoneChamber();				break;
 	case DUN_27_THE_INFESTED_CELLAR    : GenerateQuestFloor_27_TheInfestedCellar();			break;
 	case DUN_28_POISONED_WATER_SUPPLY  : GenerateQuestFloor_28_PoisonedWaterSupply();		break;
+	case DUN_118_POISONED_WATER_SUPPLY_DC: GenerateQuestFloor_118_PoisonedWaterSupply_DC();	break; // (th4) DC mission 10
+	case DUN_119_DEEPER_CAVES          : GenerateQuestFloor_119_DeeperCaves();				break; // (th4) DC mission 11
+	case DUN_120_PANDEMONIUM_DC        : GenerateQuestFloor_120_Pandemonium_DC();			break; // (th4) DC mission 12
+	case DUN_121_UNHOLY_ALTAR_DC       : GenerateQuestFloor_121_UnholyAltar_DC();			break; // (th4) DC mission 13
 	case DUN_29_ARCHBISHOP_LAZARUS_LAIR: GenerateQuestFloor_29_ArchbishopLazarusLair();		break;
 	case DUN_30_HALLS_OF_ANGUISH       : GenerateQuestFloor_30_HallsOfAnguish();			break;
 	case DUN_31_ANDARIELS_THRONE       : GenerateQuestFloor_31_AndarielsThrone();			break;
@@ -3055,6 +3428,8 @@ void LoadSetMap()
 	case DUN_112_STILL_SPRINGS		   : GenerateQuestFloor_112_StillSprings();				break;
 	case DUN_113_THE_MAZE			   : GenerateQuestFloor_113_Maze();						break;
 	case DUN_114_LOWER_SCRIPTORIUM	   : GenerateQuestFloor_114_LOWER_SCRIPTORIUM();		break;
-
+	case DUN_115_VALOR_TOMB			   : GenerateQuestFloor_115_Valor_Tomb();				break;
+	case DUN_116_MINING_CAVES		   : GenerateQuestFloor_116_Mining_Caves();				break;
+	case DUN_117_DARKLORD_HIDEOUT	   : GenerateQuestFloor_117_DarkLord_Hideout();			break; // (th4)
 	}
 }

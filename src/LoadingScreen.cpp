@@ -27,7 +27,7 @@ bool ProgressUpdate()
 void ShowOperationProgress()
 {
 	static const ScreenPos progressBarPos[ 3 ] = { { 53, 37 }, { 53, 421 }, { 53, 37 } };
-	// пока LoadingScreen 640 на 480 рисуем с фиксированным размером в левом верхнем углу и растягиваем как видео
+	// (rt) for now LoadingScreen is drawn 640x480 at a fixed size in the top-left corner and stretched like a video
 	int Xpos = Screen_LeftBorder + ((ScreenWidth - GUI_Width) / 2); // WorkingWidth / 2 - GUI_Width / 2
 	int Ypos = Screen_TopBorder + ((ScreenHeight - GUI_Height) / 2); // Screen_TopBorder + ScreenHeight / 2 - GUI_Height / 2;
 	LockSrcSurface();
@@ -36,7 +36,7 @@ void ShowOperationProgress()
 	if( ProgressBar ){
 		do{
 			DrawProgressBar(progressBarPos[ProgressBarIndex].x + index++ + Xpos, progressBarPos[ProgressBarIndex].y + Ypos, ProgressBarIndex);
-			// попиксельная плавность загрузки (тормозит на высоких разрешениях)
+			// (rt) per-pixel loading smoothness (slow at high resolutions)
 			//if( th2 && index & 1 && index > prevCount ) DrawNotGameplayScreen( 0 );
 		}while( index < ProgressBar );
 	}
@@ -160,7 +160,7 @@ void __fastcall ShowProgress(uint msg)
 	case WM_1033_RESTART_IN_TOWN          : ChangeDungeon(LVL_0_DOWN   ); break;
 	}
 
-	while( GetTickCountTh() - startTick < 1000_ms ) SleepTh(187); // показываем loading screen минимум 1 секунду
+	while( GetTickCountTh() - startTick < 1000_ms ) SleepTh(187); // (rt) show the loading screen for at least 1 second
 	PaletteFadeOut(8);
 	FreeLoadingScreenCEL();
 	SetWindowProc(prevHandler);
@@ -365,6 +365,13 @@ void __fastcall ProgressLoad( int msg )// #loading screens
 			dungeon = Dungeon.prev;
 		}
 	case WM_1029_GOTO_QUEST_DUNGEON:
+		// (th4) DARK CAMPAIGN: every level reached this way -- the Deep Sanctum and every
+		// mission floor -- is entered through the red portal, so they all get the red-portal
+		// screen rather than whatever their vanilla destination case would pick.
+		if( GameMode == GM_DARK_CAMPAIGN ){
+			SetLoadingScreenImage("Gendata\\Cutportr.CEL", "Gendata\\Cutportr.pal", 1);
+			break;
+		}
 		switch( dungeon ){
 		case DUN_54_ABANDONED_FANE:
 		{
@@ -375,7 +382,7 @@ void __fastcall ProgressLoad( int msg )// #loading screens
 			SetLoadingScreenImage("Nlevels\\cutl5.CEL", pal_xz, 1);
 		}
 			break;
-		case DUN_53_VAULTKEEP or DUN_58_GATEWAY_OF_BLOOD or DUN_59_HALL_OF_FIRE 
+		case DUN_53_VAULTKEEP or DUN_58_GATEWAY_OF_BLOOD or DUN_59_HALL_OF_FIRE or DUN_115_VALOR_TOMB
 		or DUN_66_SEWERS or DUN_67_SEPULCHER or DUN_68_OUBLIETTE or DUN_69_GIBBET 
 		or DUN_70_CITADEL or DUN_71_GRIM_VAULTS or DUN_72_NECROPOLIS or DUN_109_HALL_OF_HEROES:
 		{
@@ -386,7 +393,7 @@ void __fastcall ProgressLoad( int msg )// #loading screens
 			SetLoadingScreenImage("Gendata\\Cut2.CEL", paloCats, 2);
 		}
 			break;
-		case DUN_51_FETID_CAVERN or DUN_52_MOSSY_GROTTO or DUN_112_STILL_SPRINGS or DUN_73_LAVA_PITS or DUN_74_CRATER or DUN_75_RIVER_OF_FIRE
+		case DUN_51_FETID_CAVERN or DUN_52_MOSSY_GROTTO or DUN_112_STILL_SPRINGS or DUN_116_MINING_CAVES or DUN_73_LAVA_PITS or DUN_74_CRATER or DUN_75_RIVER_OF_FIRE
 		or DUN_76_DEN_OF_EVIL or DUN_77_VILE_TUNNELS or DUN_78_THE_BRIDGE or DUN_79_COLONNADE or DUN_80_HELL_GATE:// better upgrade grotto
 		{
 			if(Dungeon.prev == DUN_81_UNDERWORLD){ 

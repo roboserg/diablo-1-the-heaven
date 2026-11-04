@@ -22,7 +22,7 @@ char* __fastcall GetErrorText(DWORD dwMessageId)
 			}
 		}
 	}
-	// Зачем то очистка от лидирующих переносов строк
+	// (rt) Clears leading line breaks for some reason
 	size_t len = strlen(ErrorTextBuffer);
 	for( int i = len - 1; i >= 0; ++i ){
 		char letter = ErrorTextBuffer[i];

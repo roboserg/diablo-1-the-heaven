@@ -9,7 +9,7 @@ bool BattleTrance = 0;
 // ║                           jmp inline chunks                                 ║
 // ╚═════════════════════════════════════════════════════════════════════════════╝
 
-// инлайн новая функция в 1.145 чанк (0070B600)
+// (rt) inline new function in the 1.145 chunk (0070B600)
 __forceinline bool DoesMonsterStealMana(int baseMonsterIndex, int playerIndex)
 {
 	bool result = true;
@@ -26,7 +26,7 @@ __forceinline bool DoesMonsterStealMana(int baseMonsterIndex, int playerIndex)
 		|| baseMonsterIndex == BM_58_DEFILER
 		|| baseMonsterIndex == BM_144_DARK_SERVANT
 		|| baseMonsterIndex == BM_145_BLACK_MOURNER) {
-		if (Difficulty >= 1) { // 0070B605 someAction
+		if (Difficulty >= DL_1_PURGATORY) { // 0070B605 someAction
 			result = true; // jmp someAction2
 		}
 		else {
@@ -68,7 +68,7 @@ __forceinline bool DoesMonsterStealMana(int baseMonsterIndex, int playerIndex)
 	return result;
 }
 
-// Новая полезная функция, оптимизация
+// (rt) New useful function, optimization
 __forceinline bool Distance_To_Target_Is_Less_Than(uint monsterIndex, int maxDistance)
 {
 	if( monsterIndex >= Monsters_Max_Count ) return false;
@@ -76,7 +76,7 @@ __forceinline bool Distance_To_Target_Is_Less_Than(uint monsterIndex, int maxDis
 	return (abs(monster.Row - monster.TargetRow) < maxDistance) && (abs(monster.Col - monster.TargetCol) < maxDistance);
 }
 
-// Новая полезная функция, оптимизация
+// (rt) New useful function, optimization
 __forceinline bool Max_Distance_To_Target_Last_Position(uint monsterIndex, int maxDistance)
 {
 	if( monsterIndex >= Monsters_Max_Count ) return false;
@@ -134,6 +134,19 @@ void InitMonsterSlots() // InitLevelMonsters
 	MonsterArraySize = Monsters_Max_Count; // this value gets further restricted later on
 	for( int i = 0; i < Monsters_Max_Count; ++i ) MonsterIndexes[i] = i; // active monsters list
 	BossLightIndex = 0;
+	// (th4) Dark Campaign scene latches belong to a level, not to the process. Without this
+	// they survive from one loaded game into the next within a single run of the executable:
+	// finish mission 26 once, load again, and the Dark Lord's portal never fires a second
+	// time because DarkCampaignEndArrived is still set from the previous session. The saved
+	// state is elsewhere -- the Butcher's freed flag and the closing speech both live in
+	// quest data -- so nothing persistent is lost by clearing these here.
+	DarkCampaignEndArrived = false;
+	DarkCampaignEndLordDelay = 0;
+	DarkCampaignEndWalkSteps = 0;
+	DarkCampaignEndTalkWanted = false;
+	DarkCampaignButcherTalkWanted = false;
+	DarkCampaignButcherJoinPending = false;
+	DarkCampaignButcherNeedsArrival = false;
 }
 
 //----- (0043A95E) --------------------------------------------------------
@@ -163,10 +176,10 @@ int __fastcall AddMonsterTypeToDungeon(int baseMonsterIndex, MONSTER_PLACEMENT_F
 //----- (0043A9DB) --------------------------------------------------------
 void GetDungeonMonsterTypes() // GetLevelMTypes
 {
-	// в th1 ошибка затирающая локальный dungeonLevel
-	// пока возспроизводим для сверки и загрузки сингловых записей th1 без вылетов
+	// (rt) th1 has a bug that overwrites the local dungeonLevel
+	// (rt) reproduced for now, for comparison and for loading th1 single-player saves without crashes
 	//bool bug = IsExeValidating ? true : true; //false;
-	// было ниже несколько раз if( bug ) dungeonLevel = d;
+	// (rt) below there were several if( bug ) dungeonLevel = d;
 	AddMonsterTypeToDungeon(BM_109_GOLEM, MPF_2_DONT);
 	AddMonsterTypeToDungeon(BM_223_DEMONOLOG_SUMMON_1, MPF_2_DONT);
 	AddMonsterTypeToDungeon(BM_224_DEMONOLOG_SUMMON_2, MPF_2_DONT);
@@ -177,11 +190,12 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 	AddMonsterTypeToDungeon(BM_229_BEASTMASTER_SUMMON_1, MPF_2_DONT);
 	AddMonsterTypeToDungeon(BM_230_BEASTMASTER_SUMMON_2, MPF_2_DONT);
 	AddMonsterTypeToDungeon(BM_231_BEASTMASTER_SUMMON_3, MPF_2_DONT);
+	AddMonsterTypeToDungeon(BM_392_WARLORD_MERC, MPF_2_DONT);
 	
 	switch( Dungeon->level ){ // TODO: check for DUNGEON id needing instead of Dungeon->level
 	case DUN_2_CHURCH_2:
 		// look up thehell2.cpp where `IsPinkyOnLevel()` starts, there are 4 values to update if i want to move ubers to further diffs (and 5 values here in monster.cpp)
-		if (MaxCountOfPlayersInGame != 1 && Difficulty >= 2) {
+		if (MaxCountOfPlayersInGame != 1 && Difficulty >= DL_2_DOOM) {
 			AddMonsterTypeToDungeon(BM_207_DREGBEZ, MPF_2_DONT);
 			AddMonsterTypeToDungeon(BM_208_WARPED_ONE, MPF_2_DONT);
 		}
@@ -190,7 +204,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 		AddMonsterTypeToDungeon(BM_1_OBLIVION_KNIGHT, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_170_LICH, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_175_TERROR_CLAN, MPF_2_DONT);
-		if (Difficulty >= 2 && MaxCountOfPlayersInGame != 1) {
+		if (Difficulty >= DL_2_DOOM && MaxCountOfPlayersInGame != 1) {
 			AddMonsterTypeToDungeon(BM_195_UBER_BUTCHER, MPF_2_DONT);
 			AddMonsterTypeToDungeon(BM_196_EVIL_ONE, MPF_2_DONT);
 		}
@@ -201,7 +215,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 	case DUN_6_CATACOMB_2:
 		AddMonsterTypeToDungeon(BM_57_HELL_CLAN, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_191_DARK_MISTRESS, MPF_2_DONT);
-		if (MaxCountOfPlayersInGame != 1 && Difficulty >= 2) {
+		if (MaxCountOfPlayersInGame != 1 && Difficulty >= DL_2_DOOM) {
 			AddMonsterTypeToDungeon(BM_205_PINKY, MPF_2_DONT);
 			AddMonsterTypeToDungeon(BM_206_ACID_SPITTER, MPF_2_DONT);
 		}		
@@ -212,7 +226,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 	case DUN_8_CATACOMB_4:
 		AddMonsterTypeToDungeon(BM_148_TURBAK_THE_DEUCE, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_246_GREATER_MUMMY, MPF_2_DONT);
-		if (MaxCountOfPlayersInGame != 1 && Difficulty >= 2) {
+		if (MaxCountOfPlayersInGame != 1 && Difficulty >= DL_2_DOOM) {
 			AddMonsterTypeToDungeon(BM_197_CEROMORTH, MPF_2_DONT);
 			AddMonsterTypeToDungeon(BM_198_HORN_CLAN, MPF_2_DONT);			
 		}
@@ -231,7 +245,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 		AddMonsterTypeToDungeon(BM_285_PHANTOM_KNIGHT, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_105_IMP_ROGUE, MPF_2_DONT);
 		AddMonsterTypeToDungeon(BM_246_GREATER_MUMMY, MPF_2_DONT);
-		if (Difficulty >= 2 && MaxCountOfPlayersInGame != 1) { // MP Doom: add Abatan and his minions
+		if (Difficulty >= DL_2_DOOM && MaxCountOfPlayersInGame != 1) { // MP Doom: add Abatan and his minions
 			AddMonsterTypeToDungeon(BM_193_ABATAN, MPF_2_DONT);
 			AddMonsterTypeToDungeon(BM_194_BLOODIED_HIDDEN, MPF_2_DONT);
 		}
@@ -302,7 +316,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 		AddMonsterTypeToDungeon( BM_137_UBER_DIABLO, MPF_2_DONT); 
 		AddMonsterTypeToDungeon( BM_143_DOOM_TAIL, MPF_2_DONT );
 		AddMonsterTypeToDungeon( BM_154_DEATH_MINION, MPF_2_DONT );		
-		if( MaxCountOfPlayersInGame != 1 && Difficulty >= 2 ){		
+		if( MaxCountOfPlayersInGame != 1 && Difficulty >= DL_2_DOOM){
 			AddMonsterTypeToDungeon( BM_194_BLOODIED_HIDDEN, MPF_2_DONT );
 		}
 		break;	
@@ -405,7 +419,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 	}
 
 	// TODO: check for needing
-	if( SomeBoolFlag_12 && MapRowArraySize > 0 ){ // SomeBoolFlag_12 вроде нулевое всегда
+	if( SomeBoolFlag_12 && MapRowArraySize > 0 ){ // (rt) SomeBoolFlag_12 seems to be always zero
 		for( int i = 0; i < MapRowArraySize; i++ ){
 			AddMonsterTypeToDungeon(MapRowArray[i], MPF_1_SCATTER);
 		}
@@ -430,7 +444,7 @@ void GetDungeonMonsterTypes() // GetLevelMTypes
 				}while( curValidMonsterIndex < countOfValidMonsters );
 			}
 			if( countOfValidMonsters ){
-				// добавляем монстра и выкидываем из списка
+				// (rt) add the monster and remove it from the list
 				int selectedBaseMonsterIndex = RNG(countOfValidMonsters);
 				AddMonsterTypeToDungeon(validMonstersIndexes[selectedBaseMonsterIndex + 1], MPF_1_SCATTER);
 				validMonstersIndexes[selectedBaseMonsterIndex + 1] = validMonstersIndexes[countOfValidMonsters--];
@@ -454,7 +468,7 @@ void __fastcall LoadMonsterAnimation(int monsterSpriteIndex)
 			char* anim = (char*)LoadFile(animFileName);
 			monsterAnim.animPtr = anim;
 			if( monsterSprite.baseMonsterIndex != BM_109_GOLEM || animType != 's' && animType != 'd' ){
-				// тут уже различная анимация в разных направлениях
+				// (rt) here the animation differs per direction
 				uint* animHeader = (uint*)anim;
 				for( int dir = 0; dir < 8; dir++ ){
 					uint curAnimationOffset = animHeader[dir];
@@ -465,7 +479,7 @@ void __fastcall LoadMonsterAnimation(int monsterSpriteIndex)
 					MonsterSpritePosAdjust(baseMonsterIndex, animationIndex, dir, animDir.xOfs, animDir.yOfs);
 				}
 			}else{
-				// одинаковая анимация. как ни крути)
+				// (rt) the same animation in every direction
 				for( int dir = 0; dir < 8; dir++ ){
 					AnimDir& animDir = monsterAnim.oriented[dir];
 					animDir.xOfs = 0;
@@ -492,12 +506,15 @@ void __fastcall LoadMonsterAnimation(int monsterSpriteIndex)
 	monsterSprite.firstAtackToHitFrame = baseMonster.FirstAtackToHitFrame;
 	monsterSprite.baseMonsterPtr = &baseMonster;
 	
-	// раскрашиваем монстров
+	// (rt) colour the monsters
 	if (baseMonster.IceAgeTranslationFilePtr && !Dungeon->isQuest && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
 		monsterSprite.colorTable = (uchar*)LoadFile(baseMonster.IceAgeTranslationFilePtr);
 		ColorMonsterSprite(monsterSpriteIndex, baseMonster.HasSecondAttack);
 		FreeMemZero(monsterSprite.colorTable);
-	} else if( baseMonster.HasColorTranslationFile ){
+	// (th4) Classic must look like vanilla Diablo, and there the golem wears no TRN at all --
+	// the red one is a TH addition.
+	} else if( baseMonster.HasColorTranslationFile
+	        && !(GameMode == GM_CLASSIC && baseMonsterIndex == BM_109_GOLEM) ){
 		monsterSprite.colorTable = (uchar*)LoadFile(baseMonster.ColorTranslationFilePtr);
 		ColorMonsterSprite(monsterSpriteIndex, baseMonster.HasSecondAttack);
 		FreeMemZero(monsterSprite.colorTable);
@@ -548,11 +565,20 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 	monster.PrevCol = col;
 	monster.SpriteIndex = monsterSpriteIndex;
 	monster.CurAction = A_0_STAY;
+	// (th4) A monster that has just been created is standing on its tile, so it can have no
+	// walk offset. These were never cleared here, and Monsters[] slots are reused across
+	// levels, so a monster inherited whatever pixel offset the previous occupant of its slot
+	// was left mid-stride with. Ordinary monsters hid it -- the first AI tick overwrites the
+	// offset -- but the Dark Campaign hub kin are frozen (ActivationCounter 0, CurAction
+	// A_0_STAY) and never take one, so a vendor kept the stale offset for good and drew a
+	// tile away from where it stood, inside the wall behind it.
+	monster.DeltaX = 0;
+	monster.DeltaY = 0;
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest && (char*)sprite->baseMonsterPtr->IceAgeNamePtr) {
-		monster.Name = (char*)sprite->baseMonsterPtr->IceAgeNamePtr;
+		monster.Name = (char*)LocalizedIceAgeName((char*)sprite->baseMonsterPtr->IceAgeNamePtr);
 	}
 	else {
-		monster.Name = (char*)sprite->baseMonsterPtr->name;
+		monster.Name = (char*)LocalizedMonsterName( sprite->baseMonsterPtr );
 	}
 	monster.SpritePtr = sprite;
 	monster.BasePtr = sprite->baseMonsterPtr;
@@ -653,11 +679,11 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 			monster.MonsterLevel += 15;
 			monster.Xp = 2 * monster.Xp + 2'000;
 			monster.ToHit += 85;
-			monster.MinDamage += monster.MinDamage * 2 + 4;
-			monster.MaxDamage += monster.MaxDamage * 2 + 4;
+			monster.MinDamage += monster.MinDamage + 4;
+			monster.MaxDamage += monster.MaxDamage + 4;
 			monster.SecondToHit += 85;
-			monster.SecondMinDamage += monster.SecondMinDamage * 2 + 4;
-			monster.SecondMaxDamage += monster.SecondMaxDamage * 2 + 4;
+			monster.SecondMinDamage += monster.SecondMinDamage + 4;
+			monster.SecondMaxDamage += monster.SecondMaxDamage + 4;
 			monster.ArmorClass += 50;
 		}
 		if (Difficulty == 2) {
@@ -667,11 +693,11 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 			monster.MonsterLevel += 30;
 			monster.Xp = 4 * monster.Xp + 4'000;
 			monster.ToHit += 120;
-			monster.MinDamage += monster.MinDamage * 4 + 6;
-			monster.MaxDamage += monster.MaxDamage * 4 + 6;
+			monster.MinDamage += monster.MinDamage * 3 + 6;
+			monster.MaxDamage += monster.MaxDamage * 3 + 6;
 			monster.SecondToHit += 120;
-			monster.SecondMinDamage += monster.SecondMinDamage * 4 + 6;
-			monster.SecondMaxDamage += monster.SecondMaxDamage * 4 + 6;
+			monster.SecondMinDamage += monster.SecondMinDamage * 3 + 6;
+			monster.SecondMaxDamage += monster.SecondMaxDamage * 3 + 6;
 			monster.ArmorClass += 80;
 			monster.ResistImmune = sprite->baseMonsterPtr->ResistOn3Difficulty;
 		}
@@ -686,7 +712,11 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 					or BM_200_CABALIST or BM_201_ADEPT or BM_212_CACODEMON or BM_102_SUCCUBUS or BM_103_BLOOD_WITCH or BM_104_DARK_WITCH or BM_105_IMP_ROGUE
 					or BM_106_CORRUPT_ORDER or BM_107_DARK_MAGE or BM_108_MAGISTRATE or BM_114_FROZEN_HORROR or BM_117_STINGER or BM_119_DARK_GHOST or BM_124_GLOOM_CLAN
 					or BM_129_LICH or BM_131_FIRE_BAT or BM_133_SOUL_BURNER or BM_156_IMP_ROGUE or BM_143_DOOM_TAIL or BM_147_FIEND or BM_255_RAGE_CLAN or BM_256_RAGE_CLAN
-					or BM_279_FLOATER or BM_280_FLOATER_X2 or BM_281_FALLEN_BOW or BM_282_GREMLIN_BOW or BM_284_SIN_SPAWN or BM_220_SNOW_LICH or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE:
+					or BM_279_FLOATER or BM_280_FLOATER_X2 or BM_281_FALLEN_BOW or BM_282_GREMLIN_BOW or BM_284_SIN_SPAWN or BM_220_SNOW_LICH or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE
+					// (th4) Dark Campaign heroes: casters and archers, same as any other ranged monster
+					or BM_H_393_SORC_L_T or BM_H_396_SORC_L_T or BM_H_400_SORC_M_T or BM_H_413_SOR_H_T or BM_H_418_SOR_H_T_SORC_ELITE
+					or BM_H_394_ROG_L_B or BM_H_397_ROG_L_B or BM_H_403_ROG_M_B or BM_H_406_SCOUT or BM_H_411_ROG_H_B
+					or BM_H_415_ROG_H_B_ELITE_ARCHER or BM_H_419_ROG_H_B_SS_ELITE or BM_H_423_ROG_H_B_BLACK_ARCHER:
 					life /= 2;
 					break;
 					case BM_4_GREMLIN or BM_219_FROST_BONE or BM_5_FALLEN_ONE or BM_8_BONE_CREEPER or BM_12_IMP or BM_13_DARK_ONE or BM_17_SCAVENGER or BM_19_RAVAGER
@@ -694,7 +724,8 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 						or BM_31_UNSEEN or BM_38_UNDEAD_WEREWOLF or BM_39_WARPING_DEMON or BM_53_HELL_HOUND or BM_80_DEVIL_KIN or BM_83_LASH_WORM or BM_92_ILLUSION_WEAVER
 						or BM_94_LURKER or BM_116_IMP_BRUTE or BM_128_GREATER_IMP or BM_138_SHADOW_BEAST or BM_139_BONE_GASHER or BM_149_THRESHER or BM_150_FELLTWIN or BM_151_HYBRID
 						or BM_157_YELLOW_ONE or BM_183_STALKER or BM_184_REALITY_WEAVER or BM_232_ABYSSAL_SUCCUBUS or BM_235_STYGIAN_FURY or BM_237_CONTAMINATOR
-					or BM_241_ACID_TERROR or BM_248_SALAMANDER or BM_257_SHROUDED:
+					or BM_241_ACID_TERROR or BM_248_SALAMANDER or BM_257_SHROUDED
+					or BM_H_405_SOR_M_T_HYBRID:	// (th4) DC hybrid Battle Mage -- fights in melee too, so only a quarter off
 						life -= life / 4;
 						break;
 					case BM_208_WARPED_ONE or BM_253_EXPLODER:
@@ -735,7 +766,11 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 					or BM_124_GLOOM_CLAN or BM_129_LICH or BM_131_FIRE_BAT or BM_133_SOUL_BURNER or BM_156_IMP_ROGUE or BM_165_APOCALYPSE_CLAN or BM_168_HELL_BAT
 					or BM_181_ADVOCATE or BM_198_HORN_CLAN or BM_199_HELL_CLAN or BM_202_SUCCUBUS or BM_200_CABALIST or BM_206_ACID_SPITTER or BM_143_DOOM_TAIL
 					or BM_147_FIEND or BM_201_ADEPT or BM_212_CACODEMON or BM_255_RAGE_CLAN or BM_256_RAGE_CLAN
-					or BM_279_FLOATER or BM_280_FLOATER_X2 or BM_281_FALLEN_BOW or BM_282_GREMLIN_BOW or BM_284_SIN_SPAWN or BM_220_SNOW_LICH or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE:
+					or BM_279_FLOATER or BM_280_FLOATER_X2 or BM_281_FALLEN_BOW or BM_282_GREMLIN_BOW or BM_284_SIN_SPAWN or BM_220_SNOW_LICH or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE
+					// (th4) Dark Campaign heroes: casters and archers, same as any other ranged monster
+					or BM_H_393_SORC_L_T or BM_H_396_SORC_L_T or BM_H_400_SORC_M_T or BM_H_413_SOR_H_T or BM_H_418_SOR_H_T_SORC_ELITE
+					or BM_H_394_ROG_L_B or BM_H_397_ROG_L_B or BM_H_403_ROG_M_B or BM_H_406_SCOUT or BM_H_411_ROG_H_B
+					or BM_H_415_ROG_H_B_ELITE_ARCHER or BM_H_419_ROG_H_B_SS_ELITE or BM_H_423_ROG_H_B_BLACK_ARCHER:
 					life /= 2;
 					break;
 					case BM_49_BILE_SPITTER or BM_155_FALLEN_ONE or BM_172_SPITTING_TERROR or BM_177_PHASE_DEMON or BM_182_BLINK_DEMON or BM_4_GREMLIN or BM_219_FROST_BONE
@@ -743,7 +778,8 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 						or BM_38_UNDEAD_WEREWOLF or BM_39_WARPING_DEMON or BM_53_HELL_HOUND or BM_80_DEVIL_KIN or BM_83_LASH_WORM
 						or BM_92_ILLUSION_WEAVER or BM_94_LURKER or BM_116_IMP_BRUTE or BM_128_GREATER_IMP or BM_138_SHADOW_BEAST or BM_139_BONE_GASHER or BM_149_THRESHER
 						or BM_150_FELLTWIN or BM_151_HYBRID or BM_157_YELLOW_ONE or BM_183_STALKER or BM_184_REALITY_WEAVER or BM_232_ABYSSAL_SUCCUBUS or BM_235_STYGIAN_FURY
-					or BM_237_CONTAMINATOR or BM_241_ACID_TERROR or BM_248_SALAMANDER or BM_257_SHROUDED:
+					or BM_237_CONTAMINATOR or BM_241_ACID_TERROR or BM_248_SALAMANDER or BM_257_SHROUDED
+					or BM_H_405_SOR_M_T_HYBRID:	// (th4) DC hybrid Battle Mage -- fights in melee too, so only a quarter off
 						life -= life / 4;
 						break;
 					case BM_208_WARPED_ONE or BM_253_EXPLODER:
@@ -764,13 +800,20 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 			int addups = 0;
 			//if (Difficulty == DL_8_INFERNO ? (Dungeon->level * 2) : 0;
 			switch (Difficulty) {
-			case DL_5_AGONY:		addups = Dungeon->level; break;
-			case DL_6_TERROR:		addups = 24 + 3 * Dungeon->level / 2; break;
-			case DL_7_DESTRUCTION:	addups = 24 + 36 + 2 * Dungeon->level; break;
-			case DL_8_INFERNO:		addups = 24 + 36 + 48 + 3 * Dungeon->level; break;
+			case DL_1_PURGATORY:	addups = Dungeon->level / 6; break;// +(0 - 4)
+			case DL_2_DOOM:			addups = 4 + Dungeon->level / 3; break;// +(4 - 12)
+			case DL_3_CRUCIBLE:		addups = 4 + 8 + Dungeon->level / 2; break;// +(12 - 24)
+			case DL_4_TORMENT:		addups = 4 + 8 + 12 + Dungeon->level / 2; break;// +(24 - 36)
+			case DL_5_AGONY:		addups = 4 + 8 + 12 + 12 + Dungeon->level / 2; break;// +(36 - 48)
+			case DL_6_TERROR:		addups = 4 + 8 + 12 + 12 + 12 + Dungeon->level / 2; break;// +(48 - 60)
+			case DL_7_DESTRUCTION:	addups = 4 + 8 + 12 + 12 + 12 + 12 + Dungeon->level;	  break;// +(60 - 84)
+			case DL_8_INFERNO:		addups = 4 + 8 + 12 + 12 + 12 + 12 + 24 + 2 * Dungeon->level; break;// +(84 - 132)
 			}
+			// temporarily cancelled addups, until sigils and powerups are added
+			//addups = 0;
 			monster.ToHit += 90 * Difficulty + RNG(2 + 2 * Difficulty) + addups;
-			int minDmg = 65 * Difficulty + addups, maxDmg = 85 * Difficulty + RNG(2 + 2 * Difficulty) + addups;
+			int minDmg = 65 * Difficulty + addups;
+			int maxDmg = 85 * Difficulty + RNG(2 + 2 * Difficulty) + addups;
 			if (is(baseMonster, BM_117_STINGER, BM_277_SPIDERLING, BM_143_DOOM_TAIL)) {
 				minDmg -= 2 * minDmg / 5;
 				maxDmg -= 2 * maxDmg / 5;
@@ -786,6 +829,29 @@ void __fastcall CreateMonster(int monsterIndex, int direction, int monsterSprite
 		}
 	}
 	// -----------special manual monster boosts:---------------
+	if (GameMode == GM_DARK_CAMPAIGN) {
+		if (Dungeon == DUN_72_NECROPOLIS) {
+			monster.MonsterLevel += 20;
+			monster.Xp += 3'400;
+			monster.BaseLife += monster.BaseLife / 2;
+			monster.CurrentLife = monster.BaseLife;
+			monster.ToHit += 14;
+			monster.MinDamage += 19;
+			monster.MaxDamage += 22;
+			monster.ArmorClass += 25;
+		}
+		// (th4) DC mission 26: the cadavers the Risen Blacksmith brought up with him.
+		if (Dungeon == DUN_44_RAVENHOLM && baseMonster == BM_215_CADAVER) {
+			monster.MonsterLevel += 42;
+			monster.Xp += 3'500;
+			monster.BaseLife += 1'000 << 6;
+			monster.CurrentLife = monster.BaseLife;
+			monster.ToHit += 20;
+			monster.MinDamage += 30;
+			monster.MaxDamage += 30;
+			monster.ArmorClass += 58;
+		}
+	}
 	if (Dungeon == DUN_108_ARCANE_PRISON) {
 		switch (baseMonster) {
 		case BM_240_DEMON_PRIEST:
@@ -873,6 +939,14 @@ void ClearMonsters()
 		monster.NextCol = 0;
 		monster.PrevRow = 0;
 		monster.PrevCol = 0;
+		// (th4) The pixel offset of a walk in progress. ClearMonsterWalkCounters does NOT
+		// touch these two, and nothing else reset them either -- so they survived from one
+		// level to the next in whichever Monsters[] slot they were left in, and the monster
+		// created into that slot on the new level inherited them. DrawMonsterInTile adds
+		// them straight to the screen position, so a stale -32 in DeltaY draws the monster
+		// a whole tile above the cell it actually occupies.
+		monster.DeltaX = 0;
+		monster.DeltaY = 0;
 		monster.Orientation = RNG(8);
 		monster.SpeedX = 0;
 		monster.SpeedY = 0;
@@ -927,7 +1001,7 @@ void OpenWeakUber()
 			monster = &Monsters[UberDiabloMonsterIndex];
 			PlayMonsterSound(UberDiabloMonsterIndex, MST_2_DEATH);
 //			Quests[Q_21_FLESHDOOM].talkToFlag = 0;
-			monster->CurrentLife = monster->BaseLife; // / 2; // было уменьшение жизни убера в два раза (отключено в текущей версии th1)
+			monster->CurrentLife = monster->BaseLife; // (rt) / 2; // Uber's life used to be halved (disabled in the current th1 version)
 		}
 	}
 }
@@ -957,6 +1031,11 @@ void InitMonsters()
 		CheckMonsterAndPlayerMapsClearForMultiplayer(); // Disable this to enter MP quest area without crash.  This may create other issues...
 	}
 	#endif
+	// (rt) Outbreak: don't generate procedural monsters
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+		return;
+	}
+	
 	if( !Dungeon->isQuest ){
 	    if( !SummonMonstersAdded ){
             for( int playerIndex = 0; playerIndex < PlayersMax_4; ++playerIndex ){
@@ -1127,8 +1206,600 @@ void LoadBossesOnLevel()
 	}
 }
 
+// (th4) How far the escort may drift from the player before closing the gap. Small enough
+// that they stay useful, large enough that they are not glued to the player's back.
+const int DC_ESCORT_FOLLOW_GAP = 3;
+
+// (th4) DARK CAMPAIGN mission 10 escort. The Dark Lord lends the player his two succubi --
+// Red Vex and Dark Jade -- for the return to the water supply. They are the real hub uniques,
+// not summons: the summon slot machinery (Monsters[0..SummonMonsters_Count]) derives its
+// owner from the slot index and carries no unique identity, so putting them there would
+// strip their names and TRNs. Instead they spawn as normal uniques flagged MF_6_FRIENDLY and
+// get an explicit follow-the-owner step in ProcessMonsters.
+//
+// State is derived, not saved: the escort is active exactly while mission 10 is briefed and
+// not yet complete, which is already persisted in DarkMissionState[].
+bool DarkCampaignEscortActive()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return false;
+	const int mission10 = 9;	// index into DarkMissions[] / DarkMissionState[]
+	if( mission10 >= DARK_MISSION_MAX_50 ) return false;
+	return DarkMissionState[mission10] == DCM_1_BRIEFED;
+}
+
+// (th4) DC mission 13: the Dark Lord sends the girls ahead to Lazarus the moment mission
+// 12 is done, so they are missing from the hub until 13 is complete. Indices into
+// DarkMissionState[] are 0-based, so mission 12 is 11 and mission 13 is 12 -- named rather
+// than written inline, because getting one of them off by one silently misaims the feature.
+bool DarkCampaignEscortAwayAtLazarus()
+{
+	const int DC_MISSION_12_INDEX = 11;
+	const int DC_MISSION_13_INDEX = 12;
+	if( GameMode != GM_DARK_CAMPAIGN ) return false;
+	if( DC_MISSION_13_INDEX >= DARK_MISSION_MAX_50 ) return false;
+	return DarkMissionState[DC_MISSION_12_INDEX] == DCM_2_COMPLETE
+	    && DarkMissionState[DC_MISSION_13_INDEX] != DCM_2_COMPLETE;
+}
+
+// (th4) DC mission 15. Index of the living armorer on this level, or -1.
+int DarkCampaignHephastoIndex()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_43_HEPHASTO ) return -1;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		const Monster& m = Monsters[mi];
+		if( m.newBossId && m.newBossId - 1 == UM_587_Hephasto_the_Armorer ) return mi;
+	}
+	return -1;
+}
+
+// (th4) DC mission 15, Doom and above: the armorer takes 80 % less damage from monsters, on top of every other reduction
+// (Mordor, 2026-10-12: players reported the hero force killing him there -- the mission fails and the campaign cannot go
+// on). Monsters are the only thing that can hurt him -- the player and his summons never target him (his clause in
+// IsPlayerSideMonster) -- and a monster hurts a monster through the two monster-vs-monster functions, which both apply
+// this: MvM_Melee (this file) and MvM_Ranged (Missile.cpp).
+bool DarkCampaignHephastoShielded( int monsterIndex )
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_43_HEPHASTO || Difficulty < DL_2_DOOM ) return false;
+	const Monster& m = Monsters[ monsterIndex ];
+	return m.newBossId && m.newBossId - 1 == UM_587_Hephasto_the_Armorer;
+}
+
+// (th4) DC mission 15: is every hero on this level dead? Same arithmetic the mission
+// completion uses -- whatever is left is a player summon or Hephasto himself, and
+// DarkCampaignEscortCountInLevel() discounts him.
+bool DarkCampaignHellforgeClear()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_43_HEPHASTO ) return false;
+	return MonstersCount - DarkCampaignEscortCountInLevel() <= SummonMonsters_Count;
+}
+
+// (th4) DC mission 13. Index of the living Arch-Bishop on this level, or -1.
+int DarkCampaignLazarusIndex()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_121_UNHOLY_ALTAR_DC ) return -1;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		const Monster& m = Monsters[mi];
+		if( m.newBossId && m.newBossId - 1 == UM_4_ArchBishop_Lazarus ) return mi;
+	}
+	return -1;
+}
+
+// (th4) DC mission 13: is every hero on this level dead? Same arithmetic the mission
+// completion uses -- everything left is either a player summon or one of the three
+// friendlies, both of which DarkCampaignEscortCountInLevel() discounts.
+bool DarkCampaignLazarusLairClear()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_121_UNHOLY_ALTAR_DC ) return false;
+	return MonstersCount - DarkCampaignEscortCountInLevel() <= SummonMonsters_Count;
+}
+
+// (th4) DC mission 25. Index of the living Butcher on this level, or -1. He is the vanilla
+// UM_9_The_Butcher reused, spawned friendly and parked in his cell until the player frees him.
+int DarkCampaignButcherIndex()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_111_CHURCH_SACRISTY ) return -1;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		const Monster& m = Monsters[mi];
+		if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;	// dead is not found
+		return mi;
+	}
+	return -1;
+}
+
+// (th4) DC mission 25: same search as above but on any level -- the one above is deliberately
+// Sacristy-only, because the mark, the click and the talk are all Sacristy business.
+int DarkCampaignButcherAnywhereIndex()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return -1;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		const Monster& m = Monsters[mi];
+		if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;
+		return mi;
+	}
+	return -1;
+}
+
+// (th4) DC mission 25: has the player spoken to the Butcher and let him out?
+//
+// Stored in QUEST data rather than in a global, because quests are written to the savegame
+// and globals are not: without this he came back caged after every save/load, mark and all.
+// The Dark Campaign runs none of the ordinary quests, so the Quest array is free there.
+//
+// status5 of his own quest, NOT status2: TownMap.cpp already uses Q_6's status2 for the
+// wounded townsman's dialogue. Unreachable in DC -- there is no town -- but sharing a field
+// with live vanilla code is asking for the two to meet later. status5 is touched nowhere for
+// this quest. Once set it stays set for the rest of the campaign, hub and mission 26 included.
+enum { DC_BUTCHER_FREED = 1 };
+
+bool DarkCampaignButcherIsFreed()
+{
+	return GameMode == GM_DARK_CAMPAIGN
+	    && Quests[Q_6_THE_BUTCHER].status5 == DC_BUTCHER_FREED;
+}
+
+void DarkCampaignSetButcherFreed()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return;
+	Quests[Q_6_THE_BUTCHER].status5 = DC_BUTCHER_FREED;
+}
+
+// (th4) DC mission 25: he follows the player only once he has been spoken to. Before that he
+// stands in his cell, which is what the parked branch in ProcessMonsters relies on.
+bool DarkCampaignButcherEscorting()
+{
+	return DarkCampaignButcherIsFreed();
+}
+
+// (th4) DC mission 25: put the Butcher on this level if he belongs here and is not already
+// standing on it. Needed because a level the player has already visited is restored by
+// LoadLevel(), which replaces the whole monster array with the saved set -- so a Butcher
+// created during generation is thrown away on every hub visit after the first. Called at the
+// end of the level load, once that restore has happened.
+// (th4) DC mission 25: put the Butcher's colours back into his LightTable row.
+//
+// uniqTrans is only an INDEX; the row contents are runtime state that CreateBoss fills.
+// Generation refills the rows of the monsters IT creates, so every boss that was placed by
+// AddQuestMonsters comes back correctly -- but the Butcher is added after generation, so on
+// a reload his row is whatever was left in it. Empty row means he draws solid black.
+void DarkCampaignRefreshButcherTrn()
+{
+	int bi = DarkCampaignButcherAnywhereIndex();
+	if( bi < 0 ) return;
+	const Monster& b = Monsters[bi];
+	const UniqueMonster& um = UniqueMonsters[UM_9_The_Butcher];
+	// Same path selection CreateBoss uses, so he matches every other boss on the level.
+	const char* trn = MaxCountOfPlayersInGame == 1
+		? (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) ? "CF\\ICEAGE\\%s.TRN" : by(Difficulty, "CF\\SH\\%s.TRN", "CF\\SP\\%s.TRN", "CF\\SD\\%s.TRN"))
+		: by( Difficulty, "Monsters\\Monsters\\%s.TRN", "CF\\MP\\%s.TRN", "CF\\MD\\%s.TRN" );
+	char trnFileName[64];
+	sprintf(trnFileName, trn, um.ColorTranslationFile);
+	if( b.uniqTrans >= LightTable_BossRowCount ) return;	// uchar field, never negative
+	LoadFileWithMem( trnFileName, &LightTable[256 * (b.uniqTrans + LightTable_BossRowFirst)] );
+}
+
+// (th4) A monster created by CreateBoss AFTER level generation needs its slot put back into
+// the live half of MonsterIndexes.
+//
+// CreateBoss appends at Monsters[MonstersCount] and increments MonstersCount, which is right
+// only while MonsterIndexes is still the identity mapping it starts life as. RemoveKilledMonsters
+// breaks that: it swaps each corpse's entry to the back and drops MonstersCount, so after any
+// death the live monsters are MonsterIndexes[0..MonstersCount) in arbitrary order. The freshly
+// appended slot is then sitting in the dead half -- the monster exists in the array but nothing
+// iterates it, so it is never processed, never drawn and never found by an index lookup.
+//
+// Call this straight after CreateBoss for anything spawned mid-level.
+void DarkCampaignFixupAppendedMonster()
+{
+	if( MonstersCount <= 0 || MonstersCount > Monsters_Max_Count ) return;
+	const int newIndex = MonstersCount - 1;	// the slot CreateBoss just wrote
+	if( MonsterIndexes[newIndex] == newIndex ) return;	// already live, nothing to do
+	for( int i = 0; i < Monsters_Max_Count; ++i ){
+		if( MonsterIndexes[i] != newIndex ) continue;
+		MonsterIndexes[i] = MonsterIndexes[newIndex];
+		MonsterIndexes[newIndex] = newIndex;
+		return;
+	}
+}
+
+// (th4) DC mission 26: is the Dark Lord's closing speech on screen right now?
+//
+// In QUEST data, not a global, so that saving mid-speech still ends the run when the panel is
+// dismissed after the reload. status4 of Q_36_CLEAR_WATER: the Dark Campaign runs none of the
+// ordinary quests, and that quest touches only status, status2, status3 and talkToFlag, so
+// the field is dead space here and in normal play alike.
+enum { DC_END_SPEAKING = 1 };
+
+bool DarkCampaignEndIsPending()
+{
+	return GameMode == GM_DARK_CAMPAIGN
+	    && Quests[Q_36_CLEAR_WATER].status4 == DC_END_SPEAKING;
+}
+
+void DarkCampaignEndSetPending( bool on )
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return;
+	Quests[Q_36_CLEAR_WATER].status4 = on ? DC_END_SPEAKING : 0;
+}
+
+// (th4) DC mission 26: put the Dark Lord's colours back into his LightTable row. Exactly the
+// problem DarkCampaignRefreshButcherTrn solves: uniqTrans is only an index, the row contents
+// are runtime state that CreateBoss fills, and he is created after level generation -- so on
+// a reload nothing refills his row and he draws solid black.
+void DarkCampaignRefreshEndLordTrn()
+{
+	int li = DarkCampaignEndLordIndex();
+	if( li < 0 ) return;
+	const Monster& b = Monsters[li];
+	const UniqueMonster& um = UniqueMonsters[UM_773_The_Dark_Lord];
+	const char* trn = MaxCountOfPlayersInGame == 1
+		? (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) ? "CF\\ICEAGE\\%s.TRN" : by(Difficulty, "CF\\SH\\%s.TRN", "CF\\SP\\%s.TRN", "CF\\SD\\%s.TRN"))
+		: by( Difficulty, "Monsters\\Monsters\\%s.TRN", "CF\\MP\\%s.TRN", "CF\\MD\\%s.TRN" );
+	char trnFileName[64];
+	sprintf(trnFileName, trn, um.ColorTranslationFile);
+	if( b.uniqTrans >= LightTable_BossRowCount ) return;
+	LoadFileWithMem( trnFileName, &LightTable[256 * (b.uniqTrans + LightTable_BossRowFirst)] );
+}
+
+// (th4) DC mission 26: index of the Dark Lord standing in the ruins of Ravenholm, or -1.
+int DarkCampaignEndLordIndex()
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_44_RAVENHOLM ) return -1;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		const Monster& m = Monsters[mi];
+		if( !m.newBossId || m.newBossId - 1 != UM_773_The_Dark_Lord ) continue;
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;
+		return mi;
+	}
+	return -1;
+}
+
+// (th4) DC mission 26: Ravenholm is clear, so the Dark Lord comes through the portal himself
+// to close the campaign. He is spawned exactly like the hub kin -- friendly, chase cleared,
+// no service -- and given no AI at all in ProcessMonsters, so he simply stands there with the
+// mark over his head until the player walks up and speaks to him.
+static void __fastcall DisplaceMonsterFromCell(int occupantIndex, int row, int col);	// defined below
+
+void DarkCampaignEndSpawnLord( int row, int col )
+{
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_44_RAVENHOLM ) return;
+	if( DarkCampaignEndLordIndex() >= 0 ) return;	// already here
+	if( AddMonsterTypeToDungeon( UniqueMonsters[UM_773_The_Dark_Lord].BaseMonsterIndex, MPF_4_UNIQ ) < 0 ) return;
+	CreateBoss( UM_773_The_Dark_Lord, 0, 0 );
+	DarkCampaignFixupAppendedMonster();	// spawned mid-level, after monsters have died
+	for( int i = 0; i < MonstersCount; ++i ){
+		const int li = MonsterIndexes[i];
+		Monster& m = Monsters[ li ];
+		if( !m.newBossId || m.newBossId - 1 != UM_773_The_Dark_Lord ) continue;
+
+		// Put him on the portal tile by hand. BossRow/BossCol cannot do it: CreateBoss reads
+		// them on the first pass of its placement loop, clears them, then validates the tile
+		// with IsCellFreeForMonster -- which rejects anything flagged CF_2_VISIBLE_BY_PLAYER.
+		// The portal is in plain sight by design, so the check fails, the loop spins again
+		// with the override already spent, and he lands on a random RNG(80)+16 tile instead.
+		ClearMonsterOnMap( li );
+		if( In112(row, col) && MonsterMap[row][col] > 0 && MonsterMap[row][col] - 1 != li ){
+			DisplaceMonsterFromCell( MonsterMap[row][col] - 1, row, col );
+		}
+		MonsterMap[row][col] = li + 1;
+		m.Row = m.NextRow = m.PrevRow = row;
+		m.Col = m.NextCol = m.PrevCol = col;
+		FixMonsterPosition( li, DIR_0_D );
+		m.flag |= MF_6_FRIENDLY;
+		m.flag &= ~(MF_9_CHASE_TARGET | MF_1_INVISIBLE);
+		m.speechIndex = 0;
+		m.ActivationCounter = 255;
+		// He walks out of the portal rather than being teleported clear of it, so the player
+		// sees him arrive. The steps are counted down in his branch of ProcessMonsters, one
+		// per landing; StartMonsterWalk is used directly because the anti-cornering in
+		// MonsterWalksTowardsTarget would second-guess a scripted step. When the count runs
+		// out he has no AI at all and simply holds the tile facing DIR_0_D.
+		m.Orientation = DIR_0_D;
+		m.curAnimation = &m.SpritePtr->animation[ANIM_0_STAY].oriented[DIR_0_D];
+		DarkCampaignEndWalkSteps = DC_END_LORD_STEPS;
+	}
+	DarkCampaignEndArrived = true;
+}
+
+// (th4) DC: the levels the freed Butcher comes along to. The Sacristy is not in the list --
+// he is placed there by the mission's own spawn block, in his cell, before he is freed.
+bool DarkCampaignButcherFollowsHere()
+{
+	return DarkCampaignButcherJoined()
+	    && is( (DUNGEON)Dungeon, DUN_117_DARKLORD_HIDEOUT, DUN_44_RAVENHOLM );
+}
+
+void DarkCampaignSpawnButcherIfMissing()
+{
+	if( !DarkCampaignButcherFollowsHere() ) return;
+	if( DarkCampaignButcherAnywhereIndex() >= 0 ) return;	// already here
+	if( AddMonsterTypeToDungeon( UniqueMonsters[UM_9_The_Butcher].BaseMonsterIndex, MPF_4_UNIQ ) < 0 ) return;
+	CreateBoss( UM_9_The_Butcher, 0, 0 );
+	DarkCampaignFixupAppendedMonster();	// spawned after LoadLevel, same reason
+	DarkCampaignButcherNeedsArrival = true;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		if( mi < 0 || mi >= Monsters_Max_Count ) continue;
+		Monster& m = Monsters[ mi ];
+		if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+		// (th4) Skip a Butcher who is already dead or retired. The guard above only
+		// returns early on a LIVE one, so a corpse -- the player killed him, or
+		// DarkCampaignCollapseDuplicateButchers retired him -- still sits in the array
+		// and this loop would otherwise re-apply the boosts to it. Worse, CurrentLife =
+		// BaseLife below would give it full life while it is still flagged MF_15_KILLED,
+		// and anything testing life without testing the flag would read it as alive.
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;
+		m.flag |= MF_6_FRIENDLY;
+		m.flag &= ~MF_9_CHASE_TARGET;
+		m.speechIndex = 0;
+		m.ActivationCounter = 255;
+		// (th4) The escort boosts. This path used to set the flags and nothing else, so a
+		// Butcher who arrived through it was a raw UM_9 -- around a hundred life instead
+		// of twenty thousand, which is what a player saw when a duplicate appeared.
+		// Copied from the DUN_44_RAVENHOLM branch of AddQuestMonsters; keep the two in
+		// step. NOTE the DUN_117_DARKLORD_HIDEOUT branch there sets the flags WITHOUT
+		// these boosts, so this helper does boost him in the hub where generation would
+		// not -- deliberate and harmless, since nothing fights in the hub.
+		m.BaseLife += 5'800 << 6;
+		m.CurrentLife = m.BaseLife;
+		m.MinDamage += 92;
+		m.MaxDamage += 186;
+		m.ArmorClass += 103;
+		m.MonsterLevel += 50;
+		m.ToHit += 120;
+	}
+}
+
+// (th4) DC mission 25: collapse duplicate Butchers down to one.
+//
+// Reported from the last mission: after reloading a save the player had TWO, one with the
+// full escort life and one with about a hundred. He can be created by two independent
+// paths -- AddQuestMonsters when DUN_44/DUN_117 are generated, and
+// DarkCampaignSpawnButcherIfMissing after a level or savegame restore -- and the second
+// one only stands down if its "is he already here" scan sees the first. That scan walks
+// MonsterIndexes[0..MonstersCount-1], and both of those are rewritten from the savegame
+// partway through LoadGame, so it is not reliable at the moment it runs.
+//
+// Rather than chase the ordering, this collapses whatever ended up in the level. Cheap,
+// runs once per load, and correct no matter which path produced the extra.
+//
+// The keeper is the one with the MOST life, which is always a fully boosted Butcher --
+// never the raw copy.
+//
+// EXTRAS ARE REMOVED FROM THE LIVE SET, not merely flagged. An earlier draft only set
+// MF_15_KILLED and left the slot in MonsterIndexes. That does not work in this engine:
+// ProcessMonsters does not skip MF_15_KILLED -- its ghost guard REQUIRES the flag to be
+// clear, so a flagged monster falls straight through to the AI dispatch. There the
+// FRIENDLY+Butcher branch still matched him, ran Ai_DarkCampaignButcher, and its
+// arrival step (TeleportSummonToOwner) put him straight back onto MonsterMap -- and
+// rendering is map-driven, so the duplicate simply reappeared.
+//
+// So this does what DelMonster does: swap the tail of MonsterIndexes into the freed
+// position and shrink MonstersCount. That moves POSITIONS in MonsterIndexes only; every
+// monster keeps its own index into Monsters[], which is what the rest of the level
+// holds, so nothing is invalidated. DelMonster itself is not called because it also
+// plays the quest-done sound and runs the Ironman clear check -- both wrong on a load.
+// The loop walks BACKWARDS so the entry swapped into a freed position has already
+// been examined. The freed slot keeps MF_15_KILLED and zero life so any stale
+// TargetIndex pointing at it reads as an invalid target.
+void DarkCampaignCollapseDuplicateButchers()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return;
+	int keep = -1;
+	int found = 0;
+	for( int i = 0; i < MonstersCount; ++i ){
+		int mi = MonsterIndexes[i];
+		// (th4) Bounds first, as RepairMonsterMap does. This runs while MonstersCount and
+		// MonsterIndexes are half-rewritten from a savegame -- the very condition that
+		// makes the duplicate possible -- so a stale entry here is exactly the case to
+		// survive, not to index Monsters[] with.
+		if( mi < 0 || mi >= Monsters_Max_Count ) continue;
+		const Monster& m = Monsters[mi];
+		if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;
+		++found;
+		if( keep < 0 || m.BaseLife > Monsters[keep].BaseLife ) keep = mi;
+	}
+	if( found < 2 ) return;				// nothing to do, the normal case
+	for( int i = MonstersCount - 1; i >= 0; --i ){	// backwards: see the header comment
+		int mi = MonsterIndexes[i];
+		if( mi < 0 || mi >= Monsters_Max_Count ) continue;
+		Monster& m = Monsters[mi];
+		if( mi == keep ) continue;
+		if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+		if( (m.flag & MF_15_KILLED) || m.CurAction == A_6_DEATH ) continue;
+		// Take him off the map the way the engine does everywhere else. NOT a bare
+		// "MonsterMap[Row][Col] = 0": a duplicate is placed by CreateBoss, which stomps
+		// the cell when DisplaceMonsterFromCell cannot find room, so the entry there may
+		// belong to ANOTHER monster -- clearing it blind orphans that one (still drawn,
+		// still alive, but off MonsterMap, so nothing can click or hit it, which is a
+		// stuck kill counter and no exit portal -- see RepairMonsterMap).
+		// ClearMonsterOnMap sweeps the 3x3 around Prev* and matches BOTH signs, since a
+		// cell may hold -index-1 as well as +index+1; the second clear catches the case
+		// where Row/Col have already diverged from Prev*. In112 bounds both -- Row/Col
+		// are only ever range-checked through it, and an unchecked write here would land
+		// outside a [112][112] array.
+		ClearMonsterOnMap( mi );
+		if( In112(m.Row, m.Col) && MonsterMap[m.Row][m.Col] == mi + 1 ){
+			MonsterMap[m.Row][m.Col] = 0;
+		}
+		m.flag |= MF_15_KILLED;
+		m.CurrentLife = 0;
+		// Out of the live set -- DelMonster's swap, without its sound and Ironman side
+		// effects. The slot itself stays in the pool for AddMonster to reuse, as always.
+		--MonstersCount;
+		MonsterIndexes[i] = MonsterIndexes[MonstersCount];
+		MonsterIndexes[MonstersCount] = mi;
+	}
+}
+
+// (th4) DC mission 25: is the Butcher with the player from here on? Read from the SAVED
+// saved quest flag, so it survives a reload and holds for the rest of the campaign.
+bool DarkCampaignButcherJoined()
+{
+	return DarkCampaignButcherIsFreed();
+}
+
+// (th4) True for the two succubi while they are acting as the player's escort.
+// NB: use || here, not `or` -- in this codebase `or` is a case-fallthrough macro
+// (common.h: #define or : [[fallthrough]]; case), not the boolean operator.
+bool DarkCampaignIsEscortBoss( int bossId )
+{
+	return bossId == UM_5_Red_Vex || bossId == UM_6_Dark_Jade;
+}
+
+// (th4) The escort's post in the Deep Sanctum -- where they stand when not on a mission.
+// Kept in one place because both the spawn switch and the walk-home step need them.
+bool DarkCampaignEscortHubPost( int bossId, int& row, int& col )
+{
+	if( bossId == UM_5_Red_Vex ){ row = 20; col = 17; return true; }
+	if( bossId == UM_6_Dark_Jade ){ row = 17; col = 20; return true; }
+	return false;
+}
+
+// (th4) Set while the succubi are walking back to their posts after mission 10. They come
+// through the portal with the player rather than being standing in place, so for the length
+// of that walk they are exempt from the hub's kin freeze (see ProcessMonsters). Deliberately
+// not saved: on a reload the hub simply places them at their posts, already home.
+bool DarkCampaignEscortWalkingHome = false;
+
+// (th4) Set together with the latch above and cleared on the first hub tick, once the
+// escort has been moved next to the player. It cannot be done at spawn time: the hub
+// generator never assigns PlayerRowPos/PlayerColPos (FixTPandStairEntryPoint settles the
+// arrival tile only AFTER generation), so reading them in CreateBoss gave a stale position
+// -- which is why the two of them turned up at their posts instead of walking in with him.
+bool DarkCampaignEscortNeedsArrival = false;
+
+// (th4) True for anything on the player's side that a left-click must never attack. Own
+// summons qualify by living below SummonMonsters_Count; the Dark Campaign escort are friendly
+// uniques sitting above it, so they have to be named explicitly.
+bool IsPlayerSideMonster( int monsterIndex )
+{
+	if( monsterIndex < 0 || monsterIndex >= Monsters_Max_Count ) return false;
+	if( monsterIndex < SummonMonsters_Count ) return true;
+	const Monster& m = Monsters[monsterIndex];
+	if( GameMode != GM_DARK_CAMPAIGN || !(m.flag & MF_6_FRIENDLY) || !m.newBossId ) return false;
+	if( DarkCampaignIsEscortBoss( m.newBossId - 1 ) ) return true;
+	// (th4) DC mission 13: Lazarus fights on the player's side in his own lair. Kept as a
+	// separate clause rather than widening DarkCampaignIsEscortBoss, which drives the hub
+	// posts and the walk-home route and has nothing to do with him.
+	if( Dungeon == DUN_121_UNHOLY_ALTAR_DC
+	 && m.newBossId - 1 == UM_4_ArchBishop_Lazarus ) return true;
+	// (th4) DC mission 15: the armorer is not a target either. Same clause, same reasons --
+	// the cursor must offer to walk to him rather than swing, and nothing the player or his
+	// summons throw may touch him.
+	if( Dungeon == DUN_43_HEPHASTO
+	 && m.newBossId - 1 == UM_587_Hephasto_the_Armorer ) return true;
+	// (th4) DC mission 25: the Butcher, same again -- caged, then following. No dungeon test:
+	// he stays with the player from the Sacristy onwards, hub included.
+	if( m.newBossId - 1 == UM_9_The_Butcher ) return true;
+	// (th4) DC mission 26: and the Dark Lord, standing in the ruins at the end of it all.
+	return Dungeon == DUN_44_RAVENHOLM
+	    && m.newBossId - 1 == UM_773_The_Dark_Lord;
+}
+
+// (th4) How many of the escort are currently standing in this level. They are real monsters,
+// so they inflate every "how much is left to kill" count -- including the one that decides a
+// mission is finished, which is why a cleared level could sit at "2 heroes left" and never
+// open the way home. Anything counting quarry subtracts this.
+int DarkCampaignEscortCountInLevel()
+{
+	if( GameMode != GM_DARK_CAMPAIGN ) return 0;
+	int count = 0;
+	for( int i = 0; i < MonstersCount; ++i ){
+		const Monster& m = Monsters[ MonsterIndexes[i] ];
+		if( m.newBossId && DarkCampaignIsEscortBoss( m.newBossId - 1 ) ) ++count;
+		// (th4) DC mission 25: the Butcher is on the player's side from the moment he is
+		// spawned, so he must never be counted as quarry -- otherwise the cleared cellar
+		// sits at "1 hero left" and the way home never opens. Holds on every level he
+		// follows the player to, not just the Sacristy.
+		else if( m.newBossId && m.newBossId - 1 == UM_9_The_Butcher ) ++count;
+		// (th4) DC mission 13: Lazarus is on the player's side too, so he must be discounted
+		// exactly like the girls. Otherwise a cleared lair sits at "1 hero left" for ever and
+		// the way home never appears. Deliberately NOT written as IsPlayerSideMonster(), which
+		// also returns true for summons -- the caller accounts for those separately.
+		else if( m.newBossId && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+		      && m.newBossId - 1 == UM_4_ArchBishop_Lazarus ) ++count;
+		// (th4) DC mission 15: and the armorer, for exactly the same reason -- he is the
+		// thing being defended, not a hero left standing.
+		else if( m.newBossId && Dungeon == DUN_43_HEPHASTO
+		      && m.newBossId - 1 == UM_587_Hephasto_the_Armorer ) ++count;
+	}
+	return count;
+}
+
 int BossRow = -1, BossCol = -1;
 //----- (0043BA78) --------------------------------------------------------
+// (th4) Bosses that carry NO light at all (CreateBoss gives them LightIndex -1). One list, used by CreateBoss
+// and by FixBossLightInSlot0 below -- add a boss here, not in a copy.
+static bool BossHasNoLight( int bossId )
+{
+	return is( bossId, /*UM_10_Aym_the_Lord_of_Torment, */UM_C_902_RAGEHORN, UM_677_Guardian_of_Valor, UM_C_871_HAZEWEAVER, UM_676_Hazeweaver );
+}
+
+// (th4) BOSS LIGHT IN SLOT 0. LightList slot 0 is a real light, and AddLight hands it out first -- but for a
+// monster, LightIndex 0 also means "no light" (every ordinary monster starts with 0), so all the monster walk
+// code moves a light only `if( monster.LightIndex )` (MonsterWalkUp/Down/Horizontal, OffsetMonsterLight, the
+// walk starts). A boss whose light got slot 0 therefore walked away from it, and only a charge (which copies
+// the index into its missile, Missile.cpp CastMonsterRun) brought it back -- reported for Borosteron in The
+// Maze. Quest maps make it likely: LoadGameLevel creates their monsters BEFORE the hero (LoadSetMap ->
+// InitMonsters, then InitPlayer), so the first boss light there is slot 0 (proven by TH4_bosslight.log,
+// 2026-10-06). Saves store that 0, so fixing only the creation would not help existing games.
+// FIX: every monster tick, a living boss on slot 0 gets its light moved to another slot -- an exact copy
+// (position, radius, offset, tint, on/off; bosses whose light is parked at 0,0 stay hidden) -- and slot 0 is
+// released with LightOff. Never touches slot 0 while it is a hero's light (normal levels give the hero slot 0),
+// nor a boss that has no light (BossHasNoLight: old saves still have 0 there instead of -1). Not done instead:
+// "-1 means no light for every monster, check >= 0" -- old saves keep 0 for lightless monsters, and every one
+// of them would then drive slot 0, usually the hero's torch.
+static void FixBossLightInSlot0()
+{
+	if( FullLighting ) return;
+	for( int i = 0; i < MonstersCount; ++i ){
+		Monster& m = Monsters[ MonsterIndexes[ i ] ];
+		if( m.LightIndex != 0 || !m.newBossId || m.CurrentLife <= 0 || BossHasNoLight( m.newBossId - 1 ) ) continue;
+		bool heroSlot = false;
+		for( int p = 0; p < PlayersMax_4; ++p ){
+			if( Players[ p ].IsExists && Players[ p ].dungeon == (DUNGEON)Dungeon && Players[ p ].LightIndex == 0 ) heroSlot = true;
+		}
+		if( heroSlot ) continue;
+		const Light old = LightList[ 0 ];
+		const LightTint tint = LightTintList[ 0 ];
+		const int slot = AddLight( old.row, old.col, old.radius );
+		if( slot <= 0 ) continue;	// no free slot (or lighting off): leave it as it was
+		LightTintList[ slot ] = tint;
+		ChangeLightOffset( slot, old.deltaRow, old.deltaCol );
+		if( old.off ) LightOff( slot );
+		LightOff( 0 );
+		m.LightIndex = slot;
+	}
+}
+
+// (th4) HIDDEN BOSS LIGHT. A boss that is invisible (MF_1_INVISIBLE -- the fading "hidden" bosses, AI_15_Hidden:
+// Hazeshifter, Bentdusk the Grey, Gloomstrike...) must not light the map: the game parks his light at (0,0) when
+// he fades out (Monster_Fade_Out path) and brings it back in Monster_Fade_In / the instant-visibility AI. But
+// these bosses START invisible -- the flag comes with their base monster row -- while CreateBoss lights their
+// spawn tile, so until the first fade-out a light shone on an empty spot (found with TH4_bosslight.log,
+// 2026-10-06; a Thief notices it at once). Same after a level revisit. FIX: every monster tick, an invisible
+// boss's light that is not parked gets parked at (0,0); the existing fade-in restores it. Slot 0 is skipped:
+// after FixBossLightInSlot0 a boss can only still be on 0 when 0 is a hero's light, which must not be moved.
+static void ParkHiddenBossLights()
+{
+	if( FullLighting ) return;
+	for( int i = 0; i < MonstersCount; ++i ){
+		const Monster& m = Monsters[ MonsterIndexes[ i ] ];
+		if( !m.newBossId || !( m.flag & MF_1_INVISIBLE ) || m.CurrentLife <= 0 ) continue;
+		const int slot = m.LightIndex;
+		if( slot <= 0 || slot >= Lights_128_Count ) continue;
+		if( LightList[ slot ].row || LightList[ slot ].col ) ChangeLightPos( slot, 0, 0 );
+	}
+}
+
 void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int packCount, int packFlag /*= 0*/ ) // TODO: clean up decompilation
 {
 	if( MonstersCount >= Monsters_Max_Count ) return; // was memory corruption
@@ -1139,8 +1810,6 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 	int row;                          // edi@6
 	int v10;                          // eax@7
 	int v11;                          // edx@8
-	int* v13;                         // ecx@48
-	int* v14;                         // eax@50
 	const UniqueMonster* uniqMonster; // edi@58
 	int v18;                          // eax@6
 	int* v28;                         // [sp+58h] [bp-14h]@1
@@ -1153,7 +1822,13 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 	v28 = 0;
 	bossId = uniqMonsterIndex;
 	boss = &Monsters[MonstersCount];
-	if( (BossLightIndex + 19) << 8 >= 6912 ){
+	// (th4) One LightTable row per boss, from LightTable_BossRowFirst up -- Monster::uniqTrans
+	// stores the offset. The range used to be 8 rows, so the 9th boss on a level was rejected
+	// outright (that is why Torvatus/Gloomshredder/Salinus never appeared in the DC hub) and
+	// the hub worked around it by making all 13 uniques share row 19, which is why every
+	// vendor rendered wearing whichever TRN happened to load last. The range is now 21 rows,
+	// so the hub fits and the workaround is gone; the cap applies uniformly to every level.
+	if( BossLightIndex >= LightTable_BossRowCount ){
 		return;
 	}
 	uniqMonster = &UniqueMonsters[uniqMonsterIndex];
@@ -1232,8 +1907,8 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		col = 2 * CurPattern.col + 28;
 	}
 	if (bossId == UM_677_Guardian_of_Valor || bossId == UM_C_902_RAGEHORN) {
-		row = 2 * CurPattern.row + 25;
-		col = 2 * CurPattern.col + 19;
+		row = 2 * CurPattern.row + 26;
+		col = 2 * CurPattern.col + 20;
 	}
 	if (bossId == UM_676_Hazeweaver || bossId == UM_C_871_HAZEWEAVER) {
 		row = 2 * CurPattern.row + 22;
@@ -1270,13 +1945,34 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_582_Izual:					row = 18;	col = 18;	break;
 		case UM_585_Fleshdoom:				row = 22;	col = 83;	break;
 		case UM_586_Wielder_of_Shadowfang:	row = 22;	col = 83;	break;
-		case UM_587_Hephasto_the_Armorer:	row = 22;	col = 83;	break;
-		case UM_583_Lich_King:				row = 60;	col = 53;	break;
+		case UM_587_Hephasto_the_Armorer:	row = 22;	col = (GameMode == GM_DARK_CAMPAIGN) ? 88 : 83;	break;	// (th4) DC m15 forge tile
+		case UM_583_Lich_King:				if (Dungeon == DUN_72_NECROPOLIS && GameMode == GM_DARK_CAMPAIGN) { row = 85;	col = 22; }	// (th4) DC mission 19
+									else { row = 60;	col = 53; }
+									break;
 		case UM_674_Guardian_of_Bones:		if (GameMode != GM_CLASSIC)					   { row = 24;	col = 38; }	break;
-		case UM_675_PWS_Boss:				if (Difficulty >= 1 && GameMode != GM_CLASSIC) { row = 19;	col = 19; }	break;
+		case UM_675_PWS_Boss:				if (Difficulty >= DL_1_PURGATORY && GameMode != GM_CLASSIC && GameMode != GM_DARK_CAMPAIGN) { 
+												row = 19;	col = 19; 
+											} break;
+		case UM_906_DC_LORD_ANTONIUS:		if (Dungeon == DUN_28_POISONED_WATER_SUPPLY && GameMode == GM_DARK_CAMPAIGN) { row = 20; col = 30; } break;
 		case UM_584_Mordessa:				row = 30;	col = 30;	break;
-		case UM_5_Red_Vex or UM_C_868_RED_VEX:					row = 40;	col = 45;	break;
-		case UM_6_Dark_Jade or UM_C_869_BLACKJADE:				row = 38;	col = 49;	break;
+		case UM_5_Red_Vex or UM_C_868_RED_VEX:					// (th4) hub entourage; elsewhere unchanged
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+				// (th4) Returning from mission 10 they arrive with the player and walk to
+				// their post; otherwise they are simply standing at it.
+				row = 20; col = 17;	// (th4) arrival beside the player is done on the first hub tick
+			}
+			else if( Dungeon == DUN_118_POISONED_WATER_SUPPLY_DC ){ row = 33; col = 82; }	// (th4) DC m10 escort, beside the entry
+			else if( Dungeon == DUN_121_UNHOLY_ALTAR_DC ){ row = 39; col = 44; }	// (th4) DC m13
+			else									 { row = 40; col = 45; }
+			break;
+		case UM_6_Dark_Jade or UM_C_869_BLACKJADE:				// (th4) hub entourage; elsewhere unchanged
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+				row = 17; col = 20;	// (th4) arrival beside the player is done on the first hub tick
+			}
+			else if( Dungeon == DUN_118_POISONED_WATER_SUPPLY_DC ){ row = 34; col = 83; }	// (th4) DC m10 escort, beside the entry
+			else if( Dungeon == DUN_121_UNHOLY_ALTAR_DC ){ row = 39; col = 49; }	// (th4) DC m13
+			else									 { row = 38; col = 49; }
+			break;
 		case UM_1_Skeleton_King or UM_C_872_SKING:
 		{
 			if (Dungeon == DUN_99_ANCIENT_CRYPTS) { 
@@ -1310,6 +2006,7 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_724_Silkstrider:			row = 20;	col = 65;	break;
 		case UM_725_Web_Queen:				row = 31;	col = 82;	break;
 		case UM_726_Apparition_of_Arkaine:	row = 48;	col = 44;	break;
+		case UM_915_DC_SIR_CABBOT:			row = 49;	col = 46;	break;	// (th4) DC mission 6
 		case UM_740_Don_Carnage:			row = 24;	col = 46;	break;
 		case UM_741_Gloom_Prowler:			row = 23;	col = 36;	break;
 		case UM_742_Ironhoof:				if (Dungeon == DUN_61_CURSED_SANCTUM) { row = 81;	col = 25; }	break;
@@ -1336,7 +2033,7 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_440_Painwraps:				if (Dungeon == DUN_70_CITADEL) { row = 51;	col = 30; }	break;
 		case UM_377_Blazeshock:				if (Dungeon == DUN_70_CITADEL) { row = 52;	col = 31; }	break;
 		case UM_143_Bloodscythe_Gloomslayer:if (Dungeon == DUN_71_GRIM_VAULTS) { row = 22;	col = 67; }	break;
-		case UM_652_Griefbang:				if (Dungeon == DUN_71_GRIM_VAULTS) { row = 23;	col = 67; }	break;
+		case UM_652_Griefzap:				if (Dungeon == DUN_71_GRIM_VAULTS) { row = 23;	col = 67; }	break;
 		case UM_322_Mindgloom:				if (Dungeon == DUN_71_GRIM_VAULTS) { row = 23;	col = 47; }	break;
 		case UM_749_Sethmer:				row = 29;	col = 29;	break;
 		case UM_750_Fleshbinder:			row = 29;	col = 28;	break;
@@ -1353,18 +2050,41 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_63_Doomgaze:				if (Dungeon == DUN_76_DEN_OF_EVIL) { row = 18 + 44;	col = 87 - 3; }	break;
 		case UM_427_Deathpus_the_Uninterred:if (Dungeon == DUN_77_VILE_TUNNELS) { row = 84;	col = 79 - 21; }	break;
 		case UM_628_Moltenstorm_the_Grim:	if (Dungeon == DUN_77_VILE_TUNNELS) { row = 84;	col = 79 - 22; }	break;
-		case UM_752_Deathcaller: { row = 18 + 28;	col = 57 - 30; }break;
+		case UM_752_Deathcaller:			if (Dungeon == DUN_72_NECROPOLIS && GameMode == GM_DARK_CAMPAIGN) { row = 86;	col = 87; }	// (th4) DC mission 19
+									else { row = 18 + 28;	col = 57 - 30; }
+									break;
 		case UM_629_Nightburn_the_Mad:		if (Dungeon == DUN_79_COLONNADE) { row = 24 + 1;	col = 57; }break;
 		case UM_753_Sister_Priscilla: { row = 24 + 2;	col = 57; }break;
 		case UM_754_Madame_Pompadour: { row = 24 + 3;	col = 57; }break;
 		case UM_384_Lionsteel_the_Bent:		if (Dungeon == DUN_79_COLONNADE) { row = 24 + 4;	col = 57; }break;
 		case UM_169_Urzul_the_Trampler:		if (Dungeon == DUN_80_HELL_GATE) { row = 23;	col = 43; } break;
+		case UM_940_DC_Darius_the_Ronin:	if (Dungeon == DUN_80_HELL_GATE) { row = 88;	col = 24; } break;	// (th4) DC mission 18
+		case UM_941_DC_Lord_Tenabris:		if (Dungeon == DUN_69_GIBBET) { row = 80;	col = 34; } break;	// (th4) DC mission 20
+		case UM_942_DC_Venturius_the_Inquisitor:	if (Dungeon == DUN_67_SEPULCHER) { row = 40;	col = 40; } break;	// (th4) DC mission 21
+		case UM_943_DC_Paladin_Orphius:		if (Dungeon == DUN_65_RUINED_TEMPLE) { row = 81;	col = 51; } break;	// (th4) DC mission 22
+		case UM_944_DC_Knight_Grimald:		if (Dungeon == DUN_65_RUINED_TEMPLE) { row = 53;	col = 48; } break;	// (th4) DC mission 22
+		case UM_945_DC_Prophetess_Lyssia:	if (Dungeon == DUN_65_RUINED_TEMPLE) { row = 64;	col = 62; } break;	// (th4) DC mission 22
+		case UM_946_DC_Cleric_Dwaynor:		if (Dungeon == DUN_62_DIM_UNDERCROFT) { row = 75;	col = 37; } break;	// (th4) DC mission 23
+		case UM_947_DC_High_Exemplar_Kastor:	if (Dungeon == DUN_60_HAUNTED_LABYRINTH) { row = 85;	col = 49; } break;	// (th4) DC mission 24
+		case UM_9_The_Butcher:			if (GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_111_CHURCH_SACRISTY) { row = 67;	col = 53; } break;	// (th4) DC mission 25: his cell
+		case UM_948_DC_Warden_Gaspax:		if (Dungeon == DUN_111_CHURCH_SACRISTY) { row = 26;	col = 44; } break;	// (th4) DC mission 25
+		case UM_949_DC_Paladin_Godfrey:		if (Dungeon == DUN_44_RAVENHOLM) { row = 77;	col = 19; } break;	// (th4) DC mission 26
+		case UM_950_DC_Captain_Dorian:		if (Dungeon == DUN_44_RAVENHOLM) { row = 89;	col = 57; } break;	// (th4) DC mission 26
+		case UM_951_DC_Grand_Justicar_Rosalind:	if (Dungeon == DUN_44_RAVENHOLM) { row = 51;	col = 60; } break;	// (th4) DC mission 26
+		case UM_952_DC_Elara_Longshot:		if (Dungeon == DUN_44_RAVENHOLM) { row = 21;	col = 70; } break;	// (th4) DC mission 26
+		case UM_953_DC_Grandmaster_Ortus:	if (Dungeon == DUN_44_RAVENHOLM) { row = 65;	col = 84; } break;	// (th4) DC mission 26
+		case UM_905_DC_Griswold:			if (Dungeon == DUN_44_RAVENHOLM) { row = 88;	col = 88; } break;	// (th4) DC mission 26
 		case UM_544_Darkhoof:				if (Dungeon == DUN_81_UNDERWORLD) { row = 27;	col = 23; } break;
 		case UM_633_Fleshvenom_the_Toxic:	if (Dungeon == DUN_81_UNDERWORLD) { row = 27;	col = 24; } break;
-		case UM_19_Jaldabaoth:				if (Dungeon == DUN_81_UNDERWORLD) { row = 27;	col = 25; } break;
+		case UM_19_Jaldabaoth:				if (Dungeon == DUN_81_UNDERWORLD) { row = 27;	col = 25; }
+											else if (Dungeon == DUN_117_DARKLORD_HIDEOUT) { row = 48; col = 17; } // (th4) hub powerups vendor
+											break;
 		case UM_755_Redbark_Elderroot: { row = 88;	col = 74; } break;
 		case UM_49_Oozeshredder:			if (Dungeon == DUN_82_HALLS_OF_SUFFERING) { row = 87;	col = 74; } break;
 		case UM_55_Gutooze_the_Foul:		if (Dungeon == DUN_82_HALLS_OF_SUFFERING) { row = 86;	col = 74; } break;
+		case UM_932_DC_Malachar_the_Warden:	if (Dungeon == DUN_83_BLOOD_KEEP) { row = 54;	col = 36; } break;	// (th4) DC mission 14
+		case UM_933_DC_Zerath_the_Sage:		if (Dungeon == DUN_83_BLOOD_KEEP) { row = 19;	col = 45; } break;	// (th4) DC mission 14
+		case UM_934_DC_Faldir_the_Keeper:	if (Dungeon == DUN_83_BLOOD_KEEP) { row = 30;	col = 87; } break;	// (th4) DC mission 14
 		case UM_613_Rotwound_the_Dark:		if (Dungeon == DUN_83_BLOOD_KEEP) { row = 25;	col = 23; } break;
 		case UM_151_Bloodfury:				if (Dungeon == DUN_83_BLOOD_KEEP) { row = 25;	col = 22; } break;
 		case UM_624_Nightclaw_the_Sharp:	if (Dungeon == DUN_83_BLOOD_KEEP) { row = 25;	col = 24; } break;
@@ -1423,9 +2143,13 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_504_Grimblood_the_Frenzied:	if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 85 - 40 + 27 + 14;		col = 27 + 16 + 30 - 13; } break;
 		case UM_670_Drilmog:				if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 85 - 40 + 27 + 14 - 22;	col = 27 + 16 + 30 - 13 - 32; } break;
 		case UM_766_Zhar_the_Mad_AR:		if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 55 - 30;	col = 24 + 19; } break;
-		case UM_89_Alystar:					if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 55 - 30 + 15;	col = 24 + 31; } break;
+		case UM_89_Alystar:					if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 55 - 30 + 15;	col = 24 + 31; }
+										else if (Dungeon == DUN_117_DARKLORD_HIDEOUT) { row = 45; col = 44; } // (th4) hub identify
+										break;
 		case UM_488_Firespawn:				if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 55 - 30 + 15;	col = 24 + 19 - 14; } break;
-		case UM_124_Torvatus:				if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 54;	col = 30; } break;
+		case UM_124_Torvatus:				if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 54;	col = 30; }
+										else if (Dungeon == DUN_117_DARKLORD_HIDEOUT) { row = 27; col = 31; } // (th4) hub witch
+										break;
 		case UM_210_Tombstone_the_Evil:		if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 68;	col = 30; } break;
 		case UM_102_Gorestone:				if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 68 + 17;	col = 30; } break;
 		case UM_86_Varaya:					if (Dungeon == DUN_100_HORADRIM_TREASURY) { row = 85 - 16;	col = 84; } break;
@@ -1435,6 +2159,9 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 			{
 				if (Dungeon == DUN_101_VOID_CHAMBERS) { 
 					row = 18 + 1;	col = 19 + 29; 
+				}
+				else if (Dungeon == DUN_121_UNHOLY_ALTAR_DC) {	// (th4) DC m13
+					row = 32;	col = 46;
 				}
 				else { // standard level 15 quest location
 					row = 32;	col = 46;
@@ -1471,14 +2198,40 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_513_Duskshroud:				if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 83;	col = 27; } break;
 		case UM_316_Burzul:					if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 89;	col = 21; } break;
 		case UM_199_Grimstomp:				if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 89;	col = 89; } break;
-		case UM_94_Setebos:					if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 83;	col = 83; } break;
+		case UM_94_Setebos:					if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 83;	col = 83; }
+										else if (Dungeon == DUN_117_DARKLORD_HIDEOUT) { row = 17; col = 34; } // (th4) hub enchanter
+										break;
 		case UM_623_Griefburn_the_Destroyer:if (Dungeon == DUN_106_BASTION_OF_NIGHT) { row = 27;	col = 83; } break;
 		case UM_201_Blackstorm:				if (Dungeon == DUN_107_DREAD_SANCTUARY) { row = 66;	col = 26; } break;
 		case UM_99_Belial_the_Disemboweler:	if (Dungeon == DUN_107_DREAD_SANCTUARY) { row = 47;	col = 38; } break;
 		case UM_109_Stoneburn_the_Crusher:	if (Dungeon == DUN_107_DREAD_SANCTUARY) { row = 50;	col = 58; } break;
 		case UM_197_Blacktongue_Deathbite:	if (Dungeon == DUN_107_DREAD_SANCTUARY) { row = 68;	col = 58; } break;
 		case UM_772_Vexaroth:				if (Dungeon == DUN_107_DREAD_SANCTUARY) { row = 88;	col = 78; } break;
-		case UM_773_The_Dark_Lord:			row = 81;	col = 21; break;
+		case UM_773_The_Dark_Lord:			// (th4) Dark Campaign hub places him at his throne; Arcane Prison keeps the old spot
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 17; col = 17; }
+			// (th4) DC mission 26: Ravenholm places him itself, after CreateBoss returns --
+			// see DarkCampaignEndSpawnLord. Whatever this switch picks is overwritten there.
+			else if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_44_RAVENHOLM ){ /* set later */ }
+			else									 { row = 81; col = 21; }
+			break;
+		case UM_0_Gharbad_the_Weak:			// (th4) Dark Campaign hub blacksmith; elsewhere he keeps his quest placement
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 45; col = 27; }
+			break;
+		case UM_30_Boilrot:					// (th4) Dark Campaign hub stash
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 28; col = 17; }
+			break;
+		case UM_48_Molianta_the_Copperwing:	// (th4) Dark Campaign hub quench
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 37; col = 25; }
+			break;
+		case UM_51_Galahad_the_Bonewhite:	// (th4) Dark Campaign hub crafting
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 37; col = 35; }
+			break;
+		case UM_126_Gloomshredder:			// (th4) Dark Campaign hub transmute
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 29; col = 44; }
+			break;
+		case UM_792_Salinus_the_Salt_King:	// (th4) Dark Campaign hub healer
+			if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){ row = 37; col = 50; }
+			break;
 		case UM_774_Swarmbringer:			row = 28;	col = 64; break;
 		case UM_788_Grimgar_the_Fallen:		row = 24;	col = 38; break;
 		case UM_789_Bonecrunch_the_Risen:	row = 24;	col = 36; break;
@@ -1487,8 +2240,40 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_805_Festerus:				if (Dungeon == DUN_112_STILL_SPRINGS) { row = 29;	col = 31; } break;
 		case UM_806_Obfuscus:				if (Dungeon == DUN_112_STILL_SPRINGS) { row = 78;	col = 78; } break;
 		case UM_807_Stormire:				if (Dungeon == DUN_112_STILL_SPRINGS) { row = 30;	col = 74; } break;
+		case UM_907_DC_ZYPHERYS:			if (Dungeon == DUN_112_STILL_SPRINGS) { row = 30;	col = 74; } break;	// (th4) DC: takes Stormire's spot
+		case UM_908_DC_LORD_KINDRETT:		if (Dungeon == DUN_114_LOWER_SCRIPTORIUM) { row = 59;	col = 30; } break;	// (th4) DC
+		case UM_909_DC_SCRIBE_VABIUS:		if (Dungeon == DUN_114_LOWER_SCRIPTORIUM) { row = 23;	col = 41; } break;	// (th4) DC
+		case UM_910_DC_AZDOG:				if (Dungeon == DUN_64_MAUSOLEUM) { row = 46;	col = 32; } break;	// (th4) DC
+		case UM_911_DC_COMMANDER_ALDRIC:	if (Dungeon == DUN_70_CITADEL) { row = 74;	col = 37; } break;	// (th4) DC
+		case UM_912_DC_CAPTAIN_ILSE:		if (Dungeon == DUN_70_CITADEL) { row = 32;	col = 41; } break;	// (th4) DC
+		case UM_913_DC_MAGISTER_CORVANE:	if (Dungeon == DUN_70_CITADEL) { row = 66;	col = 66; } break;	// (th4) DC
+		case UM_914_DC_BROTHER_SILAS:		if (Dungeon == DUN_70_CITADEL) { row = 38;	col = 66; } break;	// (th4) DC
+		case UM_916_DC_PALADIN_LOXLEY:		if (Dungeon == DUN_66_SEWERS)  { row = 36;	col = 36; } break;	// (th4) DC mission 7
+		case UM_917_DC_PRIEST_GWIDEON:		if (Dungeon == DUN_66_SEWERS)  { row = 65;	col = 63; } break;	// (th4) DC mission 7
+		case UM_918_DC_MADAME_PERESIDE:		if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 87;	col = 51; } break;	// (th4) DC mission 8
+		case UM_919_DC_Archimandrite_Bozu:	if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 48;	col = 79; } break;	// (th4) DC mission 8
+		case UM_920_DC_Bishop_Lucian:		if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 45;	col = 32; } break;	// (th4) DC mission 8
+		case UM_921_DC_Deacon_Raduel:		if (Dungeon == DUN_99_ANCIENT_CRYPTS) { row = 25;	col = 51; } break;	// (th4) DC mission 8
+		case UM_922_DC_Donna_Paloosa:		if (Dungeon == DUN_47_DARK_NEST) { row = 20;	col = 20; } break;	// (th4) DC mission 9
+		case UM_923_DC_Abbot_Hirosh:		if (Dungeon == DUN_47_DARK_NEST) { row = 43;	col = 31; } break;	// (th4) DC mission 9
+		case UM_924_DC_Commander_Latham:	if (Dungeon == DUN_47_DARK_NEST) { row = 75;	col = 23; } break;	// (th4) DC mission 9
+		case UM_925_DC_Abbot_Balatt:		if (Dungeon == DUN_118_POISONED_WATER_SUPPLY_DC) { row = 20;	col = 33; } break;	// (th4) DC mission 10
+		case UM_931_DC_Madame_Sarbine:	if (Dungeon == DUN_121_UNHOLY_ALTAR_DC) { row = 35; col = 58; } break;	// (th4) DC mission 13
+		case UM_935_DC_Captain_Nagvot:	if (Dungeon == DUN_43_HEPHASTO) { row = 28; col = 53; } break;	// (th4) DC mission 15
+		case UM_926_DC_Black_Hawk:			if (Dungeon == DUN_119_DEEPER_CAVES) { row = 47;	col = 83; } break;	// (th4) DC mission 11
+		case UM_928_DC_Darkmoor:			if (Dungeon == DUN_120_PANDEMONIUM_DC) { row = 75;	col = 73; } break;	// (th4) DC mission 12
+		case UM_929_DC_Moonrose:			if (Dungeon == DUN_120_PANDEMONIUM_DC) { row = 33;	col = 33; } break;	// (th4) DC mission 12
+		case UM_930_DC_Commander_Degroe:	if (Dungeon == DUN_120_PANDEMONIUM_DC) { row = 33;	col = 75; } break;	// (th4) DC mission 12
+		case UM_927_DC_General_Carnabus:	if (Dungeon == DUN_120_PANDEMONIUM_DC) { row = 77;	col = 31; } break;	// (th4) DC mission 12
 		case UM_808_Winggore:				if (Dungeon == DUN_112_STILL_SPRINGS) { row = 85;	col = 48; } break;
 		case UM_809_Borosteron:				if (Dungeon == DUN_113_THE_MAZE)	  { row = 87;	col = 23; } break;
+		case UM_903_AZGOR:					if (Dungeon == DUN_116_MINING_CAVES) { row = 77;	col = 20; } break;
+		case UM_904_DOBAZZU:				if (Dungeon == DUN_116_MINING_CAVES) { row = 80;	col = 20; } break;
+		case UM_938_DC_Lord_Tiberius:		if (Dungeon == DUN_116_MINING_CAVES) { row = 77;	col = 20; } break;	// (th4) DC mission 17
+		case UM_939_DC_Ravenshot:			if (Dungeon == DUN_116_MINING_CAVES) { row = 80;	col = 20; } break;	// (th4) DC mission 17
+		case UM_936_DC_Ludwig_the_Paranoid:	if (Dungeon == DUN_51_FETID_CAVERN) { row = 33;	col = 51; } break;	// (th4) DC mission 16
+		case UM_937_DC_Lord_Voss:			if (Dungeon == DUN_51_FETID_CAVERN) { row = 23;	col = 51; } break;	// (th4) DC mission 16
+		case UM_644:						if (Dungeon == DUN_72_NECROPOLIS && GameMode == GM_DARK_CAMPAIGN) { row = 20;	col = 88; } break;	// (th4) DC mission 19
 		}
 	}else{ // MP
 		switch( bossId ){
@@ -1505,7 +2290,7 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_582_Izual:					row = 18;	col = 18;	break;
 		case UM_585_Fleshdoom:				row = 22;	col = 83;	break;
 		case UM_586_Wielder_of_Shadowfang:	row = 22;	col = 83;	break;
-		case UM_587_Hephasto_the_Armorer:	row = 22;	col = 83;	break;
+		case UM_587_Hephasto_the_Armorer:	row = 22;	col = (GameMode == GM_DARK_CAMPAIGN) ? 88 : 83;	break;	// (th4) DC m15 forge tile
 		case UM_583_Lich_King:				row = 60;	col = 53;	break;
 		case UM_674_Guardian_of_Bones:		if (GameMode != GM_CLASSIC)					   { row = 24;	col = 38; }	break;
 		case UM_584_Mordessa:				row = 30;	col = 30;	break;
@@ -1526,6 +2311,7 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_723_The_Infester:			row = 21;	col = 34;	break;
 		case UM_724_Silkstrider:			row = 20;	col = 65;	break;
 		case UM_725_Web_Queen:				row = 31;	col = 82;	break;
+		case UM_726_Apparition_of_Arkaine:	row = 48;	col = 44;	break;
 		case UM_774_Swarmbringer:			row = 28;	col = 64;	break;
 		case UM_788_Grimgar_the_Fallen:		row = 24;	col = 38;	break;
 		case UM_789_Bonecrunch_the_Risen:	row = 24;	col = 36;	break;
@@ -1537,37 +2323,48 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		case UM_808_Winggore:				if (Dungeon == DUN_112_STILL_SPRINGS) { row = 85;	col = 48; } break;
 		case UM_809_Borosteron:				if (Dungeon == DUN_113_THE_MAZE)	  { row = 87;	col = 23; } break;
 		case UM_821_Snotspill_MP:			if (Dungeon == DUN_114_LOWER_SCRIPTORIUM) { row = 81;	col = 24; } break;
+		case UM_903_AZGOR:					if (Dungeon == DUN_116_MINING_CAVES) { row = 77;	col = 20; } break;
+		case UM_904_DOBAZZU:				if (Dungeon == DUN_116_MINING_CAVES) { row = 80;	col = 20; } break;
 		}
 	}
 	int mine = 0;
 	switch( bossId ){
-	case UM_9_The_Butcher or UM_C_822_The_Butcher:	mine = 367; break;
+	// (th4) DC mission 25: the Butcher is placed by the switch above -- on his cell tile in
+	// the Sacristy, beside the player everywhere else. This search puts him on map tile 367,
+	// the butcher's room from the vanilla rnd7.DUN quest pattern, which no Dark Campaign map
+	// contains: it found nothing and left row/col at 112, off the map entirely.
+	case UM_9_The_Butcher or UM_C_822_The_Butcher:
+		if( GameMode != GM_DARK_CAMPAIGN ) mine = 367;
+		break;
 	case UM_80_Hissabal:	mine = 317; break;
 	case UM_32_Lothamaarg:	mine = 319; break;
 	}
 	if( mine ){
-		col = 0;
-		v13 = FineMap[ 0 ];
-		bool found = false;
-		do{
-			if( found ){
-				break;
+		// (th4) Find the marker tile, and touch row/col ONLY if it is really there.
+		//
+		// The decompiled loops that used to be here ran to completion on a miss and left row and col
+		// at 112, which their trailing ++ turned into 113 -- two past the end of the 112x112
+		// MonsterMap that CreateBossBaseMonster then writes. The Butcher already hit exactly
+		// this on Dark Campaign maps; see the comment on his case above. Hissabal and
+		// Lothamaarg can still hit it any time a .dun stops carrying tile 317 or 319.
+		//
+		// On a miss the boss now simply keeps whatever position it already had, which is the
+		// random one the placement loop picked and validated.
+		//
+		// Scan order and result are unchanged: first column that contains the marker, first row
+		// within it, then +2 on each axis. The +2 is not arbitrary -- the old inner loop left
+		// row one past the hit, the outer left col one past, and then both were incremented
+		// again after the loops.
+		int foundRow = -1, foundCol = -1;
+		for( int c = 0; c < FineMap_112 && foundRow < 0; ++c ){
+			for( int r = 0; r < FineMap_112; ++r ){
+				if( FineMap[ r ][ c ] == mine ){ foundRow = r; foundCol = c; break; }
 			}
-			row = 0;
-			v14 = v13;
-			do{
-				if( found ){
-					break;
-				}
-				found = *v14 == mine;
-				++row;
-				v14 += 112;
-			}while( row < 112 );
-			++v13;
-			++col;
-		}while( (int)v13 < (int)&FineMap[ 0 ][ 112 ] );
-		++row;
-		++col;
+		}
+		if( foundRow >= 0 ){
+			row = foundRow + 2;
+			col = foundCol + 2;
+		}
 	}
 	if( bossId == UM_12_Uber_Diablo ){
 		if( CheckUberCoord() ){
@@ -1625,14 +2422,46 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 		break;
 	}
 	CreateBossBaseMonster(MonstersCount, spriteIndex, row, col);
-	boss->newBossId = bossId + 1;// (5) расширение номера босса 0043BCD9
+	// (th4) DARK CAMPAIGN HUB: kin hold a fixed heading instead of CreateBossBaseMonster's
+	// random RNG(8). Orientation AND curAnimation are set as a pair, exactly as CreateMonster
+	// does -- setting orientation alone would leave the sprite drawing its old heading.
+	if( Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		// (th4) Some hub kin inherit MF_1_INVISIBLE from their BASE MONSTER row -- it is baked
+		// into BaseMonster.cpp for the whole Hidden family (BM_32_INVISIBLE_ONE etc), not set
+		// by AI, so CreateMonster copies it at spawn and the hub's AI gate never gets a chance
+		// to clear it. Invisible means both undrawn (Draw.cpp) and unclickable (Main.cpp), so
+		// a vendor with that flag is unusable. Hub kin never ambush anyone; strip it.
+		boss->flag &= ~MF_1_INVISIBLE;
+
+		int hubFacing = -1;
+		switch( bossId ){
+		case UM_773_The_Dark_Lord:				hubFacing = DIR_0_D;	break;	// south
+		case UM_0_Gharbad_the_Weak:				hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_19_Jaldabaoth:					hubFacing = DIR_1_DL;	break;	// south-west
+		case UM_30_Boilrot:						hubFacing = DIR_1_DL;	break;	// south-west
+		case UM_48_Molianta_the_Copperwing:		hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_51_Galahad_the_Bonewhite:		hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_89_Alystar:						hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_94_Setebos:						hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_124_Torvatus:					hubFacing = DIR_1_DL;	break;	// south-west
+		case UM_126_Gloomshredder:				hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_792_Salinus_the_Salt_King:		hubFacing = DIR_7_DR;	break;	// south-east
+		case UM_6_Dark_Jade:					hubFacing = DIR_0_D;	break;	// south
+		case UM_5_Red_Vex:						hubFacing = DIR_0_D;	break;	// south
+		}
+		if( hubFacing >= 0 ){
+			boss->Orientation = hubFacing;
+			boss->curAnimation = &boss->SpritePtr->animation[ANIM_0_STAY].oriented[hubFacing];
+		}
+	}
+	boss->newBossId = bossId + 1;// (rt) (5) boss number extension 0043BCD9
 	boss->MonsterLevel += 4 + 3 * Difficulty / 4;
 	//boss->Xp *= 2;
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest && uniqMonster->IceAgeNamePtr) {
-		boss->Name = uniqMonster->IceAgeNamePtr;
+		boss->Name = (char*)LocalizedIceAgeName(uniqMonster->IceAgeNamePtr);
 	}
 	else {
-		boss->Name = uniqMonster->NamePtr;
+		boss->Name = (char*)LocalizedUniqueMonsterName( uniqMonster );
 	}
 	int hp = uniqMonster->HitPoints << 6;
 	boss->BaseLife = hp; 
@@ -1654,21 +2483,44 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 	if( Players[CurrentPlayerIndex].gameChanger & BIT(GC_11_VACCINATED) && MaxCountOfPlayersInGame == 1){
 		VaccinateMonster(*boss);
 	}
-	// здесь Lazarus опять входит в состояние разговора
+	// (rt) here Lazarus enters the talking state again
 	boss->speechIndex = uniqMonster->SpecialSound;
-	if( bossId == UM_10_Aym_the_Lord_of_Torment ){ // mor: some obvious oversight
-		boss->LightIndex = 0;
+	if( BossHasNoLight( bossId ) ){ // full deactivation of boss light (the list: BossHasNoLight, above)
+		//boss->LightIndex = 0; // (th4) Rev 2.46 ORIGINAL (buggy): 0 is the no-light sentinel BUT also a real LightList slot (usually the player's torch) — the death/fade paths (Monster_Fade_Out etc.) called ChangeLightPos(0, ...) with it and teleported the player's light to the boss tile / (0,0), the reported "killed a Hidden boss -> all lights off including my own" bug.
+		boss->LightIndex = -1; // (th4) Rev 2.46: no-light sentinel that ChangeLightPos/LightOff also reject — the boss light paths become no-ops instead of hijacking slot 0.
 	}else{
 		boss->LightIndex = AddLight(boss->Row, boss->Col, 3);
+		// the two bosses from above were included here, but they never worked? didn't I test this before? I should have... Was this broken during lighting work?
 		if (is(bossId, UM_C_868_RED_VEX, UM_C_867_LAZARUS, UM_C_869_BLACKJADE, UM_4_ArchBishop_Lazarus, 
 			UM_5_Red_Vex, UM_6_Dark_Jade, UM_676_Hazeweaver, UM_677_Guardian_of_Valor, UM_C_871_HAZEWEAVER, UM_C_902_RAGEHORN)) { //special condition to make lights not be not visible at the very beggining for a fractal of second
 			ChangeLightPos(boss->LightIndex, 0, 0);
 		}
 	}
-	if( MaxCountOfPlayersInGame != 1 && boss->ai == AI_29_RedVex ){ // Ai_29_Lazarus_s_Slut / MAI_LazarusHelp
+	if( MaxCountOfPlayersInGame != 1 && boss->ai == AI_29_RedVex ){ // Ai_29_Redvex / MAI_LazarusHelp
 		boss->speechIndex = 0;
 	}
-	// вторая часть патча на Лазаруса из Д1 1.07-1.09
+	// (rt) second part of the Lazarus patch from D1 1.07-1.09
+	// (th4) DARK CAMPAIGN escort: Red Vex and Dark Jade carry Lazarus' SpecialSound, so the
+	// speechIndex test below would park them on MG_6_TALK -- standing still and reciting the
+	// "abandon your foolish quest" line when clicked. While they are serving as the player's
+	// escort they are soldiers, not NPCs: drop the speech and send them down the MG_1_ATTACK
+	// path (same escape the Void Chambers Lazarus uses).
+	if( GameMode == GM_DARK_CAMPAIGN && DarkCampaignIsEscortBoss( bossId )
+	 && (DarkCampaignEscortActive() || DarkCampaignEscortWalkingHome) ){
+		boss->speechIndex = 0;
+		goto OTAKE;
+	}
+	// (th4) DC mission 13: Lazarus carries the same SpecialSound (35) as the girls, so
+	// without this he parks on MG_6_TALK and recites the "abandon your foolish quest"
+	// line when clicked -- and AI_28_Lazarus then runs the vanilla lair script when the
+	// audio ends, which blits an AltMap this dungeon never loads. Drop the speech and
+	// send him down the same path the escort takes, so he simply behaves like them.
+	// The line itself is played once on arrival instead, from the DUN_121 spawn block.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+	 && bossId == UM_4_ArchBishop_Lazarus ){
+		boss->speechIndex = 0;
+		goto OTAKE;
+	}
 	if( MaxCountOfPlayersInGame == 1
 	 || boss->ai != AI_28_Lazarus
 	 || Quests[Q_15_ARCHBISHOP_LAZARUS].status2 <= QS_3_COMPLETE ){
@@ -1954,7 +2806,7 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 			boss->CurrentLife = baseLife;
 
 			// ------------------- boss XP formula (TH3 v0.662+) --------------------------
-			if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE)) {
+			if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) {
 				switch (Difficulty) {
 				case 0:
 				case 1:
@@ -1983,13 +2835,20 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 
 			//int addups_boss = Difficulty == DL_8_INFERNO ? (Dungeon->level * 2) : 0;// old addon
 			// ADDUPS
-			int addups_boss = 0;
+			int addups_boss = 0;			
 			switch (Difficulty) {
-			case DL_5_AGONY:		addups_boss = Dungeon->level; break;
-			case DL_6_TERROR:		addups_boss = 24 + 3 * Dungeon->level / 2; break;
-			case DL_7_DESTRUCTION:	addups_boss = 24 + 36 + 2 * Dungeon->level; break;
-			case DL_8_INFERNO:		addups_boss = 24 + 36 + 48 + 3 * Dungeon->level; break;
+			case DL_1_PURGATORY:	addups_boss = Dungeon->level / 6; break;// +(0 - 4)
+			case DL_2_DOOM:			addups_boss = 4 + Dungeon->level / 3; break;// +(4 - 12)
+			case DL_3_CRUCIBLE:		addups_boss = 4 + 8 + Dungeon->level / 2; break;// +(12 - 24)
+			case DL_4_TORMENT:		addups_boss = 4 + 8 + 12 + Dungeon->level / 2; break;// +(24 - 36)
+			case DL_5_AGONY:		addups_boss = 4 + 8 + 12 + 12 + Dungeon->level / 2; break;// +(36 - 48)
+			case DL_6_TERROR:		addups_boss = 4 + 8 + 12 + 12 + 12 + Dungeon->level / 2; break;// +(48 - 60)
+			case DL_7_DESTRUCTION:	addups_boss = 4 + 8 + 12 + 12 + 12 + 12 + Dungeon->level;	  break;// +(60 - 84)
+			case DL_8_INFERNO:		addups_boss = 4 + 8 + 12 + 12 + 12 + 12 + 24 + 2 * Dungeon->level; break;// +(84 - 132)
 			}
+			// cancelling addups until sigils and powerups are added
+			//addups_boss = 0;
+
 			boss->MinDamage += 75 * Difficulty + addups_boss;
 			boss->MaxDamage += 90 * Difficulty + addups_boss;
 			boss->SecondMinDamage += 80 * Difficulty + addups_boss;
@@ -2217,7 +3076,10 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 	else {
 		sprintf(trnFileName, trn, uniqMonster->ColorTranslationFile);
 	}
-	LoadFileWithMem( trnFileName, &LightTable[256 * (BossLightIndex + 19)] );
+	// (th4) Every unique gets its own LightTable row. uniqTrans is the offset from
+	// LightTable_BossRowFirst; DrawMonster passes uniqTrans + 4 and CL2_DrawDark maps it
+	// back to row 19 + uniqTrans, so the row IS the monster's colour identity.
+	LoadFileWithMem( trnFileName, &LightTable[256 * (BossLightIndex + LightTable_BossRowFirst)] );
 	boss->uniqTrans = BossLightIndex++;
 	++MonstersCount;
 	packFlag = packFlag ? packFlag : uniqMonster->PackTrigger; // if passed non zero packFlag use it, instead use PackTrigger from UniqueMonsters table
@@ -2233,21 +3095,579 @@ void __fastcall CreateBoss(int uniqMonsterIndex, int bossPackSpriteIndex, int pa
 	return;
 }
 
+#define TH4_MONSTERMAP_DEBUG 0
+
+// ===================== DEBUG INSTRUMENTATION (th4) -- disabled ===================
+// Set TH4_MONSTERMAP_DEBUG to 1 to re-enable. Kept because this bug class (a monster
+// written onto an already-occupied MonsterMap cell -> invisible + unclickable until it
+// moves) can recur: several writers still claim cells without checking.
+// Logs every time a monster is written onto a MonsterMap cell that is already taken.
+// Writes to TH4_stomp.log next to the exe. REMOVE THIS once the invisible-boss bug
+// is understood -- it changes no behaviour, it only observes.
+#if TH4_MONSTERMAP_DEBUG
+static void StompLog(const char* what, int monsterIndex, int row, int col, int occupant)
+{
+	if( FILE* f = fopen("TH4_stomp.log", "a") ){
+		const char* victimName = "?";
+		int victimBoss = 0;
+		if( occupant > 0 && (occupant - 1) < Monsters_Max_Count ){
+			Monster& v = Monsters[occupant - 1];
+			if( v.Name ) victimName = v.Name;
+			victimBoss = v.newBossId;
+		}
+		const char* newName = "?";
+		int newBoss = 0;
+		if( monsterIndex >= 0 && monsterIndex < Monsters_Max_Count ){
+			Monster& n = Monsters[monsterIndex];
+			if( n.Name ) newName = n.Name;
+			newBoss = n.newBossId;
+		}
+		fprintf(f, "[%s] dungeon=%d mode=%d  cell(%d,%d)  NEW idx=%d boss=%d '%s'  OVERWRITES occupant=%d (idx=%d) boss=%d '%s'\n",
+			what, (int)(DUNGEON)Dungeon, (int)GameMode, row, col,
+			monsterIndex, newBoss, newName,
+			occupant, occupant - 1, victimBoss, victimName);
+		fclose(f);
+	}
+}
+#endif
+// =================== END DEBUG INSTRUMENTATION ===================================
+
+// ===================== DEBUG INSTRUMENTATION (th4) -- disabled ===================
+// After a level is fully built, check every live monster actually owns its own tile in
+// MonsterMap[][]. Any monster whose tile points elsewhere is invisible AND unclickable
+// (both the renderer and the cursor hit-test look monsters up through MonsterMap), and
+// will only "appear" once it walks and re-registers itself.
+// Writes to TH4_stomp.log next to the exe. REMOVE once the bug is understood.
+#if TH4_MONSTERMAP_DEBUG
+void AuditMonsterMap(const char* when)
+{
+	if( FILE* f = fopen("TH4_stomp.log", "a") ){
+		fprintf(f, "=== AUDIT (%s) dungeon=%d mode=%d monstersCount=%d ===\n",
+			when, (int)(DUNGEON)Dungeon, (int)GameMode, MonstersCount);
+		int ghosts = 0;
+		// skip the reserved summon slots, they live at (0,0) by design
+		for( int i = SummonMonsters_Count; i < MonstersCount; ++i ){
+			Monster& m = Monsters[i];
+			if( !In112(m.Row, m.Col) ){
+				fprintf(f, "  OUT-OF-BOUNDS idx=%d boss=%d '%s' at (%d,%d)\n",
+					i, m.newBossId, m.Name ? m.Name : "?", m.Row, m.Col);
+				++ghosts;
+				continue;
+			}
+			int owner = MonsterMap[m.Row][m.Col];
+			if( owner != i + 1 ){
+				const char* thiefName = "<empty>";
+				if( owner > 0 && (owner - 1) < Monsters_Max_Count && Monsters[owner-1].Name ){
+					thiefName = Monsters[owner-1].Name;
+				}
+				fprintf(f, "  GHOST idx=%d boss=%d '%s' at (%d,%d): tile owned by %d (idx=%d '%s')\n",
+					i, m.newBossId, m.Name ? m.Name : "?", m.Row, m.Col,
+					owner, owner - 1, thiefName);
+				++ghosts;
+			}
+		}
+		fprintf(f, "=== AUDIT done: %d ghost(s) ===\n\n", ghosts);
+		fclose(f);
+	}
+}
+#endif
+// =================== END DEBUG INSTRUMENTATION ===================================
+
+// (th4) Deterministic search for the nearest cell a monster may stand on, spiralling
+// outward from (row,col) in rings of increasing Chebyshev distance. Returns true and
+// writes the result to outRow/outCol; false if nothing suitable is in range.
+//
+// IsCellFreeForMonster() is exactly the predicate we want and is itself deterministic:
+// in-bounds + no monster + no player + not CF_2_VISIBLE_BY_PLAYER/CF_8_FORBIDDEN
+// + IsCellBlocking()==0 (i.e. TileBlockWalking[FineMap[][]], so walls are rejected).
+//
+// IMPORTANT: this must stay RNG-free. The number of RNG calls made while building a
+// level has to be identical every time it is rebuilt, or boss stats/affixes shuffle on
+// TP re-entry (see the long comment in CreateBoss). A fixed scan order draws no RNG.
+static bool __fastcall FindNearestFreeCellForMonster(int row, int col, int& outRow, int& outCol)
+{
+	const int MaxRadius = 8;
+	for( int radius = 1; radius <= MaxRadius; ++radius ){
+		for( int dRow = -radius; dRow <= radius; ++dRow ){
+			for( int dCol = -radius; dCol <= radius; ++dCol ){
+				if( abs(dRow) != radius && abs(dCol) != radius ) continue; // ring only
+				int r = row + dRow;
+				int c = col + dCol;
+				if( IsCellFreeForMonster(r, c) ){
+					outRow = r; outCol = c;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+// (th4) Move an already-created monster off (row,col) to the nearest free walkable cell.
+//
+// Why this exists: MonsterMap[][] holds one monster per tile and is how BOTH the renderer
+// (DrawMonsterInTile) and the cursor hit-test find monsters. Bosses with hardcoded spawn
+// coordinates (see the switch in CreateBoss) claim their cell without checking it, so they
+// can overwrite a monster that is already standing there -- typically a pack member of an
+// earlier boss placed nearby. The overwritten monster keeps its Row/Col but owns no tile,
+// so it is invisible AND unclickable until it happens to walk somewhere and re-register.
+// Observed on DUN_104: Doomfang is forced to (22,53) and his Horned Death pack spreads
+// around him; Fleshblight is then forced to (25,53) and stomps whichever pack member
+// landed there.
+//
+// The boss keeps its authored cell (those coordinates are deliberate level design) and the
+// occupant is nudged aside instead. No RNG is drawn: the monster already exists, we only
+// move it, so the level's RNG sequence is unchanged.
+static void __fastcall DisplaceMonsterFromCell(int occupantIndex, int row, int col)
+{
+	if( occupantIndex < 0 || occupantIndex >= Monsters_Max_Count ) return;
+	Monster& m = Monsters[occupantIndex];
+	int newRow, newCol;
+	if( !FindNearestFreeCellForMonster(row, col, newRow, newCol) ){
+		return; // nowhere to go: leave it, the stomp below is no worse than before
+	}
+	ClearMonsterOnMap(occupantIndex); // clears the cells around PrevRow/PrevCol
+	if( In112(m.Row, m.Col) && MonsterMap[m.Row][m.Col] == occupantIndex + 1 ){
+		MonsterMap[m.Row][m.Col] = 0; // in case Prev* had already diverged from Row/Col
+	}
+	m.Row = m.NextRow = m.PrevRow = newRow;
+	m.Col = m.NextCol = m.PrevCol = newCol;
+	MonsterMap[newRow][newCol] = occupantIndex + 1;
+	CheckMonsterUnderArch(occupantIndex);
+}
+
+//----- (th4) -------------------------------------------------------------
+// (th4) Re-register any live monster whose own tile no longer points back at it.
+//
+// Forced placement (bosses, packs, and the .dun map's own monsters, which are laid down LAST
+// in AddQuestMonsters) overwrites MonsterMap after trying to displace whoever was standing
+// there. When DisplaceMonsterFromCell cannot find a free cell within its 8-tile search it
+// gives up and lets the stomp happen -- and the monster it failed to move is then orphaned:
+// still drawn, still alive, but absent from MonsterMap, so the cursor cannot pick it and
+// nothing can attack it. On a crowded level that is a stuck "monsters left" counter and no
+// exit portal. ClearMapFromInvalidMonsters only clears stale cells; it never restores one.
+//
+// This runs after all placement and puts every orphan back on the map -- reclaiming its own
+// tile if free, otherwise moving it to the nearest free one.
+void RepairMonsterMap()
+{
+	for( int i = 0; i < MonstersCount; ++i ){
+		const int mi = MonsterIndexes[i];
+		if( mi < 0 || mi >= Monsters_Max_Count ) continue;
+		Monster& m = Monsters[mi];
+		if( !m.SpritePtr ) continue;
+		if( m.flag & MF_15_KILLED ) continue;
+		if( (m.CurrentLife & ~63) <= 0 ) continue;
+		if( m.Row == 1 && m.Col == 0 ) continue;	// dormant summon slot, not on the map yet
+		if( !In112(m.Row, m.Col) ) continue;
+		if( MonsterMap[m.Row][m.Col] == mi + 1 ) continue;	// already correct
+
+		if( MonsterMap[m.Row][m.Col] == 0 ){
+			MonsterMap[m.Row][m.Col] = mi + 1;		// its tile is free: just reclaim it
+			continue;
+		}
+		int newRow, newCol;							// someone else holds it: step aside
+		if( FindNearestFreeCellForMonster(m.Row, m.Col, newRow, newCol) ){
+			ClearMonsterOnMap(mi);
+			m.Row = m.NextRow = m.PrevRow = newRow;
+			m.Col = m.NextCol = m.PrevCol = newCol;
+			MonsterMap[newRow][newCol] = mi + 1;
+			CheckMonsterUnderArch(mi);
+		}
+	}
+}
+
+//----- (th4) -------------------------------------------------------------
+// (th4) MONSTERS UNDER DOORS (DSF 1.09 bug list). InitMonsters places the monsters before InitObjects
+// builds the doors, and IsCellFreeForMonster knows nothing about objects, so a monster could be
+// generated on a door tile: the door was then built shut around it, and it stood "inside" the door
+// until it walked out at the hero. Main.cpp LoadGameLevel calls this right after InitObjects on a newly
+// generated random level (quest maps place their monsters by hand): a monster standing on a door, or on
+// any other object that blocks walking, moves to the nearest free cell without such an object. RNG-free,
+// like FindNearestFreeCellForMonster, so the level's RNG sequence stays the same; a boss takes his light.
+static bool CellHasBlockingObject( int row, int col )
+{
+	const int objNum = ObjectsMap[ row ][ col ];
+	if( !objNum ) return false;
+	const Object& object = Objects[ abs( objNum ) - 1 ];
+	return object.isDoor || object.isBlockWalking;
+}
+void MoveMonstersOffBlockingObjects()
+{
+	for( int i = 0; i < MonstersCount; ++i ){
+		const int mi = MonsterIndexes[i];
+		if( mi < 0 || mi >= Monsters_Max_Count ) continue;
+		Monster& m = Monsters[mi];
+		if( !m.SpritePtr ) continue;
+		if( m.Row == 1 && m.Col == 0 ) continue;	// dormant summon slot, not on the map yet
+		if( !In112( m.Row, m.Col ) || !CellHasBlockingObject( m.Row, m.Col ) ) continue;
+		bool found = false;
+		int newRow = 0, newCol = 0;
+		for( int radius = 1; radius <= 8 && !found; ++radius ){
+			for( int dRow = -radius; dRow <= radius && !found; ++dRow ){
+				for( int dCol = -radius; dCol <= radius; ++dCol ){
+					if( abs( dRow ) != radius && abs( dCol ) != radius ) continue;	// ring only
+					const int r = m.Row + dRow, c = m.Col + dCol;
+					if( In112( r, c ) && IsCellFreeForMonster( r, c ) && !CellHasBlockingObject( r, c ) ){
+						newRow = r; newCol = c; found = true;
+						break;
+					}
+				}
+			}
+		}
+		if( !found ) continue;
+		ClearMonsterOnMap( mi );
+		if( MonsterMap[ m.Row ][ m.Col ] == mi + 1 ) MonsterMap[ m.Row ][ m.Col ] = 0;
+		m.Row = m.NextRow = m.PrevRow = newRow;
+		m.Col = m.NextCol = m.PrevCol = newCol;
+		MonsterMap[ newRow ][ newCol ] = mi + 1;
+		CheckMonsterUnderArch( mi );
+		if( m.LightIndex > 0 && !( m.flag & MF_1_INVISIBLE ) ) ChangeLightPos( m.LightIndex, newRow, newCol );
+	}
+}
+
+//----- (th4) -------------------------------------------------------------
+// (th4) Put one of the escort back on her post, map bookkeeping and all. Used both when the
+// walk home times out and when the hub notices one standing somewhere she should not be --
+// after a save/reload, for instance, where monster positions come back from the delta and
+// the walk-home latch (deliberately unsaved) is gone, so nothing would otherwise move her.
+// (th4) DC mission 15: the forge tile the armorer belongs on.
+const int DC_HEPHASTO_POST_ROW = 22;
+const int DC_HEPHASTO_POST_COL = 88;
+
+// (th4) Ticks spent walking home. Reset when he arrives and when the level generates --
+// see the DUN_43 block in AddQuestMonsters, which is why this is a file static rather
+// than a function-local one.
+static int gHephastoWalkHomeTicks = 0;
+
+// (th4) Distance-to-forge field, in steps, for every tile on the level. DC_HOME_UNREACHED means
+// "not reachable" (or not built yet). Built lazily by the BFS below and thrown away when
+// the level regenerates, alongside the walk-home timer.
+//
+// Why this exists: FindPath() is an A* capped at MaxPathStep_25, and at the cap it does not
+// return a shortened route -- it fails outright ("if( maxDistance == 25 ) return 0"). The
+// forge room is wide enough that from most of it the armorer is over 24 steps from his post,
+// so MakeMonsterPath() refused every single tick and he fell through to the straight-line
+// fallback, which knows nothing about walls. He would walk face-first into one and stay
+// there until the 50s give-up teleported him. A flood fill from the post has no range limit
+// and encodes the whole room's geometry, so stepping downhill on it walks him around walls.
+const unsigned short DC_HOME_UNREACHED = 0xFFFF;
+static unsigned short gHephastoHomeDist[112][112];
+static bool gHephastoHomeDistBuilt = false;
+
+// (th4) What the field was built for. DarkCampaignResetHephastoWalkHome() only fires from the
+// DUN_43 branch of AddQuestMonsters, i.e. on generation -- but a level entered from a save
+// comes back off the delta without regenerating, so the built flag alone would happily hand
+// out a field flooded through a DIFFERENT layout of this level from earlier in the session
+// and march him into walls that are not there. Cheap to key it and rebuild on any mismatch.
+static DUNGEON gHephastoHomeDistDungeon = DungeonCount;	// DungeonCount == "no level", never a real one
+static int gHephastoHomeDistSeed = 0;
+
+// (th4) Last direction walked, so a sidestep cannot immediately undo itself and leave him
+// jittering between two tiles. Cleared with the rest of the walk-home state.
+static int gHephastoLastStepOrient = -1;
+
+// (th4) Would terrain and scenery let him stand here? IsCellBlocking() alone is NOT enough:
+// it only consults TileBlockWalking, so it happily reports an open floor tile that has a
+// blocking object sitting on it. The fill believed those tiles were walkable, sent him
+// straight at one, MayMoveMonsterToDirection() refused the step, and with no other downhill
+// neighbour he simply stood there -- the corner he was found stuck in.
+static bool DarkCampaignHomeTileOpen( int row, int col, uchar canFly )
+{
+	if( !In112(row, col) ) return false;
+	if( IsCellBlocking(row, col, canFly) ) return false;
+	const int objNum = ObjectsMap[row][col];
+	if( objNum ){
+		const int objIndex = objNum <= 0 ? -1 - objNum : objNum - 1;
+		if( Objects[objIndex].isBlockWalking ) return false;
+	}
+	return true;
+}
+
+void DarkCampaignResetHephastoWalkHome()
+{
+	gHephastoWalkHomeTicks = 0;
+	gHephastoHomeDistBuilt = false;	// geometry is per-level: rebuild on the next walk home
+	gHephastoHomeDistDungeon = DungeonCount;
+	gHephastoHomeDistSeed = 0;
+	gHephastoLastStepOrient = -1;
+}
+
+// (th4) Flood fill outward from the forge tile over ground the armorer could stand on.
+// Terrain and scenery only -- monsters, players and missiles move, and baking them in would
+// freeze a snapshot of them into the field. Those are checked against the live world by
+// MayMoveMonsterToDirection() at the point of use instead.
+static void DarkCampaignBuildHephastoHomeDist( uchar canFly )
+{
+	gHephastoHomeDistDungeon = (DUNGEON)Dungeon;	// CurDungeon deletes operator int on purpose -- go through DUNGEON
+	gHephastoHomeDistSeed = DungeonRandSeed[(DUNGEON)Dungeon];
+	for( int r = 0; r < 112; ++r ){
+		for( int c = 0; c < 112; ++c ){
+			gHephastoHomeDist[r][c] = DC_HOME_UNREACHED;
+		}
+	}
+
+	static short queue[112 * 112][2];	// static: 50KB is too much for the stack
+	int head = 0, tail = 0;
+
+	gHephastoHomeDist[DC_HEPHASTO_POST_ROW][DC_HEPHASTO_POST_COL] = 0;
+	queue[tail][0] = (short)DC_HEPHASTO_POST_ROW;
+	queue[tail][1] = (short)DC_HEPHASTO_POST_COL;
+	++tail;
+
+	while( head < tail ){
+		const int r = queue[head][0], c = queue[head][1];
+		++head;
+		const unsigned short next = (unsigned short)(gHephastoHomeDist[r][c] + 1);
+
+		fori( 8 ){
+			const int nr = r + RowDelta[i];
+			const int nc = c + ColDelta[i];
+			if( !In112(nr, nc) ) continue;
+			if( gHephastoHomeDist[nr][nc] != DC_HOME_UNREACHED ) continue;	// already reached, and BFS got there first with a shorter count
+			if( !DarkCampaignHomeTileOpen(nr, nc, canFly) ) continue;
+			gHephastoHomeDist[nr][nc] = next;
+			queue[tail][0] = (short)nr;
+			queue[tail][1] = (short)nc;
+			++tail;
+		}
+	}
+	gHephastoHomeDistBuilt = true;
+}
+
+// (th4) One step downhill on the field. Returns false when he is walled in for the moment --
+// a corpse or another monster on the only good tile, say -- in which case the caller simply
+// tries again next tick.
+static bool DarkCampaignStepHephastoHome( int mi )
+{
+	// (th4) Defence in depth. Every caller is already inside a
+	// GM_DARK_CAMPAIGN && DUN_43_HEPHASTO branch, but the field is a 25KB global that must
+	// never be built or consulted outside mission 15 -- the forge post below is a DC-only
+	// coordinate and would be meaningless anywhere else.
+	if( GameMode != GM_DARK_CAMPAIGN || Dungeon != DUN_43_HEPHASTO ) return false;
+
+	Monster& m = Monsters[mi];
+	if( !gHephastoHomeDistBuilt
+	 || gHephastoHomeDistDungeon != (DUNGEON)Dungeon
+	 || gHephastoHomeDistSeed != DungeonRandSeed[(DUNGEON)Dungeon] ){
+		DarkCampaignBuildHephastoHomeDist( m.canFly );
+	}
+	if( !In112(m.Row, m.Col) ) return false;
+	const unsigned short here = gHephastoHomeDist[m.Row][m.Col];
+	if( here == 0 ) return false;	// already home
+
+	// Pick the reachable neighbour with the lowest distance -- the lowest, not the first
+	// improvement, so he does not zig-zag around pillars. RowDelta/ColDelta are indexed by
+	// orientation, so the loop counter IS the direction to walk.
+	//
+	// "here" is the bar to beat normally. But when he is standing OFF the field entirely
+	// (DC_HOME_UNREACHED -- pushed into a nook the fill considers closed, which is possible
+	// since the fill is terrain+scenery and the shove that put him there was not) there is
+	// nothing to beat, so accept any field tile at all and let him rejoin it.
+	const bool offField = ( here == DC_HOME_UNREACHED );
+	int bestOrient = -1;
+	unsigned short bestDist = here;
+	fori( 8 ){
+		const int nr = m.Row + RowDelta[i];
+		const int nc = m.Col + ColDelta[i];
+		if( !In112(nr, nc) ) continue;
+		const unsigned short there = gHephastoHomeDist[nr][nc];
+		if( there == DC_HOME_UNREACHED ) continue;
+		if( !offField && there >= bestDist ) continue;
+		if( offField && bestOrient >= 0 && there >= bestDist ) continue;
+		if( !MayMoveMonsterToDirection( mi, i ) ) continue;	// live check: something is standing there
+		bestDist = there;
+		bestOrient = i;
+	}
+
+	// Nothing downhill was free. Rather than stand and wait -- which is what left him wedged
+	// in a corner -- slide to the best sideways-or-slightly-worse tile that IS free and try
+	// again from there. Never straight back the way he came, or he would oscillate forever.
+	if( bestOrient < 0 && !offField ){
+		unsigned short sideDist = DC_HOME_UNREACHED;
+		fori( 8 ){
+			if( gHephastoLastStepOrient >= 0 && i == OrientInverted[gHephastoLastStepOrient] ) continue;
+			const int nr = m.Row + RowDelta[i];
+			const int nc = m.Col + ColDelta[i];
+			if( !In112(nr, nc) ) continue;
+			const unsigned short there = gHephastoHomeDist[nr][nc];
+			if( there == DC_HOME_UNREACHED || there >= sideDist ) continue;
+			if( !MayMoveMonsterToDirection( mi, i ) ) continue;
+			sideDist = there;
+			bestOrient = i;
+		}
+	}
+	if( bestOrient < 0 ) return false;
+
+	gHephastoLastStepOrient = bestOrient;
+	StartMonsterWalk( mi, bestOrient );	// direct: the anti-cornering in MonsterWalksTowardsTarget would second-guess the field
+	return true;
+}
+
+// (th4) Is he actually standing at his anvil? The talk and the "!" mark both wait on this,
+// so he cannot be spoken to while he is still crossing the room.
+bool DarkCampaignHephastoAtForge()
+{
+	int mi = DarkCampaignHephastoIndex();
+	if( mi < 0 ) return false;
+	const Monster& m = Monsters[mi];
+	return m.Row == DC_HEPHASTO_POST_ROW && m.Col == DC_HEPHASTO_POST_COL;
+}
+
+// (th4) Walk the armorer back to his forge once the fighting is over.
+//
+// He WALKS -- same mechanism Ai_DarkCampaignEscort uses to close on the player: set
+// TargetRow/TargetCol and let MakeMonsterPath do the routing, with a single step toward
+// the target as the fallback when a path is refused. None of that needs his combat AI,
+// which is what the guard on this level withholds.
+//
+// The give-up timer is the same idea as the escort's: a route can be blocked by a corpse
+// pile or simply refused for length, and the mission cannot be completed until he is home,
+// so something has to guarantee he gets there. Only ticks while he is walking -- the
+// caller invokes this only when nothing is left to fight.
+static void DarkCampaignReturnHephastoToForge( int mi )
+{
+	const int postRow = DC_HEPHASTO_POST_ROW, postCol = DC_HEPHASTO_POST_COL;
+	if( mi < 0 || mi >= Monsters_Max_Count ) return;
+	Monster& m = Monsters[mi];
+	if( !m.SpritePtr ) return;
+
+	if( m.Row == postRow && m.Col == postCol ){
+		gHephastoWalkHomeTicks = 0;
+		gHephastoLastStepOrient = -1;	// arrived: nothing for a later trip to inherit
+		if( m.Orientation != DIR_7_DR ) FixMonsterPosition( mi, DIR_7_DR );	// home: face the forge
+		return;
+	}
+
+	const int GiveUp = 1000;	// ~50s at 20 ticks/s
+	if( ++gHephastoWalkHomeTicks > GiveUp ){
+		// Safety net: put him on the tile outright rather than leave the mission stuck.
+		gHephastoWalkHomeTicks = 0;
+		int destRow = postRow, destCol = postCol;
+		if( In112(destRow, destCol) && MonsterMap[destRow][destCol]
+		 && MonsterMap[destRow][destCol] != mi + 1 ){
+			if( !FindNearestFreeCellForMonster(postRow, postCol, destRow, destCol) ){
+				destRow = m.Row; destCol = m.Col;	// nowhere at all: stay put
+			}
+		}
+		if( destRow != m.Row || destCol != m.Col ){
+			ClearMonsterOnMap( mi );
+			if( In112(m.Row, m.Col) && MonsterMap[m.Row][m.Col] == mi + 1 ){
+				MonsterMap[m.Row][m.Col] = 0;
+			}
+			m.Row = m.NextRow = m.PrevRow = destRow;
+			m.Col = m.NextCol = m.PrevCol = destCol;
+			MonsterMap[destRow][destCol] = mi + 1;
+			CheckMonsterUnderArch( mi );
+		}
+		FixMonsterPosition( mi, DIR_7_DR );
+		return;
+	}
+
+	if( m.CurAction != A_0_STAY ) return;	// mid-step: let it finish first
+
+	m.TargetRow = (char)postRow;	// char fields, coords are <= 111
+	m.TargetCol = (char)postCol;
+	if( MakeMonsterPath( mi ) ) return;	// short enough for A*: it handles live obstacles best
+	// Refused -- almost always because the post is past FindPath's 25-step cap. Walk the
+	// flood fill instead. Only if that is blocked too do we resort to the straight line,
+	// which is now just a last-gasp nudge rather than the main mechanism.
+	if( DarkCampaignStepHephastoHome( mi ) ) return;
+	MonsterWalksTowardsTarget( mi, OrientationToTarget( m.Row, m.Col, postRow, postCol ) );
+}
+
+
+static void DarkCampaignSnapEscortToPost( int ki )
+{
+	if( ki < 0 || ki >= Monsters_Max_Count ) return;
+	Monster& kin = Monsters[ki];
+	if( !kin.SpritePtr || !kin.newBossId ) return;
+	int postRow = 0, postCol = 0;
+	if( !DarkCampaignEscortHubPost( kin.newBossId - 1, postRow, postCol ) ) return;
+	if( kin.Row == postRow && kin.Col == postCol ){
+		FixMonsterPosition( ki, DIR_0_D );
+		return;
+	}
+	int destRow = postRow, destCol = postCol;
+	if( In112(destRow, destCol) && MonsterMap[destRow][destCol]
+	 && MonsterMap[destRow][destCol] != ki + 1 ){
+		// post taken (the other one overshot onto it): settle for the next best tile
+		if( !FindNearestFreeCellForMonster(postRow, postCol, destRow, destCol) ){
+			destRow = kin.Row; destCol = kin.Col;	// nowhere at all: stay put
+		}
+	}
+	if( destRow != kin.Row || destCol != kin.Col ){
+		ClearMonsterOnMap( ki );
+		if( In112(kin.Row, kin.Col) && MonsterMap[kin.Row][kin.Col] == ki + 1 ){
+			MonsterMap[kin.Row][kin.Col] = 0;
+		}
+		kin.Row = kin.NextRow = kin.PrevRow = destRow;
+		kin.Col = kin.NextCol = kin.PrevCol = destCol;
+		MonsterMap[destRow][destCol] = ki + 1;
+		CheckMonsterUnderArch( ki );
+	}
+	FixMonsterPosition( ki, DIR_0_D );	// stop walking, face south
+}
+
+//----- (new by th4) ------------------------------------------------------
+// (th4) Claim a cell for a boss and create it there.
+//
+// The MonsterMap write is inside the In112 guard, not after it. It used to sit outside: the
+// guard covered only the displace, so an off-map row/col still wrote MonsterMap[row][col] --
+// and the array is int[112][112], so row 113 lands 225 ints past the end of it and quietly
+// corrupts whatever follows in the data segment. CreateBoss's marker-tile search could produce
+// exactly that (see the note there). That search no longer can, but this is the place the
+// damage actually happened, and it should not depend on every caller being careful.
+//
+// An off-map cell now simply goes unclaimed. The monster is still created -- RepairMonsterMap
+// skips anything failing its own In112 test, so it degrades to an unregistered monster rather
+// than to memory corruption.
+static void __fastcall ClaimCellForBoss(int monsterIndex, int spriteIndex, int row, int col, const char* what)
+{
+	#if TH4_MONSTERMAP_DEBUG
+	if( In112(row, col) && MonsterMap[row][col] ) StompLog(what, monsterIndex, row, col, MonsterMap[row][col]);
+	#else
+	(void)what;
+	#endif
+	if( In112(row, col) ){
+		// (th4) don't stack: move whoever is already here out of the way first
+		if( MonsterMap[row][col] > 0 ){
+			DisplaceMonsterFromCell(MonsterMap[row][col] - 1, row, col);
+		}
+		MonsterMap[ row ][ col ] = monsterIndex + 1;
+	}
+	CreateMonster(monsterIndex, RNG(8), spriteIndex, row, col);
+}
+
 //----- (0043BFD5) --------------------------------------------------------
 void __fastcall CreateBossBaseMonster(int monsterIndex, int spriteIndex, int row, int col)
 {
 	if( MonsterSprites[spriteIndex].baseMonsterIndex != BM_137_UBER_DIABLO || MonstersCount <= 0 ){
-		MonsterMap[ row ][ col ] = monsterIndex + 1; // TODO: add check and adjust for already occupied cell
-		CreateMonster(monsterIndex, RNG(8), spriteIndex, row, col);
-	}else{
-		int i = 0;
-		while( Monsters[i].SpriteIndex != spriteIndex && Monsters[i].SpritePtr->baseMonsterIndex != BM_137_UBER_DIABLO ){
-			if( ++i >= MonstersCount ){
-				MonsterMap[ row ][ col ] = monsterIndex + 1;
-				CreateMonster(monsterIndex, RNG(8), spriteIndex, row, col);
-			}
-		}
+		ClaimCellForBoss(monsterIndex, spriteIndex, row, col, "CreateBossBaseMonster");
+		return;
 	}
+	// (th4) Uber Diablo only: walk the live monsters looking for one that already carries this
+	// sprite, or is already an Uber Diablo, and place him only if there is none.
+	//
+	// The decompiled loop had no break. Once ++i passed MonstersCount it created the monster and
+	// carried on looping, and what stopped it was incidental: CreateMonster writes SpriteIndex
+	// into Monsters[monsterIndex], so the next pass over that same slot failed the condition and
+	// fell out. That works only while the loop index and the created index line up.
+	//
+	// They do not always. Two callers pass MonstersCount, and for those the created slot IS the
+	// one the loop lands on. AddQuestMonsters passes MonstersCount++ (4941), so MonstersCount is
+	// already one ahead: the loop creates at Monsters[N] but then goes on to inspect N+1, N+2...
+	// none of which the creation touched. It creates again on every pass and walks Monsters[]
+	// off the end, dereferencing SpritePtr the whole way, until some stale slot happens to match.
+	//
+	// A plain bounded scan does the same job with none of that: check the live monsters, place
+	// him once if none matches.
+	for( int i = 0; i < MonstersCount && i < Monsters_Max_Count; ++i ){
+		const Monster& m = Monsters[i];
+		if( m.SpriteIndex == spriteIndex ) return;								// already placed
+		if( m.SpritePtr && m.SpritePtr->baseMonsterIndex == BM_137_UBER_DIABLO ) return;
+	}
+	ClaimCellForBoss(monsterIndex, spriteIndex, row, col, "CreateBossBaseMonster/uber");
 }
 
 //----- (0043C057) --------------------------------------------------------
@@ -2257,6 +3677,7 @@ void PlaceQuestMonsters()
 	//MonsterSprite *fn; // edi@8
 	void *ogdens_sign_dun; // esi@54
 	void *valor_dun; // esi@15
+	void* valorMP_dun;
 	void *hotb_dun; // esi@17
 	void *anvil_dun; // esi@60
 	void *wob_dun; // esi@21
@@ -2367,6 +3788,11 @@ void PlaceQuestMonsters()
 		valor_dun = LoadFile(GameMode == GM_CLASSIC ? "Levels\\L2Data\\Blood2_cls.DUN" : "Levels\\L2Data\\Blood2.DUN" );
 		AddQuestMonsters( (ushort*) valor_dun, 2 * CurPattern.row, 2 * CurPattern.col );
 		FreeMem( valor_dun );
+	}
+	if (IsQuestOnLevel(Q_39_VALOR_MP)) {
+		valorMP_dun = LoadFile("Levels\\L2Data\\blood_MP_Ntree.DUN");
+		AddQuestMonsters((ushort*)valorMP_dun, 2 * CurPattern.row, 2 * CurPattern.col);
+		FreeMem(valorMP_dun);
 	}
 	if( IsQuestOnLevel( Q_8_HALLS_OF_THE_BLIND ) ){
 		hotb_dun = LoadFile(GameMode == GM_CLASSIC ? "Levels\\L2Data\\Blind2_cl.DUN" : "Levels\\L2Data\\Blind2.DUN" );
@@ -2540,7 +3966,7 @@ void __fastcall CreateMonstersPack(int spriteIndex, int count, int leaderFlag, i
 				++placed;
 				++m;
 			}
-			// проверка на видимость, чтобы часть босспака не оказывалась в другой (CheckCastInSight variant)
+			// (rt) line-of-sight check, so part of a boss pack doesn't end up in another (CheckCastInSight variant)
 			// trying to avoid place pack monsters over the wall
 			int dir = RNG(8);
 			int r, c;
@@ -2585,6 +4011,8 @@ void AddBossPack(BossPack bp)
 	}
 }
 
+//----- (th4) -------------------------------------------------------------
+
 //----- (0043C5CC) --------------------------------------------------------
 void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) // SetMapMonsters
 {
@@ -2603,6 +4031,7 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
         AddMonsterTypeToDungeon(BM_229_BEASTMASTER_SUMMON_1, MPF_2_DONT);
         AddMonsterTypeToDungeon(BM_230_BEASTMASTER_SUMMON_2, MPF_2_DONT);
         AddMonsterTypeToDungeon(BM_231_BEASTMASTER_SUMMON_3, MPF_2_DONT);
+		AddMonsterTypeToDungeon(BM_392_WARLORD_MERC, MPF_2_DONT);
      
         for( int playerIndex = 0; playerIndex < PlayersMax_4; ++playerIndex ){
             for( int summonIndex = 0; summonIndex < SummonMonstersPerPlayer_Count; ++summonIndex ){
@@ -2627,7 +4056,25 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 		}
 	}
 
-	// добавили боссов в анхоли алтарь
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+		auto ob_Monsters = {
+					BM_0_BURNED_CORPSE, BM_147_FIEND, BM_5_FALLEN_ONE, //wave 1
+					BM_9_SKELETON_WARRIOR, BM_139_BONE_GASHER, BM_281_FALLEN_BOW, // wave 2
+					BM_140_GHOUL, BM_126_PLAGUE_EATER, BM_189_CARVER, // wave 3-4
+					BM_30_SHADOW, BM_33_MOON_CLAN, BM_42_NIGHT_CLAN, // wave 5-7
+					BM_56_PIT_DEMON, BM_76_DEATH_CLAW, BM_18_VORTEX_ROGUE, // wave 8-10
+					BM_90_CAVE_SNAKE, BM_106_CORRUPT_ORDER, BM_156_IMP_ROGUE, // wave 11-13
+					BM_284_SIN_SPAWN, BM_122_BLOOD_SPECTRE, BM_299_TENTACLIST2, // wave 14-16
+					BM_278_LEAPER, BM_135_GROTESQUE, BM_260_ARMAGEDDON_WALKER, // wave 17-20
+					BM_234_STEEL_LORD, BM_85_BALOR, BM_73_DEATH_ANGEL // wave 21-24
+		};
+
+		for (int i : ob_Monsters) {
+			AddMonsterTypeToDungeon(i, MPF_2_DONT);
+		}
+	}
+
+	// quest dungeons
 	if( Dungeon->isQuest ){
 		if( Dungeon == DUN_29_ARCHBISHOP_LAZARUS_LAIR ){
 			AddMonsterTypeToDungeon( UniqueMonsters[GameMode == GM_CLASSIC ? UM_C_867_LAZARUS : UM_4_ArchBishop_Lazarus].BaseMonsterIndex, MPF_4_UNIQ);
@@ -2641,11 +4088,164 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			AddMonsterTypeToDungeon( UniqueMonsters[ UM_579_Andariel ].BaseMonsterIndex, MPF_4_UNIQ );
 			CreateBoss( UM_579_Andariel, 0, 0 );
 		}
+		else if (Dungeon == DUN_47_DARK_NEST && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DARK CAMPAIGN mission 9: the hero expedition in the Dark Nest. Grimjaw does
+			// not spawn in DC (see the boss switch below) -- this level gets its own packs.
+			BossPack dun47BossesDC[] = {
+				{ UM_922_DC_Donna_Paloosa,    BM_H_406_SCOUT,     9, UN_1_PACK },
+				{ UM_923_DC_Abbot_Hirosh,     BM_H_406_SCOUT,    10, UN_1_PACK },
+				{ UM_924_DC_Commander_Latham, BM_H_408_WAR_M_SS, 14, UN_1_PACK },
+			};
+			for (auto& i : dun47BossesDC) {
+				AddBossPack(i);
+			}
+		}
+		else if (Dungeon == DUN_118_POISONED_WATER_SUPPLY_DC && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) The escort's monster TYPE is registered UNCONDITIONALLY, before anything
+			// else on this level, and must stay that way. Monster::SpriteIndex is an index
+			// into MonsterSprites[], and that table is rebuilt from scratch every time the
+			// level is generated -- including on load, BEFORE the saved monsters are read
+			// back over the generated ones. DarkCampaignEscortActive() goes false the moment
+			// mission 10 is marked complete, so a save taken after clearing the level used to
+			// regenerate WITHOUT the succubus type: every type registered after it shifted
+			// down one slot, and the saved succubi came back wearing the next sprite in the
+			// table -- the hero monk from dun118BossesDC below. Registering the type in both
+			// states keeps the table identical; only the CreateBoss part is conditional.
+			const int escorts[] = { UM_5_Red_Vex, UM_6_Dark_Jade };
+			for (int e : escorts) {
+				AddMonsterTypeToDungeon(UniqueMonsters[e].BaseMonsterIndex, MPF_4_UNIQ);
+			}
+			// (th4) DC mission 10: the Dark Lord's two succubi come along. Spawn them as real
+			// uniques (keeps their names/TRNs) and flag them friendly so they fight the heroes
+			// and the heroes fight them. CreateBoss appends at MonstersCount-1, which is how we
+			// get hold of the index to flag. Placement comes from the switch in CreateBoss.
+			if (DarkCampaignEscortActive()) {
+				for (int e : escorts) {
+					AddBossTypeToQuestLoc(e);
+					if (MonstersCount > 0) {
+						Monster& succubus = Monsters[MonstersCount - 1];
+						if (succubus.newBossId - 1 == e) {
+							succubus.flag |= MF_6_FRIENDLY;
+							succubus.ActivationCounter = 1;	// awake, so the AI runs for them
+						}
+					}
+				}
+			}
+			// (th4) The hero defenders holding the water supply.
+			BossPack dun118BossesDC[] = {
+				{ UM_925_DC_Abbot_Balatt, BM_H_409_MONK_H_T, 19, UN_1_PACK },
+			};
+			for (auto& i : dun118BossesDC) {
+				AddBossPack(i);
+			}
+		}
+		else if (Dungeon == DUN_121_UNHOLY_ALTAR_DC && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 13: three friendlies. Tiles come from the CreateBoss switch
+			// above; MF_6_FRIENDLY and the facing are set here because CreateBoss does not
+			// take either. NW/SE are read as the isometric screen directions UL and DR.
+			struct { int uniq; int orient; } dun121Friendly[] = {
+				{ UM_5_Red_Vex,              DIR_3_UL },	// 39, 44
+				{ UM_6_Dark_Jade,            DIR_3_UL },	// 39, 49
+				{ UM_4_ArchBishop_Lazarus,   DIR_7_DR },	// 32, 46
+			};
+			// (th4) Reset the mission 13 talk latches on every generation of this level.
+			// They are plain globals: nothing clears them between runs, so a Thanked left
+			// true by an earlier attempt made the completion gate pass the moment the last
+			// hero fell -- the portal appearing without Lazarus ever being spoken to.
+			// Safe to clear unconditionally: once the talk has really happened the mission
+			// is DCM_2_COMPLETE, which is saved, and the gate accepts that on its own.
+			DarkCampaignLazarusTalkWanted = false;
+			DarkCampaignLazarusRewardPending = false;
+			DarkCampaignLazarusThanked = false;
+
+			// (th4) Lazarus' own line, SP_35 ("Abandon your foolish quest..." / S_960_M_LAZ01).
+			// He no longer says it on click, so it is delivered once as the player walks in.
+			StartSpeech( SP_35 );
+
+			// (th4) DC mission 13: the hero strike force sent to storm the lair.
+			BossPack dun121BossesDC[] = {
+				{ UM_931_DC_Madame_Sarbine, BM_H_411_ROG_H_B, 14, UN_1_PACK },
+			};
+			for (auto& i : dun121BossesDC) {
+				AddBossPack(i);
+			}
+
+			for (auto& f : dun121Friendly) {
+				AddMonsterTypeToDungeon(UniqueMonsters[f.uniq].BaseMonsterIndex, MPF_4_UNIQ);
+				int firstIndex = MonstersCount;
+				CreateBoss(f.uniq, 0, 0);
+				for (int i = firstIndex; i < MonstersCount; ++i) {
+					Monster& m = Monsters[i];
+					if (m.newBossId && m.newBossId - 1 == f.uniq) {
+						m.flag |= MF_6_FRIENDLY;
+						m.ActivationCounter = 1;	// awake, so the AI runs for them
+						m.goal = MG_1_ATTACK;
+						m.speechIndex = 0;
+						m.Orientation = f.orient;
+						// (th4) AI_28_Lazarus is a bespoke AI that walks straight at the player,
+						// never consults the generic target picker (the one that honours
+						// MF_6_FRIENDLY), and on speech end runs the vanilla lair script. So he
+						// cannot keep it here. AI_25_Advocate (whose handler is Ai_25_Mage) is what
+						// his own AI delegates to for combat anyway -- it reads monster.intel to
+						// pick the missile, and his
+						// UniqueMonsters row already sets intel 3, which is MonsterMissiles[3] =
+						// MI_6_FIREBLAST. It is also the AI that calls Monster_Fade_In/Out, so
+						// the phase animation comes back with it. DC-only: everywhere else he is
+						// still the hostile Arch-Bishop with his own AI.
+						if (f.uniq == UM_4_ArchBishop_Lazarus) m.ai = AI_25_Advocate;	// -> Ai_25_Mage
+					}
+				}
+			}
+		}
+		else if (Dungeon == DUN_119_DEEPER_CAVES && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 11: the squad hauling the Anvil of Fury out of the caves.
+			// Black Hawk leads; his escort is a rogue pack, not his own base type.
+			BossPack dun119BossesDC[] = {
+				{ UM_926_DC_Black_Hawk, BM_H_411_ROG_H_B, 17, UN_1_PACK },
+			};
+			for (auto& i : dun119BossesDC) {
+				AddBossPack(i);
+			}
+		}
+		else if (Dungeon == DUN_51_FETID_CAVERN && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 16: the troops sent into the cavern.
+			BossPack dun51BossesDC[] = {
+				{ UM_936_DC_Ludwig_the_Paranoid, BM_H_414_WAR_H_MS, 24, UN_3_LEAD },
+				{ UM_937_DC_Lord_Voss,           BM_H_411_ROG_H_B,  13, UN_1_PACK },
+			};
+			for (auto& i : dun51BossesDC) {
+				AddBossPack(i);
+			}
+		}
+		else if (Dungeon == DUN_120_PANDEMONIUM_DC && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 12: the new general's squad, waiting at the four corners.
+			// Darkmoor, Moonrose and Carnabus each lead their own base type; Degroe leads
+			// rogues rather than Executioners, the way Black Hawk did in mission 11.
+			BossPack dun120BossesDC[] = {
+				{ UM_928_DC_Darkmoor,          BM_H_410_MONK_H_SS,    29, UN_1_PACK },
+				{ UM_929_DC_Moonrose,          BM_H_411_ROG_H_B,      29, UN_1_PACK },
+				{ UM_930_DC_Commander_Degroe,  BM_H_411_ROG_H_B,      34, UN_1_PACK },
+				{ UM_927_DC_General_Carnabus,  BM_H_412_WAR_H_X_EXEC, 49, UN_1_PACK },
+			};
+			for (auto& i : dun120BossesDC) {
+				AddBossPack(i);
+			}
+		}
 		else if (Dungeon == DUN_54_ABANDONED_FANE) {
 			auto dun54Bosses = { UM_717_Priestess_Varna, UM_713_Sir_Valon, UM_714_Sir_Darion, UM_715_Bishop_Zenda, UM_716_Bishop_Zamal };
 			for (int i : dun54Bosses) {
 				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
 				CreateBoss(i, 0, 0);
+			}
+		}
+		else if (Dungeon == DUN_60_HAUNTED_LABYRINTH && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 24. Don Carnage and Gloom Prowler below are NOT spawned here --
+			// this branch replaces them rather than adding to them.
+			BossPack dun60BossesDC[] = {
+				{ UM_947_DC_High_Exemplar_Kastor, BM_H_417_WAR_H_SS_WARRIOR_ELITE, 14, UN_1_PACK },
+			};
+			for (auto& i : dun60BossesDC) {
+				AddBossPack(i);
 			}
 		}
 		else if (Dungeon == DUN_60_HAUNTED_LABYRINTH) {
@@ -2657,6 +4257,16 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 		else if (Dungeon == DUN_61_CURSED_SANCTUM) {
 			AddMonsterTypeToDungeon(UniqueMonsters[UM_742_Ironhoof].BaseMonsterIndex, MPF_4_UNIQ);
 			CreateBoss(UM_742_Ironhoof, 0, 0);
+		}
+		else if (Dungeon == DUN_62_DIM_UNDERCROFT && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 23. Undertaker and Dustwing below are NOT spawned here --
+			// this branch replaces them rather than adding to them.
+			BossPack dun62BossesDC[] = {
+				{ UM_946_DC_Cleric_Dwaynor, BM_H_418_SOR_H_T_SORC_ELITE, 9, UN_3_LEAD },
+			};
+			for (auto& i : dun62BossesDC) {
+				AddBossPack(i);
+			}
 		}
 		else if (Dungeon == DUN_62_DIM_UNDERCROFT) {
 			AddMonsterTypeToDungeon(UniqueMonsters[UM_743_Undertaker].BaseMonsterIndex, MPF_4_UNIQ);
@@ -2672,10 +4282,35 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 		else if (Dungeon == DUN_64_MAUSOLEUM) {
-			auto dun64Bosses = { UM_239_Plaguefist_Blackheart, UM_220_Blackwillow, UM_34_Pukerat_the_Unclean };
-			for (int i : dun64Bosses) {
-				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
-				CreateBoss(i, 0, 0);
+			// (th4) DARK CAMPAIGN runs its own scenario here: Az'Dog alone. None of the vanilla
+			// Mausoleum bosses belong to it, and each would keep MonstersCount above the clear
+			// threshold. CreateBoss(i, 0, 0) is the no-pack form -- packCount 0 and Az'Dog's
+			// PackTrigger is 0, so nothing is summoned around him.
+			auto dun64BossesDC = { UM_910_DC_AZDOG };
+			auto dun64Bosses   = { UM_239_Plaguefist_Blackheart, UM_220_Blackwillow, UM_34_Pukerat_the_Unclean };
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				for (int i : dun64BossesDC) {
+					AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
+					CreateBoss(i, 0, 0);
+				}
+			}
+			else {
+				for (int i : dun64Bosses) {
+					AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
+					CreateBoss(i, 0, 0);
+				}
+			}
+		}
+		else if (Dungeon == DUN_65_RUINED_TEMPLE && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 22. Kobal and Shadowcrow are NOT spawned here -- this branch
+			// replaces them rather than adding to them.
+			BossPack dun65BossesDC[] = {
+				{ UM_943_DC_Paladin_Orphius,    BM_H_419_ROG_H_B_SS_ELITE,   19, UN_1_PACK },
+				{ UM_944_DC_Knight_Grimald,     BM_H_418_SOR_H_T_SORC_ELITE, 19, UN_1_PACK },
+				{ UM_945_DC_Prophetess_Lyssia,  BM_H_419_ROG_H_B_SS_ELITE,   19, UN_1_PACK },
+			};
+			for (auto& i : dun65BossesDC) {
+				AddBossPack(i);
 			}
 		}
 		else if (Dungeon == DUN_65_RUINED_TEMPLE) {
@@ -2686,10 +4321,36 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 		else if (Dungeon == DUN_66_SEWERS) {
+			// (th4) DARK CAMPAIGN mission 7: the cornered knight squad. Paladin Loxley (placement
+			// 36,36) leads a company of 39 Templars (BM_H_404_WAR_M_MS); Priest Gwideon (placement
+			// 65,63) leads 7 of his own kin (BM_H_405_SOR_M_T_HYBRID) with UN_3_LEAD so they cling
+			// to him. The three regular Sewers bosses do not spawn in DC -- this is a hero last
+			// stand, not the usual dungeon.
+			BossPack dun66BossesDC[] = {
+				{ UM_916_DC_PALADIN_LOXLEY,  BM_H_404_WAR_M_MS,       39, UN_1_PACK },
+				{ UM_917_DC_PRIEST_GWIDEON,  BM_H_405_SOR_M_T_HYBRID,  7, UN_3_LEAD },
+			};
 			auto dun66Bosses = { UM_380_Duskstone, UM_237_Meatchop_the_Flayer, UM_368_Goredrool };
-			for (int i : dun66Bosses) {
-				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
-				CreateBoss(i, 0, 0);
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				for (auto& i : dun66BossesDC) {
+					AddBossPack(i);
+				}
+			}
+			else {
+				for (int i : dun66Bosses) {
+					AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
+					CreateBoss(i, 0, 0);
+				}
+			}
+		}
+		else if (Dungeon == DUN_67_SEPULCHER && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 21. Deathpuke and Viletouch below are NOT spawned here --
+			// this branch replaces them rather than adding to them.
+			BossPack dun67BossesDC[] = {
+				{ UM_942_DC_Venturius_the_Inquisitor, BM_H_418_SOR_H_T_SORC_ELITE, 29, UN_3_LEAD },
+			};
+			for (auto& i : dun67BossesDC) {
+				AddBossPack(i);
 			}
 		}
 		else if (Dungeon == DUN_67_SEPULCHER) {
@@ -2706,6 +4367,15 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 				CreateBoss(i, 0, 0);
 			}
 		}
+		else if (Dungeon == DUN_69_GIBBET && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 20: the barracks commander.
+			BossPack dun69BossesDC[] = {
+				{ UM_941_DC_Lord_Tenabris, BM_H_415_ROG_H_B_ELITE_ARCHER, 24, UN_1_PACK },
+			};
+			for (auto& i : dun69BossesDC) {
+				AddBossPack(i);
+			}
+		}
 		else if (Dungeon == DUN_69_GIBBET) {
 			auto dun69Bosses = { UM_746_Snarlak, UM_747_Tronzug };
 			for (int i : dun69Bosses) {
@@ -2714,14 +4384,31 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 		else if (Dungeon == DUN_70_CITADEL) {
+			// (th4) DARK CAMPAIGN: the war council. Four captains, one per quadrant, each
+			// leading a company of a DIFFERENT troop type than his own -- so the pack base
+			// deliberately does not match the boss's. UN_1_PACK keeps each mob on its own
+			// ai/intF (it is also the default when packFlag is 0 and PackTrigger is 0).
+			BossPack dun70BossesDC[] = {
+				{ UM_911_DC_COMMANDER_ALDRIC,  BM_H_400_SORC_M_T,  19, UN_1_PACK },
+				{ UM_912_DC_CAPTAIN_ILSE,      BM_H_402_BERS_M_X,  19, UN_1_PACK },
+				{ UM_913_DC_MAGISTER_CORVANE,  BM_H_401_MONK_M_MS, 19, UN_1_PACK },
+				{ UM_914_DC_BROTHER_SILAS,     BM_H_403_ROG_M_B,   19, UN_1_PACK },
+			};
 			auto dun70Bosses = { UM_748_Fangscar, UM_440_Painwraps, UM_377_Blazeshock };
-			for (int i : dun70Bosses) {
-				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
-				CreateBoss(i, 0, 0);
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				for (auto& i : dun70BossesDC) {
+					AddBossPack(i);
+				}
+			}
+			else {
+				for (int i : dun70Bosses) {
+					AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
+					CreateBoss(i, 0, 0);
+				}
 			}
 		}
 		else if (Dungeon == DUN_71_GRIM_VAULTS) {
-			auto dun71Bosses = { UM_143_Bloodscythe_Gloomslayer, UM_652_Griefbang, UM_322_Mindgloom };
+			auto dun71Bosses = { UM_143_Bloodscythe_Gloomslayer, UM_652_Griefzap, UM_322_Mindgloom };
 			for (int i : dun71Bosses) {
 				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
 				CreateBoss(i, 0, 0);
@@ -2732,6 +4419,16 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			for (int i : dun72Bosses) {
 				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
 				CreateBoss(i, 0, 0);
+			}
+			if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 19: added on top of the level's own bosses, not instead of them
+				BossPack dun72BossesDC[] = {
+					{ UM_644, BM_242_REANIMATED_HORROR, 19, UN_1_PACK },	// his own base: keeps the table's minions, PackSpecials and AI
+					{ UM_752_Deathcaller, BM_23_MALICE, 19, UN_1_PACK },
+					{ UM_583_Lich_King, BM_23_MALICE, 29, UN_1_PACK },
+				};
+				for (auto& i : dun72BossesDC) {
+					AddBossPack(i);
+				}
 			}
 		}
 		else if (Dungeon == DUN_73_LAVA_PITS) {
@@ -2794,6 +4491,15 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 				CreateBoss(i, 0, 0);
 			}
 		}
+		else if (Dungeon == DUN_80_HELL_GATE && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 18: the human resistance squad holding the gate.
+			BossPack dun80BossesDC[] = {
+				{ UM_940_DC_Darius_the_Ronin, BM_H_416_MON_H_MS, 34, UN_1_PACK },
+			};
+			for (auto& i : dun80BossesDC) {
+				AddBossPack(i);
+			}
+		}
 		else if (Dungeon == DUN_80_HELL_GATE) {
 			auto dun80Bosses = { UM_169_Urzul_the_Trampler };
 			for (int i : dun80Bosses) {
@@ -2818,8 +4524,29 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 		else if (Dungeon == DUN_83_BLOOD_KEEP) {
 			auto dun83Bosses = { UM_613_Rotwound_the_Dark, UM_151_Bloodfury, UM_624_Nightclaw_the_Sharp };
 			for (int i : dun83Bosses) {
+				// (th4) DC mission 14 reuses this level with its own roster, so the Alternative
+				// Route bosses are not created here. The monster TYPE is still registered either
+				// way: MonsterSprites[] is rebuilt on every generation INCLUDING on load, before
+				// the saved monsters are read back, so a table that differed between modes would
+				// shift every later sprite index and bring saved monsters back wearing the wrong
+				// graphics -- exactly the bug that turned the hub succubi into Salinus.
 				AddMonsterTypeToDungeon(UniqueMonsters[i].BaseMonsterIndex, MPF_4_UNIQ);
-				CreateBoss(i, 0, 0);
+				if (GameMode != GM_DARK_CAMPAIGN) {
+					CreateBoss(i, 0, 0);
+				}
+			}
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				// (th4) DC mission 14: the three arrogant Sorcerers. Malachar leads
+				// Executioners; the other two lead their own kind, and Faldir's stick to him
+				// and take over his attack (UN_3_LEAD = UN_1_PACK | UN_2_STICK).
+				BossPack dun83BossesDC[] = {
+					{ UM_932_DC_Malachar_the_Warden, BM_H_412_WAR_H_X_EXEC, 14, UN_1_PACK },
+					{ UM_933_DC_Zerath_the_Sage,     BM_H_413_SOR_H_T,      19, UN_1_PACK },
+					{ UM_934_DC_Faldir_the_Keeper,   BM_H_413_SOR_H_T,      19, UN_3_LEAD },
+				};
+				for (auto& i : dun83BossesDC) {
+					AddBossPack(i);
+				}
 			}
 		}
 		else if (Dungeon == DUN_84_ARMORIES_OF_HELL) {
@@ -2967,17 +4694,34 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 		else if (Dungeon == DUN_99_ANCIENT_CRYPTS) {
-			BossPack dun99Bosses[] = {
-				{ UM_1_Skeleton_King, BM_64_DEATH_GUARDIAN, 9, 3 },
-				{ UM_554_Gloomshank, BM_204_SHADOW_CLAN, 11, 1 },
-				{ UM_577_Gorefear, BM_208_WARPED_ONE, 8, 1 },
-				{ UM_76_Sether, BM_39_WARPING_DEMON, 12, 1 },
-				{ UM_81_Uriel, BM_84_DEATH_WING, 9, 1 },
-				{ UM_504_Grimblood_the_Frenzied, BM_179_FILTH_DEMON, 10, 1 },
-				{ UM_670_Drilmog, BM_256_RAGE_CLAN, 17, 1 }
-			};
-			for (auto& i : dun99Bosses) {
-				AddBossPack(i);
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				// (th4) DARK CAMPAIGN mission 8: the regular Ancient Crypts bosses (see the else
+				// branch) do NOT spawn -- this is a hero-storming mission, not the usual dungeon.
+				// DC-only boss packs (Loxley/Gwideon pattern: rows here, placement cases in the
+				// switch above, the loop spawns them).
+				BossPack dun99BossesDC[] = {
+					{ UM_918_DC_MADAME_PERESIDE, BM_H_406_SCOUT, 15, UN_1_PACK },
+					{ UM_919_DC_Archimandrite_Bozu, BM_H_407_MONK_M_X, 15, UN_1_PACK },
+					{ UM_920_DC_Bishop_Lucian, BM_H_405_SOR_M_T_HYBRID, 15, UN_1_PACK },
+					{ UM_921_DC_Deacon_Raduel, BM_H_404_WAR_M_MS, 14, UN_1_PACK },
+				};
+				for (auto& i : dun99BossesDC) {
+					AddBossPack(i);
+				}
+			}
+			else {
+				BossPack dun99Bosses[] = {
+					{ UM_1_Skeleton_King, BM_64_DEATH_GUARDIAN, 9, 3 },
+					{ UM_554_Gloomshank, BM_204_SHADOW_CLAN, 11, 1 },
+					{ UM_577_Gorefear, BM_208_WARPED_ONE, 8, 1 },
+					{ UM_76_Sether, BM_39_WARPING_DEMON, 12, 1 },
+					{ UM_81_Uriel, BM_84_DEATH_WING, 9, 1 },
+					{ UM_504_Grimblood_the_Frenzied, BM_179_FILTH_DEMON, 10, 1 },
+					{ UM_670_Drilmog, BM_256_RAGE_CLAN, 17, 1 }
+				};
+				for (auto& i : dun99Bosses) {
+					AddBossPack(i);
+				}
 			}
 		}
 		else if (Dungeon == DUN_100_HORADRIM_TREASURY) {
@@ -3095,6 +4839,71 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 
+		else if (Dungeon == DUN_117_DARKLORD_HIDEOUT) { // (th4) Dark Campaign hub: the Dark Lord and his vendor kin, no packs
+			// (th4) If the player just came back from mission 10, the two succubi return with
+			// him rather than being found at their posts. Latch it before the packs are built,
+			// because the placement switch in CreateBoss reads this to decide where to put them.
+			DarkCampaignEscortWalkingHome =
+				Dungeon.prev == DUN_118_POISONED_WATER_SUPPLY_DC
+				&& DarkMissionState[9] == DCM_2_COMPLETE;
+			DarkCampaignEscortNeedsArrival = DarkCampaignEscortWalkingHome;
+			BossPack dun117Bosses[] = {
+				{ UM_773_The_Dark_Lord,             BM_240_DEMON_PRIEST,      0, 1 },
+				{ UM_0_Gharbad_the_Weak,            BM_173_GHARBAD_BASEMNSTR, 0, 1 },	// hub blacksmith
+				{ UM_19_Jaldabaoth,                 BM_136_BLOOD_SLAYER,      0, 1 },	// hub powerups
+				{ UM_30_Boilrot,                    BM_2_ROTTING_CARCASS,     0, 1 },	// hub stash
+				{ UM_48_Molianta_the_Copperwing,    BM_82_GARGOYLE,           0, 1 },	// hub quench
+				{ UM_51_Galahad_the_Bonewhite,      BM_101_DARK_MISTRESS,     0, 1 },	// hub crafting
+				{ UM_89_Alystar,                    BM_107_DARK_MAGE,         0, 1 },	// hub identify
+				{ UM_94_Setebos,                    BM_125_GOLD_GOLEM,        0, 1 },	// hub enchant
+				{ UM_124_Torvatus,                  BM_98_IMMORTAL,           0, 1 },	// hub witch trade
+				{ UM_126_Gloomshredder,             BM_32_INVISIBLE_ONE,      0, 1 },	// hub transmute
+				{ UM_792_Salinus_the_Salt_King,     BM_286_BRINE_CORPSE,      0, 1 },		// hub healer trade
+				{ UM_6_Dark_Jade,                   BM_103_BLOOD_WITCH,       0, 1 },	// entourage, no service
+				{ UM_5_Red_Vex,                     BM_103_BLOOD_WITCH,       0, 1 }		// entourage, no service
+			};
+			for (auto& i : dun117Bosses) {
+				if( DarkCampaignEscortAwayAtLazarus() && DarkCampaignIsEscortBoss( i.uniq ) ){
+					// (th4) DC mission 13: they are away at Lazarus' lair, so do NOT create
+					// them here -- but DO register their monster TYPE anyway. This is the
+					// Salinus bug: simply skipping AddBossPack left BM_103_BLOOD_WITCH out of
+					// MonsterSprites[], every type registered after it shifted down a slot,
+					// and saved hub monsters came back wearing the wrong sprite. The two
+					// AddMonsterTypeToDungeon calls below are exactly the pair AddBossPack
+					// makes before CreateBoss, so the table stays byte-identical either way.
+					const UniqueMonster& um = UniqueMonsters[i.uniq];
+					AddMonsterTypeToDungeon( um.PackSpecials > 0 ? um.PackSpecials : um.BaseMonsterIndex, MPF_4_UNIQ );
+					AddMonsterTypeToDungeon( i.base, MPF_2_DONT );
+					continue;
+				}
+				AddBossPack(i);
+			}
+
+			// (th4) DC mission 25: once freed, the Butcher comes home with the player and
+			// stays with him for the rest of the campaign.
+			//
+			// His TYPE is registered unconditionally, and AFTER the vendor kin -- this is the
+			// Salinus bug again. MonsterSprites[] is built in call order and saved hub
+			// monsters store a sprite INDEX into it, so registering him only on the runs
+			// where he is present, or registering him ahead of the vendors, makes the table
+			// differ between visits. Every index then points a slot off and the whole Sanctum
+			// comes back wearing the wrong sprites -- the Dark Lord as a Butcher, the succubi
+			// as Hidden. Appending is also safe for hubs saved before he existed.
+			AddMonsterTypeToDungeon(UniqueMonsters[UM_9_The_Butcher].BaseMonsterIndex, MPF_4_UNIQ);
+			if( DarkCampaignButcherJoined() ){
+				CreateBoss(UM_9_The_Butcher, 0, 0);
+				DarkCampaignButcherNeedsArrival = true;
+				for( int i = 0; i < MonstersCount; ++i ){
+					Monster& m = Monsters[ MonsterIndexes[i] ];
+					if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+					m.flag |= MF_6_FRIENDLY;
+					m.flag &= ~MF_9_CHASE_TARGET;
+					m.speechIndex = 0;
+					m.ActivationCounter = 255;
+				}
+			}
+		}
+
 		//----------------------------------------------end of AR duns----------------
 
 		else if (Dungeon == DUN_27_THE_INFESTED_CELLAR) {
@@ -3125,6 +4934,86 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 
+		else if (Dungeon == DUN_44_RAVENHOLM && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 26, the last one.
+			BossPack dun44BossesDC[] = {
+				{ UM_949_DC_Paladin_Godfrey,          BM_H_422_WAR_H_ROYAL_GUARD,    24, UN_1_PACK },
+				{ UM_950_DC_Captain_Dorian,           BM_H_423_ROG_H_B_BLACK_ARCHER, 24, UN_1_PACK },
+				{ UM_951_DC_Grand_Justicar_Rosalind,  BM_H_423_ROG_H_B_BLACK_ARCHER, 24, UN_1_PACK },
+				{ UM_952_DC_Elara_Longshot,           BM_H_422_WAR_H_ROYAL_GUARD,    24, UN_1_PACK },
+				{ UM_953_DC_Grandmaster_Ortus,        BM_H_418_SOR_H_T_SORC_ELITE,   24, UN_1_PACK },
+				{ UM_905_DC_Griswold,                 BM_215_CADAVER,                44, UN_3_LEAD },
+			};
+			for (auto& i : dun44BossesDC) {
+				AddBossPack(i);
+			}
+
+			// The Butcher comes with the player if he was freed in mission 25 -- his type is
+			// registered either way, so the sprite table is the same on every visit and saved
+			// monsters keep their indices.
+			AddMonsterTypeToDungeon(UniqueMonsters[UM_9_The_Butcher].BaseMonsterIndex, MPF_4_UNIQ);
+			if( DarkCampaignButcherJoined() ){
+				CreateBoss(UM_9_The_Butcher, 0, 0);
+				DarkCampaignButcherNeedsArrival = true;
+				for( int i = 0; i < MonstersCount; ++i ){
+					Monster& m = Monsters[ MonsterIndexes[i] ];
+					if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+					m.flag |= MF_6_FRIENDLY;
+					m.flag &= ~MF_9_CHASE_TARGET;
+					m.speechIndex = 0;
+					m.ActivationCounter = 255;
+					m.BaseLife += 5'800 << 6;	// same boosts as his cell in the Sacristy
+					m.CurrentLife = m.BaseLife;
+					m.MinDamage += 92;
+					m.MaxDamage += 186;
+					m.ArmorClass += 103;
+					m.MonsterLevel += 50;
+					m.ToHit += 120;
+				}
+			}
+		}
+		else if (Dungeon == DUN_111_CHURCH_SACRISTY && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 25. Festergnaw below is NOT spawned here -- this branch
+			// replaces him. The heroes hold the Butcher in a cell: he is the vanilla
+			// UM_9_The_Butcher, spawned friendly and parked on his tile until the player
+			// opens the room and speaks to him.
+			AddMonsterTypeToDungeon(UniqueMonsters[UM_9_The_Butcher].BaseMonsterIndex, MPF_4_UNIQ);
+			CreateBoss(UM_9_The_Butcher, 0, 0);
+
+			BossPack dun111BossesDC[] = {
+				{ UM_948_DC_Warden_Gaspax, BM_H_421_WAR_H_X_EXEC_ELITE, 24, UN_1_PACK },
+			};
+			for (auto& i : dun111BossesDC) {
+				AddBossPack(i);
+			}
+
+			// Transient click latches only. The freed state itself lives in quest data and
+			// is deliberately NOT cleared here -- it has to outlive both this generation and
+			// the savegame.
+			DarkCampaignButcherTalkWanted = false;
+			DarkCampaignButcherJoinPending = false;
+			for( int i = 0; i < MonstersCount; ++i ){
+				Monster& m = Monsters[ MonsterIndexes[i] ];
+				if( !m.newBossId || m.newBossId - 1 != UM_9_The_Butcher ) continue;
+				m.flag |= MF_6_FRIENDLY;        // never targets the player, see IsPlayerSideMonster
+				m.flag &= ~MF_9_CHASE_TARGET;   // ...and MonsterChangeTarget cannot walk him out
+				m.speechIndex = 0;              // no line on approach -- the talk is scripted
+				m.ActivationCounter = 255;      // awake, so he can answer a hero that attacks him
+				// Orientation AND curAnimation as a pair, exactly as CreateMonster does --
+				// setting the heading alone leaves the sprite drawing its old one.
+				m.Orientation = DIR_7_DR;       // facing down-right, in his cell
+				m.curAnimation = &m.SpritePtr->animation[ANIM_0_STAY].oriented[DIR_7_DR];
+				// (th4) DC only: he fights on the player's side, so he is boosted well past
+				// the quest boss. Life is stored as HP << 6, so the raw figure is shifted.
+				m.BaseLife += 5'800 << 6;
+				m.CurrentLife = m.BaseLife;
+				m.MinDamage += 92;
+				m.MaxDamage += 186;
+				m.ArmorClass += 103;
+				m.MonsterLevel += 50;
+				m.ToHit += 120;
+			}
+		}
 		else if (Dungeon == DUN_111_CHURCH_SACRISTY) {
 			BossPack dun_111_Boss[] = {
 				{ UM_791_Festergnaw, BM_138_SHADOW_BEAST, 11, 1 },
@@ -3134,29 +5023,75 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 		else if (Dungeon == DUN_112_STILL_SPRINGS) {
+			// (th4) DARK CAMPAIGN runs its own scenario here: the four vanilla Still Springs
+			// bosses are replaced by Deacon Zypherys, who takes Stormire's spot (30,74) and
+			// leads a pack of Savages instead of Storm Demons.
+			BossPack dun112BossesDC[] = {
+				{ UM_907_DC_ZYPHERYS, BM_H_398_WAR_L_X, 7, 1 }
+			};
 			BossPack dun112Bosses[] = {
 				{ UM_805_Festerus, BM_199_HELL_CLAN, 15, 1 },
 				{ UM_806_Obfuscus, BM_288_EARTH_GOLEM, 13, 3 },
 				{ UM_807_Stormire, BM_77_STORM_DEMON, 6, 3 },
 				{ UM_808_Winggore, BM_82_GARGOYLE, 11, 3 }
 			};
-			for (auto& i : dun112Bosses) {
-				AddBossPack(i);
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				for (auto& i : dun112BossesDC) {
+					AddBossPack(i);
+				}
+			}
+			else {
+				for (auto& i : dun112Bosses) {
+					AddBossPack(i);
+				}
 			}
 		}
 		else if (Dungeon == DUN_113_THE_MAZE) {
 			BossPack dun113Bosses[] = {
-				{ UM_809_Borosteron, BM_233_BLOOD_LORD, 14, 3 },
+				{ UM_809_Borosteron, BM_233_BLOOD_LORD, 10 - Difficulty / 2, 3 },
 			};
 			for (auto& i : dun113Bosses) {
 				AddBossPack(i);
 			}
 		}
 		else if (Dungeon == DUN_114_LOWER_SCRIPTORIUM) {
+			// (th4) DARK CAMPAIGN runs its own scenario here -- Snotspill and his pack belong to
+			// the vanilla Ogden's Sign quest and have no place in it. Pack flag UN_1_PACK keeps
+			// each mob on its OWN ai/intF; UN_3_LEAD would make them inherit the boss's.
+			BossPack dun114BossesDC[] = {
+				{ UM_908_DC_LORD_KINDRETT, BM_H_397_ROG_L_B,  14, UN_1_PACK },
+				{ UM_909_DC_SCRIBE_VABIUS, BM_H_399_WAR_L_SS, 21, UN_1_PACK },
+			};
 			BossPack dun114Bosses[] = {
 				{ UM_821_Snotspill_MP, BM_5_FALLEN_ONE, 19, 3 },
 			};
-			for (auto& i : dun114Bosses) {
+			if (GameMode == GM_DARK_CAMPAIGN) {
+				for (auto& i : dun114BossesDC) {
+					AddBossPack(i);
+				}
+			}
+			else {
+				for (auto& i : dun114Bosses) {
+					AddBossPack(i);
+				}
+			}
+		}
+		else if (Dungeon == DUN_116_MINING_CAVES && GameMode == GM_DARK_CAMPAIGN) {
+			// (th4) DC mission 17: the elite archer squad, on the two Azgor/Dobazzu spots.
+			BossPack dun116BossesDC[] = {
+				{ UM_938_DC_Lord_Tiberius, BM_H_414_WAR_H_MS,             24, UN_1_PACK },
+				{ UM_939_DC_Ravenshot,     BM_H_415_ROG_H_B_ELITE_ARCHER, 24, UN_1_PACK },
+			};
+			for (auto& i : dun116BossesDC) {
+				AddBossPack(i);
+			}
+		}
+		else if (Dungeon == DUN_116_MINING_CAVES) {
+			BossPack dun116Bosses[] = {
+				{ UM_903_AZGOR, BM_3_FAMILIAR, 7, 1 },
+				{ UM_904_DOBAZZU, BM_3_FAMILIAR, 7, 1 },
+			};
+			for (auto& i : dun116Bosses) {
 				AddBossPack(i);
 			}
 		}
@@ -3175,6 +5110,14 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			    AddMonsterTypeToDungeon( i, MPF_2_DONT );
             }
 			AddBossTypeToQuestLoc( UM_595_The_Cerberus );
+		}
+		// (th4) DARK CAMPAIGN mission 6: the one who came to wear Arkaine's Valor. Sir Cabbot
+		// leads a company of 14 Sharpshooters (BM_H_403_ROG_M_B). Placement is set in CreateBoss
+		// (row 49, col 46). Normal Valor play / Valor Tomb are untouched -- they keep the
+		// Apparition of Arkaine via the generic switch below.
+		else if( Dungeon == DUN_59_HALL_OF_FIRE && GameMode == GM_DARK_CAMPAIGN ){
+			BossPack dun59BossDC = { UM_915_DC_SIR_CABBOT, BM_H_403_ROG_M_B, 14, UN_1_PACK };
+			AddBossPack( dun59BossDC );
 		}else{
 			int boss = -1;
 			switch( (DUNGEON)Dungeon ){
@@ -3186,8 +5129,11 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			} break;
 			case DUN_28_POISONED_WATER_SUPPLY: 
 			{
-				if (Difficulty >= DL_1_PURGATORY && GameMode != GM_CLASSIC) {
+				if (Difficulty >= DL_1_PURGATORY && GameMode != GM_CLASSIC && GameMode != GM_DARK_CAMPAIGN) {
 					boss = UM_675_PWS_Boss;
+				}
+				else if (GameMode == GM_DARK_CAMPAIGN){ 
+					boss = UM_906_DC_LORD_ANTONIUS; 
 				}
 			} break;
 			case DUN_33_SUMMONING_ROOMS: boss = UM_580_NaKrul; break;
@@ -3198,18 +5144,18 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			case DUN_41_FLESHDOOM: boss = UM_585_Fleshdoom; break;
 			case DUN_42_WIELDER: boss = UM_586_Wielder_of_Shadowfang; break;
 			case DUN_43_HEPHASTO: boss = UM_587_Hephasto_the_Armorer; break;
-			case DUN_47_DARK_NEST: boss = UM_702_Grimjaw; break;
+			case DUN_47_DARK_NEST: if (GameMode != GM_DARK_CAMPAIGN) { boss = UM_702_Grimjaw; } break;	// (th4) DC mission 9 uses its own boss packs
 			case DUN_48_BLOOD_HIVE: boss = UM_703_Hive_Mother; break;
 			case DUN_49_SICK_VILLAGERS_BASEMENT: boss = UM_704_Borje_the_Ogre; break;
 			case DUN_50_TEMPLE_OF_SUNSET: boss = UM_705_Bloodhoof_Twinaxe; break;
-			case DUN_51_FETID_CAVERN: boss = UM_706_Mudsnout; break;
+			case DUN_51_FETID_CAVERN: if (GameMode != GM_DARK_CAMPAIGN) { boss = UM_706_Mudsnout; } break;	// (th4) DC mission 16 gets its own boss
 			case DUN_52_MOSSY_GROTTO: boss = UM_707_Lichen_Axe_the_Fungal; break;
 			case DUN_53_VAULTKEEP: boss = UM_708_Grimwing; break;
 			case DUN_35_PASSAGE_OF_FIRE: boss = UM_718_Guardian_of_Flames; break;
 			case DUN_55_DEEP_HOLLOW: boss = UM_723_The_Infester; break;
 			case DUN_56_WEB_TUNNELS: boss = UM_724_Silkstrider; break;
 			case DUN_57_ARACHNID_LAIR: boss = UM_725_Web_Queen; break;
-			case DUN_59_HALL_OF_FIRE: boss = UM_726_Apparition_of_Arkaine; break;
+			case DUN_59_HALL_OF_FIRE or DUN_115_VALOR_TOMB: boss = UM_726_Apparition_of_Arkaine; break;
 			}
 			if( boss != -1 ){
 				AddBossTypeToQuestLoc( boss );
@@ -3247,6 +5193,46 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 			}
 		}
 	}
+
+	// (th4) DC mission 15: Hephasto is at his forge, not fighting. This must run AFTER the
+	// whole placement chain above, NOT as another branch inside it -- that chain ends in the
+	// else that holds the generic boss switch, so a DUN_43 branch of its own would claim the
+	// dungeon and the switch would never create him at all.
+	if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO ){
+		// (th4) DC mission 15: the hero strike force sent against the forge -- the armored
+		// knights the briefing warns about. Created BEFORE the loop below, which walks the
+		// living-monster list looking for Hephasto; adding to that list mid-scan would be
+		// asking for trouble.
+		BossPack dun43BossesDC[] = {
+			{ UM_935_DC_Captain_Nagvot, BM_H_414_WAR_H_MS, 7, UN_1_PACK },
+		};
+		for (auto& i : dun43BossesDC) {
+			AddBossPack(i);
+		}
+
+		// Reset the talk latches on every generation of this level: they are plain globals,
+		// and a Thanked left true by an earlier attempt would open the way home the moment
+		// the last hero fell. Safe to clear -- a real talk leaves the mission COMPLETE,
+		// which is saved, and the gate accepts that on its own.
+		DarkCampaignHephastoTalkWanted = false;
+		DarkCampaignHephastoRewardPending = false;
+		DarkCampaignHephastoThanked = false;
+		DarkCampaignResetHephastoWalkHome();
+		for( int i = 0; i < MonstersCount; ++i ){
+			Monster& m = Monsters[ MonsterIndexes[i] ];
+			if( !m.newBossId || m.newBossId - 1 != UM_587_Hephasto_the_Armorer ) continue;
+			m.flag |= MF_6_FRIENDLY;        // never targets the player, and see IsPlayerSideMonster
+			m.flag &= ~MF_9_CHASE_TARGET;   // ...and MonsterChangeTarget cannot walk him off
+			m.speechIndex = 0;              // no line on approach
+			m.ActivationCounter = 255;      // awake, so he can answer a hero that attacks him
+			m.Orientation = DIR_7_DR;       // facing down-right, at the forge
+		}
+	}
+
+	// (th4) Last thing after every placement: put back anything a forced placement orphaned.
+	// See RepairMonsterMap -- an orphan is invisible to the cursor and to every attack, which
+	// on a mission level means the clear check never fires and the way home never opens.
+	RepairMonsterMap();
 }
 
 //----- (0043C70C) --------------------------------------------------------
@@ -3277,8 +5263,16 @@ int __fastcall AddMonster(int row, int col, int direction, int spiteIndex, int n
 	int result = -1;
 	if( MonstersCount < Monsters_Max_Count ){
 		int monsterIndex = MonsterIndexes[MonstersCount++];
-		if( newMonsterOnMap )
+		if( newMonsterOnMap ){
+			#if TH4_MONSTERMAP_DEBUG
+			if( In112(row, col) && MonsterMap[row][col] ) StompLog("AddMonster", monsterIndex, row, col, MonsterMap[row][col]);
+			#endif
+			// (th4) don't stack: move whoever is already here out of the way first
+			if( In112(row, col) && MonsterMap[row][col] > 0 ){
+				DisplaceMonsterFromCell(MonsterMap[row][col] - 1, row, col);
+			}
 			MonsterMap[ row ][ col ] = monsterIndex + 1;
+		}
 		CreateMonster(monsterIndex, direction, spiteIndex, row, col);
 		result = monsterIndex;
 	}
@@ -3399,6 +5393,111 @@ bool __fastcall IsAttackTypes_1(int monsterIndex)
 		);
 }
 
+// (th4) WARLORD MERC REACH TEST, every summon's since 2026-10-13 (MonsterLookAround, the SUMMONS ONLY
+// FIGHT WHAT THEY CAN SEE AND REACH filter). Path step for FindPath (Path.cpp): terrain and blocking
+// objects only. Monsters and heroes standing in the way are NOT obstacles here, unlike the movement steps
+// (CheckCellForMeleeMonsterSafeMove): they move, and a corridor full of the merc's own friends must
+// not make the fight beyond it "unreachable". IsCellBlocking without the fly flag: the merc walks.
+static int __fastcall MercReachStep( int monsterIndex, int row, int col )
+{
+	if( !In112( row, col ) || IsCellBlocking( row, col ) ) return 0;
+	const int obj = ObjectsMap[ row ][ col ];
+	if( obj && Objects[ abs( obj ) - 1 ].isBlockWalking ) return 0;
+	return 1;
+}
+static const int MERC_PATH_RANGE = 12;	// tiles: beyond this a target needs the straight walkable line
+// Can the merc walk to where it can hit `target`? The straight walkable line first (cheap, the usual
+// case); for a FLIER (Monster::canFly: bats, ghosts... hovering over water, lava or a chasm, cells no
+// walker may enter) the line goes to the cell next to it on the merc's side, where a melee merc
+// stands to hit it. If the line is blocked -- a water pocket, a pillar, a bend -- the real A* path
+// (FindPath, at most 24 steps): its goal cell may itself be blocked (GenerateSuccessors' target
+// exemption), so a flier over water next to the shore is reachable and one deep over the water is not.
+static bool MercCanReach( int mercIndex, const Monster& target )
+{
+	const Monster& m = Monsters[ mercIndex ];
+	int reachRow = target.Row, reachCol = target.Col;
+	if( target.canFly ){
+		const int dRow = target.Row - m.Row, dCol = target.Col - m.Col;
+		reachRow -= ( dRow > 0 ) - ( dRow < 0 );
+		reachCol -= ( dCol > 0 ) - ( dCol < 0 );
+	}
+	if( CheckLineWithTwoArgumentsCheckFunction( IsCellNotBlockWalking, m.Row, m.Col, reachRow, reachCol ) ) return true;
+	if( max( abs( target.Row - m.Row ), abs( target.Col - m.Col ) ) > MERC_PATH_RANGE ) return false;
+	char steps[ MaxPathStep_25 + 3 ];
+	return FindPath( MercReachStep, mercIndex, m.Row, m.Col, target.Row, target.Col, steps ) > 0;
+}
+
+// (th4) THE WAY TO THE FIGHT (MonsterLookAround, Ai_Summon; Mordor, 2026-10-13: "if summon cant see active monster it
+// still should know the battle is ON and has to try to get to nearest active monster, just not through walls"). A summon
+// that has no awake monster in sight and reach (the SUMMONS ONLY FIGHT WHAT THEY CAN SEE AND REACH filter) takes the
+// NEAREST BY WALKING of the awake ones the filter turned down -- a breadth-first search between them and it over the cells
+// MercReachStep lets a walker cross (terrain and blocking objects; monsters are no obstacle, they move), a diagonal step
+// only past two open corners (Path.cpp CheckBlockStep, FindPath's own rule) -- and keeps the first step of that way in
+// SummonFarStep; Ai_Summon takes it while the summon stands idle, instead of its fight AI (which would walk straight at
+// the target, into the wall). Every finished step runs MonsterLookAround again (FixMonsterPosition), so the way is found
+// again from the new cell, and once a monster is in sight and reach the normal choice takes over. The search stops at
+// the first awake monster it meets, or FAR_WAY_MAX steps out, so it costs as much as the way is long. Not for Warlord
+// mercs: with nothing in sight they go back to their master (Ai_Summon), as approved on 2026-09-16.
+static const int FAR_WAY_MAX = 150;				// steps: an awake monster farther than this by walking is not looked for (a detour round half a level)
+static uchar SummonFarStep[ SummonMonsters_Count ];	// 0 = no far target, else the orientation of the next step + 1
+static uint FarSeen[ 112 * 112 ], FarGen = 0;		// this search's cells (a generation stamp: nothing to clear)
+static int FarQueue[ 112 * 112 ], FarWho[ 112 * 112 ];	// the search's queue; per cell the awake monster its distance is to
+static short FarDist[ 112 * 112 ];					// steps to that monster's cell
+// cands = the awake monsters the filter turned down. The search spreads from all of them at once and stops when it reaches
+// the summon, so the first one to get there is the nearest by walking, and every cell of the summon's last ring is
+// known: of its neighbours one step closer, the summon takes the one pointing most directly at its monster (no zig-zag
+// along the many equally short ways). Returns that monster, -1 = none on the way; stepRow = -1: already next to it.
+static int SummonWayToNearest( int monsterIndex, const int* cands, int candN, int& stepRow, int& stepCol )
+{
+	const Monster& m = Monsters[ monsterIndex ];
+	if( !In112( m.Row, m.Col ) || candN <= 0 ) return -1;
+	if( !++FarGen ){ memset( FarSeen, 0, sizeof( FarSeen ) ); FarGen = 1; }
+	static const int dRow[ 8 ] = { -1, -1, 1, 1, -1, 0, 1, 0 }, dCol[ 8 ] = { -1, 1, -1, 1, 0, -1, 0, 1 };	// diagonals first, as FindPath
+	auto closedCorner = []( int row, int col, int dr, int dc ){	// a diagonal step past a closed corner (Path.cpp CheckBlockStep)
+		return dr && dc && ( TileBlockWalking[ FineMap[ row + dr ][ col ] ] || TileBlockWalking[ FineMap[ row ][ col + dc ] ] );
+	};
+	const int start = m.Row * 112 + m.Col;
+	int head = 0, tail = 0;
+	for( int k = 0; k < candN; ++k ){	// the monsters' own cells (a flier's may be water: only the cells round it must be walkable)
+		const Monster& t = Monsters[ cands[ k ] ];
+		if( !In112( t.Row, t.Col ) ) continue;
+		const int cell = t.Row * 112 + t.Col;
+		if( cell == start || FarSeen[ cell ] == FarGen ) continue;
+		FarSeen[ cell ] = FarGen; FarDist[ cell ] = 0; FarWho[ cell ] = cands[ k ];
+		FarQueue[ tail++ ] = cell;
+	}
+	while( head < tail ){
+		const int c = FarQueue[ head++ ];
+		const int row = c / 112, col = c % 112, L = FarDist[ c ];
+		if( L >= FAR_WAY_MAX ) continue;
+		for( int dir = 0; dir < 8; ++dir ){
+			const int nr = row + dRow[ dir ], nc = col + dCol[ dir ];
+			if( !In112( nr, nc ) || closedCorner( row, col, dRow[ dir ], dCol[ dir ] ) ) continue;
+			const int n = nr * 112 + nc;
+			if( n == start ){	// reached the summon: its ring L is complete -- the best step into it
+				if( !L ){ stepRow = -1; stepCol = -1; return FarWho[ c ]; }	// next to its monster: the fight AI takes over
+				int best = c, bestTurn = 9;
+				for( int d2 = 0; d2 < 8; ++d2 ){
+					const int br = m.Row + dRow[ d2 ], bc = m.Col + dCol[ d2 ];
+					if( !In112( br, bc ) || closedCorner( m.Row, m.Col, dRow[ d2 ], dCol[ d2 ] ) ) continue;
+					const int b2 = br * 112 + bc;
+					if( FarSeen[ b2 ] != FarGen || FarDist[ b2 ] != L ) continue;
+					const Monster& t = Monsters[ FarWho[ b2 ] ];
+					int turn = abs( OrientationToTarget( m.Row, m.Col, br, bc ) - OrientationToTarget( m.Row, m.Col, t.Row, t.Col ) ) % 8;
+					if( turn > 4 ) turn = 8 - turn;
+					if( turn < bestTurn ){ bestTurn = turn; best = b2; }
+				}
+				stepRow = best / 112; stepCol = best % 112;
+				return FarWho[ best ];
+			}
+			if( FarSeen[ n ] == FarGen || !MercReachStep( monsterIndex, nr, nc ) ) continue;
+			FarSeen[ n ] = FarGen; FarDist[ n ] = (short)( L + 1 ); FarWho[ n ] = FarWho[ c ];
+			FarQueue[ tail++ ] = n;
+		}
+	}
+	return -1;
+}
+
 //----- (0043C8CE) --------------------------------------------------------
 void __fastcall MonsterLookAround(int monsterIndex)
 {
@@ -3409,6 +5508,13 @@ void __fastcall MonsterLookAround(int monsterIndex)
 	bool isSelectedTargetInThisRoom = false;
 	Monster& monster = Monsters[monsterIndex];
 	bool isSummon = monsterIndex < SummonMonsters_Count;
+	// (th4) the monster this one is already fighting, -1 if none (Warlord reach filter below: kept without sight)
+	const int fightingNow = ( (monster.flag & MF_5_TARGET_MONSTER) && !(monster.flag & MF_11_NOENEMY) ) ? monster.TargetIndex : -1;
+	// (th4) THE WAY TO THE FIGHT (above SummonWayToNearest): the awake monsters the sight / reach filter turns down
+	const bool wayToFight = isSummon && !(monster.flag & MF_12_BERSERK) && !HasTrait( monsterIndex / SummonMonstersPerPlayer_Count, TraitId::Warlord );
+	static int farCands[ Monsters_Max_Count ];
+	int farN = 0;
+	if( isSummon ) SummonFarStep[ monsterIndex ] = 0;
 
 	if( !(monster.flag & MF_6_FRIENDLY) ){
 		for( int playerIndex = 0; playerIndex < 4; playerIndex++ ){
@@ -3451,12 +5557,12 @@ void __fastcall MonsterLookAround(int monsterIndex)
 		int targetMonsterIndex = MonsterIndexes[targetMonsterIndexIndex];
 		const Monster& targetMonster = Monsters[targetMonsterIndex];
 
-		if( targetMonsterIndex == monsterIndex // это и есть сам монстр
-			|| (targetMonster.CurrentLife & (-64)) <= 0 // противник сдох
-			|| targetMonster.Row == 1 && targetMonster.Col == 0 //сидящие в засаде
-			|| IsAttackTypes_1(targetMonsterIndex) && targetMonster.speechIndex // квестовый монстр?
-			|| !((monster.flag & MF_6_FRIENDLY)	&& !(monster.flag & MF_12_BERSERK)) && (abs(targetMonster.Row - monster.Row) >= 2 || abs(targetMonster.Col - monster.Col) >= 2)  && !NewToGolemAttackType(monsterIndex) // противник не вблизи и ещё какое то условие
-			|| !((monster.flag & MF_6_FRIENDLY)   && !(monster.flag & MF_12_BERSERK)) &&   !(targetMonster.flag & MF_6_FRIENDLY) ){ // неясное условие
+		if( targetMonsterIndex == monsterIndex // (rt) this is the monster itself
+			|| (targetMonster.CurrentLife & (-64)) <= 0 // (rt) the enemy is dead
+			|| targetMonster.Row == 1 && targetMonster.Col == 0 //(rt) the ones lying in ambush
+			|| IsAttackTypes_1(targetMonsterIndex) && targetMonster.speechIndex // (rt) quest monster?
+			|| !((monster.flag & MF_6_FRIENDLY)	&& !(monster.flag & MF_12_BERSERK)) && (abs(targetMonster.Row - monster.Row) >= 2 || abs(targetMonster.Col - monster.Col) >= 2)  && !NewToGolemAttackType(monsterIndex) // (rt) the enemy is not nearby, plus some other condition
+			|| !((monster.flag & MF_6_FRIENDLY)   && !(monster.flag & MF_12_BERSERK)) &&   !(targetMonster.flag & MF_6_FRIENDLY) ){ // (rt) unclear condition
 				continue;
 		}
 		
@@ -3464,11 +5570,90 @@ void __fastcall MonsterLookAround(int monsterIndex)
 		if( (monster.flag & MF_6_FRIENDLY) && (targetMonster.flag & MF_6_FRIENDLY) ){
 		    continue;
         }
+
+		// (th4) DC mission 13, Lazarus' lair. Two extra rejections for the three friendlies:
+		//  - A_6_DEATH. The life test at the top of this loop is (CurrentLife & -64) <= 0,
+		//    which a hero playing his death animation does not always satisfy yet -- so he
+		//    stayed a legal target and they kept swinging at the body.
+		//  - IsPlayerSideMonster. Belt and braces over the friendly-vs-friendly test just
+		//    above, so the player's Golem and any other summon can never be picked.
+		// Scoped to this level; every other monster selects targets exactly as before.
+		if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+		 && (monster.flag & MF_6_FRIENDLY)
+		 && ( targetMonster.CurAction == A_6_DEATH || IsPlayerSideMonster( targetMonsterIndex ) ) ){
+			continue;
+		}
+
+		// (th4) DC mission 15: the armorer only fights what he can actually SEE. Without
+		// this he picks heroes through the forge walls and sets off across the level after
+		// them -- and since he is meant to hold his ground, that reads as him wandering off
+		// for no reason. CheckCastInSight walks the line with IsCellNotBlockSight, the same
+		// test the game uses to decide whether a spell may be cast at a spot.
+		if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO
+		 && monster.newBossId && monster.newBossId - 1 == UM_587_Hephasto_the_Armorer
+		 && !CheckCastInSight( monster.Row, monster.Col, targetMonster.Row, targetMonster.Col ) ){
+			continue;
+		}
         
         // Forbid summons from targeting non activated targets
 		if( isSummon && targetMonster.ActivationCounter == 0 ){
 			continue;
         }
+
+		// (th4) SUMMONS ONLY FIGHT WHAT THEY CAN SEE AND REACH.
+		//
+		// A summon accepted ANY live hostile anywhere on the level: the two distance and
+		// "is hostile" rejections at the top of this loop are both written
+		// !(FRIENDLY && !BERSERK) && ..., so for a friendly non-berserk monster they are
+		// false and never reject anything. Only the same-room PREFERENCE below then
+		// applies, and a preference still picks a target when nothing is in the room.
+		// The result is mercs walking off to a fight on the far side of a wall, which is
+		// what this rejects.
+		//
+		// Exactly the treatment Hephasto already gets above, generalised: sight is the
+		// same IsCellNotBlockSight walk the game uses to decide whether a spell may be
+		// cast at a spot, so "my merc can attack it" now means the same as "I could cast
+		// at it".
+		//
+		// REACH is MercCanReach (above MonsterLookAround): the straight walkable line, and the
+		// real A* path (FindPath, terrain only, within MERC_PATH_RANGE) when the line is
+		// blocked. A straight line alone is not enough: a water pocket in the caves breaks it
+		// between a merc and bats that mercs standing a few tiles away walk round to and
+		// fight, and that merc stood idle through the whole fight. Fliers: see MercCanReach.
+		//
+		// The target a merc is ALREADY FIGHTING (fightingNow) is kept while it stays
+		// reachable even when sight breaks -- a bat dodging round a pillar must not make the
+		// merc drop it, stand idle for a beat and pick it up again.
+		//
+		// RANGED summons are included: a bolt cannot cross a wall either, and the sight
+		// test is what CastMissile itself checks before letting the shot happen. But a ranged
+		// summon (skeleton archers: NewToGolemAttackType, the ranged AIs) shoots across water,
+		// lava or a chasm it cannot walk over, so for it SIGHT is enough; only the target it is
+		// already fighting, gone out of sight, still needs the reach test to be kept.
+		// BERSERK monsters are deliberately excluded -- a berserked enemy is not the
+		// player's minion and keeps its original behaviour.
+		//
+		// EVERY SUMMON (Mordor, 2026-10-13, after a player report: skeleton archers, golems and
+		// greater skeletons went for a boss behind a wall and ignored the monsters in plain view;
+		// it was Warlord mercs only from 2026-09-16, where it had been proven). TARGET CHOICE ONLY: when
+		// a summon follows its owner is Ai_Summon's own rule, unchanged (Warlord mercs: no target;
+		// every other summon: nothing awake on the level -- Mordor wants them to stay in the fight).
+		bool farOnly = false;	// (th4) THE WAY TO THE FIGHT: turned down here, kept for the way to the nearest (below the loop)
+		if( isSummon && !(monster.flag & MF_12_BERSERK) ){
+			const bool inSight = CheckCastInSight( monster.Row, monster.Col, targetMonster.Row, targetMonster.Col );
+			if( NewToGolemAttackType( monsterIndex ) ){	// ranged: sight, or the current target while reachable
+				if( !inSight && ( targetMonsterIndex != fightingNow || !MercCanReach( monsterIndex, targetMonster ) ) ){
+					farOnly = true;
+				}
+			}else{										// melee (the Warlord mercs' rule as it was): sight or the current target, and reach
+				if( ( targetMonsterIndex != fightingNow && !inSight ) || !MercCanReach( monsterIndex, targetMonster ) ){
+					farOnly = true;
+				}
+			}
+			if( farOnly && !wayToFight ){	// Warlord mercs: no way to the fight (above SummonWayToNearest)
+				continue;
+			}
+		}
 
       if (targetMonster.CurAction == A_15_STONE) {
 		 bool canHitStoneCursed = false;
@@ -3483,6 +5668,10 @@ void __fastcall MonsterLookAround(int monsterIndex)
 			 continue;
 		 }
 	 }
+		if( farOnly ){	// (th4) THE WAY TO THE FIGHT: a candidate only if nothing passes the filter (below the loop)
+			farCands[ farN++ ] = targetMonsterIndex;
+			continue;
+		}
 
 		bool monsterAndTargetInOneRoom = TransMap[ monster.Row ][ monster.Col ] == TransMap[ targetMonster.Row ][ targetMonster.Col ];
 		int deltaRow = abs(monster.Row - targetMonster.Row);
@@ -3510,6 +5699,19 @@ void __fastcall MonsterLookAround(int monsterIndex)
 			targetCol = targetMonster.NextCol;
 			distanceToSelectedTarget = distanceToCurrentTarget;
 			isSelectedTargetInThisRoom = monsterAndTargetInOneRoom;
+		}
+	}
+
+	// (th4) THE WAY TO THE FIGHT (above SummonWayToNearest): nothing in sight and reach -- the nearest awake monster by walking
+	if( targetIndex == -1 && farN > 0 ){
+		int stepRow = 0, stepCol = 0;
+		const int farIdx = SummonWayToNearest( monsterIndex, farCands, farN, stepRow, stepCol );
+		if( farIdx >= 0 ){
+			monster.flag |= MF_5_TARGET_MONSTER;
+			targetIndex = farIdx;
+			targetRow = Monsters[ farIdx ].NextRow;
+			targetCol = Monsters[ farIdx ].NextCol;
+			if( stepRow >= 0 ) SummonFarStep[ monsterIndex ] = (uchar)( OrientationToTarget( monster.Row, monster.Col, stepRow, stepCol ) + 1 );
 		}
 	}
 
@@ -3604,9 +5806,9 @@ void __fastcall ClearMonsterOnMap(int monsterIndex)
 	Monster& monster = Monsters[ monsterIndex ];
 	int prevRow = Monsters[ monsterIndex ].PrevRow;
 	int prevCol = Monsters[ monsterIndex ].PrevCol;
-	// был bug, выход за границы карты монстров и возможная порча карты уровня и массива тайлов подземелья в th1
-	// и порча случайной памяти в th2 (в данном случае портилась память системных переменных
-	// отвечающих за активность приложения в винде из-за чего и подвисало)
+	// (rt) there was a bug: going out of the monster map bounds and possibly corrupting the level map and dungeon tile array in th1
+	// (rt) and corrupting random memory in th2 (here it corrupted the system variables' memory
+	// (rt) responsible for the application being active in Windows, which is why it froze)
 	for( int col = prevCol - 1; col <= prevCol + 1; ++col ){
 		for( int row = prevRow - 1; row <= prevRow + 1; ++row ){
 			auto cell = &MonsterMap[ row ][ col ];
@@ -3615,10 +5817,10 @@ void __fastcall ClearMonsterOnMap(int monsterIndex)
 			}
 		}
 	}
-	if( prevRow < FineMap_112 - 1 ) FlagMap[ prevRow + 1 ][ prevCol ] &= ~CF_16_MONSTER_HORIZONTAL; // вправо вниз
-	if( prevCol < FineMap_112 - 1 ) FlagMap[ prevRow ][ prevCol + 1 ] &= ~CF_16_MONSTER_HORIZONTAL;   // влево вниз
+	if( prevRow < FineMap_112 - 1 ) FlagMap[ prevRow + 1 ][ prevCol ] &= ~CF_16_MONSTER_HORIZONTAL; // (rt) right down
+	if( prevCol < FineMap_112 - 1 ) FlagMap[ prevRow ][ prevCol + 1 ] &= ~CF_16_MONSTER_HORIZONTAL;   // (rt) left down
 	if( HorizontalHit && monster.NextRowHz > 0 && monster.NextRowHz < 112 && monster.NextColHz > 0 && monster.NextColHz < 112 ){
-		FlagMap[ monster.NextRowHz ][ monster.NextColHz ] &= ~CF_16_MONSTER_HORIZONTAL; // влево/вправо
+		FlagMap[ monster.NextRowHz ][ monster.NextColHz ] &= ~CF_16_MONSTER_HORIZONTAL; // (rt) left/right
 	}
 }
 
@@ -3648,12 +5850,13 @@ void __fastcall KnockbackMonster(int monsterIndex, int orientation, int range ) 
 		case BM_251_WENDIGO or BM_275_BEHEMOTH: kb = _1(20); break;
 		case BM_244_HORADRIM_ANCIENT or BM_246_GREATER_MUMMY or BM_272_SPIDER_QUEEN or BM_288_EARTH_GOLEM or BM_292_BUGBEAR: kb = _1(3); break;
 		case BM_215_CADAVER or BM_297_OROG: kb = _1(5); break;
-		case BM_259_WATER_WYRM or BM_263_RED_WYRM or BM_269_BOG_CRAWLER or BM_270_MUD_CRAWLER or BM_271_THORNED_HULK or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE: kb = 0; break; // wyrm cant be KB'ed
+		case BM_259_WATER_WYRM or BM_263_RED_WYRM or BM_269_BOG_CRAWLER or BM_270_MUD_CRAWLER or BM_271_THORNED_HULK or BM_289_FUNGAL_ROOT or BM_290_FUNGAL_ROOT_LITE or BM_NPC_420_GRISWOLD: kb = 0; break; // wyrm cant be KB'ed
 		case BM_283_FROST_WARDEN or BM_260_ARMAGEDDON_WALKER or BM_261_SKELETAL_KNIGHT or BM_286_BRINE_CORPSE: kb = _1(6); break; // armageddon walker: 83% rez
 		case BM_265_CROC or BM_266_CROC_BERS or BM_287_ARMORED_SKELETON or BM_298_TENTACLIST_BOSS: kb = _n2(3); break;
 		case BM_285_PHANTOM_KNIGHT: kb = _n2(4); break;
 		case BM_267_BONE_BLADE or BM_268_BONE_BLADE_2: kb = _1(14); break;
 		case BM_274_FLESH_DEVOURER: kb = _1(2); break;
+		case BM_H_412_WAR_H_X_EXEC or BM_H_421_WAR_H_X_EXEC_ELITE or BM_H_422_WAR_H_ROYAL_GUARD: kb = _1(5); break; // (th4) Executioner: 80% KB rez
 		}
 	}else{ // multi
 		// if( bm <= 218 ){ kb = _1(2); }else // exclusive show-stopper, may be error, commented now
@@ -3848,9 +6051,22 @@ void __fastcall KillMonsterByPlayer(uint monsterIndex, int playerIndex)
 			NetSendCmdLocParam2(0, CMD_95_KILLGOLEM, monster.Row, monster.Col, monsterIndex, monster.dungeon);
 		}else{
 			NetSendCmdLocParam2(0, CMD_36_MONSTDEATH, monster.Row, monster.Col, monsterIndex, monster.dungeon);
+//			NetSendCmdLocParam2Direct(CMD_36_MONSTDEATH, monster.Row, monster.Col, monsterIndex, monster.dungeon);
 		}
 	}
 	MonsterKilledByPlayer(monsterIndex, playerIndex, 1);
+}
+
+// (th4) Credit one kill to a player's lifetime counter.
+// SP only, and never in Coliseum (PvP-only mode -- those aren't "monsters killed").
+// Callers must already have verified the monster wasn't dead, so each death counts once.
+void __fastcall CreditMonsterKill(int playerIndex)
+{
+	if( MaxCountOfPlayersInGame != 1 ) return;		// single player feature
+	if( GameMode == GM_COLISEUM ) return;			// excluded mode
+	if( playerIndex < 0 || playerIndex >= PlayersMax_4 ) return;
+	uint& kills = Players[playerIndex].totalKills;
+	if( kills < UINT_MAX ) ++kills;					// saturate rather than wrap
 }
 
 //----- (0043D109) --------------------------------------------------------
@@ -3859,6 +6075,11 @@ void __fastcall MonsterKilledByPlayer(int monsterIndex, int playerIndex, bool se
 	Monster& monster = Monsters[monsterIndex];
 	if( monsterIndex >= Monsters_Max_Count || !monster.SpritePtr || monster.CurAction == A_6_DEATH ){
 		return;
+	}
+	// (th4) lifetime kill count. Mirror the XP-credit rule below: indices under
+	// SummonMonsters_Count are the players' own summons, so their deaths aren't kills.
+	if( monsterIndex >= SummonMonsters_Count ){
+		CreditMonsterKill( playerIndex );
 	}
 	MonsterSprite& sprite = *monster.SpritePtr;	
 	if( playerIndex >= 0 ){
@@ -3869,6 +6090,9 @@ void __fastcall MonsterKilledByPlayer(int monsterIndex, int playerIndex, bool se
 	}
 	TotalSlain[sprite.baseMonsterIndex]++;
 	monster.CurrentLife = 0;
+	if (monster.LightIndex) {
+		LightOff(monster.LightIndex);
+	}
 	if (!monster.IsSummonedByMonster) {
 		int seed = monster.RandomSeedForDrop;
 		// if( MaxCountOfPlayersInGame == 1) // MP smart drop
@@ -3882,7 +6106,8 @@ void __fastcall MonsterKilledByPlayer(int monsterIndex, int playerIndex, bool se
 	 && !is( GameModeType(), GAME_MODE_TYPE::NIGHTMARE, GAME_MODE_TYPE::IRON )) 
 		|| GameMode == GM_CLASSIC && sprite.baseMonsterIndex == BM_C_389_DIABLO){
 		KillDiabloEffect(monsterIndex, 1);
-	}else{
+	}else if( !(SummonCleanupSilent && monsterIndex < SummonMonsters_Count) ){
+		// (th4) silent during the level-transition summon cleanup -- that is not a real death
 		PlayMonsterSound(monsterIndex, MST_2_DEATH);
 	}
 	if( playerIndex >= 0 ){
@@ -3917,7 +6142,7 @@ void __fastcall MonsterKilledByPlayer(int monsterIndex, int playerIndex, bool se
 	}
 }
 
-// эффект анимации на убере в 24 уровне работает криво, разобраться (для проверки можно отключить PlayDiabloVictory в MainGamePlayLoop на DL_0_HORROR
+// (rt) the animation effect on Uber on level 24 works wrong, look into it (to check, PlayDiabloVictory in MainGamePlayLoop can be disabled on DL_0_HORROR
 //----- (0043D2B1) --------------------------------------------------------
 void __fastcall KillDiabloEffect(int monsterIndex, int a1)
 {
@@ -4013,7 +6238,11 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 		int bossIndex = monster.newBossId - 1;
 		switch (bossIndex) {
 		case UM_54_Kobal_the_Duke:
-			if (Dungeon == DUN_65_RUINED_TEMPLE) {
+		case UM_914_DC_BROTHER_SILAS:
+			if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				break;
+			}
+			if (Dungeon == DUN_65_RUINED_TEMPLE || Dungeon == DUN_70_CITADEL) {
 				uniqIndex = by(Difficulty, 160, 161, 162, 2365, 2366, 2367, 2368, 2369, 2370);
 			}
 			break;
@@ -4162,17 +6391,19 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 			} 
 			break;// << gharbad block ends here
 		case UM_8_Warlord_of_Blood:
+		case UM_924_DC_Commander_Latham:
 			switch (player.fullClassId) {
 			case PFC_WARRIOR or PFC_TEMPLAR or PFC_INQUISITOR or PFC_THRAEX or PFC_MURMILLO or PFC_SECUTOR:
 				if (HasTrait(playerIndex, TraitId::Ranger))			{ break; }
 				if (HasTrait(playerIndex, TraitId::Fechtmeister))	{ break; }
+				if (HasTrait(playerIndex, TraitId::Scissor))		{ break; }
 				if (Difficulty <= DL_3_CRUCIBLE) {
 					SpawnUnique(RngFrom(Difficulty + 2526, -1, -1), monster.Row, monster.Col, sendMsg);
 				}
 			}
 			{
 				bool rob = false;
-				if (is(player.fullClassId, PFC_KENSEI, PFC_SHUGOKI, PFC_SHINOBI, PFC_ROGUE, PFC_ASSASSIN, PFC_BERSERKER, PFC_MURMILLO, PFC_THRAEX, PFC_DIMACHAERUS, PFC_SECUTOR, PFC_DRUID)
+				if (is(player.fullClassId, PFC_KENSEI, PFC_SHUGOKI, PFC_SHINOBI, PFC_ROGUE, PFC_ASSASSIN, PFC_BERSERKER, PFC_MURMILLO, PFC_THRAEX, PFC_DIMACHAERUS, PFC_SECUTOR, PFC_DRUID, PFC_INQUISITOR )
 					|| player.fullClassId == PFC_WARRIOR && (!(HasTrait(playerIndex, TraitId::Ranger)))
 					|| player.fullClassId == PFC_GUARDIAN && (!(HasTrait(playerIndex, TraitId::Pistoleer)))
 					|| player.fullClassId == PFC_MONK && (!(HasTrait(playerIndex, TraitId::Bloodless)))
@@ -4181,8 +6412,22 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 					rob = true;
 				}
 				if (HasTrait(playerIndex, TraitId::OldFashioned)) { rob = false; }
+				if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) { rob = false; } // he is sorted out at Pistoleer trait check, no?...
 				if (rob) {
 					uniqIndex = by(Difficulty, 4592, 4593, 4594, 4595, 4596, 4597, 4598, -1, -1);
+					if (player.fullClassId == PFC_INQUISITOR && Difficulty <= DL_6_TERROR) { 
+						uniqIndex += 309; // 4901 - 4907
+						if (HasTrait(playerIndex, TraitId::Warlord)) {
+							uniqIndex += 7;// 4908 - 4914
+							// test drops
+							//for (uniqIndex = 4908; uniqIndex <= 4914; uniqIndex++) {
+							//	SpawnUnique(uniqIndex, monster.Row, monster.Col, sendMsg);
+							//}
+						}
+					}
+				}
+				else if (player.fullClassId == PFC_IRON_MAIDEN) {
+					uniqIndex = 4917 + Difficulty; // 4917 - 4925
 				}
 			}
 			break;// << warlord block ends here
@@ -4191,6 +6436,9 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 			case PFC_WARRIOR or PFC_GUARDIAN or PFC_TEMPLAR or PFC_INQUISITOR 
 							 or PFC_SAVAGE or PFC_BERSERKER or PFC_THRAEX or PFC_MURMILLO or PFC_DIMACHAERUS or PFC_SECUTOR:				
 				if (HasTrait(playerIndex, TraitId::OldFashioned)) {
+					break;
+				}
+				if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
 					break;
 				}
 				switch (Difficulty) {
@@ -4241,6 +6489,10 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 			break;
 		case UM_726_Apparition_of_Arkaine:
 		case UM_745_Xamutgor:
+		case UM_915_DC_SIR_CABBOT:	// (th4) DC mission 6: Cabbot drops Arkaine's Valor like the Apparition
+			if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				break;
+			}
 			if (HasTrait(playerIndex, TraitId::OldFashioned)) {
 				break;
 			}
@@ -4256,8 +6508,10 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 			uniqIndex = mundaneInventoryRewards[Difficulty];
 			break;
 		case UM_747_Tronzug:
+		case UM_910_DC_AZDOG:
 			uniqIndex = by(Difficulty, 152, 153, 154, 2383, 2384, 2385, 2386, 2387, 2388);
 			break;
+		case UM_922_DC_Donna_Paloosa:
 		case UM_584_Mordessa:
 			if (is(player.fullClassId, PFC_ARCHER, PFC_SHARPSHOOTER, PFC_TRAPPER, PFC_ROGUE, PFC_ASSASSIN)) {
 				uniqIndex = by(Difficulty, 4606, 4607, 4608, 4609, -1, -1, -1, -1, -1);
@@ -4282,7 +6536,7 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 				uniqIndex = Difficulty + 4636;
 			}
 			else if (
-				is(player.fullClassId, PFC_SHUGOKI, PFC_EXECUTIONER, PFC_DRUID, PFC_BERSERKER)
+				is(player.fullClassId, PFC_SHUGOKI, PFC_EXECUTIONER, PFC_DRUID, PFC_BERSERKER, PFC_GLADIATRIX)
 				|| (player.fullClassId == PFC_ROGUE && (HasTrait(playerIndex, TraitId::Axepertise)))
 				) {
 				uniqIndex = Difficulty + 4645;
@@ -4293,12 +6547,36 @@ void SpecifiedUniqueDrop(int monsterIndex, bool sendMsg) // #boss unique drops
 			break;
 		case UM_752_Deathcaller:
 			if (Dungeon == DUN_78_THE_BRIDGE) {
-				uniqIndex = 2807 + Difficulty;
+				uniqIndex = 2807 + Difficulty; // empyrean bracers
 			}
 			break;
 		case UM_753_Sister_Priscilla:
-			uniqIndex = 2843 + Difficulty;
+			uniqIndex = 2843 + Difficulty; // The Wanderer's Boots
 			break;
+			// DC mode -----------------
+		case UM_906_DC_LORD_ANTONIUS:
+			uniqIndex = by(Difficulty, 149, 150, 151, 2377, 2378, 2379, 2380, 2381, 2382); // Rings of Purity
+			break;
+		case UM_920_DC_Bishop_Lucian:
+			uniqIndex = 2807 + Difficulty; // empyrean bracers
+			break;
+		case UM_927_DC_General_Carnabus:
+			uniqIndex = 2843 + Difficulty; // The Wanderer's Boots
+			break;
+		case UM_925_DC_Abbot_Balatt:
+			uniqIndex = 2825+ Difficulty; // Adventurer's Belt
+			break;
+		case UM_944_DC_Knight_Grimald:	// (th4) DC mission 22: Veil of Steel, same lines as Lachdanan
+			switch (player.ClassID) {
+			case PC_1_ARCHER or PC_3_MONK or PC_4_ROGUE:
+				uniqIndex = by(Difficulty, 441, 442, 443, 2395, 2396, 2397, 2398, 2399, 2400); break; // dex line
+			case PC_2_MAGE:
+				uniqIndex = by(Difficulty, 444, 445, 446, 2401, 2402, 2403, 2404, 2405, 2406); break; // mag line
+			case PC_0_WARRIOR or PC_5_SAVAGE:
+				uniqIndex = by(Difficulty, 184, 185, 186, 2389, 2390, 2391, 2392, 2393, 2394); break; // str line
+			}
+			break;
+			// end DC -----------------
 			// <<<  insert next boss block here
 		}
 	}
@@ -4327,6 +6605,15 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
     
     // No drop from summons
     if( monsterIndex < SummonMonsters_Count ){
+        return;
+    }
+    // (th4) DARK CAMPAIGN: the player's own people pay out nothing when they fall -- losing
+    // one is a loss, not loot. Placed with the summon check because it is the same idea, and
+    // it covers everything below: gold, potions, boss drops and SpecifiedUniqueDrop.
+    // The Butcher (m25), the two succubi (m10), Lazarus (m13) and the armorer (m15).
+    if( GameMode == GM_DARK_CAMPAIGN
+     && is( bossIndex, UM_9_The_Butcher, UM_5_Red_Vex, UM_6_Dark_Jade,
+                       UM_4_ArchBishop_Lazarus, UM_587_Hephasto_the_Armorer ) ){
         return;
     }
 	
@@ -4433,7 +6720,7 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 		if (is(GameMode, GM_HARD, GM_CLASSIC)) {
 			drop_potions_allowed = false;
 		}
-		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN)) {
+		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN) || Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR)) {
 			drop_potions_allowed = false;
 		}
         
@@ -4453,6 +6740,10 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
             CreateTypeItem(monster.Row, monster.Col, 0, 0, magicCode1, 0, 1);
             CreateTypeItem(monster.Row, monster.Col, 0, 0, magicCode2, 0, 1);
         }
+
+		if (player.gameChanger & BIT(GC_27_TERMINATOR) && RNG(100) < ( 15 + (Difficulty * 3) ) ) { 
+			SpawnSomethingQlvl(BI_2888_SELF_REPAIR_MODULE, monster.Row, monster.Col, monsterDropLevel, sendMsg); 
+		}
         
         // Additional item drop for TreasureHunter
         if (HasTrait(CurrentPlayerIndex, TraitId::TreasureHunter)) {
@@ -4465,6 +6756,12 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 		//for( int i = 0; i < 20; ++i) SpawnItem(monsterIndex, monster.Row, monster.Col, sendMsg); // boss drop testing
     }else{ // !monster.newBossId
         TryToDropGem( monster.Row, monster.Col );
+		if (GameMode != GM_CLASSIC && GameMode != GM_COLISEUM 
+			&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_27_TERMINATOR))
+			&& !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))
+			) {
+			TryToDropSigil(monster.Row, monster.Col);
+		}
     }
     
 	// Gharbad drop (random boss item)
@@ -4564,6 +6861,9 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 			SpawnSomethingQlvl(BI_2472_THE_LOCKED_CHEST, monster.Row, monster.Col, monsterDropLevel, sendMsg);
 			dropNItems(3);
 			break;
+		case UM_936_DC_Ludwig_the_Paranoid:	// (th4) DC mission 16
+			dropNItems(3);
+			break;
 		case UM_706_Mudsnout:
 			SpawnSomethingQlvl(BI_2457_IRON_FIGURINE, monster.Row, monster.Col, monsterDropLevel, sendMsg);
 			dropNItems(2);
@@ -4639,6 +6939,16 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 		case UM_754_Madame_Pompadour:
 			SpawnSomethingQlvl(BI_16_ANVIL_OF_FURY, monster.Row, monster.Col, monsterDropLevel, sendMsg);
 			dropNItems(2);
+			break;
+		case UM_926_DC_Black_Hawk:
+			// (th4) DC mission 11: the Anvil of Fury is what the hero squad came down here
+			// for. Same drop as Madame Pompadour in the Colonnade -- he is carrying it, so
+			// killing him puts it back on the floor.
+			SpawnSomethingQlvl(BI_16_ANVIL_OF_FURY, monster.Row, monster.Col, monsterDropLevel, sendMsg);
+			dropNItems(4);
+			break;
+		case UM_927_DC_General_Carnabus:	// (th4) DC mission 12: the heroes' new general
+			dropNItems(5);
 			break;
 		case UM_136_Sarogyl_the_Decapitator:
 		{
@@ -4717,6 +7027,20 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 			dropNItems(4);
 			break;
 
+		case UM_903_AZGOR:
+			SpawnSomethingQlvl(BI_2706_SCROLL_OF_MAGIC, monster.Row, monster.Col, monsterDropLevel, sendMsg);	
+			dropNItems(2);
+			break;
+
+		case UM_904_DOBAZZU:
+		{
+			if (not(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_SURVIVAL)) {
+				SpawnSomethingQlvl(BI_2707_SCROLL_OF_MAGIC, monster.Row, monster.Col, monsterDropLevel, sendMsg);
+			}
+		}
+			dropNItems(2);
+			break;
+
 		case UM_9_The_Butcher:
 		case UM_158_Akrikta:
         case UM_19_Jaldabaoth:
@@ -4736,6 +7060,7 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 		case UM_741_Gloom_Prowler: 
 		case UM_744_Dustwing:
 		case UM_743_Undertaker:
+		case UM_906_DC_LORD_ANTONIUS:
 			dropNItems( 2 );
             break;
         case UM_4_ArchBishop_Lazarus:
@@ -4743,9 +7068,13 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 		case UM_323_Lord_of_the_Order:
 		case UM_718_Guardian_of_Flames:
 		case UM_726_Apparition_of_Arkaine:
+		case UM_915_DC_SIR_CABBOT:	// (th4) DC mission 6: same generic drop count as the Apparition
 		case UM_742_Ironhoof:
 		case UM_755_Redbark_Elderroot:
 		case UM_809_Borosteron:
+		case UM_916_DC_PALADIN_LOXLEY:
+		case UM_924_DC_Commander_Latham:	// (th4) DC mission 9
+		case UM_925_DC_Abbot_Balatt:		// (th4) DC mission 10
 			dropNItems( 3 );
             break;
 		case UM_556_Pinky:
@@ -4763,10 +7092,38 @@ void __fastcall MonsterKillEffect(int monsterIndex, bool sendMsg)
 			//case UM_157_Warlord_of_Blood:
 		case UM_582_Izual:
 		case UM_764_Lord_Nysallor:
-		case UM_752_Deathcaller:		
+		case UM_752_Deathcaller:
+		case UM_907_DC_ZYPHERYS:
+		case UM_938_DC_Lord_Tiberius:	// (th4) DC mission 17
+		case UM_940_DC_Darius_the_Ronin:	// (th4) DC mission 18
+		case UM_941_DC_Lord_Tenabris:
+		case UM_942_DC_Venturius_the_Inquisitor:	// (th4) DC mission 21
 			dropNItems( 4 );
 			break;
+		case UM_945_DC_Prophetess_Lyssia:	// (th4) DC mission 22
+			dropNItems(5);
+			break;
+		case UM_946_DC_Cleric_Dwaynor:	// (th4) DC mission 23
+			dropNItems(8);
+			break;
+		case UM_947_DC_High_Exemplar_Kastor:	// (th4) DC mission 24
+			dropNItems(7);
+			break;
+		case UM_948_DC_Warden_Gaspax:	// (th4) DC mission 25
+			dropNItems(8);
+			break;
+		case UM_905_DC_Griswold:	// (th4) DC mission 26
+			for (int elixir = 0; elixir < 2; ++elixir) {
+				SpawnSomethingQlvl(BI_20_SPECTRAL_ELIXIR, monster.Row, monster.Col, monsterDropLevel, sendMsg);
+			}
+			dropNItems(10);
+			break;
 		case UM_583_Lich_King:
+			if (GameMode == GM_DARK_CAMPAIGN) {	// (th4) DC mission 19
+				for (int elixir = 0; elixir < 3; ++elixir) {
+					SpawnSomethingQlvl(BI_20_SPECTRAL_ELIXIR, monster.Row, monster.Col, monsterDropLevel, sendMsg);
+				}
+			}
 			dropNItems(5);
 			break;
 		case UM_580_NaKrul:
@@ -4824,7 +7181,7 @@ int __fastcall MonsterStaying(int monsterIndex)
 			//SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[ANIM_0_STAY], monster.Orientation);
 			monster.curAnimation = &monster.SpritePtr->animation[ANIM_0_STAY].oriented[monster.Orientation];
 		}
-		if( monster.CurFrame == monster.animFrameCount ){ // последний кадр анимации
+		if( monster.CurFrame == monster.animFrameCount ){ // (rt) last animation frame
 			MonsterLookAround(monsterIndex);
 		}
 		++monster.TimerCounterOrColDeltaOrSpellDamage;
@@ -4880,260 +7237,282 @@ void PlayWalkSFX(int monsterIndex)
 	if( ! MonsterWalkSounds ) return;
 	Monster& monster = Monsters[monsterIndex];
 	Player& player = Players[CurrentPlayerIndex];
-	char steps[28];
-	// if monster could walk to player, player should hear his steps 
-	auto checkCellFunc = monster.flag & MF_10_OPEN_DOORS ? CheckCellForMonsterCanInteractWithDoorsSafeMove
-	                                                                            : CheckCellForMeleeMonsterSafeMove;
-	if( FindPath(checkCellFunc, monsterIndex, monster.Row, monster.Col, player.Row, player.Col, steps) ){
+	// if monster could walk to player, player should hear his steps
+	// (th4) HEARD: that test is an A* search (FindPath, Path.cpp) and it used to run first, on EVERY walk frame of every
+	// walking monster, though only one or two frames of a walk play a step. In Ravenholm (dozens of zombies always on
+	// the move) that was ~110 searches per game tick, ~13 ms -- the map's stutter (measured 2026-10-09).
+	// Now each case asks heard() only on a frame that plays a step; it searches at most once per call, and not at all
+	// when the step could not be heard anyway: SoundPos() is the same test PlayLocalSound -> LoadAndPlaySoundFile makes
+	// (Engine.cpp), and a hero 25+ cells away needs 25+ steps, which FindPath always refuses. Same sounds as before.
+	// A NEW CASE below must keep the "&& heard()" in its frame test.
+	int reach = -1;
+	auto heard = [&]() -> bool {
+		if( reach < 0 ){
+			char steps[28];
+			int range, angle;
+			auto checkCellFunc = monster.flag & MF_10_OPEN_DOORS ? CheckCellForMonsterCanInteractWithDoorsSafeMove
+			                                                     : CheckCellForMeleeMonsterSafeMove;
+			reach = SoundPos( monster.Row, monster.Col, range, angle )
+			     && max( abs( monster.Row - player.Row ), abs( monster.Col - player.Col ) ) < MaxPathStep_25
+			     && FindPath( checkCellFunc, monsterIndex, monster.Row, monster.Col, player.Row, player.Col, steps );
+		}
+		return reach != 0;
+	};
+	{
 		switch( MonsterSprites[monster.SpriteIndex].baseMonsterIndex ){
 		case BM_291_MYCONID:
-			if (is(monster.WalkframeCounter, 6, 15)) PlayLocalSound(RandSound(1543, 1546), monster.Row, monster.Col); // 1543-1546: light-stone (4)
+			if (is(monster.WalkframeCounter, 6, 15) && heard()) PlayLocalSound(RandSound(1543, 1546), monster.Row, monster.Col); // 1543-1546: light-stone (4)
 			break;
 		case BM_126_PLAGUE_EATER or BM_221_RAT_MAN or BM_258_RAT_HORDE: // Rats
-			if( is(monster.WalkframeCounter, 2,  6) ) PlayLocalSound(                             RandSound(1543, 1546)                        , monster.Row, monster.Col ); // 1543-1546: light-stone (4)
+			if( is(monster.WalkframeCounter, 2,  6) && heard() ) PlayLocalSound(                             RandSound(1543, 1546)                        , monster.Row, monster.Col ); // 1543-1546: light-stone (4)
 			break;
 		case BM_153_DEATH_MINION or BM_154_DEATH_MINION: // cryptic reapers
-			if( is(monster.WalkframeCounter, 4,  9) ) PlayLocalSound(                             RandSound(1539, 1542)                        , monster.Row, monster.Col ); // 1539-1542: med - stone (4)
+			if( is(monster.WalkframeCounter, 4,  9) && heard() ) PlayLocalSound(                             RandSound(1539, 1542)                        , monster.Row, monster.Col ); // 1539-1542: med - stone (4)
 			break;
 		case BM_87_DARK_REAPER or BM_136_BLOOD_SLAYER or BM_152_BLACK_REAPER: // other reapers
-			if( is(monster.WalkframeCounter, 4,  9) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1547-1550: med - dirt (4) // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 4,  9) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1547-1550: med - dirt (4) // 1619-1622: med snow run (4)
 			break;
 		case BM_117_STINGER or BM_143_DOOM_TAIL or 229: // stingers (including summons)
-			if( is(monster.WalkframeCounter, 1,  3) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1551-1553: light - dirt (3) // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 1,  3) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1551-1553: light - dirt (3) // 1611-1613: light snow (3)
 			break;
 		case BM_163_STINGER_LORD: // stinger lord
-			if( is(monster.WalkframeCounter, 3,  8) ) PlayLocalSound(                             RandSound(1554, 1557)                        , monster.Row, monster.Col ); // 1554-1557: light - dirtRun (4)
+			if( is(monster.WalkframeCounter, 3,  8) && heard() ) PlayLocalSound(                             RandSound(1554, 1557)                        , monster.Row, monster.Col ); // 1554-1557: light - dirtRun (4)
 			break;
 		case BM_58_DEFILER: // defiler/nakrul
-			if( is(monster.WalkframeCounter, 2,  5) ) PlayLocalSound(                             RandSound(1558, 1565)                        , monster.Row, monster.Col ); // 1558-1565: ginormous (8)
+			if( is(monster.WalkframeCounter, 2,  5) && heard() ) PlayLocalSound(                             RandSound(1558, 1565)                        , monster.Row, monster.Col ); // 1558-1565: ginormous (8)
 			break;
 		case BM_74_GREATER_HULK or BM_75_BLOOD_HULK: // undead hulks
-			if( is(monster.WalkframeCounter, 2,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1566-1569: heavy - dirt (4) // heavy snow run-----
+			if( is(monster.WalkframeCounter, 2,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1566-1569: heavy - dirt (4) // heavy snow run-----
 			break;
 		case BM_59_PIT_FIEND or BM_217_GRIMSPIKE: // pit fiend / grimspike
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1570-1573: heavy - stoneRun (4) // heavy snow run----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1570-1573: heavy - stoneRun (4) // heavy snow run----
 			break;
 		case BM_6_GRAVE_DIGGER or BM_15_TOMB_SLAVE or BM_144_DARK_SERVANT or BM_145_BLACK_MOURNER: // grave diggers
-			if( is(monster.WalkframeCounter, 6, 18) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? 1                     : RandSound(1611, 1614), monster.Row, monster.Col ); // 1611-1614: light snow (4)
+			if( is(monster.WalkframeCounter, 6, 18) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? 1                     : RandSound(1611, 1614), monster.Row, monster.Col ); // 1611-1614: light snow (4)
 			break;
 		case BM_46_PIT_SPIDER or BM_112_WAILING_BEAST or BM_134_MUD_RUNNER or BM_205_PINKY or 230: // pit spider + boars
-			if( is(monster.WalkframeCounter, 3,  8) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med - dirt----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 3,  8) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med - dirt----- // 1619-1622: med snow run (4)
 			break;
 		case BM_97_DARK_CHARGER:
-			if( is(monster.WalkframeCounter, 3,  8) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med - dirt----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 3,  8) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med - dirt----- // 1619-1622: med snow run (4)
 			break;
 		case BM_120_NECROMORPH: // cryptic flesh thing
-			if( is(monster.WalkframeCounter, 8    ) ) PlayLocalSound(                             RandSound(1570, 1573)                        , monster.Row, monster.Col ); // heavy - stoneRun-----
+			if( is(monster.WalkframeCounter, 8    ) && heard() ) PlayLocalSound(                             RandSound(1570, 1573)                        , monster.Row, monster.Col ); // heavy - stoneRun-----
 			break;
 		case BM_135_GROTESQUE or BM_141_SHAMBLER or BM_142_HELL_MEAT: // other flesh things
-			if( is(monster.WalkframeCounter, 8    ) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy - dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 8    ) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy - dirt----- // heavy snow run-----
 			break;
 		case BM_83_LASH_WORM: // lash worm
-			if( is(monster.WalkframeCounter, 4, 10) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1554, 1557) : RandSound(1611, 1613), monster.Row, monster.Col ); // light - dirtRun----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 4, 10) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1554, 1557) : RandSound(1611, 1613), monster.Row, monster.Col ); // light - dirtRun----- // 1611-1613: light snow (3)
 			break;
 		case BM_115_GRUNT_BEAST or BM_123_BICLOPS: // biclops
-			if( is(monster.WalkframeCounter, 2,  7) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1574-1577: med - dirtRun // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 2,  7) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1574-1577: med - dirtRun // 1619-1622: med snow run (4)
 			break;
 		case BM_111_OBSIDIAN_GOLEM or BM_125_GOLD_GOLEM or BM_130_BLACK_GOLEM: // stone golems
-			if( is(monster.WalkframeCounter, 6, 15) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy - stoneRun----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 6, 15) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy - stoneRun----- // heavy snow run-----
 			break;
 		case BM_38_UNDEAD_WEREWOLF or BM_47_ACID_HOUND or BM_49_BILE_SPITTER or BM_53_HELL_HOUND or BM_172_SPITTING_TERROR or BM_206_ACID_SPITTER or BM_241_ACID_TERROR: // Hounds
-			if( is(monster.WalkframeCounter, 5    ) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1578, 1581) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1578-1581: light-stoneRun (4) // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 5    ) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1578, 1581) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1578-1581: light-stoneRun (4) // 1611-1613: light snow (3)
 			break;
 		case BM_80_DEVIL_KIN or BM_116_IMP_BRUTE or BM_128_GREATER_IMP or BM_148_TURBAK_THE_DEUCE or BM_149_THRESHER or BM_207_DREGBEZ: // Big Fallen
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1582-1585: med-stoneRun (4) // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1582-1585: med-stoneRun (4) // 1619-1622: med snow run (4)
 			break;
 		case BM_95_GHOST_WARRIOR or BM_96_CURSE_BEARER or BM_122_BLOOD_SPECTRE or BM_285_PHANTOM_KNIGHT: // Black Knights
-			if( is(monster.WalkframeCounter, 2,  6) ) PlayLocalSound( RandSound(1765, 1772) /*!IsSnowStep(monsterIndex) ? RandSound(1586, 1589) : RandSound(1623, 1626)*/, monster.Row, monster.Col ); // 1586-1589: Heavy Knight (4) // 1623-1626: heavy snow knight (4)
+			if( is(monster.WalkframeCounter, 2,  6) && heard() ) PlayLocalSound( RandSound(1765, 1772) /*!IsSnowStep(monsterIndex) ? RandSound(1586, 1589) : RandSound(1623, 1626)*/, monster.Row, monster.Col ); // 1586-1589: Heavy Knight (4) // 1623-1626: heavy snow knight (4)
 			break;
 		case BM_70_FROST_WING or BM_72_FIREWING or BM_73_DEATH_ANGEL or BM_132_BONEWING or BM_167_SKULLWING or BM_210_HELLWING or 228: // Skullwings
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
 			break;
 		case BM_219_FROST_BONE:// Frost Bone
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound(                             RandSound(1594, 1597)                        , monster.Row, monster.Col ); // med snow run-----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound(                             RandSound(1594, 1597)                        , monster.Row, monster.Col ); // med snow run-----
 			break;
 		case BM_110_DIABLO or BM_137_UBER_DIABLO: // Diablo
-			if( is(monster.WalkframeCounter, 2,  5) ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
+			if( is(monster.WalkframeCounter, 2,  5) && heard() ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
 			break;
 		case BM_208_WARPED_ONE or BM_12_IMP or BM_13_DARK_ONE or BM_155_FALLEN_ONE or BM_157_YELLOW_ONE or BM_4_GREMLIN or BM_5_FALLEN_ONE or BM_105_IMP_ROGUE or BM_156_IMP_ROGUE or BM_189_CARVER or BM_196_EVIL_ONE or BM_213_POISONED_ONE: // Fallen (sword & spear)
-			if( is(monster.WalkframeCounter, 1,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col );  // light stone----- (without 4th!) // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 1,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col );  // light stone----- (without 4th!) // 1611-1613: light snow (3)
 			break;
 		case BM_281_FALLEN_BOW or BM_282_GREMLIN_BOW:
-			if (is(monster.WalkframeCounter, 2, 9)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col);  // light stone----- (without 4th!) // 1611-1613: light snow (3)
+			if (is(monster.WalkframeCounter, 2, 9) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col);  // light stone----- (without 4th!) // 1611-1613: light snow (3)
 			break;
 		case BM_52_BILE_DEMON or BM_55_GRIM_DEMON or BM_56_PIT_DEMON or BM_93_FLAYED_ONE or BM_178_OVERLORD or BM_179_FILTH_DEMON: // Fat
-			if( is(monster.WalkframeCounter, 4,  9) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy stone run----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 4,  9) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_51_THE_BUTCHER or BM_99_CLEAVER_BOSS or BM_195_UBER_BUTCHER: // FatC
-			if( is(monster.WalkframeCounter, 2,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy stone run----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 2,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_42_NIGHT_CLAN or BM_43_BLOOD_CLAN or BM_44_DOOM_CLAN or BM_45_VENOM_CLAN or BM_124_GLOOM_CLAN or BM_165_APOCALYPSE_CLAN or BM_198_HORN_CLAN or BM_199_HELL_CLAN or 224 or BM_255_RAGE_CLAN or BM_256_RAGE_CLAN or BM_34_FLESH_CLAN
 		  or BM_35_FIRE_CLAN or BM_36_DARKNESS_CLAN or BM_37_STONE_CLAN or BM_173_GHARBAD_BASEMNSTR or BM_175_TERROR_CLAN or BM_186_DEATH_CLAN or BM_187_BLOOD_CLAN or BM_204_SHADOW_CLAN or BM_209_HATRED_CLAN or BM_254_TWILIGHT_CLAN: // Goatmace + Goatbow + Goat_2h_Morgenstern
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1615, 1617), monster.Row, monster.Col ); // med stone----- // 1615-1617: med snow (3)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1615, 1617), monster.Row, monster.Col ); // med stone----- // 1615-1617: med snow (3)
 			break;
 		case BM_214_SATYR_LORD or BM_33_MOON_CLAN or BM_57_HELL_CLAN or BM_166_GOATLORD_BOSS or BM_188_HELL_CLAN or 225: // Goatlord
-			if( is(monster.WalkframeCounter, 2,  8) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 2,  8) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_109_GOLEM or BM_113_ASH_GOLEM: // Golems
-			if( is(monster.WalkframeCounter, 2, 10) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col ); // med dirt Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 2, 10) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col ); // med dirt Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_218_ICE_GOLEM: // Golem Ice
-			if( is(monster.WalkframeCounter, 2, 10) ) PlayLocalSound(                             RandSound(1594, 1597)                        , monster.Row, monster.Col ); // 1594-1597: Med Snow Run (4)
+			if( is(monster.WalkframeCounter, 2, 10) && heard() ) PlayLocalSound(                             RandSound(1594, 1597)                        , monster.Row, monster.Col ); // 1594-1597: Med Snow Run (4)
 			break;
 		case BM_60_HELL_STONE or BM_61_BLOOD_STONE or BM_62_MAULER or BM_63_LAVA_LORD or BM_180_CRYPT_STONE: // Magma
-			if( is(monster.WalkframeCounter, 1,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1598, 1601) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1598-1601: Heavy I Stone (4) // heavy snow run-----
+			if( is(monster.WalkframeCounter, 1,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1598, 1601) : RandSound(1606, 1609), monster.Row, monster.Col ); // 1598-1601: Heavy I Stone (4) // heavy snow run-----
 			break;
 		case BM_18_VORTEX_ROGUE or BM_85_BALOR or BM_86_SLAYER or BM_88_BALROG or BM_159_GUARDIAN or BM_176_DESTROYER or BM_193_ABATAN: // Mega
-			if( is(monster.WalkframeCounter, 2,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 2,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
 			break;
 		case BM_16_HORNED_BEAST or BM_65_HELL_SPAWN or BM_66_HORNED_DEATH or BM_67_BLACK_HORN or BM_171_MUD_LORD or BM_185_BLOOD_HORN or BM_197_CEROMORTH: // Rhino
-			if( is(monster.WalkframeCounter, 3,  7) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 3,  7) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
 			break;
 		case BM_17_SCAVENGER or BM_138_SHADOW_BEAST or BM_139_BONE_GASHER: // Scav
-			if( is(monster.WalkframeCounter, 3,  7) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // light dirt----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 3,  7) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // light dirt----- // 1611-1613: light snow (3)
 			break;
 		case BM_19_RAVAGER: // Ravager (fast Scav)
-			if( is(monster.WalkframeCounter, 1,  3) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // light dirt----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 1,  3) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col ); // light dirt----- // 1611-1613: light snow (3)
 			break;
 		case BM_14_SOUL_HUNTER or BM_20_RISEN_SKELETON or BM_21_SKELETON_WARRIOR or BM_22_BURNING_DEAD or BM_23_MALICE or BM_114_FROZEN_HORROR or 226 or 227 or BM_158_DEATH_RETINUE or BM_11_HATRED
 		  or BM_9_SKELETON_WARRIOR or BM_10_BURNING_DEAD or BM_7_RISEN_SKELETON or BM_8_BONE_CREEPER or BM_24_RISEN_SKELETON or BM_25_SKELETON_WARRIOR or BM_26_BURNING_DEAD or BM_27_HORROR: // Small Skellies (axes, sword_shield, bow)
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound(                             RandSound(1602, 1605)                        , monster.Row, monster.Col ); // 1602-1605: light o stone (4)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound(                             RandSound(1602, 1605)                        , monster.Row, monster.Col ); // 1602-1605: light o stone (4)
 			break;
 		case BM_1_OBLIVION_KNIGHT or BM_50_SKELETON_LORD or BM_64_DEATH_GUARDIAN or BM_203_DEATH_KNIGHT: // Leoric
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound(                             RandSound(1590, 1593)                        , monster.Row, monster.Col ); // Med O Stone Run-----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound(                             RandSound(1590, 1593)                        , monster.Row, monster.Col ); // Med O Stone Run-----
 			break;
 		case BM_29_HIDDEN or BM_30_SHADOW or BM_31_UNSEEN or BM_32_INVISIBLE_ONE or BM_92_ILLUSION_WEAVER or BM_94_LURKER or BM_183_STALKER or BM_184_REALITY_WEAVER or BM_194_BLOODIED_HIDDEN or BM_257_SHROUDED : // Hidden
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- (without 4th!) // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- (without 4th!) // 1611-1613: light snow (3)
 			break;
 		case BM_101_DARK_MISTRESS or BM_102_SUCCUBUS or BM_103_BLOOD_WITCH or BM_104_DARK_WITCH or BM_133_SOUL_BURNER or BM_191_DARK_MISTRESS or BM_202_SUCCUBUS or BM_284_SIN_SPAWN: // Succ
-			if( is(monster.WalkframeCounter, 2,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 2,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
 			break;
 		case BM_71_THUNDER_LORD or BM_76_DEATH_CLAW or BM_77_STORM_DEMON or BM_78_EVISCERATOR or BM_79_FEAR_HUNTER or BM_160_CHASM_DEMON or BM_164_LIGHTNING_DEMON: // Thin
-			if( is(monster.WalkframeCounter, 3,  7) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med dirt----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 3,  7) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1547, 1550) : RandSound(1619, 1622), monster.Row, monster.Col ); // med dirt----- // 1619-1622: med snow run (4)
 			break;
 		case BM_28_BLOOD_WARPER or BM_39_WARPING_DEMON or BM_150_FELLTWIN or BM_151_HYBRID or BM_182_BLINK_DEMON: // Tsneak
-			if( is(monster.WalkframeCounter, 1,  8) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 1,  8) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
 			break;
 		case BM_2_ROTTING_CARCASS or BM_140_GHOUL or BM_169_ZOMBIE or BM_0_BURNED_CORPSE or BM_215_CADAVER: // Zombies
-			if( is(monster.WalkframeCounter, 9, 21) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(   1,    1) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 9, 21) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(   1,    1) : RandSound(1611, 1613), monster.Row, monster.Col ); // 1611-1613: light snow (3)
 			break;
 		case BM_232_ABYSSAL_SUCCUBUS: // Abyssal Succubus
-			if( is(monster.WalkframeCounter, 4,  9) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
+			if( is(monster.WalkframeCounter, 4,  9) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1543, 1546) : RandSound(1611, 1613), monster.Row, monster.Col ); // light stone----- // 1611-1613: light snow (3)
 			break;
 		case BM_245_BLUNDERER: // Warden
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
 			break;
 		case BM_233_BLOOD_LORD or BM_234_STEEL_LORD: // Minot
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
 			break;
 		case BM_236_CORPSE_EATER: // Corpse Eater
-			if( is(monster.WalkframeCounter, 1,  7) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 1,  7) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
 			break;
-		case BM_106_CORRUPT_ORDER or BM_146_CORRUPT_ORDER or BM_162_CORRUPT_PALADIN or BM_216_ZEALOT: // Corrupts
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(   0,    3) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1619-1622: med snow run (4)
+		case BM_106_CORRUPT_ORDER or BM_146_CORRUPT_ORDER or BM_162_CORRUPT_PALADIN or BM_216_ZEALOT or BM_392_WARLORD_MERC
+				or BM_H_393_SORC_L_T or BM_H_394_ROG_L_B or BM_H_395_WAR_L_X or BM_H_396_SORC_L_T or BM_H_397_ROG_L_B or BM_H_398_WAR_L_X or BM_H_399_WAR_L_SS
+				or BM_H_400_SORC_M_T or BM_H_401_MONK_M_MS or BM_H_402_BERS_M_X or BM_H_403_ROG_M_B or BM_H_404_WAR_M_MS or BM_H_405_SOR_M_T_HYBRID or BM_H_406_SCOUT
+				or BM_H_407_MONK_M_X or BM_H_408_WAR_M_SS or BM_H_409_MONK_H_T or BM_H_410_MONK_H_SS or BM_H_411_ROG_H_B or BM_H_412_WAR_H_X_EXEC or BM_H_413_SOR_H_T
+				or BM_H_414_WAR_H_MS or BM_H_415_ROG_H_B_ELITE_ARCHER or BM_H_416_MON_H_MS or BM_H_417_WAR_H_SS_WARRIOR_ELITE or BM_H_418_SOR_H_T_SORC_ELITE or BM_H_419_ROG_H_B_SS_ELITE
+				or BM_H_421_WAR_H_X_EXEC_ELITE or BM_NPC_420_GRISWOLD or BM_H_422_WAR_H_ROYAL_GUARD or BM_H_423_ROG_H_B_BLACK_ARCHER: // Corrupts
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(   0,    3) : RandSound(1619, 1622), monster.Row, monster.Col ); // 1619-1622: med snow run (4)
 			break;
 		case BM_253_EXPLODER: // Exploder
-			if( is(monster.WalkframeCounter, 1    ) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1    ) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone----- // 1619-1622: med snow run (4)
 			break;
 		case BM_244_HORADRIM_ANCIENT or BM_246_GREATER_MUMMY: // Mummies
-			if( is(monster.WalkframeCounter, 2, 11) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
+			if( is(monster.WalkframeCounter, 2, 11) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1566, 1569) : RandSound(1606, 1609), monster.Row, monster.Col ); // heavy dirt----- // heavy snow run-----
 			break;
 		case BM_222_NIGHT_DEMON: // Baboon
-			if( is(monster.WalkframeCounter, 1,  6) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1,  6) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case 231 or 247: // Siege
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // ginormous-----
 			break;
 		case BM_243_IZUAL: // Izual
-			if(     is(monster.WalkframeCounter, 1) ) PlayLocalSound(                             RandSound(1586, 1589)                        , monster.Row, monster.Col ); // ginormous-----
-			else if(is(monster.WalkframeCounter, 5) ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // Heavy Knight-----
+			if(     is(monster.WalkframeCounter, 1) && heard() ) PlayLocalSound(                             RandSound(1586, 1589)                        , monster.Row, monster.Col ); // ginormous-----
+			else if(is(monster.WalkframeCounter, 5) && heard() ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col ); // Heavy Knight-----
 			break;
 		case BM_252_HEPHASTO:
 			// Hephasto // ginormous-----
-			if( is(monster.WalkframeCounter, 1,  7) ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col );
+			if( is(monster.WalkframeCounter, 1,  7) && heard() ) PlayLocalSound(                             RandSound(1558, 1561)                        , monster.Row, monster.Col );
 			break;
 		case BM_251_WENDIGO:
 			// Wend // 1606-1609: heavy snow run (4)
-			if( is(monster.WalkframeCounter, 1,  7) ) PlayLocalSound(                             RandSound(1606, 1609)                        , monster.Row, monster.Col );
+			if( is(monster.WalkframeCounter, 1,  7) && heard() ) PlayLocalSound(                             RandSound(1606, 1609)                        , monster.Row, monster.Col );
 			break;
 		case BM_238_TAINTED or BM_239_AFFLICTED: // Misshapen
-			if( is(monster.WalkframeCounter, 1,  5) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1,  5) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_240_DEMON_PRIEST: // Demon priest
-			if( is(monster.WalkframeCounter, 9    ) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 9    ) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_242_REANIMATED_HORROR: // Reanimated
-			if( is(monster.WalkframeCounter, 1    ) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1    ) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_249_SCARAB or BM_250_BONE_SCARAB: // Scarabs
-			if( is(monster.WalkframeCounter, 1,  8) ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
+			if( is(monster.WalkframeCounter, 1,  8) && heard() ) PlayLocalSound( !IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col ); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_260_ARMAGEDDON_WALKER: // Abi
-			if (is(monster.WalkframeCounter, 1, 9)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col); // med stone Run----- // 1619-1622: med snow run (4)
+			if (is(monster.WalkframeCounter, 1, 9) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1582, 1585) : RandSound(1619, 1622), monster.Row, monster.Col); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_261_SKELETAL_KNIGHT:
-			if (is(monster.WalkframeCounter, 1, 9)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1586, 1589) : RandSound(1623, 1626), monster.Row, monster.Col); // knight 'boot' sounds
+			if (is(monster.WalkframeCounter, 1, 9) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1586, 1589) : RandSound(1623, 1626), monster.Row, monster.Col); // knight 'boot' sounds
 			break;
 		case BM_264_BITELING:
-			if (is(monster.WalkframeCounter, 11)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col); // light dirt----- // 1611-1613: light snow (3)
+			if (is(monster.WalkframeCounter, 11) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col); // light dirt----- // 1611-1613: light snow (3)
 			break;
 		case BM_265_CROC or BM_266_CROC_BERS:
-			if (is(monster.WalkframeCounter, 5, 13)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
+			if (is(monster.WalkframeCounter, 5, 13) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_267_BONE_BLADE or BM_268_BONE_BLADE_2:// try to find heavier footstep sounds. heavy and bony
-			if (is(monster.WalkframeCounter, 7, 18)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
+			if (is(monster.WalkframeCounter, 7, 18) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
 			break;
 		case BM_271_THORNED_HULK:
-			if (is(monster.WalkframeCounter, 5, 11)) PlayLocalSound(RandSound(1760, 1764), monster.Row, monster.Col);
+			if (is(monster.WalkframeCounter, 5, 11) && heard()) PlayLocalSound(RandSound(1760, 1764), monster.Row, monster.Col);
 			break;
 		case BM_272_SPIDER_QUEEN:
-			if (is(monster.WalkframeCounter, 2, 9/*1, 8*/)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col); // light stone----- (without 4th!) // 1611-1613: light snow (3)
+			if (is(monster.WalkframeCounter, 2, 9/*1, 8*/) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1543, 1545) : RandSound(1611, 1613), monster.Row, monster.Col); // light stone----- (without 4th!) // 1611-1613: light snow (3)
 			break;
 		case BM_273_FLAME_FIEND:
-			if (is(monster.WalkframeCounter, 4, 9)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1781, 1784) : RandSound(1777, 1780), monster.Row, monster.Col);
+			if (is(monster.WalkframeCounter, 4, 9) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1781, 1784) : RandSound(1777, 1780), monster.Row, monster.Col);
 			break;
 		case BM_274_FLESH_DEVOURER:
-			if (is(monster.WalkframeCounter, 7, 15)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
+			if (is(monster.WalkframeCounter, 7, 15) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_275_BEHEMOTH:
-			if (is(monster.WalkframeCounter, 7, 15)) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
+			if (is(monster.WalkframeCounter, 7, 15) && heard()) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
 			break;
 		case BM_276_SWORD_SPIDER or BM_277_SPIDERLING: // stingers (including summons)
-			if (is(monster.WalkframeCounter, 2, 5, 11)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col); // 1551-1553: light - dirt (3) // 1611-1613: light snow (3)
+			if (is(monster.WalkframeCounter, 2, 5, 11) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1551, 1553) : RandSound(1611, 1613), monster.Row, monster.Col); // 1551-1553: light - dirt (3) // 1611-1613: light snow (3)
 			break;
 		case BM_278_LEAPER:
-			if (is(monster.WalkframeCounter, 1, 9)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col); // med dirt Run----- // 1619-1622: med snow run (4)
+			if (is(monster.WalkframeCounter, 1, 9) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1574, 1577) : RandSound(1619, 1622), monster.Row, monster.Col); // med dirt Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_283_FROST_WARDEN:
-			if (is(monster.WalkframeCounter, 9, 19)) PlayLocalSound(/*!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : */ RandSound(1832, 1835), monster.Row, monster.Col); // med stone Run----- // 1619-1622: med snow run (4)
+			if (is(monster.WalkframeCounter, 9, 19) && heard()) PlayLocalSound(/*!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : */ RandSound(1832, 1835), monster.Row, monster.Col); // med stone Run----- // 1619-1622: med snow run (4)
 			break;
 		case BM_286_BRINE_CORPSE:
-			if (is(monster.WalkframeCounter, 4, 14)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
+			if (is(monster.WalkframeCounter, 4, 14) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_287_ARMORED_SKELETON:
-			if (is(monster.WalkframeCounter, 1, 10)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
+			if (is(monster.WalkframeCounter, 1, 10) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1590, 1593) : RandSound(1619, 1622), monster.Row, monster.Col); // 1590-1593: Med O Stone Run a.k.a. 'Big Skel' // (4) 1619-1622: med snow run (4)
 			break;
 		case BM_288_EARTH_GOLEM:
-			if (is(monster.WalkframeCounter, 7, 17)) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
+			if (is(monster.WalkframeCounter, 7, 17) && heard()) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
 			break;
 		case BM_294_BELHIFET_UNO or BM_295_BELHIFET_DOS:
-			if (is(monster.WalkframeCounter, 7, 15)) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
+			if (is(monster.WalkframeCounter, 7, 15) && heard()) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
 			break;
 		case BM_292_BUGBEAR:
-			if (is(monster.WalkframeCounter, 1, 9)) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
+			if (is(monster.WalkframeCounter, 1, 9) && heard()) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
 			break;
 		case BM_297_OROG:
-			if (is(monster.WalkframeCounter, 4, 13)) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
+			if (is(monster.WalkframeCounter, 4, 13) && heard()) PlayLocalSound(RandSound(1558, 1561), monster.Row, monster.Col); // ginormous-----
 			break;
 		case BM_293_PIT_FIEND:
-			if (is(monster.WalkframeCounter, 3, 8)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
+			if (is(monster.WalkframeCounter, 3, 8) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1570, 1573) : RandSound(1606, 1609), monster.Row, monster.Col); // heavy stone run----- // heavy snow run-----
 			break;
 		case BM_296_ICE_TROLL:
-			if (is(monster.WalkframeCounter, 1, 11)) PlayLocalSound(RandSound(1026, 1029), monster.Row, monster.Col); // med sand
-			if (is(monster.WalkframeCounter, 3, 13)) PlayLocalSound(RandSound(1839, 1842), monster.Row, monster.Col); // lght sand
+			if (is(monster.WalkframeCounter, 1, 11) && heard()) PlayLocalSound(RandSound(1026, 1029), monster.Row, monster.Col); // med sand
+			if (is(monster.WalkframeCounter, 3, 13) && heard()) PlayLocalSound(RandSound(1839, 1842), monster.Row, monster.Col); // lght sand
 			break;
 		case BM_298_TENTACLIST_BOSS or BM_299_TENTACLIST2 or BM_300_TENTACLIST_ABYSS :
-			if (is(monster.WalkframeCounter, 1, 7)) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1615, 1617), monster.Row, monster.Col); // med stone----- // 1615-1617: med snow (3)
+			if (is(monster.WalkframeCounter, 1, 7) && heard()) PlayLocalSound(!IsSnowStep(monsterIndex) ? RandSound(1539, 1542) : RandSound(1615, 1617), monster.Row, monster.Col); // med stone----- // 1615-1617: med snow (3)
 			break;
 
 		}
@@ -5147,7 +7526,7 @@ int __fastcall MonsterWalkUp(uint monsterIndex)
 	int result = 0; // CurAction != A_15_STONE_CURSED
 	if( monsterIndex < Monsters_Max_Count && monster.SpritePtr ){
 		MonsterSprite& sprite = *monster.SpritePtr;
-		if( monster.WalkframeCounter == sprite.animation[ANIM_1_WALK].frameCount ){ // завершение движения
+		if( monster.WalkframeCounter == sprite.animation[ANIM_1_WALK].frameCount ){ // (rt) end of movement
 			MonsterMap[ monster.Row ][ monster.Col ] = 0;
 			monster.Row += monster.PrevActionOrRowDeltaOrSpellEffect;
 			monster.Col += monster.TimerCounterOrColDeltaOrSpellDamage;
@@ -5157,7 +7536,7 @@ int __fastcall MonsterWalkUp(uint monsterIndex)
 			}
 			FixMonsterPosition(monsterIndex, monster.Orientation);
 			result = 1;
-		}else{                                                                     // движение между клетками
+		}else{                                                                     // (rt) movement between cells
 			if( !monster.AnimationDelayIndex ){				
 				PlayWalkSFX(monsterIndex);
 				++monster.WalkframeCounter;
@@ -5214,7 +7593,7 @@ int __fastcall MonsterWalkDown( uint monsterIndex )
 	int walkFrameCounter = monster.WalkframeCounter;
 
 	int moreAction;
-	if( walkFrameCounter == monsterSprite.animation[ANIM_1_WALK].frameCount ){// Если это окончание движения
+	if( walkFrameCounter == monsterSprite.animation[ANIM_1_WALK].frameCount ){// (rt) If this is the end of the movement
 		MonsterMap[ monster.RowDelta ][ monster.ColDelta ] = 0;
 		if( !(monster.flag & MF_1_INVISIBLE) && monster.LightIndex ){
 			ChangeLightPos(monster.LightIndex, monster.Row, monster.Col);
@@ -5248,7 +7627,7 @@ int __fastcall MonsterWalkHorizontal( uint monsterIndex )
 	}
 	int moreAction;
 	int walkFrameCounter = monster.WalkframeCounter;
-	if( walkFrameCounter == monsterSprite.animation[ANIM_1_WALK].frameCount ){// Если это окончание движения
+	if( walkFrameCounter == monsterSprite.animation[ANIM_1_WALK].frameCount ){// (rt) If this is the end of the movement
 		MonsterMap[ monster.Row ][ monster.Col ] = 0;
 		monster.Row = monster.RowDelta;
 		monster.Col = monster.ColDelta;
@@ -5270,8 +7649,8 @@ int __fastcall MonsterWalkHorizontal( uint monsterIndex )
 		}
 		moreAction = 0;
 	}
-	// тут был босс айди, но я уверен что это лайт радиус. Везде в других местах лайт радиус проверяется а не босс айди
-	if( !(monster.flag & MF_1_INVISIBLE) && monster.LightIndex ){// (7) расширение номера босса 0043DAD5
+	// (rt) there was a boss id here, but I'm sure it's the light radius. Everywhere else the light radius is checked, not the boss id
+	if( !(monster.flag & MF_1_INVISIBLE) && monster.LightIndex ){// (rt) (7) boss number extension 0043DAD5
 		OffsetMonsterLight(monsterIndex);
 	}
 	return moreAction;
@@ -5303,6 +7682,9 @@ bool MinionCrits(int attackerIndex, int defenderIndex)
 		Player& player = Players[playerIndex];
 		Monster& defender = Monsters[defenderIndex];
 		if (RNG(100) < PerkValue(PERK_MINION_CRITS, playerIndex)) {
+			return true;
+		}
+		if (RNG(100) < PerkValue(PERK_MERC_CRITS, playerIndex)) {
 			return true;
 		}
 	}
@@ -5348,8 +7730,8 @@ void __fastcall MvM_Melee( int attackerIndex, int defenderIndex, int hitChance, 
 	// activate zombie on his hit
 	if( defender.flag & MF_6_FRIENDLY && !attacker.ActivationCounter ){
 		attacker.ActivationCounter = 255;
-		attacker.LastTargetPositionRow = attacker.Row;
-		attacker.LastTargetPositionCol = attacker.Col;
+		attacker.LastTargetPositionRow = defender.Row;
+		attacker.LastTargetPositionCol = defender.Col;
 		MonsterChainActivation( attackerIndex );
 	}
 	
@@ -5399,12 +7781,30 @@ void __fastcall MvM_Melee( int attackerIndex, int defenderIndex, int hitChance, 
 		damage /= 2;
 	}
 
+/*	if (defender.SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC && MaxCountOfPlayersInGame == 1) {
+		damage -= (Dungeon->level / 2 + Difficulty * 12 + PerkValue(PERK_MERC_DFE, CurrentPlayerIndex)) << 6;
+		LimitToMin(damage, 64);
+		damage -= PerkValue(PERK_DAMAGE_SOAK, defenderIndex) * damage / 100;
+	}*/
+	// new version (previous commented above)
+	if (defender.SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC && MaxCountOfPlayersInGame == 1) {
+		if (defenderIndex < SummonMonsters_Count) {
+			const int ownerIndex = defenderIndex / SummonMonstersPerPlayer_Count;
+			damage -= ((Dungeon->level / 2 + Difficulty * 12 + PerkValue(PERK_MERC_DFE, ownerIndex)) << 6);
+			LimitToMin(damage, 64);
+			damage -= PerkValue(PERK_DAMAGE_SOAK, ownerIndex) * damage / 100;
+		}
+	}
+
 	if( defender.newBossId ){
 		damage /= 2;
 	}
 	if (defender.newBossId - 1  == UM_12_Uber_Diablo || defender.newBossId - 1 == UM_773_The_Dark_Lord) {
 		damage = 2 * damage / 5; 
 	} 
+	if( DarkCampaignHephastoShielded( defenderIndex ) ){	// (th4) DC mission 15, Doom+: Hephasto takes 80 % less (same line in MvM_Ranged)
+		damage /= 5;
+	}
 
 	if( has(defender.affixes, MAF_ARMORED) ){ //33% melee damage reduce from monster affix
 		damage -= damage / 3;
@@ -5461,9 +7861,17 @@ void __fastcall DamageMonsterByMonster(int monsterIndex, int casterIndex, int da
 			delta_monster_hp(monsterIndex, monster.CurrentLife, (DUNGEON)Dungeon);
 			SendCmdDamageMonster(0, monsterIndex, damage);
 			PlayMonsterSound(monsterIndex, MST_1_GOTHIT);
+			// (th4) THIS is the monster-vs-monster stun threshold, and it is the ONLY one a
+			// merc or any summon can ever be subject to -- they fight monsters, and the
+			// player never attacks his own minion. It shares NO code with the player-vs-
+			// monster system (DamageMonsterByPlayer -> RollMonsterStunThreshold, 2x..6x AC
+			// plus a 6-43%-of-HP trigger); reading that one for a minion gives numbers an
+			// order of magnitude too high. The spellbook merc panel (SpellPanel.cpp) mirrors
+			// the formula below -- keep the two in step.
+			int merc_ST = MaxCountOfPlayersInGame == 1 ? PerkValue(PERK_INDOMITABLE_SPIRIT, CurrentPlayerIndex) : 0;
 			if( /*is ( monsterSprite->baseMonsterIndex, BM_29_HIDDEN, BM_30_SHADOW, BM_31_UNSEEN, BM_32_NIGHTMARE) // hidden, always stunned
 				// MvM stun formula: (if) damage >= mAC / 2 + MLVL + Rnd [ DLVL/4 + 6*DIFF + 2 ]
-				||*/ (damage >> 6) >= monster.ArmorClass / 2 + monster.MonsterLevel + RNG(Dungeon->level / 4 + 6 * Difficulty + 2) ){ 
+				||*/ (damage >> 6) >= monster.ArmorClass / 2 + monster.MonsterLevel + RNG(Dungeon->level / 4 + 6 * Difficulty + 2) + merc_ST ){ 
 				if( casterIndex >= 0 ){ // not M1_TRAP
 					monster.Orientation = ((uchar) Monsters[ casterIndex ].Orientation - 4) & 7;
 				}
@@ -5507,16 +7915,41 @@ void __fastcall KillMonsterByMonster(int attackerIndex, int targetIndex)
 	 || target.CurAction == A_6_DEATH ){ //Duped drops fix for MP
 	    return;
     }
+	// (th4) lifetime kill count: credit kills made by the player's own summons and by
+	// traps. A wild monster killing another monster (attackerIndex >= SummonMonsters_Count)
+	// is infighting, not the player's doing, so it isn't counted. Targets under
+	// SummonMonsters_Count are the players' own summons dying -- also not a kill.
+	if( targetIndex >= SummonMonsters_Count ){
+		if( attackerIndex == M1_TRAP ){
+			CreditMonsterKill( CurrentPlayerIndex );
+		}else if( attackerIndex >= 0 && attackerIndex < SummonMonsters_Count ){
+			CreditMonsterKill( attackerIndex / SummonMonstersPerPlayer_Count );
+		}
+	}
+
 	delta_kill_monster(targetIndex, target.Row, target.Col, (DUNGEON)Dungeon);
 
 	NetSendCmdLocParam2(0, CMD_36_MONSTDEATH, target.Row, target.Col, targetIndex, target.dungeon);
+//	NetSendCmdLocParam2Direct(CMD_36_MONSTDEATH, target.Row, target.Col, targetIndex, target.dungeon);
 
-    if( attackerIndex != M1_TRAP && attackerIndex < SummonMonsters_Count && !target.IsSummonedByMonster){
-        target.Attackers |= 1 << (attackerIndex / SummonMonstersPerPlayer_Count );
+    // (th4) DC mission 10: the escort succubi are friendly UNIQUES, so they live ABOVE
+    // SummonMonsters_Count and the summon-only test below skipped them entirely -- every
+    // hero they killed paid the player no experience at all. Credit their kills the same
+    // way a summon's kill is credited. DC is single-player, so the owner is always
+    // CurrentPlayerIndex; IsPlayerSideMonster already checks GM_DARK_CAMPAIGN + MF_6_FRIENDLY
+    // + escort bossId, so no wild monster's infighting can slip through here.
+    const bool escortKill = attackerIndex >= SummonMonsters_Count
+                         && IsPlayerSideMonster( attackerIndex );
+    if( attackerIndex != M1_TRAP && (attackerIndex < SummonMonsters_Count || escortKill) && !target.IsSummonedByMonster){
+        const int ownerIndex = escortKill ? CurrentPlayerIndex : attackerIndex / SummonMonstersPerPlayer_Count;
+        target.Attackers |= 1 << ownerIndex;
         AddXpForMonsterKill( target.MonsterLevel, target.Xp, target.Attackers, targetIndex );
     }
     ++TotalSlain[target.SpritePtr->baseMonsterIndex];
     target.CurrentLife = 0;
+	if (target.LightIndex) {
+		LightOff(target.LightIndex);
+	}
 	if (!target.IsSummonedByMonster) {
 		int seed = target.RandomSeedForDrop;
 		// if( MaxCountOfPlayersInGame == 1) // MP smart drop
@@ -5672,6 +8105,7 @@ int __fastcall MonsterMeleeAttack(int monsterIndex) // special attack features f
 		case BM_225_DEMONOLOG_SUMMON_3:			melee( 9, hit, min, max); break;
 		case BM_254_TWILIGHT_CLAN:			melee(12, hit, 2*min, 2*max); break;
 		case BM_265_CROC or BM_266_CROC_BERS:
+		case BM_H_402_BERS_M_X:
 		case BM_260_ARMAGEDDON_WALKER:		melee(8, hit, 7 * min / 4, 7 * max / 4); break;
 		case BM_261_SKELETAL_KNIGHT:		melee(9, hit, 7 * min / 4, 7 * max / 4); break;// hits on frame 9, standard accuracy, doubled min and max damage
 		case BM_267_BONE_BLADE:				melee(6, hit + 10, 5 * min / 4, 5 * max / 4); break;
@@ -5682,6 +8116,16 @@ int __fastcall MonsterMeleeAttack(int monsterIndex) // special attack features f
 		case BM_283_FROST_WARDEN:			melee(10, hit - 5, min, max + 2); break;
 		case BM_294_BELHIFET_UNO:			melee(9, hit, 2*min, 2*max); break;
 		case BM_295_BELHIFET_DOS:			melee(8, hit, min, max); break;
+		case BM_H_417_WAR_H_SS_WARRIOR_ELITE:
+		case BM_H_414_WAR_H_MS:
+		case BM_H_408_WAR_M_SS:
+		case BM_H_404_WAR_M_MS:				melee(9, hit, 4 * min / 3, 4 * max / 3); break;
+		case BM_H_407_MONK_M_X:				melee(14, hit, 2 * min, 2 * max); break;		
+		case BM_H_416_MON_H_MS:
+		case BM_H_410_MONK_H_SS:			melee(10, hit, 4 * min / 3, 4 * max / 3); break;
+		case BM_H_422_WAR_H_ROYAL_GUARD:
+		case BM_H_421_WAR_H_X_EXEC_ELITE:
+		case BM_H_412_WAR_H_X_EXEC:			melee( 8, hit, 2 * min, 2 * max); break;	// (th4) Executioner: frame 8, double damage
 		}
 	}
 	if( monster.ai == AI_24_Viper && monster.CurFrame == 1 ){ PlayMonsterSound( monsterIndex, MST_0_ATTACK ); }
@@ -5795,6 +8239,7 @@ void MvP_Melee_Max_Block_Chance(int playerIndex, int& maxBlockChance) {
 	case PFC_ASSASSIN:		maxBlockChance = 25; break;
 	case PFC_IRON_MAIDEN:	maxBlockChance = 75; break;
 	case PFC_BOMBARDIER:	maxBlockChance = 30; break;
+	case PFC_GLADIATRIX:	maxBlockChance = 45; break;
 
 	case PFC_SAVAGE:		
 	case PFC_BERSERKER:		maxBlockChance = 20; break;
@@ -5802,7 +8247,7 @@ void MvP_Melee_Max_Block_Chance(int playerIndex, int& maxBlockChance) {
 	case PFC_THRAEX:		maxBlockChance = 50; break;
 	case PFC_MURMILLO:		maxBlockChance = 60; break;
 	case PFC_DIMACHAERUS:	maxBlockChance = 0 + PerkValue(PERK_GEMINI, playerIndex); break;
-	case PFC_SECUTOR:		maxBlockChance = 70; break;
+	case PFC_SECUTOR:		maxBlockChance = HasTrait(playerIndex, TraitId::Scissor) ? 0 : 70; break;
 	case PFC_DRUID:			maxBlockChance = 40; break;
 	}
 }
@@ -5822,7 +8267,7 @@ void MvP_Melee_Autohit_chance(int playerIndex, int& autoHit, int& automiss) {
 		autoHit = 18 + big_frame_trait_penalty;
 	}
 	else if (player.fullClassId == PFC_KENSEI
-		//|| player.fullClassId == PFC_GUARDIAN
+		|| player.fullClassId == PFC_GLADIATRIX
 		|| player.fullClassId == PFC_DIMACHAERUS) {
 		autoHit = 19;
 	}
@@ -5852,7 +8297,9 @@ void MvP_Melee_Autohit_chance(int playerIndex, int& autoHit, int& automiss) {
 		autoHit += (1 + player.CharLevel / 15);
 	}
 	autoHit -= PerkValue(PERK_ACROBATICS, playerIndex);	
-
+	if (HasTrait(playerIndex, TraitId::Scissor)) {
+		autoHit -= 2; // 18% effectively
+	}
 	if (HasTrait(playerIndex, TraitId::Pistoleer)) {
 		autoHit += 2; // 22% effectively
 	}
@@ -5871,6 +8318,10 @@ void MvP_Melee_Autohit_chance(int playerIndex, int& autoHit, int& automiss) {
 	else if (HasTrait(playerIndex, TraitId::Crupellarius)) {
 		autoHit -= 1;
 	}
+	else if (HasTrait(playerIndex, TraitId::Thief)) {
+		autoHit += 8;
+	}
+
 	int small_frame_trait_benefit = HasTrait(playerIndex, TraitId::SmallFrame) ? 5 : 0;
 	autoHit -= PerkValue(PERK_SHIELD_PARRY, playerIndex);
 	autoHit -= PerkValue(SYNERGY_IMPROVED_EVASION, playerIndex);
@@ -5903,11 +8354,14 @@ void MvP_Melee_Block_Chance(int monsterIndex, int playerIndex, int& playerBlockC
 
 	int a_rose_with_thorns_trait_penalty = HasTrait(playerIndex, TraitId::ARoseWithThorns) ? (player.CharLevel / 3) : 0;
 	int two_towers_trait_benefit_1 = HasTrait(playerIndex, TraitId::TwoTowers) ? (player.CharLevel / 6) : 0;
-	playerBlockChance = player.BlockBonus + player.blockChance
+	playerBlockChance = player.blockChance	// (th4) class block bonus retired
 		+ ((player.BaseDexterity + player.BaseStrength - monster.ArmorClass) / 2)
 		- a_rose_with_thorns_trait_penalty
 		+ two_towers_trait_benefit_1
 		- PerkValue(SYNERGY_AGGRESSION, playerIndex, 0);
+	if (HasTrait(playerIndex, TraitId::Scissor)) { 
+		playerBlockChance = 0;
+	}
 	LimitToMin(playerBlockChance, 0);
 }
 //int AutoHitShow = 0;
@@ -5940,7 +8394,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 		return;
 	}
 	if ((player.activeBuffFlag & BF_1_ETHEREAL)) { // 0043E16B
-		//return; // Ethereal в th1 не дает бессмертия против физических аттак (мили и стрел)
+		//(rt) return; // Ethereal in th1 gives no immortality against physical attacks (melee and arrows)
 	}
 	int rowDelta = abs(monster.Row - player.Row);
 	int colDelta = abs(monster.Col - player.Col);
@@ -5998,7 +8452,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 
 	// 0043E2C5
 	if (RNG(100) >= realToHitChance) {
-		return;// не попали и ладно
+		return;// (rt) missed
 	}
 
 	if (HasTrait(playerIndex, TraitId::LitheBuild)) {
@@ -6034,8 +8488,8 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 	
 	if( blockRandFactor >= playerBlockChance ){
 		// 0043E3B4
-		// по игроку попали и он не смог блокировать
-		// отнятие макс жизни желтым зомби убрал нафиг
+		// (rt) the player was hit and couldn't block
+		// (rt) removed the yellow zombie's max life drain altogether
 
 		int baseMonsterIndex = monster.SpritePtr->baseMonsterIndex;
 		// 0070B600
@@ -6067,7 +8521,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 		if (HasTrait(playerIndex, TraitId::BloodAndSand)) {
 			LimitToMin(realDamageToPlayer, damage / 4);
 		}
-		else if (GameMode == GM_CLASSIC) {
+		else if (GameMode == GM_CLASSIC || ( player.gameChanger & BIT (GC_29_ENCLAVE_SOLDIER ))) {
 			LimitToMin(realDamageToPlayer, 64);
 		}
 		else {
@@ -6082,7 +8536,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 		//if( MaxCountOfPlayersInGame != 1 ){
 			/*if( Difficulty == 0 && player.CharLevel >= 37 
 				|| Difficulty == 1 && player.CharLevel >= 50 ){
-					realDamageToPlayer <<= 5;// дикая прибавка
+					(rt) realDamageToPlayer <<= 5;// large bonus
 			}
 		}*/
 		if (is(GameMode, GM_EASY)) {
@@ -6107,17 +8561,6 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 				PlayLocalSound(S_972_CRIT_SOUND_01, player.Row, player.Col);
 			}
 		}
-		// executioning mode:
-		if (
-			(HasTrait(playerIndex, TraitId::Psion) && player.fullClassId != PFC_MAGE)
-			|| (HasTrait(playerIndex, TraitId::Cleric) && player.fullClassId != PFC_MAGE)
-			|| (HasTrait(playerIndex, TraitId::Hydramancer) && player.fullClassId != PFC_WARLOCK)
-			|| (HasTrait(playerIndex, TraitId::LordOfTheRings) && player.fullClassId != PFC_MONK)
-			) {
-			if (RNG(100) < 10) {
-				realDamageToPlayer *= 20;
-			}
-		}
 
 		// "Thick-Skinned" trait extra defense (-80% dmg) from "Critical Defense" perk:
 		if (RNG(100) < PerkValue(PERK_CRITICAL_DEFENSE, playerIndex)) {
@@ -6133,7 +8576,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 		}
 
 		if (player.fullClassId == PFC_BERSERKER) { 
-			damage = damage * (100 - PerkValue(SYNERGY_INVINCIBLE, playerIndex)) / 100; 
+			realDamageToPlayer = realDamageToPlayer * (100 - PerkValue(SYNERGY_INVINCIBLE, playerIndex)) / 100;
 		} 
 
 		// "Emerge Unscathed" perk nullifies melee damage from monsters if the roll is successful:
@@ -6155,7 +8598,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 			LimitToMin(realDamageToPlayer, 0);
 		}
 
-		// 0043E4F9 рефлект
+		// (rt) 0043E4F9 reflect
 		if( playerIndex == CurrentPlayerIndex ){
 			// 0043E51A
 //			int reflectPercent = CalcReflectPercent(playerIndex);
@@ -6202,8 +8645,8 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 			player.BaseLife -= realDamageToPlayer;
 		}
 		// 0043E596
-		MonsterLifeSteal(realDamageToPlayer, monsterIndex, playerIndex); // в 1.145 перемещено 0070B550 и переделано
-		// неясна эта фигня. Игрока ведь ударили, как у него могут быть текущие жизни больше максимальных?
+		MonsterLifeSteal(realDamageToPlayer, monsterIndex, playerIndex); // (rt) in 1.145 moved to 0070B550 and reworked
+		// (rt) this thing is unclear. The player was hit, so how can his current life be above max?
 		// 0043E5FF
 		if( player.CurLife > player.MaxCurLife ){ // here was the bug with the curLife checking in case of Players[0].CurLife negative value
 			player.CurLife = player.MaxCurLife;
@@ -6220,7 +8663,7 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 				int newPlayerRow = player.Row + RowDelta[monster.Orientation];
 				int newPlayerCol = player.Col + ColDelta[monster.Orientation];
 				if( CellFreeForPlayer(playerIndex, newPlayerRow, newPlayerCol) ){
-					// 00712960 фикс выкидывания из радиуса света
+					// (rt) 00712960 fix for being thrown out of the light radius
 					ChangeLightPos(player.LightIndex, newPlayerRow, newPlayerCol);
 					ChangeVision(player.lightRadiusIdentificator, newPlayerRow, newPlayerCol);
 					player.Row = newPlayerRow;
@@ -6269,11 +8712,11 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 		player.CountOfReflectCharges--;
 		int damage = (minDamage << 6) + RNG((maxDamage - minDamage + 1) << 6);
 		int realDamageToPlayer = ((player.DamageFromEnemy + player.spiciesDfe[monster.BasePtr->MonsterClass]) << 6) + damage;
-		// 0070D7EF режим палача
+		// (rt) 0070D7EF executioner mode
 		/*if( MaxCountOfPlayersInGame != 1 ){ // executioner mode, turned off now. don't erase!
 			if( Difficulty == 0 && player.CharLevel >= 32 
 				|| Difficulty == 1 && player.CharLevel >= 46 ){
-					realDamageToPlayer <<= 5;// дикая прибавка
+					(rt) realDamageToPlayer <<= 5;// large bonus
 			}
 		}*/
 		LimitToMin(realDamageToPlayer, damage/2);// 1.145
@@ -6296,7 +8739,84 @@ void __fastcall MvP_Melee(int monsterIndex, int playerIndex, int toHit, int minD
 	}
 }
 
+//----- (th4) --------------------------------------------------------
+// Display-only estimate of a monster's melee chance to hit a player, as a 0-100 percent.
+// Mirrors the deterministic part of MvP_Melee (AC, level diff, difficulty), then converts
+// the engine's two-stage roll ( realToHitChance += RNG(range); hit iff RNG(100) < that )
+// into an expected hit percentage. Blocking is intentionally NOT accounted for (raw to-hit).
+// Not used for gameplay - only for the ALT cursor readout. Returns -1 if not applicable.
+int __fastcall CalcMvP_MeleeHitChance( int monsterIndex, int playerIndex )
+{
+	if( (uint)monsterIndex >= Monsters_Max_Count || (uint)playerIndex >= PlayersMax_4 ){ return -1; }
+	Player&  player  = Players[playerIndex];
+	Monster& monster = Monsters[monsterIndex];
+	if( !monster.SpritePtr || !monster.BasePtr ){ return -1; }
+
+	int toHit = monster.ToHit; // primary attack to-hit (matches the common MvP_Melee call sites)
+
+	int playerACsumm = player.ACFromItems + player.ACFromClass;
+	if( !HasTrait(playerIndex, TraitId::Pyromaniac) ){
+		int basic_AC_divider = HasTrait(playerIndex, TraitId::SmallFrame) ? 3 : 5;
+		playerACsumm += player.CurDexterity / basic_AC_divider;
+	}
+	if( player.effectFlag[EA_AC_DEMON_MELEE]  && monster.BasePtr->MonsterClass == MON_1_DEMON  ){ playerACsumm += 20; }
+	if( player.effectFlag[EA_AC_UNDEAD_MELEE] && monster.BasePtr->MonsterClass == MON_0_UNDEAD ){ playerACsumm += 15; }
+	playerACsumm += (playerACsumm * player.spiciesAcPercent[monster.BasePtr->MonsterClass]) / 100;
+	playerACsumm += player.spiciesAc[monster.BasePtr->MonsterClass];
+
+	int lvlsDiffToHitbonus = 2 * (monster.MonsterLevel - player.CharLevel) + 20;
+	int realToHitChance = toHit + lvlsDiffToHitbonus - playerACsumm;
+	int range;
+	if( Difficulty == DL_0_HORROR || GameMode == GM_CLASSIC ){
+		range = 21;
+	}else{
+		realToHitChance -= Difficulty * 85 - 20;
+		range = Difficulty * 95 + 11;
+	}
+	if( range < 1 ){ range = 1; }
+
+	// autohit floor (min 20 baseline; MvP_Melee_Autohit_chance may raise it)
+	int autoHit = 20, automiss = 100;
+	MvP_Melee_Autohit_chance(playerIndex, autoHit, automiss);
+
+	// Expected value of clamp( realToHitChance + U, 0, 100 ) / 100, U ~ uniform[0, range-1],
+	// with the post-add value floored to autoHit. Integrated exactly over the discrete range.
+	int hits = 0;
+	for( int u = 0; u < range; ++u ){
+		int v = realToHitChance + u;
+		if( v < autoHit ) v = autoHit;   // LimitToMin(realToHitChance, autoHit)
+		if( v > 100 ) v = 100;           // RNG(100) < v can never exceed 100
+		if( v < 0 )   v = 0;
+		hits += v;                       // P(RNG(100) < v) == v/100 for v in [0,100]
+	}
+	int percent = hits / range;          // == average of clamped v == expected percent
+	// (th4) LITHE BUILD: the real melee attack (this file ~8165) rolls a SECOND time after the
+	// hit roll passes, and RNG(100) > 91 turns 8 of 100 hits into misses. Mirror it here or
+	// the tooltip overstates the monster's chance for Lithe Build characters. The ranged
+	// replica (Draw.cpp CalcMvP_RangedHitChance_Display) applies the same factor; the real
+	// ranged roll is Missile.cpp MvP_Ranged ~2640. Keep all four in step.
+	if( HasTrait(playerIndex, TraitId::LitheBuild) ) percent = percent * 92 / 100;
+	LimitToRange( percent, 0, 100 );
+	return percent;
+}
+
 //----- (0043E705) --------------------------------------------------------
+// (th4) DC mission 7: BM_H_405 is a hybrid whose DEFAULT ai (AI_16_Thunder_Demon) does melee +
+// lightning and keeps its normal attack sounds. Gwideon's pack instead runs it under AI_25 (Mage),
+// and that fireblast wants a different attack sound. The per-sprite sound slots are shared by every
+// instance of the base, so this cannot be picked at load time -- it is decided per live monster, by
+// the monster's actual ai. Plays the Mage attack sound positionally, loading it once into a cached
+// slot. Local to this file: MonsterRangedAttack (just below) is the only caller.
+static void PlayMageFireblastSound(int monsterIndex)
+{
+	static Sound mageAttackSound = {};
+	if( ! mageAttackSound.name[0] ){
+		strcpy(mageAttackSound.name, "DC\\Heroes\\Sorc_L_T\\MageFA1.wav");
+	}
+	Monster& monster = Monsters[monsterIndex];
+	LoadAndPlaySoundFile(mageAttackSound, 1, monster.Row, monster.Col);
+}
+
 int __fastcall MonsterRangedAttack(uint monsterIndex)
 {
 	Monster& monster = Monsters[monsterIndex];
@@ -6311,7 +8831,13 @@ int __fastcall MonsterRangedAttack(uint monsterIndex)
 				missileIndex = CastMissile( monster.Row, monster.Col, monster.TargetRow, monster.TargetCol, monster.Orientation, monster.PrevActionOrRowDeltaOrSpellEffect, CT_1_MONSTER_AND_TRAP, monsterIndex, monster.TimerCounterOrColDeltaOrSpellDamage, 0, 0);
 			}
 		}
-		PlayMonsterSound(monsterIndex, MST_0_ATTACK);
+		// (th4) DC mission 7: a BM_H_405 running the Mage ai (Gwideon's pack) uses a dedicated
+		// fireblast sound; the same base under its default AI_16 keeps the normal attack sound.
+		if( monster.ai == AI_25_Advocate && monster.BasePtr && monster.BasePtr->id == BM_H_405_SOR_M_T_HYBRID ){
+			PlayMageFireblastSound(monsterIndex);
+		}else{
+			PlayMonsterSound(monsterIndex, MST_0_ATTACK);
+		}
 	}
 	if( monster.CurFrame == monster.animFrameCount ){
 		FixMonsterPosition(monsterIndex, monster.Orientation);
@@ -6521,11 +9047,14 @@ int __fastcall MonsterTalk( int monsterIndex )
 		}
 		if( monster.speechIndex == 83 && ! (monster.flag & MF_7_DROP) ){
 			int uniqIndex = 0;
-			if (HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) {
+			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				break;
+			}
+			else if (HasTrait(CurrentPlayerIndex, TraitId::Mamluk)) {
 				uniqIndex = by(Difficulty, 184, 185, 186, 2389, 2390, 2391, 2392, 2393, 2394); // str line
 			}
 			else {
-				switch (Players[CurrentPlayerIndex].ClassID) { // Veil of Steel rewards
+				switch (Players[CurrentPlayerIndex].ClassID) { // Veil of Steel rewards, Lachdanan rewards
 				case PC_1_ARCHER or PC_3_MONK or PC_4_ROGUE:
 					uniqIndex = by(Difficulty, 441, 442, 443, 2395, 2396, 2397, 2398, 2399, 2400); break; // dex line
 				case PC_2_MAGE:
@@ -6579,7 +9108,7 @@ void __fastcall MonsterJumpAroundTarget(uint monsterIndex)
 			targetCol = monster->TargetCol;
 			r_minus_1_plus_1 = 2 * RNG(2) - 1;
 			deltaRow = -1;
-			//row = col_1; // что это блин
+			//(rt) row = col_1; // purpose unclear
 			c_minus_1_plus_1 = 2 * RNG(2) - 1;
 			while( !found ){
 				deltaCol = -1;
@@ -6646,7 +9175,7 @@ void __fastcall MonsterJumpAroundTarget(uint monsterIndex)
 		MonsterMap[ row ][ col ] = monsterIndex + 1;
 		monster.PrevRow = row;
 		monster.PrevCol = col;
-		//monster.Row = row; // откуда это взялось? в th1 нету этих строчек
+		//(rt) monster.Row = row; // where did this come from? th1 doesn't have these lines
 		//monster.Col = col; // 
 		monster.Orientation = MonsterOrientationToTarget(monsterIndex);
 		CheckMonsterUnderArch(monsterIndex);
@@ -6678,7 +9207,7 @@ void __fastcall MayBe_KillPackBoss(uint monsterIndex)
 			}
 		}
 		if( boss.isBossPack == 1 ){
-			--Monsters[boss.hisBossIndex].BossPackCount; // пока нигде не используется, для чего планировалось не ясно
+			--Monsters[boss.hisBossIndex].BossPackCount; // (rt) not used anywhere yet, unclear what it was planned for
 		}
 	}
 }
@@ -6714,7 +9243,7 @@ int DoEnding()
 	IsMusicEnabled = 1;
 	v5 = GetOrSetMusicVolume(1);
 	GetOrSetMusicVolume(0);
-	PlayMusic("Music\\RazB.wav");
+	PlayMusic("Music\\RazB.ogg");
 	LoopMovie = 1;
 	PlayVideo("gendata\\loopdend.smk", 1); 
 	LoopMovie = 0;
@@ -6761,6 +9290,11 @@ int __fastcall MonsterHitToDeath(uint monsterIndex)
 				UberDiabloKilled = true;
 				AdvanceSpeedrunTimer();
 			}
+			// (th4) DARK CAMPAIGN has its own difficulty-advancing boss. Checked by unique id,
+			// not base monster, so it is independent of whatever base sprite he ends up using.
+			if( GameMode == GM_DARK_CAMPAIGN && monster.newBossId - 1 == UM_905_DC_Griswold ){
+				UpdateAllowedDifficulty();
+			}
 			if( (MaxCountOfPlayersInGame == 1 && monster.SpritePtr->baseMonsterIndex == BM_137_UBER_DIABLO && Difficulty == DL_0_HORROR
 			 && !is( GameModeType(), GAME_MODE_TYPE::NIGHTMARE, GAME_MODE_TYPE::IRON ))
 				|| monster.SpritePtr->baseMonsterIndex == BM_C_389_DIABLO){
@@ -6768,7 +9302,7 @@ int __fastcall MonsterHitToDeath(uint monsterIndex)
 				PlayerRowPos += rowDelta >= 0 ? rowDelta > 0 : -1;
 				int colDelta = monster.Col - PlayerColPos;
 				PlayerColPos += colDelta >= 0 ? colDelta > 0 : -1;
-				if( monster.PrevActionOrRowDeltaOrSpellEffect == 140 ){ // таймер анимации смерти дьябло ?
+				if( monster.PrevActionOrRowDeltaOrSpellEffect == 140 ){ // (rt) Diablo death animation timer?
 					PrepDoEnding();
 				}
 			}else if( monster.CurFrame == monster.animFrameCount ){
@@ -6815,6 +9349,20 @@ int __fastcall MonsterHitToDeath(uint monsterIndex)
 }
 
 //----- (0043F168) --------------------------------------------------------
+// (th4) DC mission 8: Archimandrite Bozu and his kin are Shugoki (BM_H_407_MONK_M_X). When they
+// run AI_8 (Fallen One) their warcry/rage secondary effect uses a dedicated sound instead of the
+// normal special-attack sound. Same pattern as PlayMageFireblastSound: cached, positional, and
+// local to this file (MonsterRangedHit just below is the only caller).
+static void PlayShugokiRageSound(int monsterIndex)
+{
+	static Sound shugokiRageSound = {};
+	if( ! shugokiRageSound.name[0] ){
+		strcpy(shugokiRageSound.name, "sfx\\monk\\monk70.wav");
+	}
+	Monster& monster = Monsters[monsterIndex];
+	LoadAndPlaySoundFile(shugokiRageSound, 1, monster.Row, monster.Col);
+}
+
 int __fastcall MonsterRangedHit(uint monsterIndex)
 {
 	int v1;     // ebx@1
@@ -6826,8 +9374,16 @@ int __fastcall MonsterRangedHit(uint monsterIndex)
 	v2 = sizeof(Monster) * monsterIndex;
 	if( !Monsters[monsterIndex].SpritePtr )
 		goto LABEL_10;
-	if( Monsters[monsterIndex].CurFrame == Monsters[monsterIndex].BasePtr->SecondAtackToHitFrame )
-		PlayMonsterSound(monsterIndex, MST_3_SATTACK);
+	if( Monsters[monsterIndex].CurFrame == Monsters[monsterIndex].BasePtr->SecondAtackToHitFrame ){
+		// (th4) DC mission 8: a Shugoki (BM_H_407) running AI_8 uses a dedicated rage sound for its
+		// warcry secondary effect; every other second-attack user keeps the normal special sound.
+		Monster& m = Monsters[monsterIndex];
+		if( m.ai == AI_8_Fallen_One && m.BasePtr && m.BasePtr->id == BM_H_407_MONK_M_X ){
+			PlayShugokiRageSound(monsterIndex);
+		}else{
+			PlayMonsterSound(monsterIndex, MST_3_SATTACK);
+		}
+	}
 	if( *(int*)((char*)&Monsters[0].CurFrame + v2) == *(int*)((char*)&Monsters[0].animFrameCount + v2) ){
 		FixMonsterPosition(v1, *(int*)((char*)&Monsters[0].Orientation + v2));
 		result = 1;
@@ -7111,7 +9667,7 @@ void __fastcall BossPackActivation(uint monsterIndex)
 		return;
 	}
 	int bossNumber = monster.newBossId;
-	if( ! bossNumber ){ // (9) расширение номера босса 0043F877
+	if( ! bossNumber ){ // (rt) (9) boss number extension 0043F877
 		return;
 	}
 	#ifdef OLD_CODE
@@ -7250,10 +9806,10 @@ int __fastcall MakeMonsterPath(uint monsterIndex)
 	}else{
 		stepFunc = CheckCellForMeleeMonsterSafeMove;
 	}
-	// генерация пути для монстра
-	// тут бывали отрицательные координаты у монстра
+	// (rt) path generation for a monster
+	// (rt) monsters sometimes had negative coordinates here
 	if( FindPath(stepFunc, monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol, steps) ){
-			MonsterWalksTowardsTarget(monsterIndex, StepOrientation[steps[0]]);// То есть составляется полный путь до цели а используется только первый шаг и так каждый раз?                                        // была неправильная адресация
+			MonsterWalksTowardsTarget(monsterIndex, StepOrientation[steps[0]]);// (rt) So the full path to the target is built but only the first step is used, every time?                                        // there was wrong addressing
 			result = 1;
 	}
 	return result;
@@ -7309,7 +9865,7 @@ LABEL_11:
 }
 
 //----- (0043FB44) --------------------------------------------------------
-bool __fastcall MoveToDirectionIfMay( int monsterIndex, int orientation )
+bool __fastcall Move_in_the_Direction_If_allowed( int monsterIndex, int orientation )
 {
 	Wrap(orientation, 8);
 	if( MayMoveMonsterToDirection(monsterIndex, orientation) ){
@@ -7411,7 +9967,7 @@ void __fastcall Ai_0_Zombie(uint monsterIndex) // Zombie AI
 				if( RNG(100) < 2 * mon.intel + 4 ){
 					dir = RNG(8);
 				}
-				MoveToDirectionIfMay( monsterIndex, dir );
+				Move_in_the_Direction_If_allowed( monsterIndex, dir );
 			}else{ // walk towards player
 				MonsterWalksTowardsTarget( monsterIndex, MonsterOrientationToTarget(monsterIndex) );
 			}
@@ -7433,9 +9989,28 @@ void __fastcall Ai_0_Zombie(uint monsterIndex) // Zombie AI
 }
 
 //----- (0043FD73) --------------------------------------------------------
+// by (th4): true if this monster's current target is a dead player (corpse). Monsters
+// keep the last acquired TargetIndex between MonsterLookAround passes; if that player
+// dies mid-pursuit the AI would otherwise keep swinging at the corpse (MvP_Melee already
+// blocks the damage, but the attack animation still plays). Used to suppress starting a
+// melee/ranged attack on a dead player. Monster-vs-monster targets (MF_5_TARGET_MONSTER)
+// are unaffected.
+static bool IsMonsterTargetingDeadPlayer( const Monster& monster )
+{
+	if( monster.flag & MF_5_TARGET_MONSTER ){
+		return false; // target is a monster, not a player
+	}
+	int targetIndex = monster.TargetIndex;
+	if( (uint)targetIndex >= PlayersMax_4 ){
+		return false; // not a valid player slot
+	}
+	return (Players[targetIndex].CurLife & (-64)) <= 0; // integer HP <= 0 => dead
+}
+
 void __fastcall StartMonsterMeleeAttack(int monsterIndex, int dir /*= -1*/)
 {
 	Monster& monster = Monsters[monsterIndex];
+	if( IsMonsterTargetingDeadPlayer(monster) ){ return; } // by (th4): don't swing at a corpse
 	if( dir == -1 ) dir = MonsterOrientationToTarget(monsterIndex);
 	SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[ANIM_2_ATTACK], dir);
 	monster.CurAction = A_4_MELEE;
@@ -7484,6 +10059,10 @@ void __fastcall Ai_2_Skeleton_Melee(uint monsterIndex)
 					else {
 						int delayChance = 35 - (Difficulty * 3) - (2 * monster->intel);
 						if (GameMode == GM_HARD) { delayChance -= 30; }
+						// (th4) The DC Butcher walks like the merc -- he is the player's follower
+						// there too. Walk only: the melee roll below is left alone.
+						if (monster->SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC
+						 || (GameMode == GM_DARK_CAMPAIGN && monster->newBossId - 1 == UM_9_The_Butcher)) { delayChance -= 15; }
 						else if (is(GameMode, GM_IRONMAN, GM_EASY/*, GM_CLASSIC*/)) { delayChance += 5; }
 						LimitToMin(delayChance, 0);
 						if (RNG(100) >= delayChance) {
@@ -7511,6 +10090,7 @@ void __fastcall Ai_2_Skeleton_Melee(uint monsterIndex)
 				else{ /////////////////----------------------------------------------- melee range:-------------------------------------------------
 					int attack_chance = 2 * monster->intel + 10 + Difficulty * 25;
 					if (GameMode == GM_HARD) { attack_chance += 70; }
+					if(monster->SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC) { attack_chance += 30; }
 					if( monster->PrevActionOrRowDeltaOrSpellEffect == A_13_DELAY || RNG(100) < attack_chance ){
 						StartMonsterMeleeAttack( mon_Index );
 						goto LABEL_17;
@@ -7553,11 +10133,11 @@ int __fastcall MonsterChangeTarget( int monsterIndex )
 		if( baseMonsterIndex == BM_109_GOLEM
 		 || monster.ActivationCounter
 		 && !monster.CurAction && (	monsterGoal == MG_1_ATTACK || monsterGoal == MG_4_WALK || monsterGoal == MG_5_ATTACK2) 
-		 && (monster.Row != 1 || monster.Col) ){ // условие на неактивного голема
+		 && (monster.Row != 1 || monster.Col) ){ // (rt) condition for an inactive golem
 			if( ! CheckLineWithThreeArgumentsCheckFunction( CheckCellForSomeMonsterSafeMove,
 					monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)
 			 || InInterval( LOBYTE_IDA(monster.pathCount), 4, 8 ) ){
-				if( monster.flag & MF_10_OPEN_DOORS ){// Голем ?
+				if( monster.flag & MF_10_OPEN_DOORS ){// (rt) Golem?
 					MonstersInteractWithDoors(monsterIndex);
 					if (monster.CurAction == A_4_MELEE)
 					return 0;
@@ -7565,7 +10145,7 @@ int __fastcall MonsterChangeTarget( int monsterIndex )
 				if( ++LOBYTE_IDA(monster.pathCount) < 5 ){
 					return 0;
 				}
-				if( MakeMonsterPath(monsterIndex) ){// Здесь была обработка монстра с нулевыми координатами, чего быть не должно (монстр 95, при кол-ве 94)
+				if( MakeMonsterPath(monsterIndex) ){// (rt) Here a monster with zero coordinates was processed, which shouldn't happen (monster 95, with a count of 94)
 					return 1;
 				}
 			}
@@ -7657,16 +10237,16 @@ void __fastcall Ai_24_Viper(uint monsterIndex)
 
 	int deltaOrient = newOrientation - monster.curOrientation;
 	Wrap(deltaOrient, 8);
-	// Проверка отличия нового направления от текущего
-	if( deltaOrient == 4 ){// Если противоположно сразу меняем направление на новое
+	// (rt) Check whether the new direction differs from the current one
+	if( deltaOrient == 4 ){// (rt) If opposite, change the direction to the new one at once
 		monster.curOrientation = newOrientation;
-	}else if( InInterval(deltaOrient, 4, 8) ){// Ближе поворот в сторону увеличения ориентации
+	}else if( InInterval(deltaOrient, 4, 8) ){// (rt) Turning toward increasing orientation is shorter
 		monster.curOrientation--;
-	}else if( InInterval(deltaOrient, 0, 4) ){// Ближе поворот в сторону уменьшения ориентации
+	}else if( InInterval(deltaOrient, 0, 4) ){// (rt) Turning toward decreasing orientation is shorter
 		monster.curOrientation++;
-	}// Примечание. При 0 оставляем текущее направление неизменным
+	}// (rt) Note. At 0 the current direction is kept unchanged
 	Wrap(monster.curOrientation, 8);
-	if( !MoveToDirectionIfMay(monsterIndex, monster.curOrientation) ){
+	if( !Move_in_the_Direction_If_allowed(monsterIndex, monster.curOrientation) ){
 		MoveInOrientOrAbove(monsterIndex, monster.Orientation);
 	}
 	if( !monster.CurAction ){
@@ -7691,9 +10271,9 @@ void __fastcall Ai_11_Bat(uint monsterIndex)
 	
 	int randFactor = RNG(100);
 	
-	if( monster.goal == MG_2_RETREAT ){// Если отступаем
-		// отступления у этого типа атаки только на одну клетку
-		if( monster.goalParam ){// Когда значение ненулевое идём в направлении игрока. 
+	if( monster.goal == MG_2_RETREAT ){// (rt) If retreating
+		// (rt) this attack type retreats by only one cell
+		if( monster.goalParam ){// (rt) When the value is non-zero, move toward the player. 
 			int newOrientation;
 			if( RNG(2) ){
 				newOrientation = OrientMinusOne[orientationToTarget];
@@ -7701,8 +10281,8 @@ void __fastcall Ai_11_Bat(uint monsterIndex)
 				newOrientation = OrientPlusOne[orientationToTarget];
 			}
 			MonsterWalksTowardsTarget(monsterIndex, newOrientation);
-			monster.goal = MG_1_ATTACK;// Наступление
-		}else{// отступление. Идём в направлении от игрока
+			monster.goal = MG_1_ATTACK;// (rt) Advance
+		}else{// (rt) retreat. Move away from the player
 			MonsterWalksTowardsTarget(monsterIndex, OrientInverted[orientationToTarget]);
 			monster.goalParam++;
 		}
@@ -7730,12 +10310,12 @@ void __fastcall Ai_11_Bat(uint monsterIndex)
 		}
 	}else if( !Distance_To_Target_Is_Less_Than(monsterIndex, 2) ){
 		bool isAfterWalk = monster.PrevAction == A_1_WALK_UP || monster.PrevAction == A_2_WALK_DOWN || monster.PrevAction == A_3_WALK_HORIZ;
-		if( monster.TimerCounter > by(Difficulty,24, 18, 16, 14, 12, 11, 10, 9, 8) && walkWithDelayAllowed // После 20 фрэймовой задержки есть некоторый шанс на движение
-			|| isAfterWalk && !monster.TimerCounter && walkWithoutDelayAllowed ){// После движения шанс на последующее движение увеличен
+		if( monster.TimerCounter > by(Difficulty,24, 18, 16, 14, 12, 11, 10, 9, 8) && walkWithDelayAllowed // (rt) After a 20-frame delay there is some chance of moving
+			|| isAfterWalk && !monster.TimerCounter && walkWithoutDelayAllowed ){// (rt) After moving, the chance of moving again is increased
 				MonsterWalksTowardsTarget(monsterIndex, orientationToTarget);
 		}
-	}else if( meleeAttackAllowed ){// Если подошли в упор и разрешена атака
-		StartMonsterMeleeAttack(monsterIndex);// удар с отступлением
+	}else if( meleeAttackAllowed ){// (rt) If we came up close and attacking is allowed
+		StartMonsterMeleeAttack(monsterIndex);// (rt) hit and retreat
 		monster.goalParam = 0;
 		monster.goal = MG_2_RETREAT;
 		if( is(monsterSprite.baseMonsterIndex, BM_41_DARK_SERAPH, BM_C_384_FAMILIAR )){
@@ -7750,71 +10330,73 @@ void __fastcall Ai_11_Bat(uint monsterIndex)
 }
 
 //----- (004404F7) --------------------------------------------------------
-void __fastcall Ai_3_ArcherRarelyRetreats(uint monsterIndex)
+void __fastcall Ai_3_Skeleton_Archer(uint monsterIndex)
 {
-	if( monsterIndex >= Monsters_Max_Count ){
+	if (monsterIndex >= Monsters_Max_Count) {
 		return;
 	}
 	Monster& monster = Monsters[monsterIndex];
 	MonsterSprite& monsterSprite = MonsterSprites[monster.SpriteIndex];
-	if( monster.CurAction || !monster.ActivationCounter ){
+	if (monster.CurAction) {
 		return;
 	}
-	int orientationToTarget = MonsterOrientationToTarget(monsterIndex);
-	monster.Orientation = orientationToTarget;
-	int randFactor = RNG(100);
-	
-	bool walkWithDelayAllow = randFactor < by( Difficulty,	2 * monster.intel + (GameMode == GM_HARD ? 88 :  2),  // 94
-															4 * monster.intel + (GameMode == GM_HARD ? 83 : 10),  // 95
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-															8 * monster.intel + (GameMode == GM_HARD ? 72 : 25)); // 96
-	
-	bool walkWithoutDelayAllow = randFactor < by(Difficulty,8 * monster.intel + (GameMode == GM_HARD ? 73 : 11),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 40),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 57),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 59),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 61),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 63),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 65),  // 97
-															8 * monster.intel + (GameMode == GM_HARD ? 74 : 67),  // 98
-															8 * monster.intel + (GameMode == GM_HARD ? 75 : 69)); // 99
-	bool moveAllow = false;
+	if (monster.ActivationCounter) { // gate AI actions on activation, but still fall through to refresh idle anim (fixes invisible-until-move)
+		int orientationToTarget = MonsterOrientationToTarget(monsterIndex);
+		monster.Orientation = orientationToTarget;
+		int randFactor = RNG(100);
 
-	int keep_distance = Difficulty + 3 + (GameMode == GM_HARD ? 1 : 0);
-	LimitToMax(keep_distance, 6);
-	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN) && (is(monster.SpritePtr->baseMonsterIndex, BM_20_RISEN_SKELETON, BM_21_SKELETON_WARRIOR, BM_22_BURNING_DEAD, BM_23_MALICE))) {
-		keep_distance = 1; // skeletal archers don't run away from Night Kin
-	}
-	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_8_FULL_CONTACT)) {
-		keep_distance = 1;
-	}
-	if( Distance_To_Target_Is_Less_Than(monsterIndex, keep_distance) ){
-		bool isAfterWalk = monster.PrevAction == A_1_WALK_UP || monster.PrevAction == A_2_WALK_DOWN || monster.PrevAction == A_3_WALK_HORIZ;
-		if( monster.TimerCounter > 1 /*20*/ && walkWithDelayAllow || isAfterWalk && !monster.TimerCounter && walkWithoutDelayAllow ){
-			moveAllow = MoveToDirectionIfMay(monsterIndex, OrientInverted[orientationToTarget]);
+		bool walkWithDelayAllow = randFactor < by(Difficulty, 2 * monster.intel + (GameMode == GM_HARD ? 88 : 2),  // 94
+			4 * monster.intel + (GameMode == GM_HARD ? 83 : 10),  // 95
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+			8 * monster.intel + (GameMode == GM_HARD ? 72 : 25)); // 96
+
+		bool walkWithoutDelayAllow = randFactor < by(Difficulty, 8 * monster.intel + (GameMode == GM_HARD ? 73 : 11),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 40),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 57),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 59),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 61),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 63),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 65),  // 97
+			8 * monster.intel + (GameMode == GM_HARD ? 74 : 67),  // 98
+			8 * monster.intel + (GameMode == GM_HARD ? 75 : 69)); // 99
+		bool moveAllow = false;
+
+		int keep_distance = Difficulty + 3 + (GameMode == GM_HARD ? 1 : 0);
+		LimitToMax(keep_distance, 6);
+		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN) && (is(monster.SpritePtr->baseMonsterIndex, BM_20_RISEN_SKELETON, BM_21_SKELETON_WARRIOR, BM_22_BURNING_DEAD, BM_23_MALICE))) {
+			keep_distance = 1; // skeletal archers don't run away from Night Kin
 		}
-	}
-	if( !moveAllow ){
-		if( RNG(100) < by( Difficulty, 2 * monster.intel + (GameMode == GM_HARD ? 40 : 2),
-											2 * monster.intel + (GameMode == GM_HARD ? 60 : 17),
-			2 * monster.intel + (GameMode == GM_HARD ? 63 : 19),
-				2 * monster.intel + (GameMode == GM_HARD ? 66 : 21),
-			2 * monster.intel + (GameMode == GM_HARD ? 69 : 23),
-					2 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
-				2 * monster.intel + (GameMode == GM_HARD ? 75 : 27),
-					2 * monster.intel + (GameMode == GM_HARD ? 78 : 29),
-											2 * monster.intel + (GameMode == GM_HARD ? 80 : 32)) ){
-			if( CheckCastInSight(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol) ){
-				StartMonsterRangedAttack(monsterIndex, MI_0_NONE_ARROW, 4);
+		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_8_FULL_CONTACT)) {
+			keep_distance = 1;
+		}
+		if (Distance_To_Target_Is_Less_Than(monsterIndex, keep_distance)) {
+			bool isAfterWalk = monster.PrevAction == A_1_WALK_UP || monster.PrevAction == A_2_WALK_DOWN || monster.PrevAction == A_3_WALK_HORIZ;
+			if (monster.TimerCounter > 1 /*20*/ && walkWithDelayAllow || isAfterWalk && !monster.TimerCounter && walkWithoutDelayAllow) {
+				moveAllow = Move_in_the_Direction_If_allowed(monsterIndex, OrientInverted[orientationToTarget]);
 			}
 		}
-	}
-	if( !monster.CurAction ){
+		if (!moveAllow) {
+			if (RNG(100) < by(Difficulty, 2 * monster.intel + (GameMode == GM_HARD ? 40 : 2),
+				2 * monster.intel + (GameMode == GM_HARD ? 60 : 17),
+				2 * monster.intel + (GameMode == GM_HARD ? 63 : 19),
+				2 * monster.intel + (GameMode == GM_HARD ? 66 : 21),
+				2 * monster.intel + (GameMode == GM_HARD ? 69 : 23),
+				2 * monster.intel + (GameMode == GM_HARD ? 72 : 25),
+				2 * monster.intel + (GameMode == GM_HARD ? 75 : 27),
+				2 * monster.intel + (GameMode == GM_HARD ? 78 : 29),
+				2 * monster.intel + (GameMode == GM_HARD ? 80 : 32))) {
+				if (CheckCastInSight(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)) {
+					StartMonsterRangedAttack(monsterIndex, MI_0_NONE_ARROW, 4);
+				}
+			}
+		}
+	} // end ActivationCounter gate
+	if (!monster.CurAction) {
 		monster.curAnimation = &monsterSprite.animation[ANIM_0_STAY].oriented[monster.Orientation];
 	}
 }
@@ -7823,8 +10405,13 @@ void __fastcall Ai_3_ArcherRarelyRetreats(uint monsterIndex)
 int __fastcall StartMonsterRangedAttack(int monsterIndex, int spellEffect, int damage)
 {
 	Monster& monster = Monsters[monsterIndex];
+	if( IsMonsterTargetingDeadPlayer(monster) ){ return 0; } // by (th4): don't fire at a corpse
 	int orientation = MonsterOrientationToTarget(monsterIndex);
-	SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[ANIM_2_ATTACK], orientation);
+	// (th4) DC mission 7: Priest Gwideon and his kin (BM_H_405_SOR_M_T_HYBRID) cast their
+	// fireblast on the second-attack animation (ANIM_5_SECOND, 12 frames) rather than the
+	// primary attack pose. Every other ranged caster keeps ANIM_2_ATTACK.
+	int rangedAnim = (monster.BasePtr && monster.BasePtr->id == BM_H_405_SOR_M_T_HYBRID) ? ANIM_5_SECOND : ANIM_2_ATTACK;
+	SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[rangedAnim], orientation);
 	monster.CurAction = A_10_RANGED;
 	monster.PrevActionOrRowDeltaOrSpellEffect = spellEffect;
 	monster.TimerCounterOrColDeltaOrSpellDamage = damage;
@@ -7840,7 +10427,7 @@ int __fastcall StartMonsterRangedAttack(int monsterIndex, int spellEffect, int d
 }
 
 //----- (004406C4) --------------------------------------------------------
-void __fastcall Ai_1_MeleeRandomSecondAttackSwing(uint monsterIndex)
+void __fastcall Ai_1_Overlord(uint monsterIndex)
 {
 	Monster *monster; // esi@2
 	int distToTargetRow; // edi@4
@@ -7962,6 +10549,7 @@ void __fastcall Ai_1_MeleeRandomSecondAttackSwing(uint monsterIndex)
 void __fastcall StartMonsterSecondMeleeAttack(int monsterIndex)
 {
 	Monster& monster = Monsters[monsterIndex];
+	if( IsMonsterTargetingDeadPlayer(monster) ){ return; } // by (th4): don't attack a corpse
 	int orient = MonsterOrientationToTarget(monsterIndex);
 	SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[ANIM_5_SECOND], orient);
 	monster.CurAction = A_7_SECOND;
@@ -8013,7 +10601,13 @@ void __fastcall Ai_15_Hidden(uint monsterIndex)
 		return;
 	}
 	monsterCol = monster->Col;
-	if( LightMap[ monster->Row ][ monsterCol ] == LightMax ){
+	// (th4) The Hidden AI normally SHUTS OFF in full darkness (LightMax == full dark: it lurks
+	// dormant in unlit corners). But a Hidden that has woken to hunt the THIEF must keep acting
+	// in the dark -- the dark is where it hunts her. So skip this self-disable for an activated
+	// Hidden while the Thief trait is in play; every other case keeps the vanilla lurk.
+	bool thiefHunter = MaxCountOfPlayersInGame == 1 && monster->ActivationCounter
+	                && HasTrait(CurrentPlayerIndex, TraitId::Thief);
+	if( LightMap[ monster->Row ][ monsterCol ] == LightMax && !thiefHunter ){
 		return;
 	}
 	tarRowDist = monster->Row - monster->TargetRow;
@@ -8302,116 +10896,125 @@ void __fastcall Ai_17_Incinerator(uint monsterIndex)
 //----- (00440E5F) --------------------------------------------------------
 void __fastcall Ai_8_Fallen(uint monsterIndex)
 {
-	uint monsterIndex_1; // edi@1
-	uint monsterIndex_3; // esi@2
-	int unknown2; // ecx@3
-	int unknown2_1; // ecx@9
-	int orient; // eax@10
-	int ac; // ecx@14
-	int minLife; // edx@47
-	int radius; // ebx@15
-	int colOfs; // edi@15
-	int rowOfs; // edx@17
-	int monNum; // eax@23
-	int monIndex; // eax@24
-	char state; // al@28
-	int orient_1; // edx@29
-	int monsterIndex_4; // ecx@29
-	int colDif; // edi@31
-	int orient_2; // eax@34
-	int curAc; // [sp-4h] [bp-14h]@43
-	int monsterIndex_2; // [sp+Ch] [bp-4h]@1
+	// (th4) Cleaned up from the decompiler output. Behaviour is unchanged; this is
+	// purely de-obfuscation:
+	//   - monsterIndex_1/_2/_3/_4 were ALL just `monsterIndex` -- collapsed.
+	//   - `goal == 5` was MG_5_ATTACK2 spelled as a magic number.
+	//   - the two gotos are gone: LABEL_47 only skipped an assignment (`ac = curAc`),
+	//     and LABEL_15 only skipped the warcry+heal block. Both became plain structure.
+	//   - declarations moved to first use (they were a C89-style block of IDA temps).
+	if( monsterIndex >= Monsters_Max_Count ){
+		return;
+	}
+	Monster& monster = Monsters[ monsterIndex ];
 
-	monsterIndex_1 = monsterIndex;
-	monsterIndex_2 = monsterIndex;
-	if( monsterIndex < Monsters_Max_Count ){
-		monsterIndex_3 = monsterIndex;
-		if( Monsters[ monsterIndex ].goal == 5 ){
-			unknown2 = Monsters[ monsterIndex_3 ].goalParam;
-			if( unknown2 ){
-				Monsters[ monsterIndex_3 ].goalParam = unknown2 - 1;
-			}else{
-				Monsters[ monsterIndex_3 ].goal = MG_1_ATTACK;
+	// Post-warcry rush cooldown. Note this one floors at 0...
+	if( monster.goal == MG_5_ATTACK2 ){
+		if( monster.goalParam ){
+			--monster.goalParam;
+		}else{
+			monster.goal = MG_1_ATTACK;
+		}
+	}
+
+	if( monster.CurAction || !monster.ActivationCounter ){
+		return;
+	}
+
+	// ...whereas the retreat timer decrements UNCONDITIONALLY and can reach -1, and it
+	// tests the value from BEFORE the decrement. Asymmetric with the block above, but
+	// that is the original behaviour -- do not "fix" it without checking in game.
+	if( monster.goal == MG_2_RETREAT ){
+		const int prevParam = monster.goalParam;
+		monster.goalParam = prevParam - 1;
+		if( !prevParam ){
+			monster.goal = MG_1_ATTACK;
+			FixMonsterPosition( monsterIndex, OrientInverted[ monster.Orientation ] );
+		}
+	}
+
+	if( monster.goal == MG_5_ATTACK2 || RNG(35) ){
+		if( monster.goal == MG_2_RETREAT ){
+			// keep running, facing the way we already are
+			MonsterWalksTowardsTarget( monsterIndex, monster.Orientation );
+			return;
+		}
+		if( monster.goal != MG_5_ATTACK2 ){
+			Ai_2_Skeleton_Melee( monsterIndex );
+			return;
+		}
+		// rushing the target: swing if adjacent, otherwise close the distance
+		if( abs( monster.Row - monster.TargetRow ) < 2 && abs( monster.Col - monster.TargetCol ) < 2 ){
+			StartMonsterMeleeAttack( monsterIndex );
+			return;
+		}
+		MonsterWalksTowardsTarget( monsterIndex, MonsterOrientationToTarget( monsterIndex ) );
+		return;
+	}
+
+	// Warcry: heal self, then rally every nearby fallen into the rush state.
+	if( !(monster.flag & MF_4_NOHEAL) ){
+		StartMonsterSecondAttack_4_orBlock( monsterIndex, monster.Orientation );
+
+		// On the lowest difficulty the heal is a flat per-level amount instead of the
+		// monster's armor class. Levels other than 2/3/4 keep ArmorClass (this is what
+		// the `goto LABEL_47` expressed: skip the override).
+		int ac = monster.ArmorClass;
+		if( (unsigned __int8) Difficulty < 1u ){
+			if( Dungeon->level == 2 ){
+				ac = 9;
+			}else if( Dungeon->level == 3 ){
+				ac = 12;
+			}else if( Dungeon->level == 4 ){
+				ac = 15;
 			}
 		}
-		if( !Monsters[ monsterIndex_3 ].CurAction && Monsters[ monsterIndex_3 ].ActivationCounter ){
-			if( Monsters[ monsterIndex_3 ].goal == MG_2_RETREAT ){
-				unknown2_1 = Monsters[ monsterIndex_3 ].goalParam;
-				Monsters[ monsterIndex_3 ].goalParam = unknown2_1 - 1;
-				if( !unknown2_1 ){
-					orient = Monsters[ monsterIndex_3 ].Orientation;
-					Monsters[ monsterIndex_3 ].goal = MG_1_ATTACK;
-					FixMonsterPosition( monsterIndex_1, OrientInverted[ orient ] );
-				}
+
+		int minLife = (ac << 6) + monster.CurrentLife;
+		if( monster.SpritePtr->baseMonsterIndex == BM_245_BLUNDERER ){
+			minLife += (ac * 3) << 6;  // Warden of Anger gets 3x life from warcries!
+		}
+		LimitToMax( minLife, monster.BaseLife + (monster.BaseLife >> 2) );
+		monster.CurrentLife = minLife;
+	}
+
+	const int radius = 2 * monster.intel + 4;
+	for( int colOfs = -radius; colOfs <= radius; ++colOfs ){
+		for( int rowOfs = -radius; rowOfs <= radius; ++rowOfs ){
+			// (th4) DO NOT DELETE THIS TEST -- it looks wrong and it is not a bounds check
+			// (the real one is below), but In112 casts to uint, so every NEGATIVE offset fails
+			// it: this scan has only ever covered the south-east quadrant.  Removing it makes
+			// the warcry rally roughly four times as many Fallen. That may well be the original
+			// intent, but it is a balance change and must be a deliberate one.
+			if( !In112( colOfs, rowOfs ) ){
+				continue;
 			}
-			if( Monsters[ monsterIndex_3 ].goal == MG_5_ATTACK2 || RNG(35) ){
-				state = Monsters[ monsterIndex_3 ].goal;
-				if( state == MG_2_RETREAT ){
-					orient_1 = Monsters[ monsterIndex_3 ].Orientation;
-					monsterIndex_4 = monsterIndex_1;
-				}else{
-					if( state != MG_5_ATTACK2 ){
-						Ai_2_Skeleton_Melee( monsterIndex_1 );
-						return;
-					}
-					colDif = Monsters[ monsterIndex_3 ].Col - Monsters[ monsterIndex_3 ].TargetCol;
-					if( abs( Monsters[ monsterIndex_3 ].Row - Monsters[ monsterIndex_3 ].TargetRow ) < 2 && abs( colDif ) < 2 ){
-						StartMonsterMeleeAttack( monsterIndex_2 );
-						return;
-					}
-					orient_2 = MonsterOrientationToTarget( monsterIndex_2 );
-					monsterIndex_4 = monsterIndex_2;
-					orient_1 = orient_2;
-				}
-				MonsterWalksTowardsTarget( monsterIndex_4, orient_1 );
-				return;
+			// (th4) The actual bounds check, on the real coordinates. The old code had none:
+			// it tested the offsets above and then indexed with monster.Row/Col PLUS them,
+			// through a flat MonsterMap[0][col + 112*row], which hid two defects.
+			//   1. Off the end. A warcrier near the south or east edge read past
+			//      MonsterMap[112][112], took whatever array follows as a monster number and
+			//      dereferenced Monsters[thatGarbage - 1]. From the crash dump: a Fallen One
+			//      with intel 7 (radius 18) at row 94 -> index 12584 of 12544, value
+			//      0x0D0D0D5D, faulting read at 0x451BDBD0.
+			//   2. Column wrap. With monster.Col + colOfs >= 112 the flat index stayed inside
+			//      the array but addressed the NEXT row -- a silently wrong tile, no crash.
+			// Indexing two-dimensionally below keeps the guard and the access naming the same
+			// two values, so neither can come back.
+			const int scanRow = monster.Row + rowOfs;
+			const int scanCol = monster.Col + colOfs;
+			if( !In112( scanRow, scanCol ) ){
+				continue;
 			}
-			if( Monsters[ monsterIndex_3 ].flag & MF_4_NOHEAL ){
-				goto LABEL_15;
+			const int monNum = MonsterMap[ scanRow ][ scanCol ];
+			if( monNum <= 0 ){
+				continue;
 			}
-			StartMonsterSecondAttack_4_orBlock( monsterIndex_1, Monsters[ monsterIndex_3 ].Orientation );
-			ac = Monsters[ monsterIndex_3 ].ArmorClass;
-			if( (unsigned __int8) Difficulty < 1u ){
-				if( Dungeon->level == 2 ){
-					curAc = 9;
-				}else if( Dungeon->level == 3 ){
-					curAc = 12;
-				}else{
-					if( Dungeon->level != 4 ){
-						goto LABEL_47;
-					}
-					curAc = 15;
-				}
-				ac = curAc;
+			Monster& other = Monsters[ monNum - 1 ];
+			if( other.ai == AI_8_Fallen_One ){
+				other.goal = MG_5_ATTACK2;
+				other.goalParam = 30 * monster.intel + 64;
 			}
-		LABEL_47:
-			MonsterSprite monstersprite = *Monsters[monsterIndex_3].SpritePtr;
-			int baseMonsterIndex = monstersprite.baseMonsterIndex; 
-			minLife = (ac << 6) + Monsters[ monsterIndex_3 ].CurrentLife;
-			if (baseMonsterIndex == BM_245_BLUNDERER) {  // Warden of Anger gets 3x life from warcries!
-				minLife += (ac * 3) << 6;
-			}
-			LimitToMax(minLife, Monsters[monsterIndex_3].BaseLife + (Monsters[monsterIndex_3].BaseLife >> 2));
-//			if( minLife < Monsters[ monsterIndex_3 ].BaseLife + (Monsters[ monsterIndex_3 ].BaseLife >> 2) ){
-				Monsters[ monsterIndex_3 ].CurrentLife = minLife;
-	//		}
-		LABEL_15:
-			radius = 2 * Monsters[ monsterIndex_3 ].intel + 4;
-			for( colOfs = -radius; colOfs <= radius; ++colOfs ){
-				for( rowOfs = -radius; rowOfs <= radius; ++rowOfs ){
-					if( In112(colOfs, rowOfs) ){
-						monNum = MonsterMap[ 0 ][ Monsters[ monsterIndex_3 ].Col + colOfs + 112 * (Monsters[ monsterIndex_3 ].Row + rowOfs) ];
-						if( monNum > 0 ){
-							monIndex = monNum - 1;
-							if( Monsters[ monIndex ].ai == AI_8_Fallen_One ){
-								Monsters[ monIndex ].goal = MG_5_ATTACK2;
-								Monsters[ monIndex ].goalParam = 30 * Monsters[ monsterIndex_3 ].intel + 64;
-							}
-						}
-					}
-				}
-			}
-			return;
 		}
 	}
 }
@@ -8579,6 +11182,36 @@ void __fastcall Ai_6_Goat_Melee(uint monsterIndex)
 	AttackTypeMelee(monsterIndex, 1);
 }
 
+// True for monsters whose PRIMARY attack is ranged (pure "ranger/shooter" AIs that
+// kite via RangerRetreatsOften, plus skeleton/goat archers, succubus, acid ranger).
+// Melee+ranged hybrids and exploders are intentionally excluded.
+bool IsShooterAi(int ai)
+{
+	switch (ai) {
+	case AI_3_Skel_Archer:
+	case AI_7_Goat_Archer:
+	case AI_14_Witch:               // succubus
+	case AI_20_Acid_Beast_Ranger:
+	case AI_32_Ranger_Firebolt:
+	case AI_33_Ranger_Lite_Arrow:
+	case AI_35_Lich:
+	case AI_36_Arch_Lich:
+	case AI_37_Ranger_Fire_Arrow:
+	case AI_38_Beholder:
+	case AI_41_Ranger_snowbolt:
+	case AI_43_Ranger_Acid_Arrow:
+	case AI_44_Ranger_Cold_Arrow:
+	case AI_45_Ranger_Arcane_Arrow:
+	case AI_46_Ranger_Blue_Star:
+	case AI_49_Ranger_Fireblast:
+	case AI_55_Wyrm:
+		return true;
+	default:
+		return false;
+	}
+}
+
+
 //----- (00441416) --------------------------------------------------------
 void __fastcall RangerRetreatsOften(int monsterIndex, int missileIndex, int isSecondAttack)
 {
@@ -8661,6 +11294,10 @@ void __fastcall RangerRetreatsOften(int monsterIndex, int missileIndex, int isSe
 			BM_14_SOUL_HUNTER, BM_98_IMMORTAL, BM_114_FROZEN_HORROR, BM_119_DARK_GHOST, BM_129_LICH, BM_170_LICH, BM_220_SNOW_LICH))) {
 			retreat_chances = 0; // undead shooters don't run from Night Kin
 		}
+		// Warlord's mercs face less kiting from monsters..
+		if (MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::Warlord)) {
+			retreat_chances -= (20 + Difficulty * 3);
+		}
 		// old code for action after shooting >>>>>>>>>
 		/*if( monster.PrevAction == A_10_RANGED ){
 			MonsterSetAct_13(monsterIndex, RNG(attack_delays));
@@ -8742,7 +11379,7 @@ void __fastcall Ai_56_Rammer(uint monsterIndex)
 	int deltaCol = abs(monster.Col - monster.TargetCol);
 
 	int orientationToTarget = OrientationToTarget(monster.Row, monster.Col, monster.LastTargetPositionRow, monster.LastTargetPositionCol);
-	if (monster.ActivationCounter < 255) {// TODO : всегда выполняется
+	if (monster.ActivationCounter < 255) {// (rt) TODO : always true
 		MonstersInteractWithDoors(monsterIndex);
 	}
 	int randFactor = RNG(100);
@@ -8773,7 +11410,7 @@ void __fastcall Ai_56_Rammer(uint monsterIndex)
 	}
 	if (monster.goal == MG_1_ATTACK) {
 		if (!Distance_To_Target_Is_Less_Than(monsterIndex, 4) && is_charge_allowed // charge range minimum = 4
-			&& CheckLineWithThreeArgumentsCheckFunction(CheckCellForMeleeMonsterSafeMove, monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)) { // атака с разбегу
+			&& CheckLineWithThreeArgumentsCheckFunction(CheckCellForMeleeMonsterSafeMove, monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)) { // (rt) charge attack
 			if (CastMissile(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol, orientationToTarget, MI_20_RUN_ATTACK, monster.TargetIndex, monsterIndex, 0, 0, 0) != -1) {
 				if (monster.BasePtr->HasSpecialSounds) {
 					PlayMonsterSound(monsterIndex, MST_3_SATTACK);
@@ -8828,6 +11465,7 @@ void __fastcall Ai_56_Rammer(uint monsterIndex)
 int __fastcall StartMonsterSecondRangedAttack(int monsterIndex, int spellEffect, int damage)
 {
 	Monster& monster = Monsters[monsterIndex];
+	if( IsMonsterTargetingDeadPlayer(monster) ){ return 0; } // by (th4): don't cast at a corpse
 	int orient = MonsterOrientationToTarget(monsterIndex);
 	SetMonsterAnimation(monsterIndex, &monster.SpritePtr->animation[ANIM_5_SECOND], orient);
 	monster.CurAction = A_12_SPELL_ATTACK;
@@ -8858,7 +11496,7 @@ void __fastcall Ai_41_RangerRetreatsOften_ColdSnakes(uint monsterIndex)
 }
 
 //----- (0044163E) --------------------------------------------------------
-void __fastcall Ai_14_RangerRetreatsOften_ArcaneStar(uint monsterIndex)
+void __fastcall Ai_14_Succubus(uint monsterIndex)
 {
 	Monster& monster = Monsters[monsterIndex]; 
 	MonsterSprite& monsterSprite = MonsterSprites[monster.SpriteIndex]; 
@@ -8916,7 +11554,11 @@ void __fastcall Ai_37_RangerRetreatsOften_FireArrow(uint monsterIndex)
 
 void __fastcall Ai_43_RangerRetreatsOften_Acid_Arrow(uint monsterIndex)
 {
-	RangerRetreatsOften(monsterIndex, MI_109_ACID_ARROW, 0);
+	int missile = MI_109_ACID_ARROW;
+	if (Dungeon == DUN_116_MINING_CAVES) {
+		missile = MI_56_LIGHTING_ARROW;
+	}
+	RangerRetreatsOften(monsterIndex, missile, 0);
 }
 
 void __fastcall Ai_44_RangerRetreatsOften_Cold_Arrow(uint monsterIndex)
@@ -8958,7 +11600,7 @@ void __fastcall Ai_38_RangerRetreatsOften_RedBlast(uint monsterIndex)
 }
 
 //----- (00441675) --------------------------------------------------------
-void __fastcall Ai_20_RangerRetreatsOften_AcidMissile(uint monsterIndex)
+void __fastcall Ai_20_Acid_Beast_Ranger(uint monsterIndex)
 {
 	RangerRetreatsOften(monsterIndex, MI_57_ACID_MISSILE, 1);
 }
@@ -8969,6 +11611,9 @@ void __fastcall Ai_32_RangerRetreatsOften_Firebolt(uint monsterIndex)
 	int mis_type = MI_1_FIREBOLT;
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest) {
 		mis_type = MI_129_SNOW_BOLT;
+	}
+	if (Dungeon == DUN_116_MINING_CAVES) {
+		mis_type = MI_52_CHARGED_BOLT;
 	}
 	RangerRetreatsOften( monsterIndex, mis_type, 0 );	
 }
@@ -9007,25 +11652,25 @@ void __fastcall Ai_4_Scavenger(uint monsterIndex)
 		monster.goal = MG_3_EAT; // dig corpse
 		monster.mayRetreateTick = 10; // what is that?
 	}
-	// ищем труп (finding corpse)
+	// (rt) looking for a corpse (finding corpse)
 	if( !monster.mayRetreateTick ){
 		Ai_2_Skeleton_Melee(monsterIndex);
 		return;
 	}
 	monster.mayRetreateTick--;
 	if( DeathMonstersMap[ monster.Row ][ monster.Col ] ){
-		// уже стоим на трупе
+		// (rt) already standing on a corpse
 		StartMonsterSecondAttack_1_2(monsterIndex);
 		if( !(monster.flag & MF_4_NOHEAL) ){
-			int healedPoints = 1;// = monster.BaseLife >> 4; // /16, раньше было /8
+			int healedPoints = 1;// (rt) = monster.BaseLife >> 4; // /16, used to be /8
 			if (GameMode == GM_IRONMAN || GameMode == GM_NIGHTMARE || GameMode == GM_SPEEDRUN) {
-				healedPoints = monster.BaseLife / 50;
-			}
-			else if (is(GameMode, GM_EASY/*, GM_CLASSIC*/)) {
 				healedPoints = monster.BaseLife / 60;
 			}
+			else if (is(GameMode, GM_EASY/*, GM_CLASSIC*/)) {
+				healedPoints = monster.BaseLife / 70;
+			}
 			else{
-				healedPoints = monster.BaseLife / 40;// Hard, Normal, Survival
+				healedPoints = monster.BaseLife / 50;// Hard, Normal, Survival
 			}
 			LimitToMin(healedPoints, 1);
 			monster.CurrentLife += healedPoints;
@@ -9043,7 +11688,7 @@ void __fastcall Ai_4_Scavenger(uint monsterIndex)
 		}
 	}else{
 		if( !monster.goalParam ){
-			// ищем труп
+			// (rt) looking for a corpse
 			int isCorpseFound = 0;
 			int rowOffset, colOffset;
 			int dir = RNG(2) * 2 - 1; // -1 / 1 (up or down direction)
@@ -9058,14 +11703,14 @@ void __fastcall Ai_4_Scavenger(uint monsterIndex)
 					}
 				}
 			}
-			rowOffset -= dir;// компенсация лишней прибавки перел выходом из цикла
+			rowOffset -= dir;// (rt) compensate for the extra increment before leaving the loop
 			colOffset -= dir;
 			if( isCorpseFound ){
 				monster.goalParam = rowOffset + monster.Row + 1;
 				monster.curOrientation = colOffset + monster.Col + 1;
 			}
 		}
-		// идем к трупу
+		// (rt) walk to the corpse
 		if( monster.goalParam ){
 			int orientation = OrientationToTarget(monster.Row, monster.Col, monster.goalParam - 1, monster.curOrientation - 1);
 			monster.Orientation = orientation;
@@ -9126,6 +11771,7 @@ void __fastcall Ai_12_Gargoyle(uint monsterIndex)
 		case GM_HARD:		garg_retreat_chance = 20; break;
 		case GM_IRONMAN:
 		case GM_SPEEDRUN:
+		case GM_OUTBREAK:
 		case GM_HARDCORE:	garg_retreat_chance =  60; break;
 		case GM_SURVIVAL:	garg_retreat_chance =  50; break;
 		case GM_NIGHTMARE:	garg_retreat_chance =  40; break;
@@ -9224,7 +11870,7 @@ void __fastcall Universal_RangeSecondAttack(uint monsterIndex, int spellEffect, 
 }
 
 //----- (00441E82) --------------------------------------------------------
-void __fastcall Ai_9_Universal_RangeSecondAttack_MagmaBall(uint monsterIndex)
+void __fastcall Ai_9_Magma(uint monsterIndex)
 {
 	int missileIndex; // [sp-10h] [bp-10h]@6
 	int damage; // [sp-8h] [bp-8h]@5
@@ -9242,30 +11888,45 @@ void __fastcall Ai_9_Universal_RangeSecondAttack_MagmaBall(uint monsterIndex)
 			missileIndex = MI_6_FIREBLAST;
 		}
 	}
+	if (Dungeon == DUN_116_MINING_CAVES) {
+		switch (RNG(4)) {
+			case 0:	missileIndex = MI_22_MONSTER_LIGHTNING; break;
+			case 1:	missileIndex = MI_6_FIREBLAST; break;
+			case 2:	missileIndex = MI_129_SNOW_BOLT; break;
+			case 3:	missileIndex = MI_24_ARCANE_STAR; break;
+		}
+	}
 	Universal_RangeSecondAttack(monsterIndex, missileIndex, 1, damage, 0);
 }
 
 //----- (th3) -------------------------------------------------------------
-void __fastcall Ai_50_Universal_RangeSecondAttack_Fireblast(uint monsterIndex)
+void __fastcall Ai_50_Hybrid_Fireblast(uint monsterIndex)
 {
 	int damage = 13 + Dungeon->level * 3 + Difficulty * 85; // this doesnt seem to work, needs check!	
 	Universal_RangeSecondAttack(monsterIndex, MI_6_FIREBLAST, 1, damage, 0);
 }
 
 //----- (00441E91) --------------------------------------------------------
-void __fastcall Ai_16_Universal_RangeSecondAttack_Lightning(uint monsterIndex)
+void __fastcall Ai_16_Lightning_Demon(uint monsterIndex)
 {
-	Universal_RangeSecondAttack(monsterIndex, MI_22_MONSTER_LIGHTNING, 1, 4, 0);
+	Monster& monster = Monsters[monsterIndex];
+	MonsterSprite& monsterSprite = MonsterSprites[monster.SpriteIndex]; 
+	if (GameMode == GM_DARK_CAMPAIGN && monster.SpritePtr->baseMonsterIndex == BM_H_405_SOR_M_T_HYBRID && monster.CurrentLife < 9 * monster.BaseLife / 10) {
+		RangerRetreatsOften(monsterIndex, MI_22_MONSTER_LIGHTNING, 1);
+	}
+	else {
+		Universal_RangeSecondAttack(monsterIndex, MI_22_MONSTER_LIGHTNING, 1, 4, 0);
+	}
 }
 
 //----- (00441EA0) --------------------------------------------------------
-void __fastcall Ai_39_Universal_RangeSecondAttack_Physical_Blue_Blast(uint monsterIndex)
+void __fastcall Ai_39_Hybrid_Physical_Blue_Blast(uint monsterIndex)
 {
 	Universal_RangeSecondAttack(monsterIndex, MI_102_BLUE_BLAST_2, 1, 4, 0);
 }
 
 //----- (new) --------------------------------------------------------
-void __fastcall Ai_40_Universal_RangeSecondAttack_ColdBlast(uint monsterIndex)
+void __fastcall Ai_40_Hybrid_ColdBlast(uint monsterIndex)
 {	
 	int missile = MI_127_HABIBI;
 	if (Dungeon == DUN_52_MOSSY_GROTTO) {
@@ -9275,13 +11936,13 @@ void __fastcall Ai_40_Universal_RangeSecondAttack_ColdBlast(uint monsterIndex)
 }
 
 //----- (new) --------------------------------------------------------
-void __fastcall Ai_52_Universal_RangeSecondAttack_SnowBolt(uint monsterIndex)
+void __fastcall Ai_52_Hybrid_SnowBolt(uint monsterIndex)
 {
 	Universal_RangeSecondAttack(monsterIndex, MI_129_SNOW_BOLT, 1, 4, 0);
 }
 
 //----- (Doom_Imp) --------------------------------------------------------
-void __fastcall Ai_42_Universal_RangeSecondAttack_Firebolt(uint monsterIndex)
+void __fastcall Ai_42_Hybrid_Firebolt(uint monsterIndex)
 {
 	int mis_type = MI_1_FIREBOLT;
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest) {
@@ -9291,7 +11952,7 @@ void __fastcall Ai_42_Universal_RangeSecondAttack_Firebolt(uint monsterIndex)
 }
 
 //----- (Lord_Obese) --------------------------------------------------------
-void __fastcall Ai_47_Universal_RangeSecondAttack_Bluestar(uint monsterIndex)
+void __fastcall Ai_47_Hybrid_Bluestar(uint monsterIndex)
 {
 	int missile(MI_100_RED_BLAST);
 	if (Dungeon == DUN_9_CAVE_1 && MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE)) {
@@ -9301,7 +11962,7 @@ void __fastcall Ai_47_Universal_RangeSecondAttack_Bluestar(uint monsterIndex)
 }
 
 //----- (Fearshredder) --------------------------------------------------------
-void __fastcall Ai_51_Universal_RangeSecondAttack_Arcanestar(uint monsterIndex)
+void __fastcall Ai_51_Hybrid_Arcanestar(uint monsterIndex)
 {
 	int missile(MI_24_ARCANE_STAR);
 	if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest) {
@@ -9310,7 +11971,7 @@ void __fastcall Ai_51_Universal_RangeSecondAttack_Arcanestar(uint monsterIndex)
 	Universal_RangeSecondAttack(monsterIndex, missile, 1, 4, 0);
 }
 
-void __fastcall Ai_58_Universal_RangeSecondAttack_Psychic(uint monsterIndex)
+void __fastcall Ai_58_Hybrid_Psychic(uint monsterIndex)
 {
 	int missile(MI_143_BULLET);
 	Universal_RangeSecondAttack(monsterIndex, missile, 1, 4, 0);
@@ -9324,8 +11985,8 @@ void __fastcall Ai_57_Hybrid_ArcaneStar(uint monsterIndex)
 	if (MaxCountOfPlayersInGame == 1 && Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest) {
 		missile = MI_131_ARCANE_STAR_BLUE;
 	}
-	if (not(GameMode, GM_EASY, GM_CLASSIC/*, GM_IRONMAN*/) && monster.CurrentLife < monster.BaseLife / 2) {
-		Ai_14_RangerRetreatsOften_ArcaneStar(monsterIndex);
+	if (not(GameMode, GM_EASY, GM_CLASSIC, GM_IRONMAN) && monster.CurrentLife < monster.BaseLife / 5) {
+		Ai_14_Succubus(monsterIndex);
 	}
 	else {
 		Universal_RangeSecondAttack(monsterIndex, missile, 1, 4, 0);
@@ -9333,20 +11994,20 @@ void __fastcall Ai_57_Hybrid_ArcaneStar(uint monsterIndex)
 }
 
 //----- (Vobul) --------------------------------------------------------
-void __fastcall Ai_48_Universal_RangeSecondAttack_Yellowstar(uint monsterIndex)
+void __fastcall Ai_48_Hybrid_Yellowstar(uint monsterIndex)
 {
 	Universal_RangeSecondAttack(monsterIndex, MI_101_YELOW_BLAST, 1, 4, 0);
 }
 
 //----- (00441EAF) --------------------------------------------------------
-void __fastcall Ai_19_Universal_RangeSecondAttack_AcidMissile(uint monsterIndex)
+void __fastcall Ai_19_Acid_Beast(uint monsterIndex)
 {
 	Monster& monster = Monsters[monsterIndex];
 	MonsterSprite& monsterSprite = MonsterSprites[monster.SpriteIndex];
 	if (monster.SpritePtr->baseMonsterIndex == BM_230_BEASTMASTER_SUMMON_2) {
 		goto REGULAR;
 	}
-	else if (not(GameMode, GM_EASY, GM_CLASSIC/*, GM_IRONMAN*/) && monster.CurrentLife < monster.BaseLife / 3) {
+	else if (not(GameMode, GM_EASY, GM_CLASSIC, GM_IRONMAN ) && monster.CurrentLife < monster.BaseLife / 5) {
 		RangerRetreatsOften(monsterIndex, MI_57_ACID_MISSILE, 1);
 	}
 	else {
@@ -9356,15 +12017,15 @@ void __fastcall Ai_19_Universal_RangeSecondAttack_AcidMissile(uint monsterIndex)
 }
 
 //----- (Scarab) --------------------------------------------------------
-void __fastcall Ai_54_Universal_RangeSecondAttack_Charged_Bolt(uint monsterIndex)
+void __fastcall Ai_54_Hybrid_Charged_Bolt(uint monsterIndex)
 {
 	Universal_RangeSecondAttack(monsterIndex, MI_52_CHARGED_BOLT, 1, 4, 0);
 }
 
 //----- (00441EBE) --------------------------------------------------------
-void __fastcall Ai_27_Universal_RangeSecondAttack_Apoc(uint monsterIndex)
+void __fastcall Ai_27_Diablo(uint monsterIndex)
 {
-	// вставить новый код
+	// (rt) insert new code
 	int damage; // [sp-8h] [bp-8h]@4
 	int interact = 0; // [sp-Ch] [bp-Ch]@5
 	int missileIndex = MI_67_MONSTER_APOC; // [sp-10h] [bp-10h]@5
@@ -9442,6 +12103,174 @@ void __fastcall Universal_OnlyRangeSecondAttack(uint monsterIndex, int spellEffe
 	if( mon.CurAction == A_0_STAY ){
 		int delay = RNG(10) + by(Difficulty, 20, 6, 0);
 		MonsterStartDelay( monsterIndex, delay );
+	}
+}
+
+//----- (th4) -------------------------------------------------------------
+// Invisible Stalker: permanently invisible except within VISIBLE_RANGE tiles of
+// its target. Circles and harasses (50/50 spit MI_57 / charge MI_20), both using
+// the PRIMARY attack animation. After a charge: HP>50% -> retreat & re-hide and
+// resume circling; HP<=50% -> melee-lock, delegating to AI#2 until HP climbs back
+// above 50%. Visibility is toggled INSTANTLY via MF_1_INVISIBLE (no fade anim).
+void __fastcall Ai_60_Invisible_Stalker(uint monsterIndex)
+{
+	// --- tunables ---------------------------------------------------------
+	const int VISIBLE_RANGE = 3; // visible when Chebyshev dist < 3, i.e. <=2 tiles
+	// ("one tile in-between, or less"). Lower to 2 for
+	// melee-only visibility. THIS is the number to tweak.
+	const int SPIT_DAMAGE = 4; // acid missile damage tier, as other spitters use
+	const int ATTACK_MIN_RANGE = 5; // charge AND spit only when target is >= this
+	// far away. Closer than this -> keep circling.
+// ----------------------------------------------------------------------
+
+	if (monsterIndex >= Monsters_Max_Count) {
+		return;
+	}
+	Monster& monster = Monsters[monsterIndex];
+	if (monster.CurAction || !monster.ActivationCounter) {
+		return;
+	}
+
+	bool hpAboveHalf = monster.CurrentLife * 2 > monster.BaseLife;
+
+	// --- instant visibility (no fade animation) ---------------------------
+	// Visible at/within VISIBLE_RANGE; invisible otherwise. Toggle the flag
+	// directly so there is no ANIM_5_SECOND appear/vanish animation.
+	bool inSight = Distance_To_Target_Is_Less_Than(monsterIndex, VISIBLE_RANGE);
+	if (inSight) {
+		if (monster.flag & MF_1_INVISIBLE) {
+			monster.flag &= ~MF_1_INVISIBLE;
+			if (monster.newBossId) { // restore boss light when it pops into view
+				ChangeLightPos(monster.LightIndex, monster.Row, monster.Col);
+			}
+		}
+	}
+	else {
+		if (!(monster.flag & MF_1_INVISIBLE)) {
+			monster.flag |= MF_1_INVISIBLE;
+			if (monster.newBossId) { // kill boss light while hidden
+				ChangeLightPos(monster.LightIndex, 0, 0);
+			}
+		}
+	}
+
+	int orientationToTarget = OrientationToTarget(monster.Row, monster.Col,
+		monster.LastTargetPositionRow, monster.LastTargetPositionCol);
+
+	if (monster.ActivationCounter < 255) {
+		MonstersInteractWithDoors(monsterIndex);
+	}
+
+	// --- HP-driven mode transitions ---------------------------------------
+	// Melee-lock engages the moment HP drops to/under half, from any state;
+	// it releases (back to circle/harass) once HP recovers above half.
+	if (!hpAboveHalf) {
+		monster.goal = MG_5_ATTACK2; // melee-lock
+	}
+	else if (monster.goal == MG_5_ATTACK2) {
+		monster.goal = MG_1_ATTACK;  // recovered: resume stalking
+		monster.goalParam = 0;
+	}
+
+	// --- MELEE-LOCK: hand off entirely to AI#2 ----------------------------
+	if (monster.goal == MG_5_ATTACK2) {
+		Ai_2_Skeleton_Melee(monsterIndex);
+		return;
+	}
+
+	// --- RETREAT: run away from target, then re-hide and resume circling --
+	if (monster.goal == MG_2_RETREAT) {
+		// far enough away (beyond visibility, plus margin) -> back to stalking
+		if (!Distance_To_Target_Is_Less_Than(monsterIndex, VISIBLE_RANGE + 3)
+			|| monster.goalParam > 8) {
+			monster.goalParam = 0;
+			monster.goal = MG_1_ATTACK;
+		}
+		else {
+			monster.Orientation = OrientInverted[orientationToTarget]; // away
+			++monster.goalParam;
+			MonsterWalksTowardsTarget(monsterIndex, monster.Orientation);
+			return;
+		}
+	}
+
+	// --- ATTACK / STALK: circle, then 50/50 spit-or-charge ----------------
+	// While healthy (HP > 50%) the stalker NEVER settles into melee. If circling
+	// brings it adjacent, it skips the rest of the circle and commits to an
+	// attack immediately rather than biting. Melee only ever happens in the
+	// HP<=50% lock above (handed to AI#2), which returns before reaching here.
+	bool adjacent = Distance_To_Target_Is_Less_Than(monsterIndex, 2);
+
+	// Only commit to an attack when the target is far enough (>= ATTACK_MIN_RANGE).
+	// If closer than that, keep circling/repositioning instead of firing point-blank.
+	bool farEnough = !Distance_To_Target_Is_Less_Than(monsterIndex, ATTACK_MIN_RANGE);
+
+	if (!farEnough || (!adjacent && monster.goalParam < 6)) {
+		// too close to attack, or still circling before commit
+		++monster.goalParam;
+		if (!MonsterCircleTarget(monsterIndex, orientationToTarget, monster.curOrientation)) {
+			MonsterStartDelay(monsterIndex, RNG(10) + 5);
+		}
+		return;
+	}
+	monster.goalParam = 0;
+
+	// commit: 50/50 charge vs spit. Both use the PRIMARY attack animation.
+	// (Target is guaranteed >= ATTACK_MIN_RANGE here, so neither fires point-blank.)
+	if (RNG(2)) {
+		// CHARGE (like horned beasts): MI_20_RUN_ATTACK, A_14_CHARGE, primary anim.
+		if (CheckLineWithThreeArgumentsCheckFunction(CheckCellForMeleeMonsterSafeMove,
+			monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)
+			&& CastMissile(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol,
+				orientationToTarget, MI_20_RUN_ATTACK, monster.TargetIndex, monsterIndex, 0, 0, 0) != -1) {
+			if (monster.BasePtr->HasSpecialSounds) {
+				PlayMonsterSound(monsterIndex, MST_3_SATTACK);
+			}
+			MonsterMap[monster.Row][monster.Col] = -1 - int(monsterIndex);
+			monster.CurAction = A_14_CHARGE;
+			// after the charge resolves: HP<=50% -> melee-lock. HP>50% -> ROLL the
+			// retreat chance (formula + modifiers lifted from RangerRetreatsOften):
+			// pass -> retreat & re-hide; fail -> just resume circling, no retreat.
+			if (!hpAboveHalf) {
+				monster.goal = MG_5_ATTACK2; // melee-lock
+			}
+			else {
+				int retreat_chances = 2 * monster.intel + 70 + (Difficulty * 3)
+					- (MaxCountOfPlayersInGame == 1 ? 5 : 0);
+				/*if (GameMode == GM_CLASSIC) {
+					retreat_chances = monster.intel * 10 + 70;
+				}
+				else */if (GameMode == GM_EASY) {
+					retreat_chances -= 10;
+				}
+				else if (GameMode == GM_IRONMAN || GameMode == GM_SPEEDRUN || GameMode == GM_SURVIVAL) {
+					retreat_chances -= 5;
+				}
+				else if (GameMode == GM_HARD) {
+					retreat_chances = 100;
+				}
+		//		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_8_FULL_CONTACT)) {
+		//			retreat_chances = 0; // Full Contact: no retreat
+		//		}
+				// Warlord's mercs face less kiting from monsters
+				if (MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::Warlord)) {
+					retreat_chances -= (15 + Difficulty * 2);
+				}
+				monster.goal = (RNG(100) < retreat_chances) ? MG_2_RETREAT : MG_1_ATTACK;
+			}
+			monster.goalParam = 0;
+			return;
+		}
+		// no clear charge lane -> fall through to spit this tick
+	}
+
+	// SPIT poison: MI_57_ACID_MISSILE via StartMonsterRangedAttack -> PRIMARY anim.
+	if (CheckCastInSight(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol)) {
+		StartMonsterRangedAttack(monsterIndex, MI_57_ACID_MISSILE, SPIT_DAMAGE);
+	}
+	else {
+		// no line of sight to spit: close the gap a little
+		MonsterWalksTowardsTarget(monsterIndex, orientationToTarget);
 	}
 }
 
@@ -9528,7 +12357,7 @@ void __fastcall Universal_ShortRangeSecondAttack(uint monsterIndex, int spellEff
 			}
 		}else if( RNG(100) < by( Difficulty, 5 * intel + 30, 5 * intel + 55, 5 * intel + 75 ) ){
 			monster.Orientation = orientationToTarget;
-			RNG(2);// TODO: результат не используется
+			RNG(2);// (rt) TODO: the result isn't used
 			StartMonsterMeleeAttack(monsterIndex);
 		}
 		monster.mayRetreateTick = 1;
@@ -9540,7 +12369,7 @@ void __fastcall Universal_ShortRangeSecondAttack(uint monsterIndex, int spellEff
 }
 
 //----- (004421D5) --------------------------------------------------------
-void __fastcall Ai_26_Universal_ShortRangeSecondAttack_Incinerate(uint monsterIndex)
+void __fastcall Ai_26_Balrog(uint monsterIndex)
 {
 	Universal_ShortRangeSecondAttack(monsterIndex, MI_49_INCINERATE, 0);
 }
@@ -9569,8 +12398,28 @@ void __fastcall Ai_Summon( uint monsterIndex, AiFunc* original )
         MonsterLookAround(monsterIndex);
     }
     
-    if( monster.CurAction == A_0_STAY && !IsSomeMonstersActivated() ){
-        int ownerIndex = monsterIndex / SummonMonstersPerPlayer_Count;
+    // (th4) WARLORD MERCS FOLLOW THEIR OWNER WHEN THEY HAVE NOTHING TO FIGHT.
+    //
+    // IsSomeMonstersActivated() is GLOBAL: it answers "is any monster on the level
+    // awake", not "is there a fight near me". So the moment anything anywhere wakes up
+    // -- including the pack on the far side of a wall -- this whole follow block is
+    // skipped and a merc with no reachable target just stands where it is.
+    // Since the sight/reach filter in MonsterLookAround now denies Warlord mercs those
+    // unreachable targets, they end up with MF_11_NOENEMY and nothing to do, which is
+    // exactly the standing-still the fix was meant to avoid.
+    //
+    // For a Warlord merc the gate is therefore "have I got a target", not "is the level
+    // quiet". Everyone else keeps IsSomeMonstersActivated() untouched.
+    // Bounded even though the only caller already guards monsterIndex <
+    // SummonMonsters_Count: this now runs on EVERY call, not just inside the block
+    // below, so a future caller passing a non-summon must not index Players out of range.
+    const int summonOwnerIndex = monsterIndex / SummonMonstersPerPlayer_Count;
+    const bool isWarlordMerc = (uint) summonOwnerIndex < PlayersMax_4
+                            && HasTrait( summonOwnerIndex, TraitId::Warlord );
+    const bool freeToFollow  = isWarlordMerc ? (monster.flag & MF_11_NOENEMY) != 0
+                                             : !IsSomeMonstersActivated();
+    if( monster.CurAction == A_0_STAY && freeToFollow ){
+        int ownerIndex = summonOwnerIndex;
         Player& player = Players[ownerIndex];
     
         int deltaRow = abs(monster.Row - player.Row);
@@ -9607,10 +12456,179 @@ void __fastcall Ai_Summon( uint monsterIndex, AiFunc* original )
         }
     }
     
+    // (th4) THE WAY TO THE FIGHT (above SummonWayToNearest): the target is out of sight -- its way's next step, not the
+    // fight AI (it walks straight at the target, into the wall); MonsterLookAround after the step finds the way again
+    if( !(monster.flag & MF_11_NOENEMY) && SummonFarStep[ monsterIndex ] ){
+        if( monster.CurAction == A_0_STAY ){
+            MonsterWalksTowardsTarget( monsterIndex, SummonFarStep[ monsterIndex ] - 1 );
+        }
+        return;
+    }
+
     // Use AI only if target selected
     if( !(monster.flag & MF_11_NOENEMY) ){
         (*original)( monsterIndex );
     }
+}
+
+//----- (th4) -------------------------------------------------------------
+// (th4) DARK CAMPAIGN mission 10 escort AI wrapper -- the escort's answer to Ai_Summon.
+// The main loop re-runs the AI at the top of every iteration of its while(moreAction) loop,
+// which is how a summon starts its next step the instant the previous one lands: that is
+// what makes minions stride smoothly. Doing the follow once per tick outside the loop
+// instead leaves a dead tick after every tile, which reads as a stutter.
+//
+// This is deliberately NOT Ai_Summon itself: that derives the owner from the summon slot
+// index (meaningless for a unique above SummonMonsters_Count) and teleports the minion to
+// its owner past 13 tiles, which is exactly what we do not want here.
+void __fastcall Ai_DarkCampaignEscort( uint monsterIndex, AiFunc* original )
+{
+	if( monsterIndex >= Monsters_Max_Count ){
+		return;
+	}
+	Monster& monster = Monsters[monsterIndex];
+	if( monster.Row == 1 && monster.Col == 0 ){
+		return;
+	}
+	if( !monster.ActivationCounter ){
+		monster.ActivationCounter = 255;
+		MonsterLookAround( monsterIndex );
+	}
+	// Close on the player whenever there is no fight on -- same gate Ai_Summon uses.
+	if( monster.CurAction == A_0_STAY && !IsSomeMonstersActivated() ){
+		const Player& owner = Players[CurrentPlayerIndex];
+		int gap = max( abs(monster.Row - owner.Row), abs(monster.Col - owner.Col) );
+		if( gap > DC_ESCORT_FOLLOW_GAP ){
+			monster.TargetRow = (char)owner.Row;	// char field, coords <= 111
+			monster.TargetCol = (char)owner.Col;
+			if( MakeMonsterPath( monsterIndex ) ){
+				return;
+			}
+			// Path refused (too long, or blocked by the pack) -- take a plain step instead.
+			if( MonsterWalksTowardsTarget( monsterIndex,
+					OrientationToTarget( monster.Row, monster.Col, owner.Row, owner.Col ) ) ){
+				return;
+			}
+		}
+	}
+	// Otherwise behave exactly as the succubus normally does: fight.
+	(*original)( monsterIndex );
+}
+
+//----- (th4) -------------------------------------------------------------
+// (th4) DARK CAMPAIGN mission 25: the Butcher's AI once the player has freed him.
+//
+// Deliberately NOT Ai_DarkCampaignEscort: the succubi hand control to their own AI the
+// moment ANYTHING on the level is awake, which for him meant permanent combat -- and the
+// underlying AI picks targets by raw distance, so he charged heroes through walls and stood
+// grinding at the stone between them.
+//
+// Here he only fights what he can actually see: a hero must be awake (the player aggroed it)
+// AND in line of sight AND within DC_BUTCHER_SIGHT tiles. Anything else and he closes on the
+// player instead. Everything below is Dark Campaign only -- the caller gates on it too.
+const int DC_BUTCHER_SIGHT = 12;	// tiles he will engage across, when he can see them
+const int DC_BUTCHER_REACH_TRIES = 3;	// how many candidates he will path-test in one tick
+
+// (th4) Can he actually WALK to that tile? Line of sight is not enough: Ravenholm is a town
+// map full of fences, water and hedges, where plenty of heroes are perfectly visible across
+// something he cannot cross. Without this he picks one, walks to the barrier and grinds
+// against it for good. FindPath is the engine's own 28-step search and the same one
+// MakeMonsterPath uses, so "reachable" here means exactly what it means when he walks.
+static bool DarkCampaignButcherCanReach( uint monsterIndex, int row, int col )
+{
+	const Monster& m = Monsters[monsterIndex];
+	char steps[28];
+	auto stepFunc = (m.flag & MF_10_OPEN_DOORS)
+		? CheckCellForMonsterCanInteractWithDoorsSafeMove
+		: CheckCellForMeleeMonsterSafeMove;
+	return FindPath( stepFunc, monsterIndex, m.Row, m.Col, row, col, steps ) != 0;
+}
+
+void __fastcall Ai_DarkCampaignButcher( uint monsterIndex, AiFunc* original )
+{
+	if( monsterIndex >= Monsters_Max_Count || GameMode != GM_DARK_CAMPAIGN ){
+		return;
+	}
+	Monster& monster = Monsters[monsterIndex];
+	if( monster.Row == 1 && monster.Col == 0 ){
+		return;
+	}
+	if( !monster.ActivationCounter ){
+		monster.ActivationCounter = 255;
+	}
+	// (th4) First tick on a mission level he was carried to: CreateBoss dropped him on a
+	// random free tile, so pull him to the player instead. The hub does the same thing from
+	// its kin loop; an ordinary level has no such loop, so it happens here. One-shot.
+	if( DarkCampaignButcherNeedsArrival && Dungeon != DUN_117_DARKLORD_HIDEOUT ){
+		DarkCampaignButcherNeedsArrival = false;
+		TeleportSummonToOwner( monsterIndex, CurrentPlayerIndex );
+	}
+
+	// Nearest awake hostile he can both see AND reach. Candidates are taken closest first;
+	// each is path-tested, and one that cannot be walked to is skipped rather than chased.
+	// The number of tests per tick is capped -- FindPath is not free, and the rest of the
+	// roster is still there next tick.
+	int quarry = -1;
+	int rejected[DC_BUTCHER_REACH_TRIES] = { -1, -1, -1 };
+	for( int attempt = 0; attempt < DC_BUTCHER_REACH_TRIES && quarry < 0; ++attempt ){
+		int best = -1;
+		int bestGap = DC_BUTCHER_SIGHT + 1;
+		for( int i = 0; i < MonstersCount; ++i ){
+			const int mi = MonsterIndexes[i];
+			if( mi == (int)monsterIndex || mi < SummonMonsters_Count ) continue;
+			bool skip = false;
+			for( int r = 0; r < attempt; ++r ) if( rejected[r] == mi ) skip = true;
+			if( skip ) continue;
+			const Monster& foe = Monsters[mi];
+			if( !foe.SpritePtr || (foe.flag & MF_15_KILLED) ) continue;
+			if( foe.Row == 1 && foe.Col == 0 ) continue;
+			if( IsPlayerSideMonster( mi ) || (foe.flag & MF_6_FRIENDLY) ) continue;
+			if( !foe.ActivationCounter ) continue;	// asleep: the player has not aggroed it
+			const int gap = max( abs(monster.Row - foe.Row), abs(monster.Col - foe.Col) );
+			if( gap >= bestGap ) continue;
+			if( !CheckCastInSight( monster.Row, monster.Col, foe.Row, foe.Col ) ) continue;
+			best = mi;
+			bestGap = gap;
+		}
+		if( best < 0 ) break;	// nothing visible left to consider
+		// Already next to him: no walking needed, so no path test.
+		if( bestGap <= 1 || DarkCampaignButcherCanReach( monsterIndex, Monsters[best].Row, Monsters[best].Col ) ){
+			quarry = best;
+			break;
+		}
+		rejected[attempt] = best;	// visible but walled off -- look past him
+	}
+
+	if( quarry >= 0 ){
+		// Something to kill and a clear line to it: his own AI takes over and does the
+		// pathing, so he walks round corners rather than into them.
+		monster.TargetIndex = quarry;
+		monster.LastTargetPositionRow = Monsters[quarry].Row;
+		monster.LastTargetPositionCol = Monsters[quarry].Col;
+		(*original)( monsterIndex );
+		return;
+	}
+
+	// Nothing in sight: stay with the player. TargetIndex is deliberately LEFT ALONE -- it is
+	// dereferenced unguarded in several places (ProcessMonsters, MonsterStaying), so a -1
+	// there is a wild read. Stale is harmless, because his own AI only runs on the branch
+	// above, where the target has just been set to something he can actually see.
+	if( monster.CurAction == A_0_STAY ){
+		const Player& owner = Players[CurrentPlayerIndex];
+		const int gap = max( abs(monster.Row - owner.Row), abs(monster.Col - owner.Col) );
+		if( gap > DC_ESCORT_FOLLOW_GAP ){
+			monster.TargetRow = (char)owner.Row;	// char field, coords <= 111
+			monster.TargetCol = (char)owner.Col;
+			if( MakeMonsterPath( monsterIndex ) ){
+				return;
+			}
+			// Path refused (too long, or blocked) -- take a plain step instead.
+			if( MonsterWalksTowardsTarget( monsterIndex,
+					OrientationToTarget( monster.Row, monster.Col, owner.Row, owner.Col ) ) ){
+				return;
+			}
+		}
+	}
 }
 
 //----- (004421E0) --------------------------------------------------------
@@ -9724,7 +12742,7 @@ void __fastcall Ai_10_SkeletonKing(uint monsterIndex)
 		bool flag = false;
 		if( monster.goal != MG_4_WALK && (flag = !Distance_To_Target_Is_Less_Than(monsterIndex, 3)) != 0 ){
 			if (RNG(MaxCountOfPlayersInGame == 1 ? 5 : 95)) {
-				goto ATTACK; // разобраться на досуге как встроить в условие
+				goto ATTACK; // (rt) sometime figure out how to fold this into the condition
 			}
 			monster.goalParam = 0;
 			monster.curOrientation = RNG(2);
@@ -9792,7 +12810,7 @@ void __fastcall Ai_10_SkeletonKing(uint monsterIndex)
 }
 
 //----- (0044271A) --------------------------------------------------------
-void __fastcall Ai_5_ChargeAttack(uint monsterIndex)
+void __fastcall Ai_5_Charger(uint monsterIndex)
 {
 	if( monsterIndex >= Monsters_Max_Count ){
 		return;
@@ -9805,12 +12823,16 @@ void __fastcall Ai_5_ChargeAttack(uint monsterIndex)
 	int deltaRow = abs(monster.Row - monster.TargetRow);
 	int deltaCol = abs(monster.Col - monster.TargetCol);
 	int orientationToTarget = OrientationToTarget(monster.Row, monster.Col, monster.LastTargetPositionRow, monster.LastTargetPositionCol);
-	if( monster.ActivationCounter < 255 ){// TODO : всегда выполняется
+	if( monster.ActivationCounter < 255 ){// (rt) TODO : always true
 		MonstersInteractWithDoors(monsterIndex);
 	}
 	int randFactor = RNG(100);
 	int intel = monster.intel;
-	bool runAttackAllow  = randFactor < by(Difficulty, 3 * intel + (GameMode == GM_HARD ? 70 : 23), 3 * intel + (GameMode == GM_HARD ? 75 : 50), 2 * intel + 80);
+	int charge_chance = 20 + intel + Dungeon->level / 6 + Difficulty * 9;// 20-33, 29-42, 38-51, 47-60, 56-69, 65-78, 73-86, 81-94, 90-103
+	if (Dungeon == DUN_113_THE_MAZE) { charge_chance = 20; }
+	if (GameMode == GM_EASY) { charge_chance /= 2; }
+	else if (GameMode == GM_HARD) { charge_chance = 100; }
+	bool runAttackAllow  = randFactor < charge_chance;
 	if (GameMode == GM_CLASSIC) { 
 		runAttackAllow = randFactor < 2 * intel + 43; 
 	}
@@ -9836,7 +12858,7 @@ void __fastcall Ai_5_ChargeAttack(uint monsterIndex)
 	}
 	if( monster.goal == MG_1_ATTACK ){
 		if( !Distance_To_Target_Is_Less_Than( monsterIndex, by(Difficulty,6,5,4) ) && runAttackAllow 
-		 && CheckLineWithThreeArgumentsCheckFunction(CheckCellForMeleeMonsterSafeMove, monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol) ){ // атака с разбегу
+		 && CheckLineWithThreeArgumentsCheckFunction(CheckCellForMeleeMonsterSafeMove, monsterIndex, monster.Row, monster.Col, monster.TargetRow, monster.TargetCol) ){ // (rt) charge attack
 			if( CastMissile(monster.Row, monster.Col, monster.TargetRow, monster.TargetCol, orientationToTarget, MI_20_RUN_ATTACK, monster.TargetIndex, monsterIndex, 0, 0, 0) != -1 ){
 				if( monster.BasePtr->HasSpecialSounds ){
 					PlayMonsterSound(monsterIndex, MST_3_SATTACK);
@@ -9846,7 +12868,7 @@ void __fastcall Ai_5_ChargeAttack(uint monsterIndex)
 			}
 			return;
 		}
-		if( !Distance_To_Target_Is_Less_Than(monsterIndex, 2) ){// движение
+		if( !Distance_To_Target_Is_Less_Than(monsterIndex, 2) ){// (rt) movement
 			randFactor = RNG(100);
 			int walk_delay_chance = GameMode == GM_HARD ? 98 : by(Difficulty, 2 * intel + 32, 2 * intel + 56, 2 * intel + 80);
 			bool walkWithDelayAllow = randFactor < walk_delay_chance;
@@ -9867,7 +12889,7 @@ void __fastcall Ai_5_ChargeAttack(uint monsterIndex)
 			}
 			return;
 		}
-		if( meleeAttackAllow ){// Ближняя атака
+		if( meleeAttackAllow ){// melee
 			monster.Orientation = orientationToTarget;
 			StartMonsterMeleeAttack(monsterIndex);
 			return;
@@ -10001,6 +13023,9 @@ void __fastcall Ai_25_Mage(uint monsterIndex)
 				if (GameMode == GM_CLASSIC) {
 					missile = by(monster.intel, MI_1_FIREBOLT, MI_52_CHARGED_BOLT, MI_7_LIGHTNING, MI_6_FIREBLAST);
 				}
+				else if (GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_83_BLOOD_KEEP) {
+					missile = by(monster.intel, MI_1_FIREBOLT, MI_24_ARCANE_STAR, MI_7_LIGHTNING, MI_6_FIREBLAST);
+				}
 				else if (monster.SpritePtr->baseMonsterIndex == BM_290_FUNGAL_ROOT_LITE) {
 					missile = RngFrom(MI_6_FIREBLAST, MI_57_ACID_MISSILE, MI_129_SNOW_BOLT);
 				}
@@ -10049,9 +13074,14 @@ void __fastcall Ai_25_Mage(uint monsterIndex)
 			 ||(RNG(100) < by(Difficulty, 4 * monster.intel + (GameMode == GM_HARD ? 50 :  8),
 											   8 * monster.intel + (GameMode == GM_HARD ? 60 : 30),
 											   8 * monster.intel + 70) ) ){
-				StartMonsterRangedAttack(monsterIndex, -1, 0);
-				CastMissile( monster.Row, monster.Col, 0, 0, monster.Orientation, MI_11_FLASH_FR, CT_1_MONSTER_AND_TRAP, monsterIndex, 4, 0, 0 );
-				CastMissile( monster.Row, monster.Col, 0, 0, monster.Orientation, MI_12_FLASH_BACK, CT_1_MONSTER_AND_TRAP, monsterIndex, 4, 0, 0 );
+				// by (th4): the flash CastMissile calls below are not routed through a
+				// StartMonster*Attack guard, so a dead-player target would still get flashed
+				// (corpse-flashing). Suppress the whole flash cast when the target is dead.
+				if( !IsMonsterTargetingDeadPlayer(monster) ){
+					StartMonsterRangedAttack(monsterIndex, -1, 0);
+					CastMissile( monster.Row, monster.Col, 0, 0, monster.Orientation, MI_11_FLASH_FR, CT_1_MONSTER_AND_TRAP, monsterIndex, 4, 0, 0 );
+					CastMissile( monster.Row, monster.Col, 0, 0, monster.Orientation, MI_12_FLASH_BACK, CT_1_MONSTER_AND_TRAP, monsterIndex, 4, 0, 0 );
+				}
 			}else{
 				MonsterStartDelay(monsterIndex, RNG(10) + 2 * (5 - monster.intel));
 			}
@@ -10252,8 +13282,8 @@ void __fastcall Ai_28_Lazarus(uint monsterIndex)
 
 	int state = monster.goal;
 	if( state == MG_1_ATTACK || state == MG_2_RETREAT || state == MG_4_WALK ){
-		monster.speechIndex = 0; // патч на Лазаруса из D1 1.07-1.09
-		Ai_25_Mage(monsterIndex); // ООП, Lazarus наследуется от Conselour :)
+		monster.speechIndex = 0; // (rt) Lazarus patch from D1 1.07-1.09
+		Ai_25_Mage(monsterIndex); // (rt) Lazarus reuses the Counselor behaviour
 	}
 	monster.Orientation = orientation;
 	if( !monster.CurAction || monster.CurAction == A_17_TALK ){
@@ -10262,7 +13292,7 @@ void __fastcall Ai_28_Lazarus(uint monsterIndex)
 }
 
 //----- (0044351B) --------------------------------------------------------
-void __fastcall Ai_29_Lazarus_s_Slut(uint monsterIndex)
+void __fastcall Ai_29_Redvex_Blackjade(uint monsterIndex)
 {
 	if( monsterIndex >= Monsters_Max_Count ){
 		return;
@@ -10275,7 +13305,24 @@ void __fastcall Ai_29_Lazarus_s_Slut(uint monsterIndex)
 	int row = monster.Row;
 	int col = monster.Col;
 	int orientation = MonsterOrientationToTarget(monsterIndex);
-	if( FlagMap[ row ][ col ] & CF_2_VISIBLE_BY_PLAYER ){
+	// (th4) DARK CAMPAIGN escort: this AI re-derives the goal from the Lazarus quest every
+	// tick, which would drag the succubi back onto MG_6_TALK no matter what CreateBoss set.
+	// While they are escorting the player they always fight.
+	const bool dcEscort = GameMode == GM_DARK_CAMPAIGN && monster.newBossId
+					   && DarkCampaignIsEscortBoss( monster.newBossId - 1 )
+					   && (DarkCampaignEscortActive() || DarkCampaignEscortWalkingHome);
+	// (th4) DC mission 13: same problem, different mission. dcEscort above is gated on the
+	// mission 10 flags, so on DUN_121 it is false and every friendly here -- both succubi and
+	// Lazarus, who now runs this AI too -- falls into the branch below and gets parked on
+	// MG_6_TALK the instant the player can SEE them. That is why they stood still while the
+	// player was in the room but fought when he was not. In Lazarus' own lair they always fight.
+	const bool dcLair = GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+					 && (monster.flag & MF_6_FRIENDLY);
+	if( dcEscort || dcLair ){
+		monster.speechIndex = 0;
+		monster.goal = MG_1_ATTACK;
+	}
+	else if( FlagMap[ row ][ col ] & CF_2_VISIBLE_BY_PLAYER ){
 		if( MaxCountOfPlayersInGame == 1 ){
 			if( Quests[Q_15_ARCHBISHOP_LAZARUS].status2 > LQS_5_TALK_WITH_LAZARUS ){
 				monster.speechIndex = 0;
@@ -10289,7 +13336,7 @@ void __fastcall Ai_29_Lazarus_s_Slut(uint monsterIndex)
 	}
 
 	if( monster.goal == MG_1_ATTACK ){
-		Ai_14_RangerRetreatsOften_ArcaneStar(monsterIndex);
+		Ai_14_Succubus(monsterIndex);
 	}
 
 	monster.Orientation = orientation;
@@ -10720,7 +13767,7 @@ ushort AuraMordorExtraChecks(ushort auraIndex, int baseMonsterIndex)
 		if (GameMode == GM_HARD) { 
 			valueToAdd += 2; 
 		}
-		else if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_EASY, /*GM_CLASSIC,*/ GM_NIGHTMARE)) {
+		else if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_EASY, /*GM_CLASSIC,*/ GM_NIGHTMARE, GM_OUTBREAK)) {
 			valueToAdd /= 2;
 		}
 		break;
@@ -10778,7 +13825,7 @@ ushort AuraMordorExtraChecks(ushort auraIndex, int baseMonsterIndex)
 		if (GameMode == GM_HARD) {
 			valueToAdd += 2;
 		}
-		else if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_EASY, /*GM_CLASSIC,*/ GM_NIGHTMARE)) {
+		else if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_EASY, /*GM_CLASSIC,*/ GM_NIGHTMARE, GM_OUTBREAK)) {
 			valueToAdd /= 2;
 		}
 		break;
@@ -10793,6 +13840,44 @@ ushort AuraMordorExtraChecks(ushort auraIndex, int baseMonsterIndex)
 }
 
 //----- (004437EE) --------------------------------------------------------
+// (th4) THIEF: her tile's illumination gates monster SIGHT. At full darkness (lightLevel 0)
+// monsters can never sight-activate on her at all; in partial light they only notice her
+// within lightLevel tiles (Chebyshev). Being HIT still activates (damage path, untouched),
+// and already-active monsters are unaffected -- this gates only the dormant->active-by-sight
+// transition in ProcessMonsters below.
+static bool ThiefBlocksSightWake( const Monster& monster )
+{
+	if( MaxCountOfPlayersInGame != 1 || !HasTrait(CurrentPlayerIndex, TraitId::Thief) ) return false;
+	// (th4) Monsters running the HIDDEN AI are predators of darkness themselves -- they hunt
+	// by more than sight, so the Thief's shadows do NOT conceal her from them. Keyed on the AI
+	// behaviour, not the base monster: a bosspack of any species can carry Hidden AI (see
+	// monster.ai = boss.ai), and those must see her too. Every other AI keeps the sight gate.
+	if( monster.ai == AI_15_Hidden ) return false;
+	Player& p = Players[CurrentPlayerIndex];
+	if( !In112(p.Row, p.Col) ) return false;
+	int lightLevel = 15 - LightMap[p.Row][p.Col];
+	LimitToRange(lightLevel, 0, 15);
+	// (th4) residual glow from distant light sources still counts as HIDDEN: anything at or
+	// below this level is treated as full darkness (per Mordor's playtest -- standing in the
+	// faint spill of a far torch must not expose her). Tune freely.
+	enum { THIEF_HIDDEN_LIGHT_MAX = 2 };
+	if( lightLevel <= THIEF_HIDDEN_LIGHT_MAX ) return true;
+	int dist = max( abs(monster.Row - p.Row), abs(monster.Col - p.Col) );
+	return dist > lightLevel;
+}
+
+// (th4) DARK CAMPAIGN HUB: every monster in the Dark Lord's Hideout is kin. They never
+// fight, never wake, and never turn. The hard gate lives in ProcessMonsters below and works
+// by clamping ActivationCounter to 0 every tick -- ActivationCounter is what all ~30 AI
+// functions gate their behaviour on, so zeroing it here neutralises the whole roster in one
+// place, no matter which of the many wake sites fired (sight, damage, chain activation,
+// bosspack refresh...). Orientation is likewise re-asserted every tick from the value the
+// monster was created/loaded with, so kin hold whatever heading they were placed at.
+static bool DarkCampaignKin()
+{
+	return Dungeon == DUN_117_DARKLORD_HIDEOUT;
+}
+
 void ProcessMonsters() // ProcessMonsters
 {
 	if (BattleTrance) {
@@ -10802,25 +13887,278 @@ void ProcessMonsters() // ProcessMonsters
 	}
 
 	RemoveKilledMonsters();
+	FixBossLightInSlot0();	// (th4) a boss light on slot 0 never followed him when walking (BOSS LIGHT IN SLOT 0, above CreateBoss)
+	ParkHiddenBossLights();	// (th4) an invisible boss lit his empty spawn spot (HIDDEN BOSS LIGHT, above CreateBoss)
 	Player& auraTargetPlayer = Players[CurrentPlayerIndex];
 	for (int j = 0; j < countof(Player::AuraIndex); j++)
 	{
 		auraTargetPlayer.AuraIndex[j] = AUI_0_NONE;
 		auraTargetPlayer.AurasValues[j] = 0;
 	}
+	// (th4) DARK CAMPAIGN HUB: kin are inert. Clamp them dormant and frozen-facing before any
+	// AI runs, then skip the rest of the tick for them entirely -- no wake, no target refresh,
+	// no AI dispatch, no action processing. Damage-path wakes elsewhere are undone here on the
+	// very next tick, which is what makes this a hard gate rather than a sight-only one.
+	if( DarkCampaignKin() ){
+		// (th4) Kin idle at HALF speed. Done with a tick divider rather than by doubling each
+		// monster's AnimationDelayFrameCount, because that field is part of the saved Monster
+		// blob -- mutating it would persist, and would compound every time the level reloaded.
+		static int hubIdleTick = 0;
+		bool advanceFrames = (++hubIdleTick & 1) == 0;	// advance on every second tick == -50% speed
+		for( int i = 0; i < MonstersCount; ++i ){
+			Monster& kin = Monsters[ MonsterIndexes[i] ];
+			if( !kin.SpritePtr ) continue;
+
+			// (th4) The escort is the one exception to the freeze. Two cases, both of which
+			// need them moving while every other kin stands still:
+			//   - mission 10 briefed  -> they fall in and follow the player around the Sanctum
+			//   - just back from it   -> they walk from the portal to their posts, then stop
+			// Once home the latch clears and this whole branch stops firing.
+			// (th4) Self-heal: an escort standing anywhere but her post while no mission is
+			// running has been stranded -- most often by a save/reload, where positions come
+			// back from the delta and the (unsaved) walk-home latch is gone, so nothing else
+			// would ever move her. Re-latch the walk rather than teleporting her: she then
+			// finishes the route on foot exactly as she would have without the save, and the
+			// give-up timer below still rescues her if the way home is genuinely impassable.
+			if( kin.newBossId && DarkCampaignIsEscortBoss( kin.newBossId - 1 )
+			 && !DarkCampaignEscortActive() && !DarkCampaignEscortWalkingHome ){
+				int hr = 0, hc = 0;
+				if( DarkCampaignEscortHubPost( kin.newBossId - 1, hr, hc )
+				 && (kin.Row != hr || kin.Col != hc) ){
+					DarkCampaignEscortWalkingHome = true;
+					// Resuming, not arriving: they are already in the hub, so do NOT pull them
+					// to the player -- that is only for stepping out of the mission portal.
+					DarkCampaignEscortNeedsArrival = false;
+				}
+			}
+
+			// (th4) DC mission 25: the Butcher is the other exception to the freeze. He has
+			// no post -- he simply shadows the player around the Sanctum, exactly as he does
+			// on a mission.
+			const bool butcherFollows = kin.newBossId
+			                         && kin.newBossId - 1 == UM_9_The_Butcher
+			                         && DarkCampaignButcherJoined();
+			if( butcherFollows
+			 || (kin.newBossId && DarkCampaignIsEscortBoss( kin.newBossId - 1 )
+			  && (DarkCampaignEscortActive() || DarkCampaignEscortWalkingHome)) ){
+				int postRow = 0, postCol = 0;
+				if( !butcherFollows ){
+					DarkCampaignEscortHubPost( kin.newBossId - 1, postRow, postCol );
+				}
+
+				// (th4) First tick back from mission 10: pull them off their posts to the
+				// player, so they arrive with him and walk home from there. Done here, not in
+				// CreateBoss, because the player's tile is only settled after generation.
+				// TeleportSummonToOwner is the engine's own relocate -- it picks a free ring
+				// tile in sight of the owner and keeps MonsterMap correct.
+				if( butcherFollows ? DarkCampaignButcherNeedsArrival : DarkCampaignEscortNeedsArrival ){
+					TeleportSummonToOwner( MonsterIndexes[i], CurrentPlayerIndex );
+				}
+
+				// Where they are trying to be: the player while escorting, their post after.
+				int wantRow = postRow, wantCol = postCol;
+				int stopGap = 0;
+				if( butcherFollows || DarkCampaignEscortActive() ){
+					wantRow = Players[CurrentPlayerIndex].Row;
+					wantCol = Players[CurrentPlayerIndex].Col;
+					stopGap = DC_ESCORT_FOLLOW_GAP;
+				}
+
+				int gap = max( abs(kin.Row - wantRow), abs(kin.Col - wantCol) );
+				const int ki = MonsterIndexes[i];
+
+				// (th4) Two reasons to keep this one moving rather than freezing it:
+				//   - it is mid-stride, and cutting a walk short would strand the tile it had
+				//     reserved in MonsterMap (that stale reservation is what made their names
+				//     pop up under the cursor over empty floor)
+				//   - it is simply too far away and needs to close the gap
+				if( kin.CurAction != A_0_STAY || gap > stopGap ){
+					kin.ActivationCounter = 255;	// awake, as Ai_Summon does for minions
+
+					// (th4) Mirror the main loop's shape: issue the next step at the TOP of every
+					// iteration, then run the action handler. Completing a tile leaves CurAction
+					// back at A_0_STAY, so starting the step only once before the loop meant the
+					// walk ended there and nothing new began until the next tick -- a visible
+					// hitch after every single tile. Re-issuing inside the loop lets them stride
+					// continuously, exactly like a summon.
+					int moreAction = 1;
+					int guard = 0;
+					while( moreAction && ++guard < 8 ){
+						if( kin.CurAction == A_0_STAY ){
+							// Arrived? Then stop cleanly rather than starting another step.
+							int stepGap = max( abs(kin.Row - wantRow), abs(kin.Col - wantCol) );
+							if( stepGap <= stopGap ) break;
+
+							// Start the next step the same way player summons do: set the
+							// destination and let MakeMonsterPath route there. It pathfinds
+							// properly (around the Dark Lord, pillars, each other) and starts
+							// the walk through the normal StartMonsterWalk path, so MonsterMap
+							// bookkeeping stays correct.
+							kin.TargetRow = (char)wantRow;	// char field, coords <= 111
+							kin.TargetCol = (char)wantCol;
+							if( !MakeMonsterPath( ki ) ){
+								// (th4) FindPath gives up past 28 steps and treats the other kin
+								// as solid, and the posts sit in the middle of the Dark Lord's
+								// crowd -- so walking home fails exactly where it matters. Fall
+								// back to a plain step in the right direction; it shuffles around
+								// the group over a few ticks instead of standing there forever.
+								if( !MonsterWalksTowardsTarget( ki,
+										OrientationToTarget( kin.Row, kin.Col, wantRow, wantCol ) ) ){
+									break;	// blocked this tick; retry on the next one
+								}
+							}
+						}
+						switch( kin.CurAction ){
+						case A_1_WALK_UP:		moreAction = MonsterWalkUp		 ( ki );	break;
+						case A_2_WALK_DOWN:		moreAction = MonsterWalkDown	 ( ki );	break;
+						case A_3_WALK_HORIZ:	moreAction = MonsterWalkHorizontal( ki );	break;
+						default:				moreAction = 0;								break;
+						}
+					}
+
+					// (th4) And advance the animation, which the main loop does after its own
+					// action switch -- the hub path returns long before reaching that code.
+					kin.AnimationDelayIndex++;
+					if( kin.AnimationDelayIndex >= kin.AnimationDelayFrameCount ){
+						kin.AnimationDelayIndex = 0;
+						kin.CurFrame++;
+						if( kin.CurFrame > kin.animFrameCount ){
+							kin.CurFrame = 1;
+						}
+					}
+					continue;	// skip the freeze for this one this tick
+				}
+			}
+
+			kin.ActivationCounter = 0;			// never awake -> no AI does anything
+			kin.CurAction = A_0_STAY;			// never walking/attacking
+			// (th4) ...and no leftover pixel offset. A frozen kin never takes an AI tick, so
+			// nothing else here would ever clear one -- and a stale offset out of a reused
+			// Monsters[] slot (see CreateMonster) or read back from a save taken while it was
+			// wrong draws the vendor a whole tile off, into the wall behind its post. Cheap
+			// to reassert every tick, and it repairs hubs saved before the fix in CreateMonster.
+			kin.DeltaX = 0;
+			kin.DeltaY = 0;
+			kin.curAnimation = &kin.SpritePtr->animation[ANIM_0_STAY].oriented[ kin.Orientation ];
+			// Idle breathing still plays; the frame walk is lifted from the normal path below,
+			// minus MonsterStaying's MonsterLookAround call -- that is what would turn them.
+			if( !advanceFrames ) continue;
+			kin.AnimationDelayIndex++;
+			if( kin.AnimationDelayIndex >= kin.AnimationDelayFrameCount ){
+				kin.AnimationDelayIndex = 0;
+				kin.CurFrame++;
+				if( kin.CurFrame > kin.animFrameCount ) kin.CurFrame = 1;
+			}
+		}
+		// (th4) The arrival relocate is a one-shot: both succubi have now been pulled to the
+		// player, so from here on they simply walk home. Same for the Butcher.
+		DarkCampaignEscortNeedsArrival = false;
+		DarkCampaignButcherNeedsArrival = false;
+
+		// (th4) Escort is home once neither succubus is still off her post; drop the latch so
+		// the exemption above stops firing and they behave as ordinary kin from here on.
+		if( DarkCampaignEscortWalkingHome ){
+			// (th4) Give up on walking after a while and just put them on their posts. The
+			// route home is a plain step when MakeMonsterPath refuses (28-step cap, and it
+			// treats the standing kin as solid), and a plain step cannot get round a pillar
+			// or a wall corner -- so a succubus dropped on the wrong side of one would walk
+			// into it forever. This is the hub, not a fight: snapping is invisible to the
+			// player and strictly better than one of them stuck in the scenery.
+			static int escortWalkHomeTicks = 0;
+			const int EscortWalkHomeGiveUp = 700;	// ~35s at 20 ticks/s
+			const bool forceHome = ++escortWalkHomeTicks > EscortWalkHomeGiveUp;
+
+			bool anyStillWalking = false;
+			for( int i = 0; i < MonstersCount; ++i ){
+				const int ki = MonsterIndexes[i];
+				Monster& kin = Monsters[ ki ];
+				if( !kin.SpritePtr || !kin.newBossId ) continue;
+				if( !DarkCampaignIsEscortBoss( kin.newBossId - 1 ) ) continue;
+				int postRow = 0, postCol = 0;
+				if( !DarkCampaignEscortHubPost( kin.newBossId - 1, postRow, postCol ) ) continue;
+
+				if( forceHome && (kin.Row != postRow || kin.Col != postCol) ){
+					DarkCampaignSnapEscortToPost( ki );
+				}
+
+				if( kin.Row != postRow || kin.Col != postCol ){
+					anyStillWalking = true;
+				}else if( kin.CurAction == A_0_STAY ){
+					// (th4) Back on post: face south again, the way CreateBoss stood them when
+					// the hub was built (hubFacing = DIR_0_D for both succubi). Walking home
+					// leaves them looking whichever way they last stepped, so restore it here
+					// or they end up facing off at an angle beside the Dark Lord.
+					kin.Orientation = DIR_0_D;
+				}
+			}
+			if( !anyStillWalking || forceHome ){
+				DarkCampaignEscortWalkingHome = false;
+				escortWalkHomeTicks = 0;
+			}
+		}
+		return;
+	}
+
 	for( int i = 0; i < MonstersCount; ++i ){
 		int monsterIndex = MonsterIndexes[i];
 		Monster& monster = Monsters[monsterIndex];
+
+		// (th4) GHOST GUARD. Every attack path treats a monster as already dead once
+		// (CurrentLife & -64) <= 0 -- Player.cpp returns IMMUNE_TO_MELEE_ATTACK, and the
+		// regen tick skips it too. If some damage path drops a monster into that window
+		// without also running the death sequence, it is stranded: it keeps acting and can
+		// still hit the player, but nothing can hit it back and it never dies. On a Dark
+		// Campaign level it also holds the "heroes left" counter above zero forever, so the
+		// way home never opens. Finish the job here, whatever path leaked it.
+		if( monsterIndex >= SummonMonsters_Count
+		 && monster.SpritePtr && !(monster.flag & MF_15_KILLED)
+		 && !(monster.Row == 1 && monster.Col == 0)
+		 && monster.CurAction != A_6_DEATH
+		 && (monster.CurrentLife & (-64)) <= 0 ){
+			KillMonsterByMonster( M1_TRAP, monsterIndex );
+			continue;
+		}
 
 		if( MaxCountOfPlayersInGame > 1 ){
 			SetRndSeed(monster.RandomSeedForAction);
 			monster.RandomSeedForAction = GetRndSeed();
 		}
-		if( monster.CurAction != A_15_STONE && monster.CurrentLife < monster.BaseLife && (monster.CurrentLife & ~63) > 0 && monsterIndex >= SummonMonsters_Count ){
-			monster.CurrentLife += 1 + monster.MonsterLevel / 4 + Difficulty * 12;
+		if( monster.CurAction != A_15_STONE && monster.CurrentLife < monster.BaseLife && (monster.CurrentLife & ~63) > 0){
+			if (monsterIndex >= SummonMonsters_Count) {
+				monster.CurrentLife += 1 + monster.MonsterLevel / 4 + Difficulty * 12;
+			}
+			else if (monster.SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC && MaxCountOfPlayersInGame == 1) {
+				int regenPerk = PerkValue(SYNERGY_REGENERATION, CurrentPlayerIndex);
+				if (regenPerk > 0) {
+					monster.CurrentLife += regenPerk * 64 / 20; //(monster.BaseLife * regenPerk) / (28 * 64);
+				}
+			}
 		}
 		uchar flag = FlagMap[ monster.Row ][ monster.Col ];
-		if( (flag & CF_2_VISIBLE_BY_PLAYER) && !monster.ActivationCounter ){
+		// (th4) THIEF: pure light+distance predicate -- true whenever this monster cannot
+		// currently perceive her (she is in shadow and/or beyond her light's reach). Always
+		// false outside SP-with-Thief, so everything below is vanilla for everyone else.
+		bool thiefUnseen = ThiefBlocksSightWake( monster );
+		// dormant monsters may fail to notice her at all (the wake gate)
+		bool thiefHidesFromThis = !monster.ActivationCounter && thiefUnseen;
+		// (th4) THIEF vs the HIDDEN AI: her stealth normally works by never entering the
+		// CF_2_VISIBLE_BY_PLAYER wake path -- in darkness she casts no such flag, so NOTHING
+		// near her wakes. That is exactly why the Hidden ignored her in the black chapel: not
+		// because they refuse to, but because the ordinary wake requires her to be "visible",
+		// and she never is. So the Hidden AI needs its OWN positive sniff: it wakes on raw
+		// PROXIMITY, no visibility flag required, precisely because it hunts in the dark. This
+		// is the mirror of her own sight rule -- she smells to them the way monsters look to her.
+		bool hiddenSniffedHer = false;
+		if( monster.ai == AI_15_Hidden && !monster.ActivationCounter && !(monster.flag & MF_6_FRIENDLY)
+		 && MaxCountOfPlayersInGame == 1 && HasTrait(CurrentPlayerIndex, TraitId::Thief) ){
+			Player& tp = Players[CurrentPlayerIndex];
+			if( tp.IsExists && Dungeon == tp.dungeon ){
+				enum { THIEF_HIDDEN_SNIFF_RADIUS = 9 }; // how close she must get before the Hidden smell her; tune freely
+				int sniff = max( abs(monster.Row - tp.Row), abs(monster.Col - tp.Col) );
+				if( sniff <= THIEF_HIDDEN_SNIFF_RADIUS ) hiddenSniffedHer = true;
+			}
+		}
+		if( ((flag & CF_2_VISIBLE_BY_PLAYER) && !thiefHidesFromThis || hiddenSniffedHer) && !monster.ActivationCounter ){
 			MonsterLookAround(monsterIndex);
 			monster.LastTargetPositionRow = monster.TargetRow;
 			monster.LastTargetPositionCol = monster.TargetCol;
@@ -10831,21 +14169,74 @@ void ProcessMonsters() // ProcessMonsters
 		if( monster.flag & MF_5_TARGET_MONSTER ){ // target is monster
 			if( monster.TargetIndex < Monsters_Max_Count ){
 				Monster& targetMonster = Monsters[monster.TargetIndex];
+				// (th4) DC mission 13: the three friendlies in Lazarus' lair kept swinging at
+				// corpses. MonsterLookAround() -- the only thing that picks a NEW target, and
+				// the only place a dead one is rejected -- is called above ONLY while
+				// !ActivationCounter. These three are spawned awake, so they never re-pick:
+				// the lines just below happily keep refreshing the target coordinates from a
+				// monster that is already dead. Force a fresh look when that happens.
+				// Scoped to this level so no other monster's targeting behaviour shifts.
+				if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+				 && (monster.flag & MF_6_FRIENDLY)
+				 && ( (targetMonster.CurrentLife & (-64)) <= 0
+				   || targetMonster.CurAction == A_6_DEATH ) ){
+					MonsterLookAround( monsterIndex );
+					monster.LastTargetPositionRow = monster.TargetRow;
+					monster.LastTargetPositionCol = monster.TargetCol;
+				}
+				else{
                 monster.TargetRow = monster.LastTargetPositionRow = targetMonster.NextRow;
                 monster.TargetCol = monster.LastTargetPositionCol = targetMonster.NextCol;
+				}
 				//monster.ActivationCounter = monster.newBossId ? 255 : 254; // fix monster don't attack summons
+			}
+			// (th4) ACTIVATE ON THE PLAYER, NOT ON WHOEVER HAPPENS TO BE NEAREST.
+			//
+			// A ranged monster listed in NewToGolemAttackType() may pick a SUMMON as its
+			// target -- that is what the list is for -- and MonsterLookAround prefers it
+			// whenever the summon is the closer of the two. Until now that put the monster
+			// down this branch, where the only activation line is the commented-out one
+			// above, so ActivationCounter stayed 0 FOREVER and the monster froze:
+			//   - it never attacked, because RangerRetreatsOften and friends gate on
+			//     ActivationCounter ("prevent monsters from attack without activation");
+			//   - the summon never fought back, because MonsterLookAround makes summons
+			//     skip un-activated targets;
+			//   - and it bleated once per FRAME, because the entry test a few lines above
+			//     is exactly !ActivationCounter, so MonsterChainActivation -- which greets
+			//     unconditionally at its top -- was re-entered every tick.
+			//
+			// The old commented-out line is NOT the fix: it would wake a monster because a
+			// SUMMON came near, which is how a golem ends up pulling the whole level. This
+			// activates on the PLAYER instead, using the very same visibility test the
+			// player-target branch below already uses, so who the monster happens to be
+			// TARGETING no longer decides whether it may wake up. A summon wandering off
+			// alone still wakes nothing.
+			if( !(monster.flag & MF_6_FRIENDLY) && (flag & CF_2_VISIBLE_BY_PLAYER) && !thiefUnseen ){
+				monster.ActivationCounter = 255;
 			}
 		}else{ // target is player
 			if( monster.TargetIndex < 4 ){
 				Player& targetPlayer = Players[monster.TargetIndex];
 				monster.TargetRow = (char) targetPlayer.NextRow;
 				monster.TargetCol = (char) targetPlayer.NextCol;
-				if( flag & CF_2_VISIBLE_BY_PLAYER || monster.newBossId && monster.ActivationCounter == 255
+				// (th4) THIEF: while she is unseen (in shadows), aggro must be allowed to
+				// cool off -- so the visibility refresh is suppressed, and the boss
+				// self-refresh (newBossId && 255, which normally makes bosspacks aggro
+				// FOREVER) is broken too. The moment she is perceivable again, the normal
+				// refresh restores 255 for everyone, bosses included.
+				if( (flag & CF_2_VISIBLE_BY_PLAYER && !thiefUnseen) || monster.newBossId && monster.ActivationCounter == 255 && !thiefUnseen
 					/*|| monster.isBossPack && Monsters[monster.hisBossIndex].ActivationCounter == 255*/) {					
 					monster.ActivationCounter = 255;
 					monster.LastTargetPositionRow = targetPlayer.NextRow;
 					monster.LastTargetPositionCol = targetPlayer.NextCol;
-				}else if( monster.ActivationCounter && !monster.newBossId ){ // (10) расширение номера босса 004439CD
+				}else if( monster.ActivationCounter && thiefUnseen ){
+					// (th4) THIEF deaggro rates while she stays hidden: regular monsters
+					// lose her TWICE as fast as normal decay; bosspacks -- previously
+					// incapable of deaggro at all -- wind down at normal (1x) speed.
+					int thiefDecay = monster.newBossId ? 1 : 2;
+					if( thiefDecay > monster.ActivationCounter ) thiefDecay = monster.ActivationCounter;
+					monster.ActivationCounter -= thiefDecay;
+				}else if( monster.ActivationCounter && !monster.newBossId ){ // (rt) (10) boss number extension 004439CD
 					monster.ActivationCounter--;
 				}
 			}
@@ -10854,8 +14245,109 @@ void ProcessMonsters() // ProcessMonsters
 		while( moreAction ){
 			if( !(monster.flag & MF_9_CHASE_TARGET) || !MonsterChangeTarget(monsterIndex) ){
 			    auto iiFunc = AiFuncs[monster.ai].aiFunc;
-			    if( monsterIndex < SummonMonsters_Count ){
+			    if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_43_HEPHASTO
+			     && monster.newBossId && monster.newBossId - 1 == UM_587_Hephasto_the_Armorer ){
+			        // (th4) DC mission 15: the armorer stands at his forge and ignores the
+			        // player -- MF_6_FRIENDLY means he never takes a player as a target at all
+			        // -- but he is not helpless. Heroes DO pick him (a hostile accepts a
+			        // MF_6_FRIENDLY monster as a target, see MonsterLookAround), and when one
+			        // does he gets a target, MF_11_NOENEMY clears, and his own AI runs so he
+			        // fights back. With nothing hostile near him the flag stays set, the AI
+			        // never runs, and he simply stands there.
+			        //
+			        // Same two guards Ai_Summon gives a minion, and for the same reason: drop
+			        // a target the moment it stops being valid, or he keeps swinging at a
+			        // corpse -- MonsterLookAround leaves TargetRow/TargetCol untouched when it
+			        // finds nobody, so only the NOENEMY test below actually stops him.
+			        if( (monster.flag & MF_5_TARGET_MONSTER) && monster.TargetIndex < Monsters_Max_Count ){
+			            const Monster& t = Monsters[monster.TargetIndex];
+			            if( (t.CurrentLife & (-64)) <= 0 || t.CurAction == A_6_DEATH
+			             || t.ActivationCounter == 0 ){
+			                MonsterLookAround( monsterIndex );
+			            }
+			        }
+			        if( !(monster.flag & MF_11_NOENEMY) ){
+			            iiFunc( monsterIndex );
+			        }
+			        else if( !monster.CurAction ){
+			            // Nothing left to fight and he is idle -- back to the forge, facing DR.
+			            // No-op once he is already there, so this costs one comparison a tick.
+			            DarkCampaignReturnHephastoToForge( monsterIndex );
+			        }
+			    }
+			    else if( monsterIndex < SummonMonsters_Count ){
 			        Ai_Summon( monsterIndex, iiFunc );
+                }else if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC
+                       && (monster.flag & MF_6_FRIENDLY) ){
+                    // (th4) DC mission 13: the three friendlies get the same two guards
+                    // Ai_Summon gives a minion, and for the same reason -- without them they
+                    // keep casting at the tile where a hero died. Re-pick as soon as the held
+                    // target stops being a valid one, and DO NOT run the attack AI at all
+                    // while nothing is selected. MonsterLookAround leaves TargetRow/TargetCol
+                    // untouched when it finds nobody (it only raises MF_11_NOENEMY), so the
+                    // stale corpse coordinates survive and the AI happily keeps firing at
+                    // them -- the NOENEMY test below is what actually stops that.
+                    if( (monster.flag & MF_5_TARGET_MONSTER) && monster.TargetIndex < Monsters_Max_Count ){
+                        const Monster& t = Monsters[monster.TargetIndex];
+                        if( (t.CurrentLife & (-64)) <= 0 || t.CurAction == A_6_DEATH
+                         || t.ActivationCounter == 0 ){
+                            MonsterLookAround( monsterIndex );
+                        }
+                    }
+                    if( !(monster.flag & MF_11_NOENEMY) ){
+                        iiFunc( monsterIndex );
+                    }
+                    else if( (monster.flag & MF_1_INVISIBLE) && !monster.CurAction ){
+                        // (th4) ...but if the last hero died while he was PHASED OUT, the
+                        // guard above freezes him there for good: Monster_Fade_Out leaves
+                        // MF_1_INVISIBLE set and only Monster_Fade_In clears it, and that
+                        // call lives inside the AI we just refused to run. He stays invisible
+                        // and unclickable, with the mission waiting on a talk that can never
+                        // happen. Finish the phase for him instead. MG_1_ATTACK rather than
+                        // the MG_4_WALK he was left on, so he does not resume circling a
+                        // target that no longer exists.
+                        Monster_Fade_In( monsterIndex, monster.Orientation, 1 );
+                        monster.goal = MG_1_ATTACK;
+                    }
+                }else if( GameMode == GM_DARK_CAMPAIGN && (monster.flag & MF_6_FRIENDLY)
+                       && monster.newBossId && DarkCampaignIsEscortBoss( monster.newBossId - 1 ) ){
+                    // (th4) DC mission 10 escort: follows like a minion, then fights.
+                    Ai_DarkCampaignEscort( monsterIndex, iiFunc );
+                }else if( GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_44_RAVENHOLM
+                       && monster.newBossId && monster.newBossId - 1 == UM_773_The_Dark_Lord ){
+                    // (th4) DC mission 26: the Dark Lord neither fights nor wanders. The only
+                    // thing this branch ever starts is his walk out of the portal, one tile
+                    // per landing until DarkCampaignEndWalkSteps runs out. After that he
+                    // holds the tile facing DIR_0_D and does nothing at all.
+                    if( monster.CurAction == A_0_STAY ){
+                        if( DarkCampaignEndWalkSteps > 0
+                         && In112(monster.Row + 1, monster.Col)
+                         && !MonsterMap[monster.Row + 1][monster.Col]
+                         && !IsCellBlocking(monster.Row + 1, monster.Col) ){
+                            --DarkCampaignEndWalkSteps;
+                            StartMonsterWalk( monsterIndex, DIR_0_D );
+                        }else{
+                            DarkCampaignEndWalkSteps = 0;	// blocked: stop where he is
+                            if( monster.Orientation != DIR_0_D ){
+                                monster.Orientation = DIR_0_D;
+                                monster.curAnimation = &monster.SpritePtr->animation[ANIM_0_STAY].oriented[DIR_0_D];
+                            }
+                            // Slow his idle right down: he is posing, not patrolling. The
+                            // frame advance below steps once every AnimationDelayFrameCount
+                            // ticks, so a bigger number is a slower loop. Assigned rather
+                            // than incremented, so re-running it every tick -- and the fact
+                            // that the field is part of the saved Monster blob -- is harmless.
+                            monster.AnimationDelayFrameCount = DC_END_LORD_IDLE_DELAY;
+                        }
+                    }
+                }else if( GameMode == GM_DARK_CAMPAIGN && (monster.flag & MF_6_FRIENDLY)
+                       && monster.newBossId && monster.newBossId - 1 == UM_9_The_Butcher ){
+                    // (th4) DC mission 25. Caged until spoken to: no AI at all, so he neither
+                    // wanders out of the cell nor joins a fight the player has not freed him
+                    // for. Once freed he follows the player and engages only what he can see.
+                    if( DarkCampaignButcherEscorting() ){
+                        Ai_DarkCampaignButcher( monsterIndex, iiFunc );
+                    }
                 }else{
 				    iiFunc(monsterIndex);
                 }
@@ -11157,14 +14649,14 @@ int __fastcall CheckLineWithTwoArgumentsCheckFunction( int (__fastcall *checkFun
 	int deltaRow = endRow - startRow;
 
 	/*
-		Я не понимаю как это работает но суть в следующем -
-		проходим по всем клеткам ближайшим к диагонали между монстром и целью
-		и возвращаем 0 если хоть одна из них недоступна
-		и 1 если все доступны
+		(rt) I don't understand how this works, but the gist is this -
+		(rt) we walk every cell closest to the diagonal between the monster and the target
+		(rt) and return 0 if any of them is inaccessible
+		(rt) and 1 if all are accessible
 	*/
 
-	if( abs(deltaRow) <= abs(deltaCol) ){ // Расстояние до цели по col больше или равно расстоянию до цели по row
-		if( deltaCol < 0 ){ // если col цели меньше чем col монстра, меняем значения координат местами
+	if( abs(deltaRow) <= abs(deltaCol) ){ // (rt) The distance to the target along col is greater than or equal to the distance along row
+		if( deltaCol < 0 ){ // (rt) if the target's col is less than the monster's col, swap the coordinate values
 			int temp;
 			temp = endCol;
 			endCol = startCol;
@@ -11371,14 +14863,14 @@ int __fastcall CheckLineWithThreeArgumentsCheckFunction( int (__fastcall *callin
 	int deltaRow = targetRow - monsterRow;
 
 	/*
-		Я не понимаю как это работает но суть в следующем -
-		проходим по всем клеткам ближайшим к диагонали между монстром и целью
-		и возвращаем 0 если хоть одна из них недоступна
-		и 1 если все доступны
+		(rt) I don't understand how this works, but the gist is this -
+		(rt) we walk every cell closest to the diagonal between the monster and the target
+		(rt) and return 0 if any of them is inaccessible
+		(rt) and 1 if all are accessible
 	*/
 
-	if( abs(deltaRow) <= abs(deltaCol) ){ // Расстояние до цели по col больше или равно расстоянию до цели по row
-		if( deltaCol < 0 ){ // если col цели меньше чем col монстра, меняем значения координат местами
+	if( abs(deltaRow) <= abs(deltaCol) ){ // (rt) The distance to the target along col is greater than or equal to the distance along row
+		if( deltaCol < 0 ){ // (rt) if the target's col is less than the monster's col, swap the coordinate values
 			int temp;
 			temp = targetCol;
 			targetCol = monsterCol;
@@ -11508,24 +15000,62 @@ void __fastcall PrepareLoadedMonster(uint monsterIndex)
 	monster.SpritePtr = &MonsterSprites[monster.SpriteIndex];
 	monster.BasePtr = MonsterSprites[monster.SpriteIndex].baseMonsterPtr;
 	int bossNumber = monster.newBossId;
-	if( bossNumber ){ // (11) расширение номера босса 004441C9
+	if( bossNumber ){ // (rt) (11) boss number extension 004441C9
 		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest && UniqueMonsters[bossNumber - 1].IceAgeNamePtr) {
-			monster.Name = UniqueMonsters[bossNumber - 1].IceAgeNamePtr;
+			monster.Name = (char*)LocalizedIceAgeName(UniqueMonsters[bossNumber - 1].IceAgeNamePtr);
 		}
 		else {
-			monster.Name = UniqueMonsters[bossNumber - 1].NamePtr;
+			monster.Name = (char*)LocalizedUniqueMonsterName( &UniqueMonsters[bossNumber - 1] );
 		}
 	}else{
 		if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_15_ICE_AGE) && !Dungeon->isQuest && monster.BasePtr->IceAgeNamePtr) {
-			monster.Name = monster.BasePtr->IceAgeNamePtr;
+			monster.Name = (char*)LocalizedIceAgeName(monster.BasePtr->IceAgeNamePtr);
 		}
 		else {
-			monster.Name = monster.BasePtr->name;
+			monster.Name = (char*)LocalizedMonsterName( monster.BasePtr );
 		}
 	}
 	uchar orientation = monster.Orientation;
+	// A monster saved mid-charge (A_14_CHARGE) is normally carried by its MI_20_RUN_ATTACK
+	// missile. Missiles are wiped on level entry (InitMissiles), so a charge that was in
+	// progress when the level was left has no missile to advance it after loading: the
+	// monster would stay frozen in the charge frame forever ("disappeared"). Abort the
+	// charge and return the monster to a normal idle state, clearing the transient
+	// negative MonsterMap reservation left by the charge.
+	if (monster.CurAction == A_14_CHARGE) {
+		if (MonsterMap[monster.Row][monster.Col] == -1 - (int)monsterIndex) {
+			MonsterMap[monster.Row][monster.Col] = monsterIndex + 1;
+		}
+		monster.PrevActionOrRowDeltaOrSpellEffect = monster.CurAction;
+		monster.CurAction = A_0_STAY;
+		monster.TimerCounterOrColDeltaOrSpellDamage = 0;
+		monster.DeltaX = 0;
+		monster.DeltaY = 0;
+		monster.NextRow = monster.Row;
+		monster.NextCol = monster.Col;
+		monster.PrevRow = monster.Row;
+		monster.PrevCol = monster.Col;
+	}
 	uchar animationIndex = MonsterAnimIndex(monster.CurAction);
-	if( is(monster.CurAction, A_14_CHARGE, A_15_STONE) ){
+	// (th4) A monster restored in A_0_STAY is standing on its tile, so it can carry no walk
+	// offset -- but DeltaX/DeltaY sit at struct offsets 56/60, well inside the blob that
+	// LoadMonster reads back (offsetof(Monster, Name)), so whatever they held when the level
+	// was saved comes straight back with it. DrawMonsterInTile adds them to the screen
+	// position, so a stale pair draws the monster away from the cell it actually occupies.
+	// Ordinary monsters hide it -- their first AI tick overwrites the offset -- but the Dark
+	// Campaign hub kin are frozen and never take one, so a vendor kept it for good and stood
+	// in the wall behind its post. Fixing it here rather than only in the hub repairs every
+	// save written before CreateMonster started zeroing these, for every monster.
+	if( monster.CurAction == A_0_STAY ){
+		monster.DeltaX = 0;
+		monster.DeltaY = 0;
+	}
+	// (th4) DC mission 7: BM_H_405 (Gwideon and kin) fireblast on ANIM_5_SECOND -- keep that
+	// choice when a monster is restored mid-ranged-cast from a save, matching StartMonsterRangedAttack.
+	if (monster.CurAction == A_10_RANGED && monster.BasePtr && monster.BasePtr->id == BM_H_405_SOR_M_T_HYBRID) {
+		animationIndex = ANIM_5_SECOND;
+	}
+	if (is(monster.CurAction, A_14_CHARGE, A_15_STONE)) {
 		monster.CurFrame = 1;
 		monster.animFrameCount = monster.SpritePtr->animation[animationIndex].frameCount;
 	}
@@ -11574,17 +15104,17 @@ void __fastcall ShowMonsterInfo(int monsterIndex)
 	int baseMonsterIndex = monster.SpritePtr->baseMonsterIndex;
 	int totalSlain = TotalSlain[baseMonsterIndex];
 	#if CHEATS	
-	sprintf(InfoPanelBuffer, "Total slain: %i, i %i rc %i %i", totalSlain, monsterIndex, monster.Row, monster.Col);
+	sprintf(InfoPanelBuffer, L("Total slain: %i, i %i rc %i %i"), totalSlain, monsterIndex, monster.Row, monster.Col);
 	#else
-	sprintf(InfoPanelBuffer, "Total slain : %i", totalSlain);
+	sprintf(InfoPanelBuffer, L("Total slain : %i"), totalSlain);
 	#endif
 	InfoPanel_AddLine(InfoPanelBuffer, true);
 	int hpShow = GameMode == GM_CLASSIC ? 0 : 5;
 	if( totalSlain >= hpShow ){
-		sprintf(InfoPanelBuffer, "Hit Points : %i of %i", Monsters[CurMon].CurrentLife >> 6, Monsters[CurMon].BaseLife >> 6); // 1 показываемый хит поинт равен 64 реальных
+		sprintf(InfoPanelBuffer, L("Hit Points : %i of %i"), Monsters[CurMon].CurrentLife >> 6, Monsters[CurMon].BaseLife >> 6); // (rt) 1 displayed hit point equals 64 real ones
 		InfoPanel_AddLine(InfoPanelBuffer, true);
 	}
-	// Желательно использовать не маску, а точные значения для всех 3х сопротивлений...
+	// (rt) Better to use exact values for all 3 resistances rather than a mask...
 	int rezShow = GameMode == GM_CLASSIC ? 0 : 3;
 	if( totalSlain >= rezShow ){
 		BaseMonster& baseMonster = BaseMonsters[baseMonsterIndex];
@@ -11593,48 +15123,48 @@ void __fastcall ShowMonsterInfo(int monsterIndex)
 		}else{
 			monsterResistMask = baseMonster.ResistOn1And2Difficulty;
 		}
-		InfoPanel_AddLine("Monster type : ", true, Spicies[ min( baseMonster.MonsterClass, 3ui16) ] );
+		InfoPanel_AddLine(L("Monster type : "), true, L(Spicies[ min( baseMonster.MonsterClass, 3ui16) ]) );
 		#ifdef comment // 1.150
-		if( !(monsterResistMask & 0x3F) ){  // 0011 1111 в маске учитываются только первые 6 битов
-			InfoPanel_AddLine("No magic resistance", true);
+		if( !(monsterResistMask & 0x3F) ){  // (rt) 0011 1111 only the first 6 bits count in the mask
+			InfoPanel_AddLine(L("No magic resistance"), true);
 			return;
 		}
-		if( monsterResistMask & (MR_1_ARCAN|MR_2_FIRE|MR_3_LIGHT) ){ // 0111 За сопротивления отвечают первые 3 бита. За магию, огонь и молнию соответственно
-			strcpy(InfoPanelBuffer, "Resists : ");
+		if( monsterResistMask & (MR_1_ARCAN|MR_2_FIRE|MR_3_LIGHT) ){ // (rt) 0111 The first 3 bits are resistances. To magic, fire and lightning respectively
+			strcpy(InfoPanelBuffer, L("Resists : "));
 			if( monsterResistMask & MR_1_ARCAN ){
-				strcat(InfoPanelBuffer, "Magic ");
+				strcat(InfoPanelBuffer, L("Magic "));
 			}
 			if( monsterResistMask & MR_2_FIRE ){
-				strcat(InfoPanelBuffer, "Fire ");
+				strcat(InfoPanelBuffer, L("Fire "));
 			}
 			if( monsterResistMask & MR_3_LIGHT ){
-				strcat(InfoPanelBuffer, "Lightning ");
+				strcat(InfoPanelBuffer, L("Lightning "));
 			}
 			InfoPanelBuffer[strlen(InfoPanelBuffer) - 1] = 0;
 			InfoPanel_AddLine(InfoPanelBuffer, true);
 		}
 		#endif
-		if( monsterResistMask & (MR_4_IM_ARCAN|MR_5_IM_FIRE|MR_6_IM_LIGHT|MR_8_IM_ACID|MR_11_IM_COLD) ){ // 0011 1000 За имунитеты отвечают следующие 3 бита. За магию, огонь и молнию соответственно
-			strcpy(InfoPanelBuffer, "Immune : ");
+		if( monsterResistMask & (MR_4_IM_ARCAN|MR_5_IM_FIRE|MR_6_IM_LIGHT|MR_8_IM_ACID|MR_11_IM_COLD) ){ // (rt) 0011 1000 The next 3 bits are immunities. To magic, fire and lightning respectively
+			strcpy(InfoPanelBuffer, L("Immune : "));
 			if( monsterResistMask & MR_4_IM_ARCAN ){
-				strcat(InfoPanelBuffer, "Magic ");
+				strcat(InfoPanelBuffer, L("Magic "));
 			}
 			if( monsterResistMask & MR_5_IM_FIRE ){
-				strcat(InfoPanelBuffer, "Fire ");
+				strcat(InfoPanelBuffer, L("Fire "));
 			}
 			if( monsterResistMask & MR_6_IM_LIGHT ){
-				strcat(InfoPanelBuffer, "Lightning ");
+				strcat(InfoPanelBuffer, L("Lightning "));
 			}
 			if( monsterResistMask & MR_8_IM_ACID ){
-				strcat(InfoPanelBuffer, "Acid ");
+				strcat(InfoPanelBuffer, L("Acid "));
 			}
 			if( monsterResistMask & MR_11_IM_COLD ){
-				strcat(InfoPanelBuffer, "Cold ");
+				strcat(InfoPanelBuffer, L("Cold "));
 			}
 			InfoPanelBuffer[strlen(InfoPanelBuffer) - 1] = '\0';
 			InfoPanel_AddLine(InfoPanelBuffer, true);
 		}else{
-			InfoPanel_AddLine("No immunity", true);
+			InfoPanel_AddLine(L("No immunity"), true);
 		}
 	}
 }
@@ -11642,10 +15172,10 @@ void __fastcall ShowMonsterInfo(int monsterIndex)
 //----- (00444497) --------------------------------------------------------
 void ShowBossHP()
 {
-	sprintf( InfoPanelBuffer, "Hit Points : %i of %i", Monsters[ CurMon ].CurrentLife >> 6, Monsters[ CurMon ].BaseLife >> 6 );
+	sprintf( InfoPanelBuffer, L("Hit Points : %i of %i"), Monsters[ CurMon ].CurrentLife >> 6, Monsters[ CurMon ].BaseLife >> 6 );
 	InfoPanel_AddLine( InfoPanelBuffer, 1 );
 	InfoPanelUsed = 1;
-	//BossShowResImun(); // отключено в th1
+	//(rt) BossShowResImun(); // disabled in th1
 }
 
 //----- (004445CA) --------------------------------------------------------
@@ -11732,7 +15262,7 @@ void __fastcall ChargeAttackImpact(uint castIndex, int castRow, int castCol)
 		int min_dmg = monster.SecondMinDamage + Difficulty * 24 + Dungeon->level / 2;
 		int max_dmg = monster.SecondMaxDamage + Difficulty * 24 + Dungeon->level;
 		MvP_Melee(monsterIndex, playerNum - 1, c_accuracy, min_dmg, max_dmg);
-		if( playerIndex != PlayerMap[ spellCast.Row ][ spellCast.Col ] - 1 ){ // проверка что игрок не отброшен (?)
+		if( playerIndex != PlayerMap[ spellCast.Row ][ spellCast.Col ] - 1 ){ // (rt) check that the player isn't knocked back (?)
 			return;
 		}
 		if( baseMonsterIndex >= BM_89_AZURE_DRAKE && baseMonsterIndex <= BM_92_ILLUSION_WEAVER ){
@@ -11936,7 +15466,7 @@ int __fastcall CheckCellForMonsterCanInteractWithDoorsSafeMove( int monsterIndex
 }
 
 //----- (00444BB8) --------------------------------------------------------
-int __fastcall IsMonsterSummonable(int baseMonsterIndex)// монстры в засаде :)
+int __fastcall IsMonsterSummonable(int baseMonsterIndex)// (rt) monsters in ambush
 {	// the list of monsters below is used to check if monster is summonable
 	if( baseMonsterIndex == BM_7_RISEN_SKELETON
 		|| baseMonsterIndex == BM_8_BONE_CREEPER
@@ -12023,7 +15553,7 @@ int __fastcall IsMonsterClan(int baseMonsterIndex)
 //----- (00444BF8) --------------------------------------------------------
 void __fastcall SummonMinion( int row, int col, int orientation )
 {
-	int monsterMayTrapCount = 0;// считаем сколько монстров умеют сидеть в засаде
+	int monsterMayTrapCount = 0;// (rt) count how many monsters can lie in ambush
 	for( int monsterSpriteIndex = 0; monsterSpriteIndex < MonsterSpritesCount; monsterSpriteIndex++ ){
 		if( IsMonsterSummonable(MonsterSprites[monsterSpriteIndex].baseMonsterIndex) ){
 			monsterMayTrapCount++;
@@ -12034,7 +15564,7 @@ void __fastcall SummonMinion( int row, int col, int orientation )
 		return;
 	}
 
-	int randFactor = RNG(monsterMayTrapCount);// выбираем случайного 
+	int randFactor = RNG(monsterMayTrapCount);// (rt) pick a random one 
 	monsterMayTrapCount = 0;
 	for( int monsterSpriteIndex = 0; monsterSpriteIndex < MonsterSpritesCount; monsterSpriteIndex++ ){
 		if( IsMonsterSummonable(MonsterSprites[monsterSpriteIndex].baseMonsterIndex) ){
@@ -12152,12 +15682,12 @@ int __fastcall ActivateAmbushMonster( int monsterIndex, int row, int col )
 	if( monsterIndex == -1 ){
 		return 0;
 	}
-	if( CheckCellForMeleeMonsterSafeMove(-1, row, col) ){ // если можно расположить прямо тут, то располагаем
+	if( CheckCellForMeleeMonsterSafeMove(-1, row, col) ){ // (rt) if it can be placed right here, place it
 		int orientation = OrientationToTarget(row, col, row, col);
 		PutAmbushMonsterAndStartAttack(monsterIndex, row, col, orientation);
 		return 1;
 	}
-	int checkFlag = 0;// проверяем на доступность все клетки на расстоянии 1 от нужной. составляем карту
+	int checkFlag = 0;// (rt) check all cells at distance 1 from the target one for availability; build a map
 	uint checksMap[9];
 	for( int colOffset = -1; colOffset <= 1; colOffset++ ){
 		for( int rowOffset = -1; rowOffset <= 1; rowOffset++ ){
@@ -12166,10 +15696,10 @@ int __fastcall ActivateAmbushMonster( int monsterIndex, int row, int col )
 			checksMap[3*(rowOffset+1)+colOffset+1] = isSafe;
 		}
 	}
-	if( !checkFlag ){// если все заняты, то не добавляем
+	if( !checkFlag ){// (rt) if all are occupied, don't add
 		return 0;
 	}
-	int loopCount = RNG(15) + 1;// выбираем случайную клетку из доступных
+	int loopCount = RNG(15) + 1;// (rt) pick a random cell from the available ones
 	int mapIndex = 0;
 	do{
 		if( checksMap[mapIndex] ){
@@ -12181,7 +15711,7 @@ int __fastcall ActivateAmbushMonster( int monsterIndex, int row, int col )
 		Wrap(++mapIndex, 9);
 	}while( loopCount > 0 );
 
-	int rowOffset = mapIndex / 3 - 1;// и туда сажаем монстра
+	int rowOffset = mapIndex / 3 - 1;// (rt) and put the monster there
 	int colOffset = mapIndex % 3 - 1;
 	int monsterRow = row + rowOffset;
 	int monsterCol = col + colOffset;
@@ -12194,7 +15724,7 @@ int __fastcall ActivateAmbushMonster( int monsterIndex, int row, int col )
 //----- (00444DFD) --------------------------------------------------------
 int AddAmbushMonster()
 {
-	int monsterMayTrapCount = 0;// считаем сколько монстров умеют сидеть в засаде
+	int monsterMayTrapCount = 0;// (rt) count how many monsters can lie in ambush
 	if( Dungeon->isQuest ) return -1;
 	for( int monsterSpriteIndex = 0; monsterSpriteIndex < MonsterSpritesCount; monsterSpriteIndex++ ){
 		if( IsMonsterSummonable(MonsterSprites[monsterSpriteIndex].baseMonsterIndex) ){
@@ -12202,7 +15732,7 @@ int AddAmbushMonster()
 		}
 	}
 	if( monsterMayTrapCount ){
-		int randFactor = RNG(monsterMayTrapCount);// выбираем случайного 
+		int randFactor = RNG(monsterMayTrapCount);// (rt) pick a random one 
 		monsterMayTrapCount = 0;
 		for( int monsterSpriteIndex = 0; monsterSpriteIndex < MonsterSpritesCount; ++monsterSpriteIndex ){
 			if( IsMonsterSummonable(MonsterSprites[monsterSpriteIndex].baseMonsterIndex) ){
@@ -12219,6 +15749,209 @@ int AddAmbushMonster()
 
 	}
 	return -1;
+}
+
+//----- (th4) -------------------------------------------------------------
+// DARK CAMPAIGN HUB: what a click on a kin does. The Dark Lord speaks; the vendor bosses
+// are vending machines -- they open their panel and say nothing. Keyed on newBossId (which
+// the engine stores as bossId + 1), so each new helper boss added to the Hideout just gets
+// another case here.
+//
+// The Dark Lord's branch deliberately does NOT go through TalkWithMonster/MonsterTalk:
+// those drive the A_17_TALK monster action and the Gharbad/Snotspill/Lachdanan quest
+// ladders, and the hub's hard AI gate (see ProcessMonsters) keeps kin in A_0_STAY forever,
+// so that state machine would never run. StartSpeech is self-contained.
+// Speech SP_255 is a PLACEHOLDER: swap for the real briefing when that system lands.
+//
+// Vendors open the SHARED town panels, so hub stock IS town stock -- no separate
+// inventory, nothing new to persist, no save-version change.
+// (th4) DARK CAMPAIGN mission table. One row per mission, in campaign order. The Dark Lord
+// walks this table to find the player's current mission, and the outbound portal reads the
+// same row for its destination -- so adding a mission is ONE row here, not edits in three
+// places. Index into this table is also the index into Player::darkMission[], whose values
+// are DCM_0_UNTOUCHED / DCM_1_BRIEFED / DCM_2_COMPLETE.
+const DarkMission DarkMissions[] = {
+	{ DUN_28_POISONED_WATER_SUPPLY, SP_DC_MISSION_1_BRIEF, "The Poisoned Water Supply", 32, 84 },
+	{ DUN_112_STILL_SPRINGS,        SP_DC_MISSION_2_BRIEF, "Still Springs",             55, 58 },
+	{ DUN_114_LOWER_SCRIPTORIUM,    SP_DC_MISSION_3_BRIEF, "The Lower Scriptorium",     20, 20 },
+	{ DUN_64_MAUSOLEUM,             SP_DC_MISSION_4_BRIEF, "The Mausoleum",             33, 31 },
+	{ DUN_70_CITADEL,               SP_DC_MISSION_5_BRIEF, "The Citadel",               52, 20 },
+	{ DUN_59_HALL_OF_FIRE,          SP_DC_MISSION_6_BRIEF, "The Hall of Fire",          48, 79 },
+	{ DUN_66_SEWERS,                SP_DC_MISSION_7_BRIEF, "The Sewers",                24, 24 },
+	{ DUN_99_ANCIENT_CRYPTS,        SP_DC_MISSION_8_BRIEF, "The Ancient Crypts",        18, 22 },
+	{ DUN_47_DARK_NEST,             SP_DC_MISSION_9_BRIEF, "The Dark Nest",             91, 20 },
+	{ DUN_118_POISONED_WATER_SUPPLY_DC, SP_DC_MISSION_10_BRIEF, "The Poisoned Water Supply", 33, 83 },	// (th4) DC mission 10
+	{ DUN_119_DEEPER_CAVES,             SP_DC_MISSION_11_BRIEF, "The Deeper Caves",          40, 81 },	// (th4) DC mission 11
+	{ DUN_120_PANDEMONIUM_DC,           SP_DC_MISSION_12_BRIEF, "Pandemonium",               51, 51 },	// (th4) DC mission 12
+	{ DUN_121_UNHOLY_ALTAR_DC,          SP_DC_MISSION_13_BRIEF, "The Unholy Altar",          35, 32 },	// (th4) DC mission 13
+	{ DUN_83_BLOOD_KEEP,                SP_DC_MISSION_14_BRIEF, "Blood Keep",                56, 88 },	// (th4) DC mission 14
+	{ DUN_43_HEPHASTO,                  SP_DC_MISSION_15_BRIEF, "Hellforge",                 32, 88 },	// (th4) DC mission 15
+	{ DUN_51_FETID_CAVERN,              SP_DC_MISSION_16_BRIEF, "Fetid Cavern",              41, 20 },	// (th4) DC mission 16
+	{ DUN_116_MINING_CAVES,             SP_DC_MISSION_17_BRIEF, "Mining Caves",              84, 85 },	// (th4) DC mission 17
+	{ DUN_80_HELL_GATE,                 SP_DC_MISSION_18_BRIEF, "Hell Gate",                 82, 22 },	// (th4) DC mission 18
+	{ DUN_72_NECROPOLIS,                SP_DC_MISSION_19_BRIEF, "Necropolis",                57, 20 },	// (th4) DC mission 19
+	{ DUN_69_GIBBET,                    SP_DC_MISSION_20_BRIEF, "Gibbet",                    88, 20 },	// (th4) DC mission 20
+	{ DUN_67_SEPULCHER,                 SP_DC_MISSION_21_BRIEF, "Sepulcher",                 88, 88 },	// (th4) DC mission 21
+	{ DUN_65_RUINED_TEMPLE,             SP_DC_MISSION_22_BRIEF, "Ruined Temple",             58, 58 },	// (th4) DC mission 22
+	{ DUN_62_DIM_UNDERCROFT,            SP_DC_MISSION_23_BRIEF, "Dim Undercroft",            84, 27 },	// (th4) DC mission 23
+	{ DUN_60_HAUNTED_LABYRINTH,         SP_DC_MISSION_24_BRIEF, "Haunted Labyrinth",         84, 46 },	// (th4) DC mission 24
+	{ DUN_111_CHURCH_SACRISTY,          SP_DC_MISSION_25_BRIEF, "Church Sacristy",           66, 52 },	// (th4) DC mission 25
+	{ DUN_44_RAVENHOLM,                 SP_DC_MISSION_26_BRIEF, "Ravenholm",                  0,  0 },	// (th4) DC mission 26: final mission, no way home
+};
+const int DarkMissionCount = countof(DarkMissions);
+
+// (th4) The mission the Dark Lord is currently concerned with: the lowest-indexed one that
+// is not yet complete. A briefed-but-unfinished mission is re-offered, which is what makes
+// talking to him again re-brief. Returns -1 when the whole campaign is done.
+int DarkCampaignCurrentMission()
+{
+	for( int i = 0; i < DarkMissionCount && i < DARK_MISSION_MAX_50; ++i ){
+		if( DarkMissionState[i] != DCM_2_COMPLETE ) return i;
+	}
+	return -1;
+}
+
+// (th4) Place the outbound mission portal in the hub. Called from TWO places -- the hub's
+// generator (level load) and the Dark Lord's briefing (mid-level) -- because a warp added at
+// generation cannot appear in response to something the player does afterwards. Idempotent:
+// re-briefing must not stack duplicate warps on the same tile, since AddWarp just push_backs.
+void OpenDarkCampaignPortal( int mission )
+{
+	if( mission < 0 || mission >= DarkMissionCount ) return;
+
+	// The portal has TWO halves and they are placed independently, because they do not
+	// survive the same events: the warp is cleared by ClearWarps() on level change, while
+	// the visible red-portal missile is cleared by InitMissiles(). Checking each separately
+	// means this is safe to call every tick and after any reload.
+	bool haveWarp = false;
+	for( auto& w: Warps ){
+		if( w.Row == DARK_PORTAL_ROW && w.Col == DARK_PORTAL_COL ){ haveWarp = true; break; }
+	}
+	if( !haveWarp ){
+		AddWarp( DARK_PORTAL_ROW, DARK_PORTAL_COL, WM_1029_GOTO_QUEST_DUNGEON, DarkMissions[mission].dungeon );
+	}
+
+	bool havePortal = false;
+	for( int i = 0; i < MissileAmount; ++i ){
+		Missile& m = Missiles[ MissileIndexes[i] ];
+		if( m.BaseMissileIndex == MI_65_RED_PORTAL && m.Row == DARK_PORTAL_ROW && m.Col == DARK_PORTAL_COL ){
+			havePortal = true;
+			break;
+		}
+	}
+	if( !havePortal ){
+		CastMissile( DARK_PORTAL_ROW, DARK_PORTAL_COL, DARK_PORTAL_ROW, DARK_PORTAL_COL, 0,
+		             MI_65_RED_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0 );
+	}
+}
+
+// (th4) DARK CAMPAIGN HUB: every vendor service draws in the LEFT panel slot, and the draw
+// chain in Draw.cpp (~3950) is an else-if ladder in which the character sheet and the quest
+// log come BEFORE all of them. So clicking a vendor with the char sheet open did open his
+// panel -- it just rendered underneath it and looked like nothing had happened. Town never
+// had this bug because towners go through ChangeTownerDialog, which closes both first; the
+// hub calls the *_Open() helpers directly, so it has to do the same itself.
+//
+// Only these two need clearing: the spellbook loses to IsINVPanelVisible, which every
+// *_Open() sets, and the remaining panels are all later in the same ladder.
+static void DarkCampaignCloseLeftPanelBlockers()
+{
+	IsCHARPanelVisible  = false;
+	IsQUESTPanelVisible = false;
+}
+
+void __fastcall DarkCampaignTalk(uint monsterIndex)
+{
+	if( monsterIndex >= Monsters_Max_Count ) return;
+	Monster& monster = Monsters[monsterIndex];
+
+	switch( monster.newBossId - 1 ){
+	case UM_0_Gharbad_the_Weak:				// hub blacksmith -- Griswold's Trade / Repair
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_955_M_GARBUD04, monster.Row, monster.Col );	// (th4) Gharbad greets on click
+		VisualTrade_Open( VTM_Blacksmith );
+		return;
+	case UM_19_Jaldabaoth:					// hub powerups -- Wirt's Buy Power-Ups
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1050, monster.Row, monster.Col );	// (th4) greet on click
+		Powerups_Open();
+		return;
+	case UM_30_Boilrot:						// hub stash -- Gillian's Open Stash
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1046, monster.Row, monster.Col );	// (th4) greet on click
+		StashPanel_Open();
+		return;
+	case UM_48_Molianta_the_Copperwing:		// hub quench -- Griswold's Quench Items
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1498, monster.Row, monster.Col );	// (th4) greet on click
+		Quench_Open();
+		return;
+	case UM_51_Galahad_the_Bonewhite:		// hub crafting -- Griswold's Crafting / Socketing
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1060, monster.Row, monster.Col );	// (th4) greet on click
+		Craft_Open();
+		return;
+	case UM_89_Alystar:						// hub identify -- Cain's Identify Items
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_583_M_UA, monster.Row, monster.Col );	// (th4) greet on click
+		VisualTrade_Open( VTM_Elder );
+		return;
+	case UM_94_Setebos:						// hub enchant -- Adria's Enchant Items
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1411_MAGNAT, monster.Row, monster.Col );	// (th4) greet on click
+		Enchant_Open();
+		return;
+	case UM_124_Torvatus:					// hub witch -- Adria's Trade / Recharge
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1476, monster.Row, monster.Col );	// (th4) greet on click
+		VisualTrade_Open( VTM_Witch );
+		return;
+	case UM_126_Gloomshredder:				// hub transmute -- Cain's Transmute Items
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1496, monster.Row, monster.Col );	// (th4) greet on click
+		Transmute_Open();
+		return;
+	case UM_792_Salinus_the_Salt_King:		// hub healer -- Pepin's Trade
+		DarkCampaignCloseLeftPanelBlockers();
+		PlayLocalSound( S_1462, monster.Row, monster.Col );	// (th4) greet on click
+		VisualTrade_Open( VTM_Healer );
+		return;
+	case UM_5_Red_Vex:						// (th4) hub entourage -- greets, no service
+		PlayLocalSound( S_1039_M_ND, monster.Row, monster.Col );	// (th4) greet on click
+		return;
+	case UM_6_Dark_Jade:					// (th4) hub entourage -- greets, no service
+		PlayLocalSound( S_989_M_VAR, monster.Row, monster.Col );	// (th4) greet on click
+		return;
+	}
+
+	// The Dark Lord briefs. Anyone else without a service has nothing to say yet.
+	if( Speech_IsPanelVisible ) return;					// already talking
+	if( monster.newBossId - 1 != UM_773_The_Dark_Lord ) return;
+
+	int mission = DarkCampaignCurrentMission();
+	if( mission < 0 ) return;							// campaign finished -- he is silent
+
+	FixMonsterPosition( monsterIndex, monster.Orientation );	// keep him facing as placed
+	PlayLocalSound( S_1482, monster.Row, monster.Col );	// (th4) DL greet on click, in addition to his speech
+
+	// (th4) DC mission 12 opens with "the anvil will do its part" -- so he takes it. Keyed on
+	// the briefing constant rather than the mission index so reordering DarkMissions[] cannot
+	// silently move the confiscation to the wrong mission. Idempotent: re-briefing runs this
+	// path again, and by then the Anvil is already gone, so the find simply fails.
+	if( DarkMissions[mission].briefSpeech == SP_DC_MISSION_12_BRIEF ){
+		int anvilInventoryIndex;
+		if( FindItemInInventory( CurrentPlayerIndex, BI_16_ANVIL_OF_FURY, anvilInventoryIndex ) ){
+			ClearInventorySlot( CurrentPlayerIndex, anvilInventoryIndex );
+		}
+	}
+
+	StartSpeech( DarkMissions[mission].briefSpeech );
+	// Briefing is what opens the portal: state 1 is the signal the hub reads.
+	DarkMissionState[mission] = DCM_1_BRIEFED;
+	// The hub's generator also places this warp, but that only runs on level LOAD -- so the
+	// portal has to be created here too, or it would not appear until the player left and
+	// came back. Guarded against duplicates because re-briefing runs this path again.
+	OpenDarkCampaignPortal( mission );
 }
 
 //----- (00444E97) --------------------------------------------------------
@@ -12279,9 +16012,29 @@ void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spell
         case PFC_DEMONOLOGIST:      spriteIndex += 0; break;
         case PFC_NECROMANCER:       spriteIndex += 3; break;
         case PFC_BEASTMASTER:       spriteIndex += 6; break;
+		//case PFC_INQUISITOR:		spriteIndex += 169; break;
         }
     }
     
+	// (rt) ========== INSERT FOR THE WARLORD ==========
+// (rt) If the player is a Warlord, use the Lesser Summon spell (MI_122_LESSER_SUMMON)
+// (rt) then fully override spriteIndex with our warrior mercenary
+	if (HasTrait(ownerIndex, TraitId::Warlord) && missile.BaseMissileIndex == MI_122_LESSER_SUMMON) {
+		// (rt) Find the spriteIndex for BM_392_WARLORD_MERC
+		int foundIdx = -1;
+		for (int i = 0; i < MonsterSpritesCount; i++) {
+			if (MonsterSprites[i].baseMonsterIndex == BM_392_WARLORD_MERC) {
+				foundIdx = i;
+				break;
+			}
+		}
+		if (foundIdx != -1) {
+			spriteIndex = foundIdx;
+			//(rt) summonType = 4; // optional
+		}
+	}
+	// =========================================
+
     params.spriteIndex = spriteIndex;
     
     int summonType = 0;
@@ -12501,7 +16254,21 @@ void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spell
 				armorClass = owner.CurMagic * clvl / 400 /* 50 */ + clvl / 2 + slvl + 1 + RNG(((clvl / 10) + 5)); // from [2-6]  to = 50 + 25 + 51 +[0-9] = [126-135]
 				break;
             }
-        case BM_109_GOLEM:
+		case BM_392_WARLORD_MERC:
+		{
+			int mercLevel = clvl;
+						
+			summonLife = ( ( 90 + mercLevel * 5 + RNG( 11 ) + RNG( 5 * mercLevel + 1 ) + ( ( mercLevel * mercLevel ) / 5) ) << 6 );
+			toHit = (2 * mercLevel) + 15 + (mercLevel * mercLevel / 42) + RNG(6);
+			minDamage = mercLevel + 3 + (mercLevel * mercLevel / 80) + RNG(6);
+			maxDamage = minDamage + 3 + mercLevel + (mercLevel * mercLevel / 80) + RNG(11);
+			toHitSecond = toHit;
+			minDamageSecond = minDamage;
+			maxDamageSecond = maxDamage;
+			armorClass = 2 * mercLevel + (mercLevel * mercLevel / 50) + 2 + RNG(6);
+			break;
+		}
+		case BM_109_GOLEM:
 		default:
 		{
 			if (GameMode == GM_CLASSIC) {
@@ -12555,22 +16322,22 @@ void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spell
 	int best_defense_trait_penalty = HasTrait(ownerIndex, TraitId::BestDefense) ? + ( 25 + (owner.CharLevel / 15)) : 0;
 	summonLife += summonLife * PerkValue(PERK_GOLEM_MASTERY, ownerIndex, 1) / 100;
 	summonLife += ((summonLife * owner.summonHpPercent) / 100 + (owner.summonHp << 6)) ; // hp increase from affixes
-	summonLife += PerkValue(PERK_TOUGH_MINIONS, ownerIndex) << 6; // +hp from perks
+	summonLife += ((PerkValue(PERK_TOUGH_MINIONS, ownerIndex) + PerkValue(PERK_TOUGH_MERCENARIES, ownerIndex)) << 6); // +hp from perks
 	params.summonLife = summonLife * (100 - best_defense_trait_penalty) / 100; //added here because it changes TOTAL hit points. including affix and perk buffs
  
 	toHit += owner.summonToHit;
 	toHit += toHit * PerkValue(PERK_GOLEM_MASTERY, ownerIndex, 1) / 100;
-	toHit += PerkValue(PERK_ACCURATE_MINIONS, ownerIndex); // +accuracy from perks
+	toHit += PerkValue(PERK_ACCURATE_MINIONS, ownerIndex) + PerkValue(PERK_MERC_ACCURACY, ownerIndex); // +accuracy from perks
 	params.toHit = toHit;
  
 	int best_defense_benefit = HasTrait(ownerIndex, TraitId::BestDefense) ? (25 + owner.CharLevel / 15) : 0;
 	minDamage += minDamage * PerkValue(PERK_GOLEM_MASTERY, ownerIndex, 1) / 100; 
 	minDamage += minDamage * (owner.summonDamagePercent + best_defense_benefit) / 100 + owner.summonDamageMin;
-	minDamage += PerkValue(PERK_STRONG_MINIONS, ownerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, ownerIndex); // +damage from perks
+	minDamage += PerkValue(PERK_STRONG_MINIONS, ownerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, ownerIndex) + PerkValue(PERK_STRONG_MERCENARIES, ownerIndex); // +damage from perks
 
 	maxDamage += maxDamage * PerkValue(PERK_GOLEM_MASTERY, ownerIndex, 1) / 100;
 	maxDamage += maxDamage * (owner.summonDamagePercent + best_defense_benefit) / 100 + owner.summonDamageMax;
-	maxDamage += PerkValue(PERK_STRONG_MINIONS, ownerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, ownerIndex); // +damage from perks
+	maxDamage += PerkValue(PERK_STRONG_MINIONS, ownerIndex) + PerkValue(SYNERGY_MINION_OFFENSE, ownerIndex) + PerkValue(PERK_STRONG_MERCENARIES, ownerIndex); // +damage from perks
 
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_20_2X_DAMAGE) && MaxCountOfPlayersInGame == 1) {
 		minDamage *= 2;
@@ -12596,7 +16363,7 @@ void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spell
 
 	armorClass += armorClass * PerkValue(PERK_GOLEM_MASTERY, ownerIndex, 1) / 100;
 	armorClass += (armorClass * owner.summonAcPercent) / 100 + owner.summonAc;
-	armorClass += PerkValue(PERK_ARMORED_MINIONS, ownerIndex); // +armor from perks
+	armorClass += PerkValue(PERK_ARMORED_MINIONS, ownerIndex) + PerkValue(PERK_MERC_ARMOR, ownerIndex); // +armor from perks
 	params.armorClass = armorClass;
 
 	LimitToMin(params.summonLife     , 1);
@@ -12611,6 +16378,181 @@ void __fastcall MakeGolem( unsigned int summonIndex, int row, int col, int spell
 	if( ownerIndex == CurrentPlayerIndex ){
 		NetSendCmdAwakeSummon( summonIndex, row, col, (DUNGEON)Dungeon, params );
 	}
+}
+
+//---- (th4) --------------------------------------------------------------
+// Carried summons: summons used to die on every level change. Nothing killed them --
+// InitMonsterSlots() -> ClearMonsters() wipes the whole Monsters[] array and the summon
+// slots go with it. Here we snapshot the local player's live summons before the wipe and
+// rebuild them next to him once the new level has settled.
+//
+// Singleplayer only. Dark Campaign escort bosses (the mission 10 succubi, Hephasto in the
+// Hellforge) are NOT summons: they are ordinary uniques living in slots >= SummonMonsters_Count
+// with their own arrival and walk-home logic, so nothing below can reach them.
+struct CarriedSummon
+{
+	bool       used;
+	int        baseMonsterIndex;	// re-resolved to a sprite on the destination level
+	char       summonOrder;
+	int        currentLife;
+	DSummonStr params;
+};
+static CarriedSummon CarriedSummons[SummonMonstersPerPlayer_Count];
+
+// Which summon type owns this slot offset. The slot ranges are fixed per type, so a summon
+// never changes slot -- that is what lets us carry it across a level by slot index alone.
+static int SummonTypeOfSlot( int slotOffset, int playerIndex )
+{
+	for( int summonType = 0; summonType < SUM_COUNT; ++summonType ){
+		int startIndex = 0;
+		int slotsAmount = 0;
+		GetSummonsTypeOffsets( summonType, &startIndex, &slotsAmount, playerIndex );
+		if( slotOffset >= startIndex && slotOffset < startIndex + slotsAmount ){
+			return summonType;
+		}
+	}
+	return SUM_GOLEM;	// PERK_EXTRA_GOLEMS gives the golems every slot
+}
+
+// Carried summons are singleplayer only -- MP keeps its own per-level summon deltas -- and
+// never in Classic, which must behave like vanilla Diablo: the golem stays behind.
+bool CarriedSummonsEnabled()
+{
+	return MaxCountOfPlayersInGame == 1 && GameMode != GM_CLASSIC;
+}
+
+// A tile next to the owner that a summon may be built on: on the map, empty in both maps,
+// walkable, and in his line of sight. Searched as expanding rings so summons land close.
+// Nothing is created until a tile is found, so a failed search cannot leave a half-placed
+// monster or a stomped MonsterMap cell behind.
+static bool FindFreeTileNearOwner( const Player& owner, int& outRow, int& outCol )
+{
+	for( int radius = 1; radius <= 5; ++radius ){
+		for( int rowDelta = -radius; rowDelta <= radius; ++rowDelta ){
+			for( int colDelta = -radius; colDelta <= radius; ++colDelta ){
+				if( max(abs(rowDelta), abs(colDelta)) != radius ) continue;	// ring edge only
+				const int row = owner.Row + rowDelta;
+				const int col = owner.Col + colDelta;
+				if( ! In112(row, col) ) continue;
+				if( MonsterMap[ row ][ col ] || PlayerMap[ row ][ col ] ) continue;
+				if( IsCellBlocking(row, col) ) continue;
+				if( ! CheckCastInSight(owner.Row, owner.Col, row, col) ) continue;
+				outRow = row;
+				outCol = col;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void ClearCarriedSummons()
+{
+	for( auto& carried: CarriedSummons ) carried = {};
+}
+
+// Called before the level wipe, while Monsters[] still holds the level being left.
+void CaptureCarriedSummons()
+{
+	ClearCarriedSummons();
+	if( ! CarriedSummonsEnabled() ){
+		return;
+	}
+	const int summonsOffset = CurrentPlayerIndex * SummonMonstersPerPlayer_Count;
+	fori( SummonMonstersPerPlayer_Count ){
+		const int summonIndex = summonsOffset + i;
+		if( ! IsSummonAlive( summonIndex ) ){
+			continue;
+		}
+		const Monster& summon = Monsters[summonIndex];
+		// MF_6_FRIENDLY is set by AwakeSummon, so every genuine summon has it. A slot that
+		// was only ever reserved by AddMonster() does not -- and it looks like a golem,
+		// because that reservation passes sprite index 0.
+		if( ! summon.SpritePtr || !(summon.flag & MF_6_FRIENDLY) || (summon.flag & MF_15_KILLED) ){
+			continue;
+		}
+		CarriedSummon& carried = CarriedSummons[i];
+		carried.used              = true;
+		carried.baseMonsterIndex  = summon.SpritePtr->baseMonsterIndex;
+		carried.summonOrder       = summon.summonOrder;
+		carried.currentLife       = summon.CurrentLife;
+		// spriteIndex is filled in on arrival -- it is an index into the destination
+		// level's MonsterSprites[], not something that travels between levels.
+		carried.params.spriteIndex      = 0;
+		carried.params.summonType       = SummonTypeOfSlot( i, CurrentPlayerIndex );
+		carried.params.summonLife       = summon.BaseLife;
+		carried.params.toHit            = summon.ToHit;
+		carried.params.minDamage        = summon.MinDamage;
+		carried.params.maxDamage        = summon.MaxDamage;
+		carried.params.toHitSecond      = summon.SecondToHit;
+		carried.params.minDamageSecond  = summon.SecondMinDamage;
+		carried.params.maxDamageSecond  = summon.SecondMaxDamage;
+		carried.params.armorClass       = summon.ArmorClass;
+	}
+}
+
+// Called at the end of the level load, once the player's tile is final.
+void RestoreCarriedSummons()
+{
+	if( ! CarriedSummonsEnabled() ){
+		ClearCarriedSummons();
+		return;
+	}
+	// (th4) Summons are left behind on a town trip, and on a visit to the Dark Campaign
+	// hub -- the Hideout is a peace zone: no attacking, and only Identify, Item Repair and
+	// Healing may be cast there (see the DUN_117 gate in Item.cpp).
+	if( Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT ){
+		ClearCarriedSummons();
+		return;
+	}
+	const Player& owner = Players[CurrentPlayerIndex];
+	const int summonsOffset = CurrentPlayerIndex * SummonMonstersPerPlayer_Count;
+	bool anyRestored = false;
+
+	fori( SummonMonstersPerPlayer_Count ){
+		CarriedSummon& carried = CarriedSummons[i];
+		if( ! carried.used ){
+			continue;
+		}
+		// Slot layout is fixed per summon type, so slot i on the old level is slot i here.
+		const int summonIndex = summonsOffset + i;
+
+		int spriteIndex = -1;
+		for( int s = 0; s < MonsterSpritesCount; s++ ){
+			if( MonsterSprites[s].baseMonsterIndex == carried.baseMonsterIndex ){
+				spriteIndex = s;
+				break;
+			}
+		}
+		if( spriteIndex == -1 ){	// sprite not loaded here -- drop the summon rather than guess
+			continue;
+		}
+		carried.params.spriteIndex = spriteIndex;
+
+		// Find the tile FIRST. Building the summon on the owner's own tile and moving it
+		// afterwards meant that when the move was refused the summon stayed stacked, and the
+		// next one overwrote its MonsterMap entry -- an invisible, unhittable monster. Now
+		// nothing is created unless there is somewhere to put it.
+		int row = 0, col = 0;
+		if( ! FindFreeTileNearOwner( owner, row, col ) ){
+			continue;	// walled in: this summon is left behind rather than stacked
+		}
+		// A saved level may have left this same slot standing somewhere else. Only cells
+		// holding this monster's own index are cleared, so the summons already placed by
+		// this loop are not disturbed.
+		ClearMonsterOnMap( summonIndex );
+		AwakeSummon( summonIndex, row, col, carried.currentLife, carried.params, true );
+		Monsters[summonIndex].summonOrder = carried.summonOrder;
+		Monsters[summonIndex].CurAction = A_0_STAY;
+		anyRestored = true;
+	}
+
+	if( anyRestored ){
+		for( int summonType = 0; summonType < SUM_COUNT; ++summonType ){
+			RecalcSummonOrder( CurrentPlayerIndex, summonType );
+		}
+	}
+	ClearCarriedSummons();
 }
 
 //---- (th2) --------------------------------------------------------------
@@ -12682,12 +16624,12 @@ bool __fastcall MonsterTalking(uint monsterIndex)
 }
 
 //----- (004450B5) --------------------------------------------------------
-int __fastcall CheckMonsterPhaseOrBlock(uint monsterIndex, int* isMonsterHit)
+int __fastcall CheckMonsterPhaseOrBlock(uint monsterIndex, int* isMonsterHit, int attackerPlayerIndex)
 {
 	Monster& monster = Monsters[monsterIndex];
 	int result = 0;
 	if( monsterIndex < Monsters_Max_Count ){
-		if( monster.ai == AI_12_Gargoyle && monster.flag & MF_3_STONE ){ // горгулья в стоун моде
+		if( monster.ai == AI_12_Gargoyle && monster.flag & MF_3_STONE ){ // (rt) gargoyle in stone mode
 			monster.flag &= ~MF_3_STONE;
 			monster.CurAction = A_7_SECOND;
 			*isMonsterHit = 1;
@@ -12699,9 +16641,15 @@ int __fastcall CheckMonsterPhaseOrBlock(uint monsterIndex, int* isMonsterHit)
 		 || baseMonster == BM_174_ZHAR_BASEMNSTR
 		 || baseMonster == BM_181_ADVOCATE
 		 || baseMonster == BM_200_CABALIST
-		 || baseMonster == BM_201_ADEPT ){ // неуязвимость магов в фазе (телепорт?) 
+		 || baseMonster == BM_201_ADEPT
+		 || (baseMonster >= BM_C_313_COUNSELOR && baseMonster <= BM_C_316_ADVOCATE) ){ // mage invulnerability when phasing
 			result = 1;
-			if( monster.goal != MG_1_ATTACK ){
+			// (th4) SP only: a Thief-trait attacker strikes through the mage family's
+			// (Ai_25_Mage) phasing -- the stealth kit sees them mid-phase. Attacks by
+			// monsters, traps, and summons (attackerPlayerIndex -1) keep the old rule.
+			const bool thiefPierce = MaxCountOfPlayersInGame == 1 && attackerPlayerIndex >= 0
+				&& HasTrait((uint)attackerPlayerIndex, TraitId::Thief);
+			if( monster.goal != MG_1_ATTACK && !thiefPierce ){
 				*isMonsterHit = 0;
 				return result;
 			}
@@ -12713,7 +16661,26 @@ int __fastcall CheckMonsterPhaseOrBlock(uint monsterIndex, int* isMonsterHit)
 		case GM_SPEEDRUN or GM_NIGHTMARE or GM_HARDCORE:	monBlockRate = 65; break;
 			break;
 		}
-		if( (baseMonster == BM_162_CORRUPT_PALADIN || baseMonster == BM_208_WARPED_ONE)
+		// (th4) The Dark Campaign sword+shield Warrior blocks on exactly the Corrupt Paladin's
+		// terms -- same action guards, same StartMonsterSecondAttack_4_orBlock pose -- but at
+		// a flat 50% instead of the mode-scaled 60-75 the Paladin and Warped One use.
+		if (is(baseMonster, BM_H_399_WAR_L_SS, BM_H_401_MONK_M_MS)) { 
+			monBlockRate = 50; 
+		}
+		// (th4) DC mission 6: Sir Cabbot (mace+shield Templar) blocks on the same terms, flat 55%.
+		else if (is(baseMonster, BM_H_404_WAR_M_MS, BM_H_408_WAR_M_SS, BM_H_410_MONK_H_SS)) { 
+			monBlockRate = 55; 
+		}
+		else if (is(baseMonster, BM_H_414_WAR_H_MS, BM_H_416_MON_H_MS)) {
+			monBlockRate = 43;
+		}
+		else if (is(baseMonster, BM_H_417_WAR_H_SS_WARRIOR_ELITE)) {
+			monBlockRate = 32;
+		}
+
+		if( (is(baseMonster, BM_162_CORRUPT_PALADIN, BM_208_WARPED_ONE
+		  , BM_H_399_WAR_L_SS , BM_H_401_MONK_M_MS, BM_H_416_MON_H_MS, BM_H_417_WAR_H_SS_WARRIOR_ELITE
+		 , BM_H_404_WAR_M_MS , BM_H_408_WAR_M_SS , BM_H_410_MONK_H_SS, BM_H_414_WAR_H_MS))
 		 && monster.CurAction < A_15_STONE
 		 && monster.CurAction != A_1_WALK_UP 
 		 && monster.CurAction != A_2_WALK_DOWN 
@@ -12798,7 +16765,7 @@ void __fastcall PlayVideo(char* videoName, int isSkipable)
 			if( vidHanler )
 				SVidPlayEnd(vidHanler);
 		}
-		VideoWindowExists = 0; // иногда не сбрасывается в PlayVideoHandler (в th1 тоже)
+		VideoWindowExists = 0; // (rt) sometimes not reset in PlayVideoHandler (in th1 too)
 		if( DDraw && ScreenSurface32 ){ // clear screen
 			POINT p = { 0, 0 };
 			ClientToScreen(ghMainWnd, &p);
@@ -12826,7 +16793,7 @@ int __stdcall MovieWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 	if( msg == WM_KEYDOWN || msg == WM_CHAR ){
 LABEL_9:
-		VideoWindowExists = 0; // это, видимо, вместо WM_QUIT/WM_CLOSE
+		VideoWindowExists = 0; // (rt) this is apparently instead of WM_QUIT/WM_CLOSE
 		return DefaultHandler(hWnd, msg, wParam, lParam);
 	}
 	if( msg != WM_SYSCOMMAND ){

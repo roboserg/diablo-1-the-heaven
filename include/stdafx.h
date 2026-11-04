@@ -24,6 +24,11 @@
 //#define DIRECTSOUND_VERSION 0x0300
 //#define DIRECTINPUT_VERSION 0x0300
 
+// === Option C diagnostic: LightSurfaceBase snapshot ===
+// Set to 1 to take a snapshot of LightSurface after pre-fill and compare
+// at checkpoints.  Also needs the matching allocation in dx.cpp.
+#define OPTION_C_DIAG_LIGHTSURFACEBASE 0
+
 #define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
 
 #define NOMINMAX
@@ -32,7 +37,7 @@
 #include <io.h>
 //#include <ctype.h>
 #include <ddraw.h>
-//#include <ddrawi.h> // используется для storm.cpp ?
+//(rt) #include <ddrawi.h> // used for storm.cpp?
 #include <d3d9.h>
 #include <mmreg.h>
 //#include <austream.h>
@@ -94,7 +99,7 @@ using namespace std;
 #endif
 
 #define countof( a ) __crt_countof( a ) // only first rank, TODO: change to std::size(a)
-#define fullcountof( a ) ( sizeof( a ) / sizeof( remove_all_extents_t< decltype( a ) > ) ) // считает сразу все измерения
+#define fullcountof( a ) ( sizeof( a ) / sizeof( remove_all_extents_t< decltype( a ) > ) ) // (rt) counts all dimensions at once
 #define flat( a ) reinterpret_cast<remove_all_extents_t< decltype( a )> (&) [ fullcountof( a ) ]>(a)
 
 typedef unsigned int uint;

@@ -21,7 +21,7 @@ int blindRewards[HotB_UNIQUES] = {
 // ║                           jmp inline chunks                                 ║
 // ╚═════════════════════════════════════════════════════════════════════════════╝
 
-// оптимизация, новая функция. Нужна для загрузки графики для одного объекта карты по индексу
+// (rt) optimization, new function. Needed to load the graphics of one map object by index
 __forceinline void LoadOneObjectSprite(int floorItemSpriteIndex)
 {
 	ObjectSpriteIndexes[ObjectsSpritesCount] = floorItemSpriteIndex;
@@ -44,9 +44,9 @@ __forceinline void LoadOneObjectSprite(int floorItemSpriteIndex)
 void LoadObjectSprites()
 {
 	int dungeonLevel = Dungeon->level; // TODO: change to check Dungeon->graphType
-	if( dungeonLevel >= 21 && dungeonLevel <= 24 ){// слеп прикидывается церковью
+	if( dungeonLevel >= 21 && dungeonLevel <= 24 ){// (rt) the crypt pretends to be the church
 		dungeonLevel -= 20;
-	}else if( dungeonLevel >= 17 && dungeonLevel <= 20 ){// а бездна пещерами
+	}else if( dungeonLevel >= 17 && dungeonLevel <= 20 ){// (rt) and the abyss pretends to be the caves
 		dungeonLevel -= 8;
 	}
 
@@ -310,14 +310,22 @@ void __fastcall InitObjects()
 		if( IsQuestOnLevel( Q_7_OGDENS_SIGN ) ){
 			AddObject( BO_97_OGDEN_CHEST, 2 * CurPattern.row + 26, 2 * CurPattern.col + 19);
 		}
-		AddSomeTwoTilesSizeObjectOnMap(10, 15, BO_48_SARCOPHAGUS);
-		if( Dungeon->graphType == DT_5_CRYPT )
-			AddCryptDoors(0, 0, 112, 112);
-		else
-			AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
-		AddSomeBarrelsOnLevel();
+
+		//------------ remove sarchophagi and barrels in Oubreak
+		if (GameMode != GM_OUTBREAK) {
+			AddSomeTwoTilesSizeObjectOnMap(10, 15, BO_48_SARCOPHAGUS);
+			if (Dungeon->graphType == DT_5_CRYPT) {
+				AddCryptDoors(0, 0, 112, 112);
+			}
+			else {
+				AddDoorsAndLibrazObjectInChurch(0, 0, 112, 112);
+			}
+			AddSomeBarrelsOnLevel();
+		}
+		//-------------------
+
 	}
-	if( Dungeon->genType == DT_2_CATACOMB ){// явно что то не так. Там внутри оказались проверки на другие DT
+	if( Dungeon->genType == DT_2_CATACOMB ){// (rt) clearly something is wrong: there turned out to be checks for other DTs inside
 		if( IsQuestOnLevel(Q_0_THE_MAGIC_ROCK) ){
 			AddRandFromRangeCountOfObjects(1, 1, BO_23_MAGIC_ROCK_TABLE);
 		}
@@ -380,9 +388,14 @@ void __fastcall InitObjects()
 			RestoreCurPattern();
 		}
 		if( IsQuestOnLevel(Q_29_IRON_FIGURINE)) {
-			uchar* swamp = (uchar*)LoadFile("levels\\L3data\\swampy_cavern_entry.dun", 0);
-			LoadMapObjects(swamp, 2 * CurPattern.row + 1, 2 * CurPattern.col + 1);
-			FreeMem(swamp);
+			uchar* ifig = (uchar*)LoadFile("levels\\L3data\\swampy_cavern_entry.dun", 0);
+			LoadMapObjects(ifig, 2 * CurPattern.row + 1, 2 * CurPattern.col + 1);
+			FreeMem(ifig);
+		}
+		if (IsQuestOnLevel(Q_40_SECRETS_OF_MAGIC)) {
+			uchar* som = (uchar*)LoadFile("levels\\L3data\\swampy_cavern_entry.dun", 0);
+			LoadMapObjects(som, 2 * CurPattern.row + 1, 2 * CurPattern.col + 1);
+			FreeMem(som);
 		}
 		if (IsQuestOnLevel(Q_30_DEMON_PLAGUE)) {
 			uchar* grotto = (uchar*)LoadFile("levels\\L3data\\mossy_grotto_entry.dun");
@@ -433,7 +446,7 @@ void __fastcall InitObjects()
 	InitObjFlag = 0;
 }
 
-// TODO: косячит
+// (rt) TODO: malfunctions
 //----- (0044C607) --------------------------------------------------------
 void __fastcall AddSomeTwoTilesSizeObjectOnMap( int minCount, int maxCount, BASE_OBJECT baseObjectIndex )
 {
@@ -1774,12 +1787,24 @@ void __fastcall AddTrapHoleOnMap( int objectIndex )
 	object.OpenState = 0;
 }
 
+static LightTint GetObjectLightTint(int baseObjectIndex); // (th4) Rev 2.46 forward decl (defined after LightObjectAction)
+
 //----- (0044E25F) --------------------------------------------------------
 void __fastcall PutSomeLightSorce( int objectIndex, int lightLevel )
 {
 	Object& object = Objects[objectIndex];
 	if( InitObjFlag ){
-		DoLighting(object.Row, object.Col, lightLevel, -1);// и у всех объектов лайт индекс будет -1?
+		// (th4) Rev 2.46 Option C + Rev 2.50: the value bake stays byte-identical
+		// to non-ultra. The emitter's COLOR is no longer baked here — the whole
+		// StaticTintMap is built with the single first-`==`-match replay rule
+		// (RebuildStaticTintMap) right after the static baseline is final, for
+		// fresh generation AND every load path, so a level's static colors are
+		// byte-identical freshly generated and after any save/load round trip.
+		// The object stays a PURE STATIC emitter (marker -1): no LightList slot,
+		// no distance gate, pool visible at any distance from frame 1. This
+		// reverts the 8a9b331 marker hack (which skipped the bake) and the
+		// afcf598 no-gate regression.
+		DoLighting(object.Row, object.Col, lightLevel, -1);// (rt) and will every object's light index be -1?
 		object.ShrineIndex = -1;
 	}else{
 		object.ShrineIndex = 0;
@@ -1837,6 +1862,11 @@ void __fastcall AddShrineOnMap( int objectIndex )
 		object.FrameIndex = 12;
 		object.FramesCount = 22;
 	}
+	// (th4) Every shrine rolls its effect from this seed (ApplyShrineEffect: SetRndSeed(object.Seed)), but
+	// it was never set -- InitObjects zeroes the objects, so EVERY shrine rolled with seed 0 and gave the
+	// same result every time (a Hidden Shrine always picked the same item, and so on; the original game had
+	// whatever was left in memory -- DSF 1.09 bug list). Set last, so the shrine TYPE above is unchanged.
+	object.Seed = GetRndSeed();
 }
 
 //----- (0044E394) --------------------------------------------------------
@@ -1951,17 +1981,143 @@ void __fastcall AddTNude( int objectIndex )
 	object.InAction = 1;
 }
 
+//----- (th4) -------------------------------------------------------------
+
+// (th4) Stage 3: per-object light tint table (white = no tint) — the dungeon
+// analogue of GetMissileLightTint in Missile.cpp. One row per colored light
+// SOURCE OBJECT (keyed by BaseObjectIndex, not by the light slot): the V2
+// light field automatically follows the winning light's tint, so adding a
+// color is ONE table row here, nothing else.
+//
+// Only objects that create a RUNTIME light (a LightList entry via AddLight)
+// can be tinted. Those are exactly the emitters handled in ProcessObjects:
+//   LightObjectAction -> torches / brazier / candles / burning crosses,
+//   ActivateFlame     -> flame groups (BO_49_FLAME1).
+// Objects that only bake STATIC light at map generation (PutSomeLightSorce
+// under InitObjFlag -> DoLighting(..., -1) into LightMap) never enter
+// LightList and therefore cannot carry a tint: BO_8/10/15-19_L1BRAZ are in
+// that group (they appear in DrawObjectSprite's full-bright list but have
+// no runtime light).
+//
+// The tint is MULTIPLICATIVE in the shader (litMain *= tint), so channels
+// should stay bright (close to 255) — lowering a channel also dims it.
+static LightTint GetObjectLightTint(int baseObjectIndex)
+{
+	switch (baseObjectIndex) {
+		case BO_0_L1BRAZ:
+//		case BO_8_L1BRAZ:          { LightTint t; t.r = 255; t.g = 135; t.b = 40;  return t; } // braziers (church floor lamp) — orange fire
+		case BO_8_L1BRAZ:          { LightTint t; t.r = 255; t.g = 205; t.b = 40;  return t; } // braziers (church floor lamp) — orange yellow
+		case BO_3_TORCH:           { LightTint t; t.r = 255; t.g = 190; t.b = 100; return t; } // torch flame — warm amber
+		case BO_44_WTORCH4:
+		case BO_45_WTORCH3:
+		case BO_46_WTORCH1:
+		case BO_47_WTORCH2:        { LightTint t; t.r = 255; t.g = 190; t.b = 100; return t; } // wall torches — warm amber
+		case BO_87_ON_FLOOR_TORCH:
+		                           { LightTint t; t.r = 255; t.g = 190; t.b = 100; return t; } // floor torch — warm amber
+		case BO_9_CANDLE2:
+		case BO_65_CANDLE2:        { LightTint t; t.r = 255; t.g = 225; t.b = 160; return t; } // candles — soft warm yellow
+		case BO_26_BURNCROS:
+		case BO_29_BURNCROS:
+		case BO_91_BURNCROS:       { LightTint t; t.r = 255; t.g = 100; t.b = 25;  return t; } // burning crosses — red-orange
+		case BO_49_FLAME1:         { LightTint t; t.r = 255; t.g = 150; t.b = 50;  return t; } // flame — orange
+		default:                   { LightTint t; t.r = 255; t.g = 255; t.b = 255; return t; } // white = no tint
+	}
+}
+
+// (th4) Stage 3: keep this object's light tinted per the table above.
+// The CALLER guarantees the object currently owns a live light in
+// LightList[object.lightIndex] (LightObjectAction: startRow40 == 1;
+// flames: OpenState == 1) — the slot range/off guards here are defensive.
+// Gated on g_ARGBLighting: colored tints exist only in ultra mode and the
+// side table must stay all-white everywhere else (Rev 2.27 byte-identity,
+// same gate as ApplyMissileLightTint).
+static void ApplyObjectLightTint(const Object& object)
+{
+	if (!g_ARGBLighting) return;
+	if (object.lightIndex < 0 || object.lightIndex >= Lights_128_Count) return;
+	if (LightList[object.lightIndex].off) return;
+	LightTintList[object.lightIndex] = GetObjectLightTint(object.BaseObjectIndex);
+}
+
+// (th4) Rev 2.46 Option C: the light level each STATIC-baked emitter used at
+// level gen — mirrors the PutSomeLightSorce call sites in AddObject. Returns
+// -1 for objects that never baked static light.
+static int ObjectStaticLightLevel(int baseObjectIndex)
+{
+	switch (baseObjectIndex) {
+	case BO_87_ON_FLOOR_TORCH: return 3;
+	case BO_44_WTORCH4:
+	case BO_45_WTORCH3:
+	case BO_46_WTORCH1:
+	case BO_47_WTORCH2: return 8;
+	case BO_26_BURNCROS:
+	case BO_91_BURNCROS:
+	case BO_0_L1BRAZ:
+	case BO_3_TORCH:
+	case BO_8_L1BRAZ:
+	case BO_65_CANDLE2:
+	case BO_9_CANDLE2: return 5;
+	default: return -1;
+	}
+}
+
+// (th4) Rev 2.46 Option C + Rev 2.50: build/rebuild StaticTintMap with the
+// SINGLE winner rule — first `==` match in ObjectActive order against the
+// FINAL StaticLightMap. Runs for fresh generation AND every load path (see
+// the RebuildStaticTintMap call sites), so fresh == reload byte-identically;
+// the old incremental strict-< bake (Rev 2.46) disagreed with this rule at
+// lava-tie and strictly-beaten tiles and is gone. Zero save-format change.
+// Old saves (pre-Option-C baked white pools) rebuild with colors too.
+// Gated on g_ARGBLighting.
+void __fastcall RebuildStaticTintMap()
+{
+	if (!g_ARGBLighting) return;
+	// (th4) Step-1 P1 fix: fill with the CPU white sentinel TINT_WHITE
+	// (0x00FFFFFF, A byte 0). A 0xFF memset leaves 0xFFFFFFFF (A byte 0xFF),
+	// which every `== TINT_WHITE` guard below misreads as "already colored" —
+	// the rebuild then wrote nothing and the V2 static pre-fill treated every
+	// untouched tile as a full-strength white contributor (phantom mass).
+	for (int r = 0; r < FineMap_112; r++)
+		for (int c = 0; c < FineMap_112; c++)
+			StaticTintMap[r][c] = TINT_WHITE;
+	g_StaticTintActive = false;
+	for (int objectIndexIndex = 0; objectIndexIndex < ObjectsCount; objectIndexIndex++) {
+		int objectIndex = ObjectActive[objectIndexIndex];
+		const Object& object = Objects[objectIndex];
+		const int lightLevel = ObjectStaticLightLevel(object.BaseObjectIndex);
+		if (lightLevel < 0) continue;
+		const LightTint tint = GetObjectLightTint(object.BaseObjectIndex);
+		if (tint.r == 255 && tint.g == 255 && tint.b == 255) continue;
+		// (th4) P3 hardening: latch the flag only when the equal-match
+		// replay actually colored at least one tile — a light whose pool
+		// was fully dominated by an earlier (white) bake wins nothing and
+		// must not keep the idle gate on by itself.
+		if (DoLightingTintEquals(object.Row, object.Col, lightLevel, tint.r, tint.g, tint.b))
+			g_StaticTintActive = true;
+	}
+}
+
 //----- (0044E552) --------------------------------------------------------
 void __fastcall LightObjectAction( int objectIndex, int lightRadius )
 {
 	Object& object = Objects[objectIndex];
 
-	if( object.startRow40 == -1 ){// источник света выключен
+	if( object.startRow40 == -1 ){// (rt) the light source is off
 		return;
 	}
 	int needOnLight = 0;
 	int lightRadiusPlusTen = lightRadius + 10;
 	if( !FullLighting ){
+		// (th4) Rev 2.46 Option C REVERT of the afcf598 no-gate experiment:
+		// under ultra the STATIC-baked emitters carry the marker -1 again
+		// (PutSomeLightSorce), so this function now only serves the genuinely
+		// dynamic emitters (BO_29 crosses spawned by AddHellDecor, flame
+		// groups) — and for them the classic radius+10 gate is restored, so
+		// the LightList can never be flooded by the whole level's emitters
+		// (the afcf598 permanently-dark-torches and missiles-losing-lights
+		// regression). The blink-into-screen the no-gate tried to fix is
+		// properly fixed by the colored static bake — baked pools are visible
+		// at any distance with no gate at all.
 		for( int playerIndex = 0; playerIndex < 4; playerIndex++ ){
 			Player& player = Players[playerIndex];
 			if( player.IsExists && Dungeon == player.dungeon ){
@@ -1983,8 +2139,17 @@ void __fastcall LightObjectAction( int objectIndex, int lightRadius )
 		if( object.startRow40 == 1 ){
 			LightOff(object.lightIndex);
 		}
-		object.startRow40 = 0;// источник света далеко от игрока, нет смысла использовать
+		object.startRow40 = 0;// (rt) the light source is far from the player, no point using it
 	}
+	// (th4) Stage 3: re-assert this object's light tint every tick while its
+	// light is alive. startRow40 == 1 is the ownership marker this function
+	// maintains (set right after AddLight, cleared together with LightOff),
+	// so the slot in LightList is guaranteed to be this object's live light
+	// here — no recycled-slot race (a dead light's slot may be reused by a
+	// different light; its tint must never be recolored). Re-asserting every
+	// tick instead of only at AddLight also restores the tint after a
+	// save/load: LightList slots are serialized but LightTintList is not.
+	if (object.startRow40 == 1) ApplyObjectLightTint(object);
 }
 
 //----- (0044E642) --------------------------------------------------------
@@ -2406,6 +2571,13 @@ void ProcessObjects()
 			break;
 		case BO_49_FLAME1:
 			ActivateFlame(objectIndex);
+			// (th4) Stage 3: flames own their light while burning — OpenState
+			// 0->1 lights the whole group (FireAllSomeFlames -> AddLight),
+			// 1->0 turns it off (ActivateFlame -> LightOff), so OpenState is
+			// this object's ownership marker — the flame analogue of
+			// startRow40 in LightObjectAction. Same per-tick re-assert
+			// (save/load safe — LightTintList is not serialized).
+			if (object.OpenState) ApplyObjectLightTint(object);
 			break;
 		case BO_1_CHURCH_DOOR_MAIN_DIAGONAL:
 		case BO_2_CHURCH_DOOR_COLLATERAL_DIAGONAL:
@@ -2423,6 +2595,9 @@ void ProcessObjects()
 			StopAnimationAfterComplete2(objectIndex);
 			break;
 		case BO_0_L1BRAZ:
+			// (th4) Rev 2.46 Option C: BO_8_L1BRAZ was removed from this case
+			// (the 8a9b331 addition) — under C it is a pure static emitter again
+			// (marker -1 from PutSomeLightSorce), so it needs no runtime case.
 			LightObjectAction(objectIndex, 10);
 			break;
 		case BO_44_WTORCH4:
@@ -2485,69 +2660,91 @@ void __fastcall DeleteObjectOnMap( int deletedObject, int a2 )
 	}
 }
 
-//----- (0044ED9F) --------------------------------------------------------
-void __fastcall BurnCrossDamage(int objectIndex)
+void __fastcall PlayBurnSound(Player& player) // burning  cross damage, burning cross sfx, burning cross sound
 {
-	Player *player_1; // eax@6
-	char classId; // cl@8
-	int objectIndex_1; // [sp+1Ch] [bp-8h]@1
+	// Game changer-specific sounds first
+	if (player.gameChanger & BIT(GC_27_TERMINATOR)) {
+		return;
+	}
+	else if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+		if (rand() % 60 == 1) {
+			PlayLocalSound(S_1891_MUTIE_BURN_1 + RNG(6), player.Row, player.Col);
+		}
+		return;
+	}
+	else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		if (rand() % 41 == 1) {
+			PlayLocalSound(S_797_WAR_68, player.Row, player.Col);
+		}
+		return;
+	}
 
-	objectIndex_1 = objectIndex;
-	Player* player = &Players[ CurrentPlayerIndex ];
-	if( player->CurAction != PCA_8_DEATH && !player->lvlChanging ){
-		int damage = 16 * hack_ModifyTrapDamage();
-		double fireResistancePercent = player->resistPercent[ET_1_FIRE];
-		if( fireResistancePercent > 0 ){
-			damage -= int(fireResistancePercent * damage);
-		}
-		if( player->Row == Objects[ objectIndex_1 ].Row && player->Col == Objects[ objectIndex_1 ].Col - 1 ){
-			if(is(GameMode, GM_EASY/*, GM_CLASSIC*/)){
-				damage = damage * 80 / 100; // -20% easy mode
-				if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_4_EFFORTLESS) && MaxCountOfPlayersInGame == 1) {
-					damage /= 2;
-				}
-			}
-			else if (GameMode == GM_HARD) {
-				damage = damage * 120 / 100; // +20% hard mode
-				if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_6_IMPOSSIBLE)) {
-					damage *= 2;
-				}
-			}
-			player->CurLife -= damage;
-			Players[ CurrentPlayerIndex ].BaseLife -= damage;
-			player_1 = &Players[ CurrentPlayerIndex ];
-			if( (player_1->CurLife & ~63) <= 0 ){
-				TryToDie( CurrentPlayerIndex, 0 );
-			LABEL_18:
-				return;
-			}
-			classId = player_1->ClassID;
-			if( classId ){
-				if( classId == 1 ){
-					goto LABEL_25;
-				}
-				if( classId == 2 ){
-					PlayLocalSound( 585, player_1->Row, player_1->Col );
-					goto LABEL_18;
-				}
-				if( classId == 3 ){
-					PlayLocalSound( 905, player_1->Row, player_1->Col );
-					goto LABEL_18;
-				}
-				if( classId == 4 ){
-				LABEL_25:
-					PlayLocalSound( 688, player_1->Row, player_1->Col );
-					goto LABEL_18;
-				}
-				if( classId != 5 ){
-					goto LABEL_18;
-				}
-			}
-			PlayLocalSound( 797, player_1->Row, player_1->Col );
-			goto LABEL_18;
-		}
+	// Class-specific sounds
+	switch (player.ClassID) {
+	case PC_2_MAGE:
+		if (rand() % 32 == 1) PlayLocalSound(S_585_SOR_68, player.Row, player.Col);
+		return;
+	case PC_3_MONK:
+		if (rand() % 34 == 1) PlayLocalSound(S_905_MONK_68, player.Row, player.Col);
+		return;
+	case PC_1_ARCHER:
+	case PC_4_ROGUE:
+		if (rand() % 29 == 1) PlayLocalSound(S_688_ROG_68, player.Row, player.Col);
+		return;
+	case PC_0_WARRIOR:
+	case PC_5_SAVAGE:
+	default:
+		if (rand() % 37 == 1) PlayLocalSound(S_797_WAR_68, player.Row, player.Col);
+		return;
 	}
 }
+
+void __fastcall BurnCrossDamage(int objectIndex)
+{
+	Player* player = &Players[CurrentPlayerIndex];
+
+	if (player->CurAction == PCA_8_DEATH || player->lvlChanging) {
+		return;
+	}
+
+	if (player->Row != Objects[objectIndex].Row || player->Col != Objects[objectIndex].Col - 1) {
+		return;
+	}
+
+	// Calculate damage
+	int damage = 16 * hack_ModifyTrapDamage();
+	double fireResist = player->resistPercent[ET_1_FIRE];
+	if (fireResist > 0) {
+		damage -= int(fireResist * damage);
+	}
+
+	// Difficulty modifiers
+	if (is(GameMode, GM_EASY)) {
+		damage = damage * 4 / 5;
+		if (player->gameChanger & BIT(GC_4_EFFORTLESS) && MaxCountOfPlayersInGame == 1) {
+			damage /= 2;
+		}
+	}
+	else if (GameMode == GM_HARD) {
+		damage = damage * 6 / 5;
+		if (player->gameChanger & BIT(GC_6_IMPOSSIBLE)) {
+			damage *= 2;
+		}
+	}
+
+	// Apply damage
+	player->CurLife -= damage;
+	player->BaseLife -= damage;
+
+	if ((player->CurLife & ~63) <= 0) {
+		TryToDie(CurrentPlayerIndex, 0);
+		return;
+	}
+
+	// Play hurt sound based on class / game changer
+	PlayBurnSound(*player);
+}
+
 
 //----- (0044EDF1) --------------------------------------------------------
 int hack_ModifyTrapDamage()
@@ -2879,7 +3076,7 @@ void __fastcall MonstersInteractWithDoors( int monsterIndex )
 	int col = monster.Col;
 	Cell o(ObjectsMap, row, col);
 	if( !o(-1,-1) && !o(0,-1) && !o(1,-1) && !o(-1,0) && !o(1,0) && !o(-1,1) && !o(0,1) && !o(1,1) ){
-		return; // если вокруг монстра нет объектов
+		return; // (rt) if there are no objects around the monster
 	}
 	for( int objectIndexIndex = 0; objectIndexIndex < ObjectsCount; objectIndexIndex++ ){
 		int objectIndex = ObjectActive[objectIndexIndex];
@@ -2906,7 +3103,7 @@ void __fastcall MonstersInteractWithDoors( int monsterIndex )
 					ActivateCatacombDoorCollateralDiagonal(CurrentPlayerIndex, objectIndex, 1);
 				}
 			}
-		}else if( baseObjectIndex == BO_74_CAVE_DOOR_MAIN_DIAGONAL || baseObjectIndex == BO_75_CAVE_DOOR_COLLATERAL_DIAGONAL ){// тут подозрительное место
+		}else if( baseObjectIndex == BO_74_CAVE_DOOR_MAIN_DIAGONAL || baseObjectIndex == BO_75_CAVE_DOOR_COLLATERAL_DIAGONAL ){// (rt) suspicious spot
 			if( object.OpenState == OS_0_CLOSED ){
 				if( deltaRow == 1 && deltaCol <= 1 && baseObjectIndex == BO_75_CAVE_DOOR_COLLATERAL_DIAGONAL ){
 					ActivateCaveDoorCollateralDiagonal(CurrentPlayerIndex, objectIndex, 1);
@@ -3158,7 +3355,7 @@ void __fastcall ChangeArchGraphicsIn112RectFromDungeonMapCatacomb( int minRow112
 	for( int col112 = minCol112; col112 <= maxCol112; col112++ ){
 		for( int row112 = minRow112; row112 <= maxRow112; row112++ ){
 			uint cell112 = 112 * row112 + col112;
-			switch (FineMap[ 0 ][ cell112 ] ){// Ворота?
+			switch (FineMap[ 0 ][ cell112 ] ){// (rt) Gates?
 				case 132:
 					ArchGraphicsMap[ row112 ][ col112 + 1 ] = 2;
 					ArchGraphicsMap[ row112 ][ col112 + 2 ] = 1;
@@ -3189,7 +3386,7 @@ void __fastcall ChangeMapRectAfterScriptEvent2( int startRow40, int startCol40, 
 	uint maxCol112 = Convert40to112(endCol40) + 1;
 	if( Dungeon->graphType == DT_1_CHURCH ){
 		ChangeArchGraphicsIn112RectFromDungeonMapChurch(minRow112, minCol112, maxRow112, maxCol112);
-		//AddObjectOnMapIn112RectFromDungeonMapChurch(minRow112, minCol112, maxRow112, maxCol112); только этим и отличается от ChangeMapRectAfterScriptEvent
+		//(rt) AddObjectOnMapIn112RectFromDungeonMapChurch(minRow112, minCol112, maxRow112, maxCol112); this is the only difference from ChangeMapRectAfterScriptEvent
 	}
 	if( Dungeon->genType == DT_2_CATACOMB ){
 		ChangeArchGraphicsIn112RectFromDungeonMapCatacomb(minRow112, minCol112, maxRow112, maxCol112);
@@ -3211,7 +3408,7 @@ void DisarmTrap( int playerIndex, int objectIndex )
 		return;
 	}
 
-	// проверяем все объекты. Если нашли тот, 
+	// (rt) check all objects. If the one is found, 
 	for( int i = 0; i < ObjectsCount; i++ ){
 		int currentObjectIndex = ObjectActive[i];
 		Object& currentObject = Objects[currentObjectIndex];
@@ -3261,7 +3458,7 @@ void __fastcall DisarmTrapFix( int playerIndex, int objectIndex )
 		return;
 	}
 
-	// проверяем все объекты. Если нашли тот, 
+	// (rt) check all objects. If the one is found, 
 	for( int i = 0; i < ObjectsCount; i++ ){
 		int currentObjectIndex = ObjectActive[ i ];
 		Object& currentObject = Objects[ currentObjectIndex ];
@@ -3532,7 +3729,7 @@ void __fastcall ActivateAncientTomeOrBookOfVileness( int playerIndex, int object
 	Player& player = Players[playerIndex];
 	Player& currentPlayer = Players[CurrentPlayerIndex];
 
-	if (Dungeon == DUN_26_BONE_CHAMBER) {// сделано исключительно для сингла. Хоть и передаётся playerIndex всё равно работа ведётся с текущим
+	if (Dungeon == DUN_26_BONE_CHAMBER) {// (rt) single-player only. Although playerIndex is passed, the current player is used anyway
 		object.selectable = 0;
 		object.FrameIndex++;
 
@@ -3557,6 +3754,7 @@ void __fastcall ActivateAncientTomeOrBookOfVileness( int playerIndex, int object
 		case	PFC_ROGUE:
 		case	PFC_ASSASSIN:
 		case	PFC_IRON_MAIDEN:
+		case	PFC_GLADIATRIX:
 		case	PFC_SAVAGE:
 		case	PFC_BERSERKER:
 		case	PFC_EXECUTIONER:
@@ -3582,6 +3780,7 @@ void __fastcall ActivateAncientTomeOrBookOfVileness( int playerIndex, int object
 			spellindex = PS_22_FURY;
 		}
 		if (GameMode == GM_CLASSIC) { spellindex = PS_13_HYDRA; }
+		if (player.gameChanger & BIT(GC_27_TERMINATOR)) { spellindex = PS_7_TOWN_PORTAL; }
 
 		currentPlayer.AvailableSpellMask |= 1i64 << (spellindex - 1);
 		if( currentPlayer.SpellLevels[spellindex] < SpellLevelBookMax() ){
@@ -3608,7 +3807,7 @@ void __fastcall ActivateAncientTomeOrBookOfVileness( int playerIndex, int object
 		return;
 	}
 
-	int needPhasePlayer = 0;// алгоритм для перемещения по квестовым телепортам в комнате лазаруса
+	int needPhasePlayer = 0;// (rt) algorithm for moving through the quest teleports in Lazarus' room
 	int needChangeMap = 0;
 
 	for( int objectIndex = 0; objectIndex < ObjectsCount; objectIndex++ ){
@@ -3628,7 +3827,7 @@ void __fastcall ActivateAncientTomeOrBookOfVileness( int playerIndex, int object
 			needPhasePlayer = 1;
 		}
 		if( needPhasePlayer ){
-			Objects[ObjectsMap[ 35 ][ 36 ] - 1].readyState++;// состояние круга телепорта у лазаруса
+			Objects[ObjectsMap[ 35 ][ 36 ] - 1].readyState++;// (rt) state of the teleport circle at Lazarus'
 			CastMissile(player.Row, player.Col, destRow, destCol, player.dir, MI_3_PHASING, CT_0_PLAYER, playerIndex, 0, 0, PS_10_PHASING );
 			needPhasePlayer = 0;
 			needChangeMap = 1;
@@ -3661,6 +3860,14 @@ void __fastcall ActivateQuestBook( int playerIndex, int objectIndex )
 		if( quest.status2 == 0 ){
 			for (int i = 0; i < MonstersCount; i++)
 			{
+				// (th4): LightIndex 0 means "this boss has no light" (see CreateBoss in
+				// Monster.cpp -- Hazeweaver/Guardian/Ragehorn are given 0 there). But 0 is a
+				// VALID LightList slot, and ChangeLightPos only rejects -1, so an unguarded
+				// call here hijacks LightList[0] -- typically the player's own torch -- and
+				// teleports it onto the boss. That is the "everything went dark until I
+				// moved" bug: moving re-registers the player's light via ChangeLightOffset.
+				// Same guard idiom as Monster.cpp (`if (monster.LightIndex)`).
+				if (!Monsters[i].LightIndex) continue;
 				if (Monsters[i].newBossId - 1 == UM_676_Hazeweaver || Monsters[i].newBossId - 1 == UM_C_871_HAZEWEAVER ) {
 					ChangeLightPos(Monsters[i].LightIndex, Monsters[i].Row, Monsters[i].Col);
 				}
@@ -3795,17 +4002,59 @@ void __fastcall ActivateChest( int playerIndex, int objectIndex, int isCurrentIn
 		AddPlayerExperience(playerIndex, GetXpForOpeningChest(playerIndex), player.Row, player.Col);
 	}
 	SetRndSeed(object.Seed);
-	if( Dungeon->isQuest ){
-		for( int i = 0; i < object.ShrineIndex; i++ ){
-			CreateRndItem(object.Row, object.Col, 1, isCurrentIndex, 0, 1<<playerIndex ); // normal chest drop 
+
+	// No-duplicate-drop guard: an object never drops two byte-identical (same base + same magical
+	// name) magic/unique items. Items are generated with the network message suppressed, so rejected
+	// re-rolls never reach the wire; the accepted item is then announced exactly as the original did.
+	// The dedup is deterministic (object.Seed + synced player state), so every client agrees -> MP-safe.
+	int  ddBase[8];
+	char ddName[8][64];
+	int  ddCount = 0;
+	auto isDupDrop = [&](int it) -> bool {
+		Item& itm = Items[it];
+		if (itm.MagicLevel == ML_0_USUAL) return false;   // white / potions / relicts / gems / gold may repeat
+		for (int k = 0; k < ddCount; k++)
+			if (ddBase[k] == itm.baseItemIndex && strcmp(ddName[k], itm.FullMagicalItemName) == 0) return true;
+		return false;
+		};
+	auto finishDrop = [&](int it) {
+		if (it < 0) return;
+		Item& itm = Items[it];
+		if (itm.MagicLevel != ML_0_USUAL && ddCount < (int)countof(ddBase)) {
+			ddBase[ddCount] = itm.baseItemIndex;
+			strcpy(ddName[ddCount], itm.FullMagicalItemName);
+			++ddCount;
 		}
-	}else{
-		for( int i = 0; i < object.ShrineIndex; i++ ){
-			if( object.MaybeSpeechIndex ){
-				CreateRndItem( object.Row, object.Col, 0, isCurrentIndex, 0, 1<<playerIndex);
-			}else{
-				CreateRndUseful(playerIndex, object.Row, object.Col, isCurrentIndex);
+		if (NetItem && isCurrentIndex) NetSendCmdDItem(FALSE, it);   // mirror the announce the suppressed sendMsg would have done
+		};
+
+	if (Dungeon->isQuest) {
+		for (int i = 0; i < object.ShrineIndex; i++) {
+			int it = -1;
+			for (int attempt = 0; attempt < 8; attempt++) {
+				it = CreateRndItem(object.Row, object.Col, 1, 0, 0, 1 << playerIndex);   // 4th arg 0 = announce suppressed
+				if (it < 0) break;
+				if (attempt < 7 && isDupDrop(it)) { ItemMap[Items[it].MapRow][Items[it].MapCol] = 0; DeleteItem(it, ItemsCount - 1); continue; }
+				break;
 			}
+			finishDrop(it);
+		}
+	}
+	else {
+		for (int i = 0; i < object.ShrineIndex; i++) {
+			int it = -1;
+			for (int attempt = 0; attempt < 8; attempt++) {
+				if (object.MaybeSpeechIndex) {
+					it = CreateRndItem(object.Row, object.Col, 0, 0, 0, 1 << playerIndex);   // announce suppressed
+				}
+				else {
+					it = CreateRndUseful(playerIndex, object.Row, object.Col, false);      // announce suppressed
+				}
+				if (it < 0) break;
+				if (attempt < 7 && isDupDrop(it)) { ItemMap[Items[it].MapRow][Items[it].MapCol] = 0; DeleteItem(it, ItemsCount - 1); continue; }
+				break;
+			}
+			finishDrop(it);
 		}
 	}
 	TryToDropGem( object.Row, object.Col );
@@ -3955,7 +4204,7 @@ void __fastcall ActivateSlainHero_TH( int playerIndex, int objectIndex )
 			case PFC_SHINOBI: itemGfxId = by(Difficulty, 1101, 390, 166); sound = S_904_; itemCode = IC_17_BELT; break;
 			case PFC_ROGUE: itemGfxId = by(Difficulty, 1367, 912, 357); sound = S_629_ROG_09; itemCode = IC_16_BOOTS;  break;
 			case PFC_ASSASSIN: itemGfxId = by(Difficulty, 1367, 912, 357); sound = S_629_ROG_09; itemCode = IC_20_CLAW;  break;
-			case PFC_IRON_MAIDEN: itemGfxId = by(Difficulty, 1367, 912, 357); sound = S_629_ROG_09; itemCode = IC_16_BOOTS;  break;
+			case PFC_IRON_MAIDEN or PFC_GLADIATRIX: itemGfxId = by(Difficulty, 1367, 912, 357); sound = S_629_ROG_09; itemCode = IC_16_BOOTS;  break;
 			case PFC_BOMBARDIER: itemGfxId = by(Difficulty, 1367, 912, 357); sound = S_629_ROG_09; itemCode = IC_18_FLASK;  break;
 			case PFC_SAVAGE: itemGfxId = by(Difficulty, 104, 211, 142); sound = S_732_WAR_09; itemCode = IC_15_GLOVE;    break;
 			case PFC_BERSERKER: itemGfxId = by(Difficulty, 104, 211, 142); sound = S_732_WAR_09; itemCode = IC_2_AXE;    break;
@@ -4064,7 +4313,7 @@ void __fastcall ActivateSarcofagus( int playerIndex, int objectIndex, unsigned _
 			CreateRndItem(object.Row, object.Col, 0, a3, 0, 1<<playerIndex);
 			TryToDropGem( object.Row, object.Col );
 		}
-		if( object.ShrineIndex >= 8 ){// добавляем монстра
+		if( object.ShrineIndex >= 8 ){// (rt) add a monster
 			ActivateAmbushMonster(object.MaybeSpeechIndex, object.Row, object.Col);
 		}
 		if( playerIndex == CurrentPlayerIndex ){
@@ -4113,6 +4362,23 @@ void __fastcall ActivateCaveDoor( int playerIndex, int objectIndex, char isCurre
 	}
 }
 
+//----- (th4) -------------------------------------------------------------
+// Returns true when the Valor vault has been opened, i.e. the Pedestal of Blood
+// has reached its final frame. While closed, the structure (and its teleport pad
+// to Gateway of Blood) should not reveal transition info on hover.
+bool IsValorVaultOpen()
+{
+	if (!IsQuestOnLevel(Q_9_VALOR) /*&& !IsQuestOnLevel(Q_39_VALOR_MP)*/) {
+		return true; // not on a Valor level: nothing to gate
+	}
+	for (int i = 0; i < ObjectsCount; i++) {
+		if (Objects[i].BaseObjectIndex == BO_73_PEDESTAL_OF_BLOOD) {
+			return Objects[i].maybeFrameIndex == 3;
+		}
+	}
+	return true; // pedestal not found: don't suppress
+}
+
 //----- (0045166E) --------------------------------------------------------
 void __fastcall ActivatePedestalOfBlood( int playerIndex, int objectIndex )
 {
@@ -4149,6 +4415,11 @@ void __fastcall ActivatePedestalOfBlood( int playerIndex, int objectIndex )
 
 		for (int i = 0; i < MonstersCount; i++)
 		{
+			// (th4): see the matching guard in the Book of the Blind handler above --
+			// LightIndex 0 is "no light", but it is also a real LightList slot, so an
+			// unguarded ChangeLightPos steals the player's torch and blacks out the screen
+			// until the player moves.
+			if (!Monsters[i].LightIndex) continue;
 			int bossy = GameMode == GM_CLASSIC ? UM_C_902_RAGEHORN : UM_677_Guardian_of_Valor;
 			if (Monsters[i].newBossId - 1 == bossy) {
 				ChangeLightPos(Monsters[i].LightIndex, Monsters[i].Row, Monsters[i].Col);
@@ -4170,6 +4441,25 @@ void __fastcall ActivatePedestalOfBlood( int playerIndex, int objectIndex )
 				StaticLightMap[row][col] = LightMap[row][col]; //save valor torches light
 			}
 		}
+		// (th4) Rev 2.50: runtime static bake — the new emitters' values are final
+		// in StaticLightMap only after the fold above, so re-derive the whole
+		// StaticTintMap NOW with the same single first-`==` replay rule every load
+		// path uses (a later level entry/reload would replay exactly this state, so
+		// in-session == after-reload). RULE for future quests: whenever a quest
+		// folds runtime bakes into StaticLightMap, call RebuildStaticTintMap()
+		// right after the fold. Do NOT bake the tint at the bake site (old
+		// DoLightingTint): its strict-< rule reintroduces the item-4 tie drift.
+		// Internally gated on g_ARGBLighting; also recomputes g_StaticTintActive.
+		RebuildStaticTintMap();
+		// (th4): the full-map copy above resets LightMap to the STATIC snapshot, which drops
+		// every dynamic light out of it -- the player's torch included. Nothing above sets
+		// NeedLightRecalc, so nothing repainted them, and the screen stayed dark until the
+		// player happened to move (PM_ChangeOffset -> ChangeLightOffset -> recalc). That was
+		// the "lights go out when the 3rd blood stone goes in" bug. Force the repaint here,
+		// AFTER the new torch light has been folded into StaticLightMap, so ProcessLightList
+		// re-runs DoLighting for every live light on top of the refreshed static map.
+		NeedLightRecalc = 1;
+		ProcessLightList();
 				
 		/*Player& player = Players[CurrentPlayerIndex];
 		int valorRewardUniqueItemID = valorRewards[player.ClassID][Difficulty];
@@ -4191,7 +4481,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 	if( !object.selectable ){
 		return;
 	}
-	//object.ShrineIndex = 3; Exe::Objects[objectIndex].ShrineIndex = object.ShrineIndex; // сверка действий алтарей (шрайнов)
+	//(rt) object.ShrineIndex = 3; Exe::Objects[objectIndex].ShrineIndex = object.ShrineIndex; // comparison of shrine actions
 	SetRndSeed(object.Seed);// 00451811
 
 	object.selectable = 0;
@@ -4438,7 +4728,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 			//// 00451D63
 			//for (int itemIndex = 0; itemIndex < IS_8_Belt_Count; itemIndex++) {
 			//	Item& item = player.BeltInventory[itemIndex];
-			//	if (item.ItemCode == IC_10_STAFF) {// Посох на поясе?
+			//	(rt) if (item.ItemCode == IC_10_STAFF) {// A staff on the belt?
 			//		item.CurCharges = item.BaseCharges;
 			//	}
 			//}
@@ -4487,7 +4777,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 
 		#if 0
 		{
-			// Вычисляем количество доступных спэлов
+			// (rt) Count the available spells
 			int spellBitMaskPosition = 1i64;
 			uint availableSpellsCount = 0;
 			for( int spellIndex = 0; spellIndex < PLAYER_SPELLS_AMOUNT; spellIndex++ ){
@@ -4497,8 +4787,8 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 			}
 
 			// 00451E9D
-			if( availableSpellsCount > 1 ){// меньше чем с двумя так не выйдет
-				// Выбираем какой спэл будем уменьшать
+			if( availableSpellsCount > 1 ){// (rt) it doesn't work with fewer than two
+				// (rt) Pick which spell to lower
 				uint redusedSpellIndex;
 				do{
 					redusedSpellIndex = RNG(PLAYER_SPELLS_AMOUNT);
@@ -4509,8 +4799,8 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 					}
 				}while( 1 );
 
-				// все кроме выбранного увеличиваем а выбранный уменьшаем.
-				// в оригинале вначале все увеличиваем потом случайный уменьшаем
+				// (rt) raise all except the chosen one, and lower the chosen one.
+				// (rt) the original raises everything first, then lowers a random one
 				for( int spellIndex = 0; spellIndex < PLAYER_SPELLS_AMOUNT; spellIndex++ ){
 					if( player.AvailableSpellMask & (spellBitMaskPosition << spellIndex) ){
 						if( spellIndex == redusedSpellIndex ){
@@ -4606,7 +4896,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 				uint newMagicCode;
 				if (magicCode == MC_3_POTION_OF_HEALING || magicCode == MC_6_POTION_OF_MANA) {
 					// 004521E0
-					if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {// Night Kin can't use Holy Water potions, so he gets no effect here
+					if (player.gameChanger & BIT(GC_9_NIGHT_KIN) || player.gameChanger & BIT(GC_27_TERMINATOR)) {// Night Kin can't use Holy Water potions, so he gets no effect here
 						continue;
 					}
 					else{
@@ -4615,7 +4905,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 				}
 				else if (magicCode == MC_2_POTION_OF_FULL_HEALING || magicCode == MC_7_POTION_OF_FULL_MANA) {
 					// 00452250
-					if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
+					if (player.gameChanger & BIT(GC_9_NIGHT_KIN) || player.gameChanger & BIT(GC_27_TERMINATOR)) {
 						continue;
 					}
 					else{
@@ -4649,7 +4939,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 				}
 				else if (magicCode == MC_2_POTION_OF_FULL_HEALING || magicCode == MC_7_POTION_OF_FULL_MANA) {
 					// 00452250
-					if (player.gameChanger & BIT(GC_9_NIGHT_KIN)) {
+					if (player.gameChanger & BIT(GC_9_NIGHT_KIN) || player.gameChanger & BIT(GC_27_TERMINATOR)) {
 						continue;
 					}
 					else {
@@ -4704,10 +4994,12 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 			CreateTypeItem(object.Row, object.Col, 0, IC_0_OTHER, MC_7_POTION_OF_FULL_MANA, 0, 1);
 			CreateTypeItem(object.Row, object.Col, 0, IC_0_OTHER, MC_2_POTION_OF_FULL_HEALING, 0, 1);
 		}
-		player.CurMana = player.MaxCurMana;
-		player.BaseMana = player.MaxBaseMana;
-		player.CurLife = player.MaxCurLife;
-		player.BaseLife = player.MaxBaseLife;
+		if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+			player.CurMana = player.MaxCurMana;
+			player.BaseMana = player.MaxBaseMana;
+			player.CurLife = player.MaxCurLife;
+			player.BaseLife = player.MaxBaseLife;
+		}
 		AddOnScreenMessage(OM_26_Drink_and_be_ref);
 		break;
 	case SH_15_Holy:// 004524D7
@@ -4746,7 +5038,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 			player.AvailableSpellMask |= (1i64 << (spellIndex - 1));
 			int newSpellLevel = player.SpellLevels[spellIndex] + 2;
 			if( newSpellLevel < MaxSpellLevel_200 ) ++player.SpellLevels[ spellIndex ];
-			if( newSpellLevel < MaxSpellLevel_200 ) ++player.SpellLevels[ spellIndex ]; // в 1.216 на два уровня увеличивается
+			if( newSpellLevel < MaxSpellLevel_200 ) ++player.SpellLevels[ spellIndex ]; // (rt) raised by two levels in 1.216
 			int newMaxCurMana = player.MaxCurMana - player.MaxBaseMana;
 			int newCurMana = player.CurMana - player.BaseMana;
 			player.BaseMana = player.BaseMana - player.MaxBaseMana / 10;
@@ -4807,10 +5099,14 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 		}else{
 			AddOnScreenMessage(OM_31_Blessed_by);
 			Player& currentPlayer = Players[CurrentPlayerIndex];
-			currentPlayer.CurLife = currentPlayer.MaxCurLife;
-			currentPlayer.BaseLife = currentPlayer.MaxBaseLife;
-			currentPlayer.CurMana = currentPlayer.MaxCurMana;
-			currentPlayer.BaseMana = currentPlayer.MaxBaseMana;
+			// (th4) not a dead hero: the heal left him with life but still dead, and with life he could no longer
+			// be resurrected -- only "restart in town" was left (DSF 1.09 bug list)
+			if( (currentPlayer.CurLife & ~63) > 0 && currentPlayer.CurAction != PCA_8_DEATH ){
+				currentPlayer.CurLife = currentPlayer.MaxCurLife;
+				currentPlayer.BaseLife = currentPlayer.MaxBaseLife;
+				currentPlayer.CurMana = currentPlayer.MaxCurMana;
+				currentPlayer.BaseMana = currentPlayer.MaxBaseMana;
+			}
 		}
 		break;
 	case SH_19_Abandoned:// 00452867
@@ -5073,7 +5369,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 		AddOnScreenMessage(OM_73_Kill);
 		break;
 
-#ifdef comment // бывшый 28
+#ifdef comment // (rt) formerly 28
 		if( LoadingOtherPlayers || playerIndex != CurrentPlayerIndex ){
 			return;
 		}
@@ -5114,7 +5410,7 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 		if( deltaload || playerIndex != CurrentPlayerIndex ){
 			return;
 		}
-		if (GameMode == GM_NIGHTMARE || GameMode == GM_SPEEDRUN) {
+		if (GameMode == GM_NIGHTMARE || GameMode == GM_SPEEDRUN || GameMode == GM_DARK_CAMPAIGN) { // (th4) DC bans Town Portal -- elixirs instead
 			CreateItemIgnoringDungeonLevel(object.Row, object.Col, 0, IC_0_OTHER, MC_10_ELIXIR_OF_STRENGTH + RNG(4), 1);
 			CreateItemIgnoringDungeonLevel(object.Row, object.Col, 0, IC_0_OTHER, MC_10_ELIXIR_OF_STRENGTH + RNG(4), 1);
 			AddOnScreenMessage(OM_69_Portal_Shrine_Nightmare);
@@ -5130,10 +5426,12 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 				CreateTypeItem(object.Row, object.Col, 0, IC_0_OTHER, MC_7_POTION_OF_FULL_MANA, 0, 1);
 				CreateTypeItem(object.Row, object.Col, 0, IC_0_OTHER, MC_2_POTION_OF_FULL_HEALING, 0, 1);
 			}
-			player.CurMana = player.MaxCurMana;
-			player.BaseMana = player.MaxBaseMana;
-			player.CurLife = player.MaxCurLife;
-			player.BaseLife = player.MaxBaseLife;
+			if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+				player.CurMana = player.MaxCurMana;
+				player.BaseMana = player.MaxBaseMana;
+				player.CurLife = player.MaxCurLife;
+				player.BaseLife = player.MaxBaseLife;
+			}
 			AddOnScreenMessage(OM_26_Drink_and_be_ref);
 		}
 		else {
@@ -5156,16 +5454,16 @@ void __fastcall ApplyShrineEffect( int playerIndex, int objectIndex, int soundIn
 		{
 			time_t curTime = time(0);
 			int hour = localtime(&curTime)->tm_hour;
-			if( hour > 20 || hour < 4 ){ // ночь
+			if( hour > 20 || hour < 4 ){ // (rt) night
 				AddOnScreenMessage(OM_53_You_refreshed);
 				ModifyPlayerVitality(CurrentPlayerIndex, 1 + templar_faith_bonus);
-			}else if( hour >= 4 && hour <= 12 ){ // утро
+			}else if( hour >= 4 && hour <= 12 ){ // (rt) morning
 				AddOnScreenMessage(OM_50_You_agile);
 				ModifyPlayerDexterity(CurrentPlayerIndex, 1 + templar_faith_bonus);
-			}else if( hour > 12 && hour <= 18 ){ // день
+			}else if( hour > 12 && hour <= 18 ){ // (rt) day
 				AddOnScreenMessage(OM_51_You_stronger);
 				ModifyPlayerStrength(CurrentPlayerIndex, 1 + templar_faith_bonus);
-			}else if( hour > 18 && hour <= 20 ){// > 18 <=20  // вечер
+			}else if( hour > 18 && hour <= 20 ){// (rt) > 18 <=20  // evening
 				AddOnScreenMessage(OM_52_You_wiser);
 				ModifyPlayerMagic(CurrentPlayerIndex, 1 + templar_faith_bonus);
 			}
@@ -5297,22 +5595,7 @@ void __fastcall ActivateArmorRack( int playerIndex, int objectIndex, uchar isCur
 	int mayBe = RNG(2);
 	int itemCode;
 	int flag = 0;
-	#ifdef OLD_CODE
-	int magicAffixFlag;
-	if( Dungeon->level <= 5 ){
-		itemCode = IC_6_LIGHT_ARMOR; // Light armor
-		magicAffixFlag = 1;
-	}else if( Dungeon->level >= 6 && Dungeon->level <= 9 ){
-		itemCode = IC_8_MID_ARMOR; // Medium armor
-		magicAffixFlag = mayBe;
-	}else if( Dungeon->level >= 10 && Dungeon->level <= 12 ){
-		itemCode = IC_9_HEAVY_ARMOR; // Plate armor
-		magicAffixFlag = 0;
-	}else if( (Dungeon->level >= 13 && Dungeon->level <= 16) || Dungeon->level >= 17 ){
-		itemCode = IC_9_HEAVY_ARMOR; // Plate armor
-		magicAffixFlag = 1;
-	}
-	#else
+	
 	if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_14_CLEAN_HANDS) 
 		|| Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN)) {// add night kin check here
 		itemCode = IC_11_GOLD;
@@ -5363,6 +5646,24 @@ void __fastcall ActivateArmorRack( int playerIndex, int objectIndex, uchar isCur
 			case 8:		itemCode = RngFrom(IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR);  flag |= IF_NON_THORNS_HARNESS; break;
 			}
 		}
+		else if (Players[CurrentPlayerIndex].fullClassId == PFC_GUARDIAN) {
+			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				switch (Difficulty) {
+				case 0:		itemCode = IC_6_LIGHT_ARMOR; flag |= IF_FULL_SUIT_ARMOR;	break;
+				case 1:		itemCode = IC_8_MID_ARMOR;	 flag |= IF_FULL_SUIT_ARMOR;	break;
+				case 2:		itemCode = IC_9_HEAVY_ARMOR; flag |= IF_FULL_SUIT_ARMOR;	break;
+				default:	itemCode = RngFrom(IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR);  flag |= IF_FULL_SUIT_ARMOR; break;
+				}
+			}
+			else {
+				switch (Difficulty) {
+				case 0:		itemCode = IC_6_LIGHT_ARMOR; flag |= IF_GUARD_BASE_ARMOR;	break;
+				case 1:		itemCode = IC_8_MID_ARMOR;	 flag |= IF_GUARD_BASE_ARMOR;	break;
+				case 2:		itemCode = IC_9_HEAVY_ARMOR; flag |= IF_GUARD_BASE_ARMOR;	break;
+				default:	itemCode = RngFrom(IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR);  flag |= IF_GUARD_BASE_ARMOR; break;
+				}
+			}
+		}
 		else if (GameMode == GM_CLASSIC){
 			if (Difficulty < 1) {
 				if (Dungeon->level < 6) { itemCode = IC_6_LIGHT_ARMOR; }
@@ -5389,7 +5690,7 @@ void __fastcall ActivateArmorRack( int playerIndex, int objectIndex, uchar isCur
 			}
 		}
 	}
-	#endif
+	
 	CreateTypeItem(object.Row, object.Col, 1 /*magicAffixFlag*/, itemCode, 0, isCurrentPlayer, 0, flag, true); // min qlvl check for rack
 	if( playerIndex == CurrentPlayerIndex ){
         NetSendCmdParam1( 0, CMD_45_OPERATEOBJ, objectIndex ); // rack activating message
@@ -5472,14 +5773,16 @@ void __fastcall ActivateFountain( int playerIndex, int objectIndex )
 				}
 			}
 			else {
-				int curLife = player.CurLife;
-				int lifeDelta = uint(player.MaxCurLife - curLife) >> 5; // возможно ошибка, зарегистрирован отрицательный BaseLife
-				if (lifeDelta < 64) lifeDelta = 64;
-				player.CurLife = lifeDelta + curLife;
-				player.BaseLife += lifeDelta;
-				if (player.CurLife > player.MaxCurLife) {
-					player.CurLife = player.MaxCurLife;
-					player.BaseLife = player.MaxBaseLife;
+				if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+					int curLife = player.CurLife;
+					int lifeDelta = uint(player.MaxCurLife - curLife) >> 5; // (rt) possibly an error; a negative BaseLife was registered
+					if (lifeDelta < 64) lifeDelta = 64;
+					player.CurLife = lifeDelta + curLife;
+					player.BaseLife += lifeDelta;
+					if (player.CurLife > player.MaxCurLife) {
+						player.CurLife = player.MaxCurLife;
+						player.BaseLife = player.MaxBaseLife;
+					}
 				}
 			}
 		}else{
@@ -5511,14 +5814,17 @@ void __fastcall ActivateFountain( int playerIndex, int objectIndex )
 				}
 			}
 			else {
-				int curMana = player.CurMana;
-				int manaDelta = uint(player.MaxCurMana - curMana) >> 5;
-				if (manaDelta < 64) manaDelta = 64;
-				player.CurMana = manaDelta + curMana;
-				player.BaseMana += manaDelta;
-				if (player.CurMana > player.MaxCurMana) {
-					player.CurMana = player.MaxCurMana;
-					player.BaseMana = player.MaxBaseMana;
+				if (!(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+
+					int curMana = player.CurMana;
+					int manaDelta = uint(player.MaxCurMana - curMana) >> 5;
+					if (manaDelta < 64) manaDelta = 64;
+					player.CurMana = manaDelta + curMana;
+					player.BaseMana += manaDelta;
+					if (player.CurMana > player.MaxCurMana) {
+						player.CurMana = player.MaxCurMana;
+						player.BaseMana = player.MaxBaseMana;
+					}
 				}
 			}
 		}else{
@@ -5579,8 +5885,19 @@ void __fastcall ActivateWeaponRack( int playerIndex, int objectIndex, int isCurr
 			}
 		}
 		else if (player.fullClassId == PFC_GUARDIAN) {
-			if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
-				itemCode = IC_23_PISTOL;
+			if (HasTrait(playerIndex, TraitId::Pistoleer)) {
+				if (/*MaxCountOfPlayersInGame == 1 && */player.gameChanger & BIT(GC_27_TERMINATOR)) {
+					itemCode = IC_23_PISTOL; flag |= IF_TERMINATOR_GUNS;
+				}
+				else if (/*MaxCountOfPlayersInGame == 1 && */player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+					itemCode = IC_23_PISTOL; flag |= IF_SUPERMUTANT_GUNS;
+				}
+				else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+					itemCode = IC_23_PISTOL; flag |= IF_ENCLAVE_GUNS;
+				}
+				else {
+					itemCode = IC_23_PISTOL; flag |= IF_PISTOLEER_GUNS;
+				}
 			}
 			else {
 				flag |= SD_1_TWO_HANDS_ONLY;
@@ -5659,19 +5976,37 @@ void __fastcall ActivateWeaponRack( int playerIndex, int objectIndex, int isCurr
 			case 3: itemCode = IC_5_SHIELD;		break;
 			}
 		}
+		else if (player.fullClassId == PFC_GLADIATRIX) {
+			switch (RNG(4)) {
+			case 0: itemCode = IC_3_BOW;		break;
+			case 1: itemCode = IC_4_MACE;		break;
+			case 2: itemCode = IC_1_SWORD;		break;
+			case 3: itemCode = IC_2_AXE;		break;
+			case 4: itemCode = IC_5_SHIELD;		break;
+			}
+		}
 		else if (player.fullClassId == PFC_BOMBARDIER) {
 			itemCode = RngFrom(IC_18_FLASK, IC_5_SHIELD);
 		}
 		else if (player.fullClassId == PFC_THRAEX
 			|| player.fullClassId == PFC_SECUTOR
 			|| player.fullClassId == PFC_MURMILLO) {
-			switch (RNG(6)) {
-			case 0:
-			case 1: itemCode = IC_1_SWORD;		break;
-			case 2: itemCode = IC_3_BOW;		break;
-			case 3:
-			case 4: itemCode = IC_4_MACE;		break;
-			case 5: itemCode = IC_5_SHIELD;		break;
+				switch (RNG(6)) {
+				case 0:
+				case 1: itemCode = IC_1_SWORD;		break;
+				case 2: itemCode = IC_3_BOW;		break;
+				case 3:
+				case 4: itemCode = IC_4_MACE;		break;
+				case 5: {
+					if(player.fullClassId == PFC_SECUTOR){
+					//if (HasTrait(playerIndex, TraitId::Scissor)) {
+						itemCode = IC_1_SWORD;
+					}
+					else {
+						itemCode = IC_5_SHIELD;
+					}
+				}
+				break;
 			}
 		}
 		else if (player.fullClassId == PFC_BERSERKER
@@ -5767,12 +6102,12 @@ void __fastcall ActivateQuestBook2( int playerIndex, int objectIndex )
 	}
 
 	if( Dungeon->isQuest && Dungeon == DUN_34_THE_PIT && object.Row == 48 ){
-		// убираем выделение
+		// (rt) remove the selection
 		Objects[ObjIndex(48, 28)].selectable = 0;
 		Objects[ObjIndex(48, 38)].selectable = 0;
 		Objects[ObjIndex(28, 34)].selectable = 0;
 		Quest& horazonQuest = Quests[Q_16_HORAZON_S_DEMONS];
-		horazonQuest.status3 = 2;// книга прочитана
+		horazonQuest.status3 = 2;// (rt) the book has been read
 		if( MaxCountOfPlayersInGame == 1 ){
 			HorazonGrimspikeDelay = 180;
 		}else{
@@ -5805,7 +6140,7 @@ void __fastcall ActivateQuestBook2( int playerIndex, int objectIndex )
 	if( object.bookIndex && Dungeon->isQuest && Dungeon == DUN_33_SUMMONING_ROOMS / *&& Dungeon == DUN_24_CRYPT_4 * / ){
 		if( horazonQuest.Status2 < 1/ *открыт босс 1* / && ReadUberBook(object.bookIndex) ){
 			horazonQuest.Status2 = 1;
-			// открыть комнату босса и ещё какие то действия выполнить
+			// (rt) open the boss room and perform some other actions
 			return;
 		}
 	}
@@ -6040,10 +6375,10 @@ void __fastcall InteractWithBarrel( int playerIndex, int objectIndex, int damage
 	if( object.selectable == 0 ){
 		return;
 	}
-	if( oneHitDestruction ){// уничтожить сразу
+	if( oneHitDestruction ){// (rt) destroy immediately
 		object.ShrineIndex = 0;
 	}else{
-		object.ShrineIndex -= damage;// hp бочки
+		object.ShrineIndex -= damage;// (rt) barrel HP
 		if( playerIndex != CurrentPlayerIndex && object.ShrineIndex <= 0 ){
 			object.ShrineIndex = 1;
 		}
@@ -6117,7 +6452,7 @@ void __fastcall InteractWithBarrel( int playerIndex, int objectIndex, int damage
 		SetRndSeed(object.Seed);
 		if( object.MaybeSpeechIndex <= 1 ){
 			if( object.BookNameIndex ){
-				CreateRndItem(object.Row, object.Col, 0, a5, 0, 1<<playerIndex ); // выбор дропа из бочек
+				CreateRndItem(object.Row, object.Col, 0, a5, 0, 1<<playerIndex ); // (rt) choosing the drop from barrels
 			}else{
 				CreateRndUseful(playerIndex, object.Row, object.Col, a5);
 			}
@@ -6363,89 +6698,89 @@ void __fastcall IdentifyObjectOnMapInFocus(int objectIndex)
 	case BO_1_CHURCH_DOOR_MAIN_DIAGONAL:
 	case BO_2_CHURCH_DOOR_COLLATERAL_DIAGONAL:
 		switch (objectOnMap.OpenState ){
-			case OS_0_CLOSED:		strcpy(InfoPanelHeader, "Closed Door");		break;
-			case OS_1_OPEN:			strcpy(InfoPanelHeader, "Open Door");		break;
-			case OS_2_BLOCKED:		strcpy(InfoPanelHeader, "Blocked Door");	break;
+			case OS_0_CLOSED:		strcpy(InfoPanelHeader, L("Closed Door"));		break;
+			case OS_1_OPEN:			strcpy(InfoPanelHeader, L("Open Door"));		break;
+			case OS_2_BLOCKED:		strcpy(InfoPanelHeader, L("Blocked Door"));	break;
 		}
 		break;
-	case BO_4_LEVER:				strcpy(InfoPanelHeader, "Lever");			break;
+	case BO_4_LEVER:				strcpy(InfoPanelHeader, L("Lever"));			break;
 	case BO_20_CRUCIFIED_SKELETON:
 	case BO_21_CRUCIFIED_SKELETON_2:
-	case BO_22_CRUCIFIED_SKELETON_3:strcpy(InfoPanelHeader, "Crucified Skeleton");break;
-	case BO_5_SMALL_CHEST:			strcpy(InfoPanelHeader, "Small Chest");		break;
-	case BO_6_CHEST:				strcpy(InfoPanelHeader, "Chest");			break;
-	case BO_7_LARGE_CHEST:			strcpy(InfoPanelHeader, "Large Chest");		break;
-	case BO_28_SKULL_LEVER:			strcpy(InfoPanelHeader, "Skull Lever");		break;
+	case BO_22_CRUCIFIED_SKELETON_3:strcpy(InfoPanelHeader, L("Crucified Skeleton"));break;
+	case BO_5_SMALL_CHEST:			strcpy(InfoPanelHeader, L("Small Chest"));		break;
+	case BO_6_CHEST:				strcpy(InfoPanelHeader, L("Chest"));			break;
+	case BO_7_LARGE_CHEST:			strcpy(InfoPanelHeader, L("Large Chest"));		break;
+	case BO_28_SKULL_LEVER:			strcpy(InfoPanelHeader, L("Skull Lever"));		break;
 	case BO_25_ANCIENT_TOME_OR_BOOK_OF_VILENESS:
 		if( Dungeon->isQuest ){
 			if( Dungeon == DUN_26_BONE_CHAMBER ){
-				strcpy(InfoPanelHeader, "Ancient Tome");
+				strcpy(InfoPanelHeader, L("Ancient Tome"));
 			}else if( Dungeon == DUN_29_ARCHBISHOP_LAZARUS_LAIR ){
-				strcpy(InfoPanelHeader, "Book of Vileness");
+				strcpy(InfoPanelHeader, L("Book of Vileness"));
 			}
 		}
 		break;
-	case BO_24_ANGEL:				strcpy(InfoPanelHeader, "Statue of an Angel"); break;
-	case BO_50_LEVER_2:				strcpy(InfoPanelHeader, "Lever");			break;
+	case BO_24_ANGEL:				strcpy(InfoPanelHeader, L("Statue of an Angel")); break;
+	case BO_50_LEVER_2:				strcpy(InfoPanelHeader, L("Lever"));			break;
 	case BO_42_CATACOMB_DOOR_MAIN_DIAGONAL:
 	case BO_43_CATACOMB_DOOR_COLLATERAL_DIAGONAL:
 	case BO_74_CAVE_DOOR_MAIN_DIAGONAL:
 	case BO_75_CAVE_DOOR_COLLATERAL_DIAGONAL:
 		switch (objectOnMap.OpenState ){
-			case OS_0_CLOSED:		strcpy(InfoPanelHeader, "Closed Door");		break;
-			case OS_1_OPEN:			strcpy(InfoPanelHeader, "Open Door");		break;
-			case OS_2_BLOCKED:		strcpy(InfoPanelHeader, "Blocked Door");	break;
+			case OS_0_CLOSED:		strcpy(InfoPanelHeader, L("Closed Door"));		break;
+			case OS_1_OPEN:			strcpy(InfoPanelHeader, L("Open Door"));		break;
+			case OS_2_BLOCKED:		strcpy(InfoPanelHeader, L("Blocked Door"));	break;
 		}
 		break;
-	case BO_41_MYTHICAL_BOOK:		strcpy(InfoPanelHeader, "Mythical Book");	break;
-	case BO_68_TRAPED_SMALL_CHEST:	strcpy(InfoPanelHeader, "Small Chest");		break;
-	case BO_69_TRAPED_CHEST:		strcpy(InfoPanelHeader, "Chest");			break;
+	case BO_41_MYTHICAL_BOOK:		strcpy(InfoPanelHeader, L("Mythical Book"));	break;
+	case BO_68_TRAPED_SMALL_CHEST:	strcpy(InfoPanelHeader, L("Small Chest"));		break;
+	case BO_69_TRAPED_CHEST:		strcpy(InfoPanelHeader, L("Chest"));			break;
 	case BO_70_TRAPED_LARGE_CHEST:
-	case BO_97_OGDEN_CHEST:			strcpy(InfoPanelHeader, "Large Chest");		break;
-	case BO_48_SARCOPHAGUS:			strcpy(InfoPanelHeader, "Sarcophagus");		break;
-	case BO_55_BOOKSHELF:			strcpy(InfoPanelHeader, "Bookshelf");		break;
+	case BO_97_OGDEN_CHEST:			strcpy(InfoPanelHeader, L("Large Chest"));		break;
+	case BO_48_SARCOPHAGUS:			strcpy(InfoPanelHeader, L("Sarcophagus"));		break;
+	case BO_55_BOOKSHELF:			strcpy(InfoPanelHeader, L("Bookshelf"));		break;
 	case BO_62_BOOKCASE:
-	case BO_63_BOOKCASE_2:			strcpy(InfoPanelHeader, "Bookcase");		break;
+	case BO_63_BOOKCASE_2:			strcpy(InfoPanelHeader, L("Bookcase"));		break;
 	case BO_57_POD_URN_BARREL_WITH_DROP:
 	case BO_58_POD_URN_BARREL_EXPLOSIVE:
 		switch( Dungeon->graphType ){
-		case DT_6_ABYSS: strcpy(InfoPanelHeader, "Pod"); break;
-		case DT_5_CRYPT: strcpy(InfoPanelHeader, "Urn"); break;
-		default:         strcpy(InfoPanelHeader, "Barrel"); break;
+		case DT_6_ABYSS: strcpy(InfoPanelHeader, L("Pod")); break;
+		case DT_5_CRYPT: strcpy(InfoPanelHeader, L("Urn")); break;
+		default:         strcpy(InfoPanelHeader, L("Barrel")); break;
 		}
 		break;
 	case BO_59_SHRINE:
-	case BO_60_SHRINE_2: // имена шрайнов скрываются в игровом режиме
-		if( (DevelopMode && IsGodMode) || GameMode == GM_CLASSIC ) sprintf(InfoPanelHeader, "%s Shrine", ShrineNamesPtr[objectOnMap.ShrineIndex]); else
-		strcpy(InfoPanelHeader, "Shrine");
+	case BO_60_SHRINE_2: // (rt) shrine names are hidden in game mode
+		if( (DevelopMode && IsGodMode) || GameMode == GM_CLASSIC ) sprintf(InfoPanelHeader, L("%s Shrine"), L(ShrineNamesPtr[objectOnMap.ShrineIndex])); else
+		strcpy(InfoPanelHeader, L("Shrine"));
 		break;
-	case BO_61_ANCIENT_TOME:		strcpy(InfoPanelHeader, "Ancient Tome");		break;
-	case BO_64_LIBRARY_BOOK:		strcpy(InfoPanelHeader, "Library Book");		break;
-	case BO_66_BLOOD_FOUNTAIN:		strcpy(InfoPanelHeader, "Blood Fountain");		break;
-	case BO_67_DECAPITATED_BODY:	strcpy(InfoPanelHeader, "Decapitated Body");	break;
-	case BO_71_BOOK_OF_THE_BLIND:	strcpy(InfoPanelHeader, "Book of the Blind");	break;
-	case BO_88_STEEL_TOME:			strcpy(InfoPanelHeader, "Steel Tome");			break;
-	case BO_72_BOOK_OF_BLOOD:		strcpy(InfoPanelHeader, "Book of Blood");		break;
-	case BO_76_PURIFYING_SPRING:	strcpy(InfoPanelHeader, "Purifying Spring");	break;
+	case BO_61_ANCIENT_TOME:		strcpy(InfoPanelHeader, L("Ancient Tome"));		break;
+	case BO_64_LIBRARY_BOOK:		strcpy(InfoPanelHeader, L("Library Book"));		break;
+	case BO_66_BLOOD_FOUNTAIN:		strcpy(InfoPanelHeader, L("Blood Fountain"));		break;
+	case BO_67_DECAPITATED_BODY:	strcpy(InfoPanelHeader, L("Decapitated Body"));	break;
+	case BO_71_BOOK_OF_THE_BLIND:	strcpy(InfoPanelHeader, L("Book of the Blind"));	break;
+	case BO_88_STEEL_TOME:			strcpy(InfoPanelHeader, L("Steel Tome"));			break;
+	case BO_72_BOOK_OF_BLOOD:		strcpy(InfoPanelHeader, L("Book of Blood"));		break;
+	case BO_76_PURIFYING_SPRING:	strcpy(InfoPanelHeader, L("Purifying Spring"));	break;
 	case BO_77_ARMOR:
-	case BO_89_ARMOR_2:				strcpy(InfoPanelHeader, "Armor Rack");				break;
-	case BO_79_GOAT_SHRINE:			strcpy(InfoPanelHeader, "Goat Shrine");			break;
-	case BO_80_CAULDRON:			strcpy(InfoPanelHeader, "Cauldron");			break;
-	case BO_81_MURKY_POOL:			strcpy(InfoPanelHeader, "Murky Pool");			break;
-	case BO_82_FOUNTAIN_OF_TEARS:	strcpy(InfoPanelHeader, "Fountain of Tears");	break;
-	case BO_73_PEDESTAL_OF_BLOOD:	strcpy(InfoPanelHeader, "Pedestal of Blood");	break;
-	case BO_86_QUEST_BOOK:			strcpy(InfoPanelHeader, BookNamePtrTable[objectOnMap.BookNameIndex]);			break;
+	case BO_89_ARMOR_2:				strcpy(InfoPanelHeader, L("Armor Rack"));				break;
+	case BO_79_GOAT_SHRINE:			strcpy(InfoPanelHeader, L("Goat Shrine"));			break;
+	case BO_80_CAULDRON:			strcpy(InfoPanelHeader, L("Cauldron"));			break;
+	case BO_81_MURKY_POOL:			strcpy(InfoPanelHeader, L("Murky Pool"));			break;
+	case BO_82_FOUNTAIN_OF_TEARS:	strcpy(InfoPanelHeader, L("Fountain of Tears"));	break;
+	case BO_73_PEDESTAL_OF_BLOOD:	strcpy(InfoPanelHeader, L("Pedestal of Blood"));	break;
+	case BO_86_QUEST_BOOK:			strcpy(InfoPanelHeader, L(BookNamePtrTable[objectOnMap.BookNameIndex]));			break; // (th4) book titles now localize like every neighbour
 	case BO_90_WEAPON_RACK:
-	case BO_92_WEAPON_RACK_2:		strcpy(InfoPanelHeader, "Weapon Rack");			break;
-	case BO_94_MUSHROOM_PATCH:		strcpy(InfoPanelHeader, "Mushroom Patch");		break;
-	case BO_95_VILE_STAND:			strcpy(InfoPanelHeader, "Vile Stand");			break;
-	case BO_96_SLAIN_HERO:			strcpy(InfoPanelHeader, "Slain Hero");			break;
-	case BO_98_HELLFORGE:			strcpy(InfoPanelHeader, "Anvil of Hellforge");	break; // fleshdoom patch (3) did
+	case BO_92_WEAPON_RACK_2:		strcpy(InfoPanelHeader, L("Weapon Rack"));			break;
+	case BO_94_MUSHROOM_PATCH:		strcpy(InfoPanelHeader, L("Mushroom Patch"));		break;
+	case BO_95_VILE_STAND:			strcpy(InfoPanelHeader, L("Vile Stand"));			break;
+	case BO_96_SLAIN_HERO:			strcpy(InfoPanelHeader, L("Slain Hero"));			break;
+	case BO_98_HELLFORGE:			strcpy(InfoPanelHeader, L("Anvil of Hellforge"));	break; // fleshdoom patch (3) did
 	default:			break;
 	}
 
 	if( (/*Players[CurrentPlayerIndex].Infravision || */PerkValue(PERK_AWARENESS, CurrentPlayerIndex) > 0) && objectOnMap.IsTrapped){
-		sprintf(InfoPanelBuffer, "Trapped %s", InfoPanelHeader);
+		sprintf(InfoPanelBuffer, L("Trapped %s"), InfoPanelHeader);
 		strcpy(InfoPanelHeader, InfoPanelBuffer);
 		CurFontColor = 2;
 	}

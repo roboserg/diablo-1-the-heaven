@@ -124,15 +124,49 @@ bool IfCellFreeToSummonMonster( int row, int col )
 	return !PlayerMap[row][col] && !ObjectsMap[row][col] && !IsCellBlocking(row, col) && !MonsterMap[row][col];
 }
 
+MapCoord Outbreak_Spawn_Positions[] = {
+	{ 20, 28 },
+	{ 22, 56 },
+	{ 24, 42 },
+	{ 26, 20 },
+	{ 31, 49 },
+	{ 39, 37 },
+	{ 41, 20 },
+	{ 46, 30 },
+	{ 48, 52 },
+	{ 53, 25 },
+	{ 54, 41 },
+	{ 60, 36 },
+	{ 60, 52 },
+	{ 68, 32 },
+	{ 68, 54 },
+	{ 74, 60 },
+	{ 77, 44 },
+	{ 83, 23 },
+	{ 83, 32 },
+	{ 83, 59 },
+};
+
 //----- (th2) -------------------------------------------------------------
-template<typename T, int N> inline void TryToSummonTheDenMonster(const T(&arr)[N]){ TryToSummonTheDenMonster(arr, N); }
-void TryToSummonTheDenMonster( const BASE_MONSTER baseMonsterIndices[], int n )
+template<typename T, int N> inline void Summon_Den_Monster(const T(&arr)[N]){ Summon_Den_Monster(arr, N); }
+void Summon_Den_Monster( const BASE_MONSTER baseMonsterIndices[], int n )
 {
     int monsterLeft = MonstersCount - SummonMonsters_Count;
-	int mon_limit = DUN_73_LAVA_PITS ? 150 : 70;// change if required for Lava Pits
+	// (th4) was `DUN_73_LAVA_PITS ? 150 : 70` -- a bare enum constant (73), always
+	// truthy, so every caller silently got 150. The Den ran at 150 instead of 70.
+	int mon_limit = Dungeon == DUN_73_LAVA_PITS ? 150 : 70;// change if required for Lava Pits
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) { 
+		mon_limit = 180; 
+	}
     if( monsterLeft < mon_limit){
-		for( int i = 0; i < 100; ++i ){
-			MapCoord coord = TheDenPortalPositions[RNG(countof(TheDenPortalPositions))];
+		for( int i = 0; i < 100; ++i ){			
+			MapCoord coord;
+			if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+				coord = Outbreak_Spawn_Positions[RNG(countof(Outbreak_Spawn_Positions))];
+			}
+			else {
+				coord = TheDenPortalPositions[RNG(countof(TheDenPortalPositions))];
+			}
 			//if( IfCellFreeToSummonMonster( coord.Row, coord.Col ) ){
 				int baseMonsterIndex = baseMonsterIndices[ RNG(n) ];
 				int direction = 0;
@@ -207,21 +241,21 @@ void TheDenScript()
             ++theRampagingDemonQuest.timer;
             
             /*
-             * 1. прибываем на уровень по центру. стоим. тишина. никого нет. но с нашим прибытием запущен таймер_0
-               2. когда таймер_0 = 7 секунд, запускаем на уровень порталы. красные порталы на 4х площадках вокруг портала и запускаем таймер_1
-               3. начинается запуск 1й волны монстров. если таймер_1 = 3 секунды, то (если общее количество монстров на уровне не больше 120) запускаем монстра в рандомный портал и ставим таймер_1 на 0 секунд. монстры выбираются рандомно из этих:
-                  а) #4 - Familiar
-                  б) #57 - pit demon
-                  в) #33 - invisible one
-                  г) #20 - ravager
-               4. когда таймер_0 = 4 минуты ровно, прекращается наплыв монстров и закрывается таймер_1
-               5. когда таймер_0 = 4 минуты и 21 секунда, открываем второй дун и запускаем таймер_2. и (если общее количество монстров на уровне не больше 120) продолжаем запуск каждые 3 секунды следующих монстров из порталов (так же рандомно выбираемых):
-                  а) #132 - fire bat
-                  б) #62 - blood stone
-                  в) #19 - vortex rogue
-               6. когда таймер_0 = 5 минут и 08 секунд, запускаем на уровень Цербера - ставим по центру открытой комнаты на юго-западе. (он - последний босс в таблице сейчас.) и наплыв второй волны уже не прекращается пока цербер не будет убит.
-               7. как только Цербер мертв, генерация второй волны прекращается. порталы закрываются. закрываются все таймеhы.
-               8. когда монстров остается на уровне 0, то игрок победил.
+             (rt) * 1. we arrive at the centre of the level. Standing. Silence. Nobody around. Our arrival starts timer_0
+               (rt) 2. when timer_0 = 7 seconds, portals appear on the level: red portals on the 4 platforms around the portal, and timer_1 starts
+               (rt) 3. the 1st wave of monsters begins. If timer_1 = 3 seconds, then (if the total number of monsters on the level is no more than 120) spawn a monster from a random portal and reset timer_1 to 0. Monsters are picked randomly from these:
+                  (rt) a) #4 - Familiar
+                  (rt) b) #57 - pit demon
+                  (rt) c) #33 - invisible one
+                  (rt) d) #20 - ravager
+               (rt) 4. when timer_0 = exactly 4 minutes, the monster flow stops and timer_1 is closed
+               (rt) 5. when timer_0 = 4 minutes 21 seconds, open the second DUN and start timer_2, and (if the total number of monsters on the level is no more than 120) keep spawning the following monsters from the portals every 3 seconds (also picked randomly):
+                  (rt) a) #132 - fire bat
+                  (rt) b) #62 - blood stone
+                  (rt) c) #19 - vortex rogue
+               (rt) 6. when timer_0 = 5 minutes 08 seconds, spawn Cerberus on the level, in the centre of the opened room in the south-west (he is currently the last boss in the table). The second wave does not stop until Cerberus is killed.
+               (rt) 7. as soon as Cerberus is dead, the second wave stops, the portals close, and all timers are closed.
+               (rt) 8. when the number of monsters on the level reaches 0, the player has won.
              */
 			if( Dungeon == DUN_45_THE_DEN && Quests[Q_24_THE_RAMPAGING_DEMON].status2 > 0 && Quests[Q_24_THE_RAMPAGING_DEMON].status2 < 5 ){
 				bool redPortalOpened = false;
@@ -269,7 +303,7 @@ void TheDenScript()
             
             ++TheDenMonsterSpawnTimer;
 			int spawn_speed = 4; // monster summon speed set to 8 for Easy, 5 for Normal, 2 for Hard
-			if (is(GameMode, GM_EASY/*, GM_CLASSIC*/)) {
+			if (GameMode == GM_EASY) {
 				spawn_speed = 6;
 			}
 			else if (GameMode == GM_HARD) {
@@ -278,11 +312,11 @@ void TheDenScript()
 			if( TheDenMonsterSpawnTimer == spawn_speed ){
 				TheDenMonsterSpawnTimer = 0;
                 if( theRampagingDemonQuest.status2 == 1 ){
-                    // Summon weak monster from portal if can
-                    TryToSummonTheDenMonster( { BM_3_FAMILIAR, BM_56_PIT_DEMON, BM_31_UNSEEN, BM_19_RAVAGER } );
+                    // Summon weak monster from portal if possible
+                    Summon_Den_Monster( { BM_3_FAMILIAR, BM_56_PIT_DEMON, BM_31_UNSEEN, BM_19_RAVAGER } );
                 }else if( is( theRampagingDemonQuest.status2, 3, 4 ) ){
-                    // Summon strong monster from portal if can
-                    TryToSummonTheDenMonster( { BM_131_FIRE_BAT, BM_36_DARKNESS_CLAN, BM_32_INVISIBLE_ONE } );
+                    // Summon strong monster from portal if possible
+                    Summon_Den_Monster( { BM_131_FIRE_BAT, BM_36_DARKNESS_CLAN, BM_32_INVISIBLE_ONE } );
                 }
             }
         }
@@ -299,8 +333,8 @@ void Lava_Pits_Script()
 			if (Lava_Pits_OneSecondTimer < 20 * 60 * time_minutes) {
 				if (Lava_Pits_MonsterSpawnTimer == spawn_speed) {
 					Lava_Pits_MonsterSpawnTimer = 0;
-					// if required, change monster limit inside func "TryToSummonTheDenMonster"
-					TryToSummonTheDenMonster({ BM_93_FLAYED_ONE, BM_29_HIDDEN, BM_97_DARK_CHARGER, BM_150_FELLTWIN, BM_202_SUCCUBUS, BM_113_ASH_GOLEM });
+					// if required, change monster limit inside func "Summon_Den_Monster"
+					Summon_Den_Monster({ BM_93_FLAYED_ONE, BM_29_HIDDEN, BM_97_DARK_CHARGER, BM_150_FELLTWIN, BM_202_SUCCUBUS, BM_113_ASH_GOLEM });
 				}
 			}
 			if (Lava_Pits_OneSecondTimer == 20 * 60 * time_minutes + 1) {
@@ -308,6 +342,136 @@ void Lava_Pits_Script()
 				Summon_Orzog(target.Row, target.Col);
 			}
 		}
+	}
+}
+/*
+Outbreak arena scenario (GM_OUTBREAK, DUN_1_CHURCH_1). Driven from Quests.cpp:584,
+which calls Outbreak_Script() once per game frame. Game logic runs at 20 fps
+(ENGINE_FPS, Net.cpp), so every frame count below divides by 20 for seconds.
+
+State 0 -- waiting on the starting monsters.
+    The arena is loaded from Levels\\L1Data\\ob_01.DUN by ChurchLevelGeneration()
+    (GenerateMap.cpp), which returns early and skips procedural generation. The
+    starting monsters come from that .dun file, so their count lives in the data,
+    not here. Nothing spawns until GetNumberOfMonstersInDungeon() == 0. Then
+    OutbreakWave = 1 and we fall through to state 1.
+
+State 1 -- pause before the next wave.
+    OutbreakPauseTimer counts to 60 * 20 = 1200 frames = 60 seconds.
+
+State 2 -- spawning the wave.
+    Every OutbreakSpawnTimer == 14 frames (0.7 s) we increment OutbreakSpawned and
+    call Summon_Den_Monster() with the group for the current wave. The group picks
+    one of its three monsters at random per spawn.
+
+    NOTE: OutbreakSpawned++ is unconditional, but Summon_Den_Monster() only actually
+    places a monster while (MonstersCount - SummonMonsters_Count) < mon_limit, which
+    is 180 in Outbreak. If the arena is already at that cap the tick is consumed and
+    nothing appears -- so 175 is a spawn-attempt budget, not a guaranteed body count.
+
+    The wave ends when OutbreakSpawned >= 175 AND the arena is empty. Killing faster
+    than monsters spawn does not end the wave early: the counter still has to reach
+    175. Then OutbreakWave++ and back to state 1. Past wave 24 the script returns and
+    the game is won.
+
+Wave groups -- keep in sync with ob_Monsters[] in Monster.cpp (AddQuestMonsters).
+Every monster named here must be registered there, or FindSpriteIndexByBaseMonsterIndex()
+returns -1 and CreateMonster() reads MonsterSprites[-1].
+
+    waves  1     : BM_0_BURNED_CORPSE,  BM_147_FIEND,          BM_5_FALLEN_ONE
+    waves  2     : BM_9_SKELETON_WARRIOR, BM_139_BONE_GASHER,  BM_281_FALLEN_BOW
+    waves  3-4   : BM_140_GHOUL,        BM_126_PLAGUE_EATER,   BM_189_CARVER
+    waves  5-7   : BM_30_SHADOW,        BM_33_MOON_CLAN,       BM_42_NIGHT_CLAN
+    waves  8-10  : BM_56_PIT_DEMON,     BM_76_DEATH_CLAW,      BM_18_VORTEX_ROGUE
+    waves 11-13  : BM_90_CAVE_SNAKE,    BM_106_CORRUPT_ORDER,  BM_156_IMP_ROGUE
+    waves 14-16  : BM_284_SIN_SPAWN,    BM_122_BLOOD_SPECTRE,  BM_299_TENTACLIST2
+    waves 17-20  : BM_278_LEAPER,       BM_135_GROTESQUE,      BM_260_ARMAGEDDON_WALKER
+    waves 21-24  : BM_234_STEEL_LORD,   BM_85_BALOR,           BM_73_DEATH_ANGEL
+
+    27 distinct types. Sprite budget on this level: 11 preamble sprites (golem, the
+    9 class summons, warlord merc) + 27 here = 38 of Monsters_Sprites_Max_Count (40).
+    ob_Monsters claims its slots before the .dun monster loop and before
+    GetDungeonMonsterTypes(), so these 27 are safe. Only 2 slots remain: any monster
+    type in ob_01.DUN that is not in this list consumes one of them.
+
+No wave progress is saved. Leaving to the menu and starting a new game restarts at
+state 0.
+*/
+void Outbreak_Script()
+{
+	// (rt) State 0: waiting for the starting monsters to be killed
+	if (OutbreakState == 0) {
+		if (GetNumberOfMonstersInDungeon() == 0) {
+			OutbreakState = 1;
+			OutbreakPauseTimer = 0;
+			OutbreakWave = 1;
+		}
+		return;
+	}
+
+	// (rt) State 1: pause between waves (th4) 60 * 20 = 1200 frames = 60 s at 20 fps
+	if (OutbreakState == 1) {
+		if (OutbreakPauseTimer < 60 * 20) {
+			OutbreakPauseTimer++;
+			return;
+		}
+		OutbreakState = 2;
+		OutbreakSpawned = 0;
+		OutbreakSpawnTimer = 0;
+		return;
+	}
+
+	// (rt) State 2: spawning the wave's monsters
+	if (OutbreakState == 2) {
+		if (OutbreakSpawnTimer < 14) {
+			OutbreakSpawnTimer++;
+			return;
+		}
+		OutbreakSpawnTimer = 0;
+
+		if (OutbreakSpawned < 175) {
+			OutbreakSpawned++;
+
+			if (OutbreakWave == 1) {
+				Summon_Den_Monster({ BM_0_BURNED_CORPSE, BM_147_FIEND, BM_5_FALLEN_ONE });
+			}
+			else if (OutbreakWave == 2) {
+				Summon_Den_Monster({ BM_9_SKELETON_WARRIOR, BM_139_BONE_GASHER, BM_281_FALLEN_BOW });
+			}
+			else if (OutbreakWave <= 4) {
+				Summon_Den_Monster({ BM_140_GHOUL, BM_126_PLAGUE_EATER, BM_189_CARVER });
+			}
+			else if (OutbreakWave <= 7) { // waves 5-7
+				Summon_Den_Monster({ BM_30_SHADOW, BM_33_MOON_CLAN, BM_42_NIGHT_CLAN });
+			}
+			else if (OutbreakWave <= 10) { // waves 8-10
+				Summon_Den_Monster({ BM_56_PIT_DEMON, BM_76_DEATH_CLAW, BM_18_VORTEX_ROGUE });
+			}
+			else if (OutbreakWave <= 13) { // waves 11-13
+				Summon_Den_Monster({ BM_90_CAVE_SNAKE, BM_106_CORRUPT_ORDER, BM_156_IMP_ROGUE });
+			}
+			else if (OutbreakWave <= 16) { // waves 14-16
+				Summon_Den_Monster({ BM_284_SIN_SPAWN, BM_122_BLOOD_SPECTRE, BM_299_TENTACLIST2 });
+			}
+			else if (OutbreakWave <= 20) { // waves 17-20
+				Summon_Den_Monster({ BM_278_LEAPER, BM_135_GROTESQUE, BM_260_ARMAGEDDON_WALKER });
+			}
+			else {							// waves 21-24
+				Summon_Den_Monster({ BM_234_STEEL_LORD, BM_85_BALOR, BM_73_DEATH_ANGEL });
+			}
+		}
+
+		if (OutbreakSpawned >= 175 && GetNumberOfMonstersInDungeon() == 0) {
+			OutbreakWave++;
+
+			if (OutbreakWave > 24) {
+				return;
+			}
+
+			OutbreakState = 1;
+			OutbreakPauseTimer = 0;
+		}
+		return;
 	}
 }
 
@@ -351,14 +515,57 @@ int __fastcall IsBaseValidForSaleToPlayer( int baseIndex, int townerIndex )
 	if (baseItem.ItemCode == IC_22_MALLET && HasTrait(CurrentPlayerIndex, TraitId::Paladin)) {
 		return 0;
 	}
-	if (is(baseItem.ItemCode, IC_3_BOW, IC_1_SWORD, IC_4_MACE) && HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
-		return 0;
-	}	
+	if (HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
+		if (is(baseItem.ItemCode, IC_3_BOW, IC_1_SWORD, IC_4_MACE)) {
+			return 0;
+		}
+		if (baseItem.ItemCode == IC_23_PISTOL) {
+			if (player.gameChanger & BIT(GC_27_TERMINATOR)) {// condition for terminator
+				if (baseItem.baseId < BI_2708_38_SW_MODEL_15 || baseItem.baseId > BI_2732_PROTOPLASMA_THROWER) {
+					return 0;
+				}
+			}
+			else if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {// condition for mutie
+				if (baseItem.baseId < BI_2733_MINIGUN_01 || baseItem.baseId > BI_2757_F7_MINIGUN) {
+					return 0;
+				}
+			}
+			else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {				
+				if (baseItem.baseId <= BI_2757_F7_MINIGUN) {
+					return 0;
+				}
+			}
+			else {// for pistoleer
+				if (baseItem.baseId >= BI_2708_38_SW_MODEL_15) {
+					return 0;
+				}
+			}
+		}
+	}
+	if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+		if (is(baseItem.ItemCode, IC_7_HELM, IC_17_BELT, IC_15_GLOVE, IC_16_BOOTS)) {
+			return 0;
+		}
+		if (is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR) && baseItem.baseId < BI_2767_STANDARD_FATIGUES) {
+			return 0;
+		}
+	}
 	if (baseItem.ItemCode == IC_23_PISTOL && !HasTrait(CurrentPlayerIndex, TraitId::Pistoleer)) {
 		return 0;
 	}
-	if ((player.fullClassId == PFC_GUARDIAN) && (baseItem.ItemCode == IC_1_SWORD || baseItem.ItemCode == IC_4_MACE) && (baseItem.EquippedLocation/*ItemType*/ != EL_2_TWO_HANDED)) {
-		return 0;
+	if (player.fullClassId == PFC_GUARDIAN){
+		if ((baseItem.ItemCode == IC_1_SWORD || baseItem.ItemCode == IC_4_MACE) && (baseItem.EquippedLocation/*ItemType*/ != EL_2_TWO_HANDED)) {
+			return 0;
+		}
+		else if (is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
+			if ((baseItem.baseId >= BI_2767_STANDARD_FATIGUES && baseItem.baseId <= BI_2787_PXA20_PA)
+				&& !(player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER))) {
+				return 0;
+			}
+			else if (player.gameChanger & BIT(GC_29_ENCLAVE_SOLDIER) && baseItem.baseId < BI_2767_STANDARD_FATIGUES) {
+				return 0;
+			}
+		}
 	}
 	if ((player.fullClassId == PFC_IRON_MAIDEN) && (baseItem.ItemCode == IC_7_HELM || baseItem.ItemCode == IC_6_LIGHT_ARMOR
 		|| baseItem.ItemCode == IC_8_MID_ARMOR || baseItem.ItemCode == IC_9_HEAVY_ARMOR) && baseItem.MaxThornsHigh == 0) {
@@ -399,6 +606,14 @@ int __fastcall IsBaseValidForSaleToPlayer( int baseIndex, int townerIndex )
 	}
 	if (HasTrait(CurrentPlayerIndex, TraitId::OldFashioned) && is(baseItem.ItemCode, IC_6_LIGHT_ARMOR, IC_8_MID_ARMOR, IC_9_HEAVY_ARMOR)) {
 		return 0;
+	}
+	if (player.fullClassId == PFC_SECUTOR) {
+		if (HasTrait(CurrentPlayerIndex, TraitId::Scissor) && baseItem.ItemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh > 0) {
+			return 0;
+		}
+		else if(!HasTrait(CurrentPlayerIndex, TraitId::Scissor) && baseItem.ItemCode == IC_5_SHIELD && baseItem.MaxArrowAbsorbPercentHigh == 0) {
+			return 0;
+		}
 	}
 	if (HasTrait(CurrentPlayerIndex, TraitId::TwoTowers) && is(baseItem.ItemCode, IC_1_SWORD, IC_4_MACE)) {
 		return 0;
@@ -534,13 +749,54 @@ void __fastcall DropBossGold( int monsterIndex )// #boss gold drop, #gold from b
 		case UM_580_NaKrul				:
 		case UM_581_Grimspike			:
 		case UM_582_Izual				:
-		case UM_583_Lich_King			:
 		case UM_584_Mordessa			:
 		case UM_587_Hephasto_the_Armorer: gold *= 3;  break;
 		case UM_705_Bloodhoof_Twinaxe:	  gold *= 10; break;
 		case UM_767_BerUlmeth:			  gold *= 20; break;
 		case UM_764_Lord_Nysallor:		  gold *= 40; break;
 		case UM_773_The_Dark_Lord:		  gold *= 50; break;
+		case UM_906_DC_LORD_ANTONIUS:	  gold = 2'000 + Difficulty * 1000; break;
+		case UM_907_DC_ZYPHERYS:		  gold = 4'000 + Difficulty * 2000; break;
+		case UM_908_DC_LORD_KINDRETT:
+		case UM_909_DC_SCRIBE_VABIUS:	  gold = 3'000 + Difficulty * 1500;  break;
+		case UM_910_DC_AZDOG:			  gold = 6'000 + Difficulty * 1000;  break;
+		case UM_915_DC_SIR_CABBOT:		  gold = 5'000 + Difficulty * 1500;  break;	// (th4) DC mission 6
+		case UM_916_DC_PALADIN_LOXLEY:	  gold = 6'000 + Difficulty * 2000;  break;	// (th4) DC mission 7
+		case UM_918_DC_MADAME_PERESIDE:
+		case UM_919_DC_Archimandrite_Bozu:
+		case UM_920_DC_Bishop_Lucian:
+		case UM_921_DC_Deacon_Raduel:	  gold = 2'000 + Difficulty * 500;   break;	// (th4) DC mission 8
+		case UM_922_DC_Donna_Paloosa:
+		case UM_923_DC_Abbot_Hirosh:
+		case UM_924_DC_Commander_Latham:  gold = 3'000 + Difficulty * 1250;  break;	// (th4) DC mission 9
+		case UM_925_DC_Abbot_Balatt:	  gold = 8'000 + Difficulty * 2'000; break;	// (th4) DC mission 10
+		case UM_926_DC_Black_Hawk:		  gold = 9'000 + Difficulty * 1'500; break;	// (th4) DC mission 11
+		case UM_927_DC_General_Carnabus:														// (th4) DC mission 12
+		case UM_928_DC_Darkmoor:																// (th4) DC mission 12
+		case UM_929_DC_Moonrose:																// (th4) DC mission 12
+		case UM_930_DC_Commander_Degroe:  gold = 3'000 + Difficulty * 1'000; break;	// (th4) DC mission 12
+		case UM_931_DC_Madame_Sarbine:	  gold = 9'000 + Difficulty * 2'000; break;	// (th4) DC mission 13
+		case UM_932_DC_Malachar_the_Warden:													// (th4) DC mission 14
+		case UM_933_DC_Zerath_the_Sage:														// (th4) DC mission 14
+		case UM_934_DC_Faldir_the_Keeper: gold = 5'000 + Difficulty * 2'000; break;	// (th4) DC mission 14
+		case UM_935_DC_Captain_Nagvot:	  gold = 15'000 + Difficulty * 2'500; break;	// (th4) DC mission 15
+		case UM_936_DC_Ludwig_the_Paranoid: gold = 10'000 + Difficulty * 2'000; break;	// (th4) DC mission 16
+		case UM_938_DC_Lord_Tiberius:	  gold = 8'000 + Difficulty * 3'000; break;	// (th4) DC mission 17
+		case UM_940_DC_Darius_the_Ronin:  gold = 13'000 + Difficulty * 1'500; break;	// (th4) DC mission 18
+		case UM_942_DC_Venturius_the_Inquisitor: gold = 15'000 + Difficulty * 2'000; break;	// (th4) DC mission 21
+		case UM_945_DC_Prophetess_Lyssia: gold = 15'000 + Difficulty * 3'000; break;	// (th4) DC mission 22
+		case UM_946_DC_Cleric_Dwaynor: gold = 15'000 + Difficulty * 3'000; break;	// (th4) DC mission 23
+		case UM_947_DC_High_Exemplar_Kastor: gold = 16'000 + Difficulty * 3'000; break;	// (th4) DC mission 24
+		case UM_948_DC_Warden_Gaspax: gold = 18'000 + Difficulty * 4'000; break;	// (th4) DC mission 25
+		case UM_905_DC_Griswold: gold = 20'000 + Difficulty * 5'000; break;	// (th4) DC mission 26
+		case UM_583_Lich_King:			  if (GameMode == GM_DARK_CAMPAIGN) { gold = 6'000 + Difficulty * 3'000; }	// (th4) DC mission 19
+									  else { gold *= 3; }
+									  break;
+		case UM_914_DC_BROTHER_SILAS:
+		case UM_913_DC_MAGISTER_CORVANE:
+		case UM_912_DC_CAPTAIN_ILSE:
+		case UM_911_DC_COMMANDER_ALDRIC:  gold = 2'000 + Difficulty * 1000;  break;
+		case UM_941_DC_Lord_Tenabris:	  gold = 14'000 + Difficulty * 2000;  break;
 		}
 		ActGoldFind( gold );
 		Items[ ItemActive[ ItemsCount - 1 ] ].amount = gold;
@@ -576,11 +832,15 @@ int CannotIncreaseStat( int playerIndex )
 	if (MaxCountOfPlayersInGame == 1 && (Players[playerIndex].gameChanger & BIT(GC_9_NIGHT_KIN))) { 
 		nightkin_limit = 140; 
 	}
-	int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0; 
+	int mutie_limit = 0;
+	if (MaxCountOfPlayersInGame == 1 && (Players[playerIndex].gameChanger & BIT(GC_28_SUPERMUTANT))) {
+		mutie_limit = 200;
+	}
+	int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0;
 	int leper = HasTrait(playerIndex, TraitId::Leper) ? 150 : 0; 
 	int lithe = HasTrait(playerIndex, TraitId::LitheBuild) ? 100 : 0;
 	int extra_mode_boost = 0;
-	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE)) {
+	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) {
 		extra_mode_boost = clvl / 2 + 50;
 	}
 	int statSumLimit = ((10 * clvl) + 90 + (2 * clvl / 3)) * 2
@@ -590,6 +850,7 @@ int CannotIncreaseStat( int playerIndex )
 		+ giant_limit
 		+ paladin_limit 
 		+ nightkin_limit 
+		+ mutie_limit
 		+ oldfashioned 
 		+ leper
 		+ lithe; 
@@ -608,6 +869,7 @@ int CannotIncreaseStat( int playerIndex )
 	}
 	statSumLimit += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex); 
 	if (GameMode == GM_CLASSIC) { statSumLimit = 460; }
+	if (Players[playerIndex].gameChanger & BIT(GC_27_TERMINATOR)) { statSumLimit = 2'810; }
 	if (statSum < statSumLimit) {
 		return 0;
 	}
@@ -687,14 +949,14 @@ void __fastcall DropItemWithQlvlFilteredByMagicLevel( int itemIndex, int baseIte
 	}
 }
 
-// черновик по быстрой смене оружия
+// (rt) draft of quick weapon switching
 #pragma region swap_weapon
 
 LastItemInfo WeaponSwapItems[ 4 ];
 char AltWeaponIndex; // 00A3A4E8
 char* WpnSwapBtnImg; // 00A3A660
 
-// ReadWpnDataInfo, копия ReadPlayerInfo (004564E4)
+// (rt) ReadWpnDataInfo, copy of ReadPlayerInfo (004564E4)
 //----- (00721000) ------------------------------------------
 int __fastcall ReadWeaponSwapInfoFromSave( HANDLE save, LastItemInfo* swapItems )
 {
@@ -849,7 +1111,7 @@ void DoPostAltWeaponPairSwapActions()
     Item cursorItemBuf;
     SwapItems( &cursorItemBuf, &player.ItemOnCursor );
 
-    // через курсор все вещи по сети синхронизируются
+    // (rt) all items are synchronized over the network via the cursor
     memcpy(&player.ItemOnCursor, &player.OnBodySlots[ IS_LeftHand ], sizeof(Item));
     if( player.ItemOnCursor.ItemCode >= 0 ){
         NetSendCmdChItem( 1, IS_LeftHand );
@@ -916,6 +1178,46 @@ void ChangeAltWeaponPairToNext( bool skipEmpty )
     if( player.altWeaponIndex != altWeaponIndexOld ){
         DoPostAltWeaponPairSwapActions();
     }
+}
+
+// Switches the active weapon set to whichever of the 3 sets currently holds a weapon
+// of the given ItemCode in the left hand (bows/2H sit in the left hand). Used by the
+// berserk AI to auto-switch axe<->crossbow during Fury, bypassing the manual swap lock.
+// Returns true if a matching set was found and is now active; false if none exists
+// (in which case the active set is left unchanged).
+bool SwapToWeaponSetWith(char wantedItemCode)
+{
+	Player& player = Players[CurrentPlayerIndex];
+
+	// Already holding it?
+	if (player.OnBodySlots[IS_LeftHand].ItemCode == wantedItemCode) {
+		return true;
+	}
+
+	// There are 3 sets total (on-body + 2 stored). Rotate through the other 2 looking
+	// for the wanted weapon; if found, keep it; if not, rotate back to the original set.
+	int rotations = 0;
+	bool found = false;
+	for (int i = 0; i < 2; ++i) {
+		DoSwap();
+		++rotations;
+		if (player.OnBodySlots[IS_LeftHand].ItemCode == wantedItemCode) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		// Restore the original set (complete the ring back to start).
+		while (rotations % 3 != 0) {
+			DoSwap();
+			++rotations;
+		}
+		return false;
+	}
+
+	DoPostAltWeaponPairSwapActions();
+	return true;
 }
 
 #pragma endregion swap_weapon
@@ -1013,7 +1315,7 @@ int __fastcall RecruitPack( int row112, int col112 )// @Champ
 		return 0;
 	}
 	//if( CurVP > 214375) __debugbreak();
-	// нужно как минимум 2
+	// (rt) at least 2 are needed
 	RecrutMonster( row112, col112 );
 	RecrutMonster( row112 - 1, col112 );
 	RecrutMonster( row112 - 1, col112 - 1 );
@@ -1025,7 +1327,7 @@ int __fastcall RecruitPack( int row112, int col112 )// @Champ
 void __fastcall MakeChampions( int minCount, int maxCount )// @Champ
 {
 	int realCount = RngFromRange( minCount, maxCount );
-	int tryesLeft = 255; // большое число защита от зацикливания
+	int tryesLeft = 255; // (rt) large number as protection against an infinite loop
 	int championsPlaced = 0;
 	do{
 		int row112 = RngFromRange( 1, 110 );
@@ -1047,6 +1349,7 @@ void __fastcall GoBackMenuHandler(int a1, int a2)
 std::pair<COOLDOWN_TYPE, int> GetSpellCooldownValue( int playerIndex, int spellIndex )
 {
 	if( DevelopMode && FreeSpell ) return { CD_NONE, 0 };
+	if (GameMode == GM_CLASSIC) return { CD_NONE, 0 };
 	const Player& player = Players[playerIndex];
 	switch (spellIndex) {
 	case PS_16_REFLECT:
@@ -1160,7 +1463,17 @@ std::pair<COOLDOWN_TYPE, int> GetSpellCooldownValue( int playerIndex, int spellI
 				BScd = 0;
 			}
 			return { COOLDOWN_TYPE::CD_OFFENSIVE, BScd };
-		}
+		} break;
+	case PS_52_LESSER_SUMMON:
+		{
+			int sum_cd = 0;
+			if (HasTrait(playerIndex, TraitId::Warlord)) {
+				sum_cd = 90 - PerkValue(PERK_FRESH_RESERVES, playerIndex);
+				if (GameMode == GM_EASY) sum_cd -= 10;
+				LimitToMin(sum_cd, 10);
+				return { COOLDOWN_TYPE::CD_OFFENSIVE, sum_cd };
+			}			
+		} break;
 	}
     return { CD_NONE, 0 };
 }
@@ -1260,7 +1573,7 @@ int __fastcall LimitPvMMeleeDamage(int playerIndex, int damage)
 	return damage;
 }
 
-// th2, новая функция, вероятно для какого-то еще не реализованного в TH квеста
+// (rt) th2, new function, probably for a quest not yet implemented in TH
 void LoadQuestDungeonMainMapAbyss(char* dunNamePtr, int a2)
 {
 	ClearGenerationMap();
@@ -1274,7 +1587,7 @@ void LoadQuestDungeonMainMapAbyss(char* dunNamePtr, int a2)
 	ushort rowSize = dunData[0];
 	ushort colSize = dunData[1];
 	ushort* dunArray = &dunData[2];
-	// заполняем карту архитектуры из дуна
+	// (rt) fill the architecture map from the DUN
 	for( int col = 0; col < colSize; col++ ){
 		for( int row = 0; row < rowSize; row++ ){
 			ushort wallAndFloorMapValue = dunArray[row + col * rowSize];
@@ -1287,7 +1600,7 @@ void LoadQuestDungeonMainMapAbyss(char* dunNamePtr, int a2)
 	}
 
 
-	// не заполненные тайлы заполняем бейондом
+	// (rt) fill the unfilled tiles with Beyond
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			uchar& wafm = Map[ row ][ col ];
@@ -1320,31 +1633,31 @@ void LoadQuestDungeonMainMapAbyss(char* dunNamePtr, int a2)
 //----- (00715880) --------------------------------------------------------
 void __fastcall LoadQuestDungeonAltMapHell( char* dunNamePtr, int playerRow, int playerCol )
 {
-	InitHellMaps(); // тут
+	InitHellMaps(); // (rt) here
 	ClearWallsTransparency();
 	ushort* dunData = (ushort*)LoadFile(dunNamePtr);
 	ushort rowSize = dunData[0];
 	ushort colSize = dunData[1];
 	ushort* dunArray = &dunData[2];
 
-	// заполняем карту архитектуры из дуна
+	// (rt) fill the architecture map from the DUN
 	for( int col = 0; col < colSize; col++ ){
 		for( int row = 0; row < rowSize; row++ ){
 			ushort wallAndFloorMapValue = dunArray[row + col * rowSize];
 			if( wallAndFloorMapValue ){
 				Map[ row ][ col ] = (char)wallAndFloorMapValue;
 			}else{
-				Map[ row ][ col ] = HELL_WAFM_6_FLOOR;// тут
+				Map[ row ][ col ] = HELL_WAFM_6_FLOOR;// (rt) here
 			}
 		}
 	}
 
-	// не заполненные тайлы заполняем бейондом
+	// (rt) fill the unfilled tiles with Beyond
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
 			uchar& wafm = Map[ row ][ col ];
 			if( !wafm ){
-				wafm = HELL_WAFM_30_BEYOND;// тут
+				wafm = HELL_WAFM_30_BEYOND;// (rt) here
 			}
 		}
 	}
@@ -1361,13 +1674,13 @@ void __fastcall LoadQuestDungeonMainMapHell(char* dunFileName, int playerRowPos,
 	MapEndRow = 96;
 	MapEndCol = 96;
 	ClearWallsTransparency();
-	InitHellMaps(); // тут вставка
+	InitHellMaps(); // (rt) insertion here
 	ushort* dunData = (ushort*)LoadFile(dunFileName);
 
 	for( int col = 0; col < Map_40; col++ ){
 		for( int row = 0; row < Map_40; row++ ){
-			FixedMap[ row ][ col ] = FF_NO;// тут
-			Map[ row ][ col ] = HELL_WAFM_30_BEYOND;// тут
+			FixedMap[ row ][ col ] = FF_NO;// (rt) here
+			Map[ row ][ col ] = HELL_WAFM_30_BEYOND;// (rt) here
 		}
 	}
 
@@ -1379,21 +1692,29 @@ void __fastcall LoadQuestDungeonMainMapHell(char* dunFileName, int playerRowPos,
 		for( int row = 0; row < rowSize; row++ ){
 			ushort wallAndFloorMapValue = dunArray[row + col * rowSize];
 			if( wallAndFloorMapValue ){
-				FixedMap[ row ][ col ] |= FF_8_FIXED;// тут
+				FixedMap[ row ][ col ] |= FF_8_FIXED;// (rt) here
 				Map[ row ][ col ] = (char)wallAndFloorMapValue;
 			}else{
-				Map[ row ][ col ] = HELL_WAFM_6_FLOOR;// тут
+				Map[ row ][ col ] = HELL_WAFM_6_FLOOR;// (rt) here
 			}
 		}
 	}
 
 	PlayerRowPos = playerRowPos;
 	PlayerColPos = playerColPos;
-	InitLevelTiles( HELL_WAFM_30_BEYOND );// тут
-	if (is(Dungeon, DUN_41_FLESHDOOM, DUN_42_WIELDER, DUN_43_HEPHASTO/*, DUN_30_HALLS_OF_ANGUISH, DUN_31_ANDARIELS_THRONE*/)) {
+	InitLevelTiles( HELL_WAFM_30_BEYOND );// (rt) here
+	// previous code
+//	if (is(Dungeon, DUN_41_FLESHDOOM, DUN_42_WIELDER, DUN_43_HEPHASTO/*, DUN_30_HALLS_OF_ANGUISH, DUN_31_ANDARIELS_THRONE*/)) {
+//		InitHellWallsTransparency();
+//		HellSetAdditionalWallsTransparency();
+//	}
+	
+	// Geometry-derived wall transparency for all hell quest maps EXCEPT the two Andariel
+	// maps (Halls of Anguish / Andariel's Throne), which are intentionally left unchanged.
+	//if (not(Dungeon, DUN_30_HALLS_OF_ANGUISH, DUN_31_ANDARIELS_THRONE)) {
 		InitHellWallsTransparency();
 		HellSetAdditionalWallsTransparency();
-	}	
+	//}
 	ClearAllMaps();
 	AddQuestMonsters((ushort*)dunData, 0, 0);
 	SetMapObjects((int)dunData, 0, 0);
@@ -1411,7 +1732,7 @@ bool LeverClick()
 	LeverClickPlayerSound = soundIndex;
 	PlayLocalSound(soundIndex, player.Row, player.Col);
 	if( LeverClickPlayerSoundIndex++ >= 2 ){
-		return 0;// блокировка рычага
+		return 0;// (rt) lever lock
 	}
 	return 1;
 }
@@ -1430,8 +1751,8 @@ void __fastcall OpenNakrul(bool isWeak)
 	}
 	SoundMessage = 0;
 	PlayerSoundMessageDelay = 0;
-	OpenNakrulRoom (1);			// открытие двери
-	// дезактивация всех объектов которыми открывается дверь
+	OpenNakrulRoom (1);			// (rt) opening the door
+	// (rt) deactivating all objects that open the door
 	Objects[ObjIndex(43, 19)].selectable = 0;
 	Objects[ObjIndex(43, 20)].selectable = 0;
 	Objects[ObjIndex(43, 21)].selectable = 0;
@@ -2016,6 +2337,435 @@ TEXT_COLOR FindElementColor()
 	return C_0_White;
 }
 
+// ---- Minion HP bars (left border). Config: ShowMinionBars (OFF by default). ----
+// One bar + name per individual minion. Order top->bottom: Lesser, Common, Greater, Golem.
+// Warlord mercs occupy Lesser slots and are named "Mercenary".
+// Hydramancer is intentionally NOT handled here (hydras have no HP) and is unaffected by this option.
+namespace {
+	// Banana-yellow palette indices (same band oils use via C_6_Banana text remap).
+	const uchar MinionBar_FillColor = 212-16; // bright banana = filled portion
+	const uchar MinionBar_TrackColor = 0/*192*/; // dark banana   = empty track
+	const uchar MinionBar_FrameColor = 214-16-32; // bright banana = frame/outline
+
+	// Tweakables - adjust on request.
+	const int MinionBar_X = 8;   // left margin of the bar
+	const int MinionBar_Width = 100;  // total bar width in px
+	const int MinionBar_Height = 11;  // bar height in px
+	const int MinionBar_Gap = 4;   // px between bar and name text
+	const int MinionBar_Step = 15;  // vertical step per row (matches left info text)
+	const int MinionBar_TopGap = 32;  // extra px to lower the whole block
+}
+
+// (th4) Localized plural forms for the minion-bar header. Most languages cannot
+// pluralize by appending 's' ("%ss" produced "ZHALOs"-style headers), so every
+// summonable that can exceed one gets its dictionary plural, keyed by base
+// monster: tier 1+2 summons, golem (PERK_EXTRA_GOLEMS), mercenary. Tier-3
+// summons (Satyr Lord, Greater Skeleton, Siegebreaker) never exceed one and are
+// deliberately absent everywhere but RU (entries predate the note; harmless).
+// Chinese and Indonesian nouns are unmarked for number, so their tables carry
+// only the mercenary (to bypass the English "Mercenaries" branch); everything
+// else falls back to the singular, which IS their plural. Strings are byte
+// escapes in each language's runtime codepage (CP1251 RU/BG, CP949 KO, GB2312
+// CHI, CP1250 PL, CP1252-family the rest), built from the exact singular bytes
+// in the Localization*.cpp tables; ASCII comments give transliterations.
+// Unknown ids return nullptr -> caller falls back to the singular name.
+static const char* SummonPluralName(int baseMonsterIndex)
+{
+	switch (GameLanguage) {
+	case LANG_RU:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "\xC3\xEE\xEB\xE5\xEC\xFB";                                        // Golemy
+		case BM_223_DEMONOLOG_SUMMON_1:   return "\xC1\xE5\xF1\xE5\xED\xFF\xF2\xE0";                                // Besenyata
+		case BM_224_DEMONOLOG_SUMMON_2:   return "\xCA\xEE\xE7\xEB\xFB \xCB\xF3\xF7\xED\xE8\xEA\xE8";               // Kozly Luchniki
+		case BM_225_DEMONOLOG_SUMMON_3:   return "\xCB\xEE\xF0\xE4\xFB \xD1\xE0\xF2\xE8\xF0\xEE\xE2";               // Lordy Satirov
+		case BM_226_NECROMANT_SUMMON_1:   return "\xD1\xEA\xE5\xEB\xE5\xF2\xFB \xCB\xF3\xF7\xED\xE8\xEA\xE8";       // Skelety Luchniki
+		case BM_227_NECROMANT_SUMMON_2:   return "\xD1\xEA\xE5\xEB\xE5\xF2\xFB \xC2\xEE\xE8\xED\xFB";               // Skelety Voiny
+		case BM_228_NECROMANT_SUMMON_3:   return "\xC2\xFB\xF1\xF8\xE8\xE5 \xD1\xEA\xE5\xEB\xE5\xF2\xFB";           // Vysshie Skelety
+		case BM_229_BEASTMASTER_SUMMON_1: return "\xC6\xE0\xEB\xE0";                                                // Zhala
+		case BM_230_BEASTMASTER_SUMMON_2: return "\xC0\xE4\xF1\xEA\xE8\xE5 \xC2\xE5\xEF\xF0\xE8";                   // Adskie Vepri
+		case BM_231_BEASTMASTER_SUMMON_3: return "\xCE\xF1\xE0\xE4\xED\xFB\xE5 \xC7\xE2\xE5\xF0\xE8";               // Osadnye Zveri
+		case BM_392_WARLORD_MERC:         return "\xCD\xE0\xB8\xEC\xED\xE8\xEA\xE8";                                // Nayomniki
+		}
+		break;
+	case LANG_UK:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                    return "\xC3\xEE\xEB\xE5\xEC\xE8";                // Holemy
+		case BM_223_DEMONOLOG_SUMMON_1:       return "\xC1i\xF1\xE5\xED\xFF\xF2\xE0";           // Bisenyata
+		case BM_224_DEMONOLOG_SUMMON_2:       return "\xCA\xEE\xE7\xEB\xE8 \xCB\xF3\xF7\xED\xE8\xEA\xE8"; // Kozly Luchnyky
+		case BM_225_DEMONOLOG_SUMMON_3:       return "\xCB\xEE\xF0\xE4\xE8 \xD1\xE0\xF2\xE8\xF0i\xE2"; // Lordy Satyriv
+		case BM_226_NECROMANT_SUMMON_1:       return "\xD1\xEA\xE5\xEB\xE5\xF2\xE8 \xCB\xF3\xF7\xED\xE8\xEA\xE8"; // Skelety Luchnyky
+		case BM_227_NECROMANT_SUMMON_2:       return "\xD1\xEA\xE5\xEB\xE5\xF2\xE8 \xC2\xEEi\xED\xE8"; // Skelety Voiny
+		case BM_228_NECROMANT_SUMMON_3:       return "\xC2\xE8\xF9i \xD1\xEA\xE5\xEB\xE5\xF2\xE8"; // Vyshchi Skelety
+		case BM_229_BEASTMASTER_SUMMON_1:     return "\xC6\xE0\xEB\xE0";                        // Zhala
+		case BM_230_BEASTMASTER_SUMMON_2:     return "\xCF\xE5\xEA\xE5\xEB\xFC\xEDi \xC2\xE5\xEF\xF0\xE8"; // Pekelni Vepry
+		case BM_231_BEASTMASTER_SUMMON_3:     return "\xCE\xE1\xEB\xEE\xE3\xEE\xE2i \xC7\xE2i\xF0i"; // Oblohovi Zviri
+		case BM_392_WARLORD_MERC:             return "\xCD\xE0\xE9\xEC\xE0\xED\xF6i";           // Naimantsi
+		}
+		break;
+	case LANG_JA:
+		// (th4) Japanese has no plural inflection, so every entry here is byte-identical
+		// to its JA_MonsterName row. The case still has to exist: without it the switch
+		// falls through to the English plurals.
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                     return "\xA5\xB4\xA1\xBC\xA5\xEC\xA5\xE0";
+		case BM_223_DEMONOLOG_SUMMON_1:        return "\xBE\xAE\xB5\xB4";
+		case BM_224_DEMONOLOG_SUMMON_2:        return "\xBB\xB3\xCD\xD3\xA4\xCE\xBC\xCD\xBC\xEA";
+		case BM_225_DEMONOLOG_SUMMON_3:        return "\xA5\xB5\xA5\xC6\xA5\xE5\xA5\xED\xA5\xB9\xA4\xCE\xC4\xB9";
+		case BM_226_NECROMANT_SUMMON_1:        return "\xB3\xBC\xB9\xFC\xA4\xCE\xBC\xCD\xBC\xEA";
+		case BM_227_NECROMANT_SUMMON_2:        return "\xB3\xBC\xB9\xFC\xA4\xCE\xC0\xEF\xBB\xCE";
+		case BM_228_NECROMANT_SUMMON_3:        return "\xBE\xE5\xB0\xCC\xA4\xCE\xB3\xBC\xB9\xFC";
+		case BM_229_BEASTMASTER_SUMMON_1:      return "\xBF\xCB\xBB\xFD\xA4\xC1";
+		case BM_230_BEASTMASTER_SUMMON_2:      return "\xC3\xCF\xB9\xF6\xC3\xF6";
+		case BM_231_BEASTMASTER_SUMMON_3:      return "\xB9\xB6\xBE\xEB\xA4\xCE\xBD\xC3";
+		case BM_392_WARLORD_MERC:              return "\xCD\xC3\xCA\xBC";
+		}
+		break;
+	case LANG_AR:
+		// (th4) Arabic DOES mark plurals, but these are summon names shown one per unit,
+		// so each is identical to its AR_MonsterName row. The case still has to exist:
+		// without it the switch falls through to the English plurals.
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                      return "\xA1\xA7\xA1\xBE\xA1\xBA\xA1\xC2\xA1\xBE\xA1\xBF";
+		case BM_223_DEMONOLOG_SUMMON_1:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xAE\xA1\xA8\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 1";
+		case BM_224_DEMONOLOG_SUMMON_2:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xAE\xA1\xA8\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 2";
+		case BM_225_DEMONOLOG_SUMMON_3:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xAE\xA1\xA8\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xB4\xA1\xC4\xA1\xA7\xA1\xB7\xA1\xC4\xA1\xC0 3";
+		case BM_226_NECROMANT_SUMMON_1:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB1\xA1\xC2\xA1\xA7\xA1\xAD 1";
+		case BM_227_NECROMANT_SUMMON_2:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB1\xA1\xC2\xA1\xA7\xA1\xAD 2";
+		case BM_228_NECROMANT_SUMMON_3:         return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xBF\xA1\xB3\xA1\xAA\xA1\xAD\xA1\xB6\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xA3\xA1\xB1\xA1\xC2\xA1\xA7\xA1\xAD 3";
+		case BM_229_BEASTMASTER_SUMMON_1:       return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 1";
+		case BM_230_BEASTMASTER_SUMMON_2:       return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 2";
+		case BM_231_BEASTMASTER_SUMMON_3:       return "\xA1\xA7\xA1\xB3\xA1\xAA\xA1\xAF\xA1\xB9\xA1\xA7\xA1\xA1 \xA1\xB3\xA1\xC4\xA1\xAF \xA1\xA7\xA1\xBE\xA1\xC2\xA1\xAD\xA1\xC2\xA1\xB4 3";
+		case BM_392_WARLORD_MERC:               return "\xA1\xBF\xA1\xB1\xA1\xAA\xA1\xB2\xA1\xBC \xA1\xA3\xA1\xBF\xA1\xC4\xA1\xB1 \xA1\xA7\xA1\xBE\xA1\xAD\xA1\xB1\xA1\xA8";
+		}
+		break;
+	case LANG_HIN:
+		// (th4) Hindi does mark plurals, but these are summon names shown one per
+		// unit, so each is byte-identical to its HIN_MonsterName row. The case still
+		// has to exist: without it the switch falls through to the English plurals.
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                    return "\xA2\xB0\xAB\xD7\xA9\xFA";
+		case BM_223_DEMONOLOG_SUMMON_1:       return "\xA7\xB1\xA7\xF0\xAC\xC7\xAC\xEB\xAE\xC3\xAF\xC0 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 1";
+		case BM_224_DEMONOLOG_SUMMON_2:       return "\xA7\xB1\xA7\xF0\xAC\xC7\xAC\xEB\xAE\xC3\xAF\xC0 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 2";
+		case BM_225_DEMONOLOG_SUMMON_3:       return "\xA7\xB1\xA7\xF0\xAC\xC7\xAC\xEB\xAE\xC3\xAF\xC0 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 3";
+		case BM_226_NECROMANT_SUMMON_1:       return "\xAA\xAE\xA6\xCA\xA1\xB1\xAD\xCF\xA7\xCF\xA1\xB1 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 1";
+		case BM_227_NECROMANT_SUMMON_2:       return "\xAA\xAE\xA6\xCA\xA1\xB1\xAD\xCF\xA7\xCF\xA1\xB1 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 2";
+		case BM_228_NECROMANT_SUMMON_3:       return "\xAA\xAE\xA6\xCA\xA1\xB1\xAD\xCF\xA7\xCF\xA1\xB1 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 3";
+		case BM_229_BEASTMASTER_SUMMON_1:     return "\xA8\xD4\xAC\xF4\xAE\xC3\xAC\xCA\xAA\xA5 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 1";
+		case BM_230_BEASTMASTER_SUMMON_2:     return "\xA8\xD4\xAC\xF4\xAE\xC3\xAC\xCA\xAA\xA5 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 2";
+		case BM_231_BEASTMASTER_SUMMON_3:     return "\xA8\xD4\xAC\xF4\xAE\xC3\xAC\xCA\xAA\xA5 \xA1\xB4 \xA1\xA1\xA7\xFC\xA2\xF8\xAA\xDE 3";
+		case BM_392_WARLORD_MERC:             return "\xAD\xE1\xA7\xF3\xA8\xD4\xA6\xD0 \xA1\xB4 \xAD\xE4\xA7\xF6\xA1\xB1";
+		}
+		break;
+	case LANG_BG:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "\xC3\xEE\xEB\xE5\xEC\xE8";                                        // Golemi
+		case BM_223_DEMONOLOG_SUMMON_1:   return "\xC4\xFF\xE2\xEE\xEB\xF7\xE5\xF2\xE0";                            // Dyavolcheta
+		case BM_224_DEMONOLOG_SUMMON_2:   return "\xCA\xEE\xE7\xEB\xE8 \xF1\xF2\xF0\xE5\xEB\xF6\xE8";               // Kozli streltsi
+		case BM_226_NECROMANT_SUMMON_1:   return "\xD1\xEA\xE5\xEB\xE5\xF2\xE8 \xF1\xF2\xF0\xE5\xEB\xF6\xE8";       // Skeleti streltsi
+		case BM_227_NECROMANT_SUMMON_2:   return "\xD1\xEA\xE5\xEB\xE5\xF2\xE8 \xE2\xEE\xE8\xED\xE8";               // Skeleti voini
+		case BM_229_BEASTMASTER_SUMMON_1: return "\xC6\xE8\xEB\xE5\xF9\xE8 \xE7\xE2\xE5\xF0\xEE\xE2\xE5";           // Zhileshti zverove
+		case BM_230_BEASTMASTER_SUMMON_2: return "\xC0\xE4\xF1\xEA\xE8 \xE3\xEB\xE8\xE3\xE0\xED\xE8";               // Adski gligani
+		case BM_392_WARLORD_MERC:         return "\xCD\xE0\xE5\xEC\xED\xE8\xF6\xE8";                                // Naemnitsi
+		}
+		break;
+	case LANG_DA:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golemmer";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Sm\xE5" "dj\xE6velunger";                                         // Smaadjaevelunger
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Gedebueskytter";
+		case BM_226_NECROMANT_SUMMON_1:   return "Skeletbueskytter";
+		case BM_227_NECROMANT_SUMMON_2:   return "Skeletkrigere";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Stikkere";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Helvedesorner";
+		case BM_392_WARLORD_MERC:         return "Lejesvende";
+		}
+		break;
+	case LANG_DE:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golems";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Kob\xF6ldinge";                                                   // Koboeldinge
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Ziegensch\xFCtzen";                                               // Ziegenschuetzen
+		case BM_226_NECROMANT_SUMMON_1:   return "Skelettsch\xFCtzen";                                              // Skelettschuetzen
+		// Skelettkrieger, Stachler, Hoellenkeiler, Soeldner: plural equals singular -> fallback
+		}
+		break;
+	case LANG_ES:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "G\xF3lems";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Diablillejos";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Arqueros Cabra";
+		case BM_226_NECROMANT_SUMMON_1:   return "Arqueros Esquel\xE9ticos";
+		case BM_227_NECROMANT_SUMMON_2:   return "Guerreros Esquel\xE9ticos";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Aguijones";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Jabal\xED""es Infernales";
+		case BM_392_WARLORD_MERC:         return "Mercenarios";
+		}
+		break;
+	case LANG_FR:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golems";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Diablotinets";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Archers Ch\xE8vres";                                              // Archers Chevres
+		case BM_226_NECROMANT_SUMMON_1:   return "Archers Squelettes";
+		case BM_227_NECROMANT_SUMMON_2:   return "Guerriers Squelettes";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Dards";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Sangliers de l'Enfer";
+		case BM_392_WARLORD_MERC:         return "Mercenaires";
+		}
+		break;
+	case LANG_IT:
+		switch (baseMonsterIndex) {
+		// Golem is invariable in Italian -> fallback
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Folletti";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Arcieri Capra";
+		case BM_226_NECROMANT_SUMMON_1:   return "Arcieri Scheletrici";
+		case BM_227_NECROMANT_SUMMON_2:   return "Guerrieri Scheletrici";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Pungiglioni";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Cinghiali Infernali";
+		case BM_392_WARLORD_MERC:         return "Mercenari";
+		}
+		break;
+	case LANG_KO: // group marker '-deul' (\xB5\xE9) appended to the CP949 singular
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "\xB0\xF1\xB7\xBD\xB5\xE9";                                        // Gollem-deul
+		case BM_223_DEMONOLOG_SUMMON_1:   return "\xC0\xD3\xC7\xC1\xB5\xE9";                                        // Impeu-deul
+		case BM_224_DEMONOLOG_SUMMON_2:   return "\xBF\xB0\xBC\xD2 \xB1\xC3\xBC\xF6\xB5\xE9";                       // Yeomso gungsu-deul
+		case BM_226_NECROMANT_SUMMON_1:   return "\xC7\xD8\xB0\xF1 \xB1\xC3\xBC\xF6\xB5\xE9";                       // Haegol gungsu-deul
+		case BM_227_NECROMANT_SUMMON_2:   return "\xC7\xD8\xB0\xF1 \xC0\xFC\xBB\xE7\xB5\xE9";                       // Haegol jeonsa-deul
+		case BM_229_BEASTMASTER_SUMMON_1: return "\xC4\xA7\xB2\xDB\xB5\xE9";                                        // Chimkkun-deul
+		case BM_230_BEASTMASTER_SUMMON_2: return "\xC1\xF6\xBF\xC1 \xB8\xE4\xB5\xC5\xC1\xF6\xB5\xE9";               // Jiok metdwaeji-deul
+		case BM_392_WARLORD_MERC:         return "\xBF\xEB\xBA\xB4\xB5\xE9";                                        // Yongbyeong-deul
+		}
+		break;
+	case LANG_NL:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golems";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Duiveltjes";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Geitenboogschutters";
+		case BM_226_NECROMANT_SUMMON_1:   return "Skeletboogschutters";
+		case BM_227_NECROMANT_SUMMON_2:   return "Skeletkrijgers";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Stekers";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Helzwijnen";
+		case BM_392_WARLORD_MERC:         return "Huurlingen";
+		}
+		break;
+	case LANG_SW:
+		// (th4) Swahili. Only the m-/wa- ANIMATE class marks plural on the noun
+		// itself (mchomaji -> wachomaji, mfupa/mifupa); N-class nouns like golemu and
+		// nguruwe are identical in singular and plural, so those rows read the same as
+		// SW_MonsterName on purpose -- they are not copy-paste slips.
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golemu";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Vishetani";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Mbuzi Wapiga Upinde";
+		case BM_226_NECROMANT_SUMMON_1:   return "Mifupa Wapiga Upinde";
+		case BM_227_NECROMANT_SUMMON_2:   return "Mashujaa wa Mifupa";
+		case BM_229_BEASTMASTER_SUMMON_1: return "Wachomaji";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Nguruwe wa Jehanamu";
+		case BM_392_WARLORD_MERC:         return "Mamluki";
+		}
+		break;
+	case LANG_HR:
+		// (th4) Croatian: plurals of the HR_MonsterName singulars.
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                  return "Golemi";
+		case BM_223_DEMONOLOG_SUMMON_1:     return "Vra\x9Ei\xE6i";
+		case BM_224_DEMONOLOG_SUMMON_2:     return "Jar\xE8ji strijelci";
+		case BM_226_NECROMANT_SUMMON_1:     return "Ko\x9Atani strijelci";
+		case BM_227_NECROMANT_SUMMON_2:     return "Ko\x9Atani ratnici";
+		case BM_229_BEASTMASTER_SUMMON_1:   return "\x8E""aoci";
+		case BM_230_BEASTMASTER_SUMMON_2:   return "Paklenski veprovi";
+		case BM_392_WARLORD_MERC:           return "Pla\xE6""enici";
+		}
+		break;
+	case LANG_CS:
+		// (th4) Czech: plurals of the CS_MonsterName singulars (LocalizationCS.cpp).
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                  return "Golemov\xE9";
+		case BM_223_DEMONOLOG_SUMMON_1:     return "Sk\xF8\xEDtci";
+		case BM_224_DEMONOLOG_SUMMON_2:     return "Koz\xED lu\xE8i\x9Atn\xED""ci";
+		case BM_226_NECROMANT_SUMMON_1:     return "Kost\xECn\xED lu\xE8i\x9Atn\xED""ci";
+		case BM_227_NECROMANT_SUMMON_2:     return "Kost\xECn\xED v\xE1le\xE8n\xED""ci";
+		case BM_229_BEASTMASTER_SUMMON_1:   return "\x8Eihadla";
+		case BM_230_BEASTMASTER_SUMMON_2:   return "Pekeln\xED kanci";
+		case BM_392_WARLORD_MERC:           return "\x8Eoldn\xE9\xF8i";
+		}
+		break;
+	case LANG_PL:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golemy";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Chochliczki";
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Kozi \xA3ucznicy";                                                // Kozi Lucznicy
+		case BM_226_NECROMANT_SUMMON_1:   return "Szkieletowi \xA3ucznicy";                                         // Szkieletowi Lucznicy
+		case BM_227_NECROMANT_SUMMON_2:   return "Szkieletowi Wojownicy";
+		case BM_229_BEASTMASTER_SUMMON_1: return "\xAF\xB9" "dlacze";                                               // Zadlacze
+		case BM_230_BEASTMASTER_SUMMON_2: return "Piekielne Dziki";
+		case BM_392_WARLORD_MERC:         return "Najemnicy";
+		}
+		break;
+	case LANG_PT:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golens"; // PT table has no golem entry; pluralize the EN fallback name
+		case BM_223_DEMONOLOG_SUMMON_1:   return "Invoca\xE7\xF5" "es do Demon\xF3logo 1";                          // Invocacoes do Demonologo 1
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Invoca\xE7\xF5" "es do Demon\xF3logo 2";                          // Invocacoes do Demonologo 2
+		case BM_226_NECROMANT_SUMMON_1:   return "Invoca\xE7\xF5" "es do Necromante 1";                             // Invocacoes do Necromante 1
+		case BM_227_NECROMANT_SUMMON_2:   return "Invoca\xE7\xF5" "es do Necromante 2";                             // Invocacoes do Necromante 2
+		case BM_229_BEASTMASTER_SUMMON_1: return "Invoca\xE7\xF5" "es do Mestre-Feras 1";                           // Invocacoes do Mestre-Feras 1
+		case BM_230_BEASTMASTER_SUMMON_2: return "Invoca\xE7\xF5" "es do Mestre-Feras 2";                           // Invocacoes do Mestre-Feras 2
+		case BM_392_WARLORD_MERC:         return "Mercen\xE1rios Voevoda";                                          // Mercenarios Voevoda
+		}
+		break;
+	case LANG_TR:
+		switch (baseMonsterIndex) {
+		case BM_109_GOLEM:                return "Golemler";
+		case BM_223_DEMONOLOG_SUMMON_1:   return "K\xFC\xE7\xFCk Ifritler";                                         // Kucuk Ifritler
+		case BM_224_DEMONOLOG_SUMMON_2:   return "Ke\xE7i Ok\xE7ular";                                              // Keci Okcular
+		case BM_226_NECROMANT_SUMMON_1:   return "Iskelet Ok\xE7ular";                                              // Iskelet Okcular
+		case BM_227_NECROMANT_SUMMON_2:   return "Iskelet Savas\xE7ilar";                                           // Iskelet Savascilar
+		case BM_229_BEASTMASTER_SUMMON_1: return "Dikenliler";
+		case BM_230_BEASTMASTER_SUMMON_2: return "Cehennem Domuzlari";
+		case BM_392_WARLORD_MERC:         return "Parali Askerler";
+		}
+		break;
+	case LANG_CHI: // Chinese nouns are unmarked for number; only bypass the English merc branch
+		if (baseMonsterIndex == BM_392_WARLORD_MERC) return "\xD3\xB6\xB1\xF8";                                     // yongbing (GB2312)
+		break;
+	case LANG_ID: // Indonesian leaves plural unmarked; only bypass the English merc branch
+		if (baseMonsterIndex == BM_392_WARLORD_MERC) return "Tentara Bayaran";
+		break;
+	}
+	return nullptr;
+}
+
+// (th4) Localized singular for the mercenary header: the code overrides the
+// monster's own Name here (it carries the warlord's personal name), so each
+// language needs the role word explicitly. English is the fallback.
+static const char* MercSingularName()
+{
+	switch (GameLanguage) {
+	case LANG_RU:  return "\xCD\xE0\xB8\xEC\xED\xE8\xEA";      // Nayomnik
+	case LANG_BG:  return "\xCD\xE0\xE5\xEC\xED\xE8\xEA";      // Naemnik
+	case LANG_UK:  return "\xCD\xE0\xE9\xEC\xE0\xED\xE5\xF6\xFC";      // Naimanets
+	case LANG_JA:  return "\xCD\xC3\xCA\xBC";              // youhei (EUC-JP)
+	case LANG_AR:  return "\xA1\xBF\xA1\xB1\xA1\xAA\xA1\xB2\xA1\xBC";              // murtaziq
+	case LANG_HIN: return "\xA9\xDC\xAE\xFD \xA1\xB4 \xAD\xE4\xA7\xF6\xA1\xB1";              // bhaade kaa sainik
+	case LANG_DA:  return "Lejesvend";
+	case LANG_DE:  return "S\xF6ldner";                        // Soeldner
+	case LANG_ES:  return "Mercenario";
+	case LANG_FR:  return "Mercenaire";
+	case LANG_IT:  return "Mercenario";
+	case LANG_KO:  return "\xBF\xEB\xBA\xB4";                  // Yongbyeong (CP949)
+	case LANG_NL:  return "Huurling";
+	case LANG_PL:  return "Najemnik";
+	case LANG_PT:  return "Mercen\xE1rio Voevoda";             // Mercenario Voevoda
+	case LANG_TR:  return "Parali Asker";
+	case LANG_CHI: return "\xD3\xB6\xB1\xF8";                  // yongbing (GB2312)
+	case LANG_ID:  return "Tentara Bayaran";
+	case LANG_HR:  return "Pla\xE6""enik";   // (th4) Croatian; matches HR_MonsterName BM_392
+	case LANG_CS:  return "\x8Eoldn\xE9\xF8";   // (th4) Czech; matches CS_MonsterName BM_392
+	case LANG_SW:  return "Mamluki";                           // (th4) Swahili; matches SW_Ui / SW_Spell
+	}
+	return "Mercenary";
+}
+
+// Draws bars starting at *curY (advances it). Returns nothing; *curY is updated.
+void DrawMinionBars(int& curY)
+{
+	if (Dungeon == DUN_0_TOWN) return;
+	curY += MinionBar_TopGap; // lower the whole block a little
+	const int playerSummonsOffset = CurrentPlayerIndex * SummonMonstersPerPlayer_Count;
+
+	// Render order requested by design: Lesser -> Common -> Greater -> Golem.
+	const int typeOrder[SUM_COUNT] = { SUM_LESSER, SUM_COMMON, SUM_GREATER, SUM_GOLEM };
+
+	for (int t = 0; t < SUM_COUNT; ++t) {
+		int summonsStartIndex = 0;
+		int summonsSlotsAmount = 0;
+		GetSummonsTypeOffsets(typeOrder[t], &summonsStartIndex, &summonsSlotsAmount, CurrentPlayerIndex);
+		const int beginIndex = summonsStartIndex;
+		const int endIndex = summonsStartIndex + summonsSlotsAmount;
+
+		// First pass: count alive minions of this type and grab a representative.
+		const Monster* repPtr = nullptr;
+		int aliveCount = 0;
+		for (int summonIndex = beginIndex; summonIndex < endIndex; ++summonIndex) {
+			const Monster& summon = Monsters[summonIndex + playerSummonsOffset];
+			if ((summon.Row != 1 || summon.Col) && (summon.CurrentLife & (-64)) > 0) {
+				repPtr = &summon;
+				++aliveCount;
+
+			}
+
+		}
+		if (aliveCount == 0) continue;
+
+		// Header line: type name, pluralized when more than one is present.
+		const bool isMerc = repPtr->SpritePtr && repPtr->SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC;
+		char header[64];
+		if (aliveCount > 1) {
+			// (th4) Localized dictionary plurals; only English can pluralize with "%ss".
+			const char* plural = repPtr->SpritePtr
+				? SummonPluralName(repPtr->SpritePtr->baseMonsterIndex) : nullptr;
+			if (plural) {
+				sprintf(header, "%s", plural);
+
+			}
+			else if (isMerc) {
+				sprintf(header, "Mercenaries"); // irregular plural - cannot just add 's'
+
+			}
+			else if (GameLanguage == LANG_EN) {
+				sprintf(header, "%ss", repPtr->Name);
+
+			}
+			else {
+				sprintf(header, "%s", repPtr->Name); // (th4) no table entry: singular beats "...s"
+
+			}
+
+		}
+		else {
+			sprintf(header, "%s", isMerc ? MercSingularName() : repPtr->Name);
+
+		}
+		DrawLevelInfoText(MinionBar_X, curY + MinionBar_Height - 1, header, C_6_Banana, true); // always black-outlined, like orb number overlays
+		curY += MinionBar_Step;
+
+		// Second pass: one bar per alive minion of this type, stacked under the header.
+		for (int summonIndex = beginIndex; summonIndex < endIndex; ++summonIndex) {
+			const Monster& summon = Monsters[summonIndex + playerSummonsOffset];
+			if ((summon.Row != 1 || summon.Col) && (summon.CurrentLife & (-64)) > 0) {
+				const int cur = summon.CurrentLife / 64;
+				const int max = summon.BaseLife / 64;
+				int fill = 0;
+				if (max > 0) {
+					fill = MinionBar_Width * cur / max;
+					if (fill < 0) fill = 0;
+					if (fill > MinionBar_Width) fill = MinionBar_Width;
+
+				}
+				// Track (empty interior), then filled portion on top.
+				DisplayObject bar{ MinionBar_X, curY, MinionBar_Width, MinionBar_Height, 0, 0 };
+				DrawBox(bar, MinionBar_TrackColor);
+				if (fill > 0) {
+					DisplayObject filled{ MinionBar_X, curY, fill, MinionBar_Height, 0, 0 };
+					DrawBox(filled, MinionBar_FillColor);
+				}
+				// Frame/outline around the whole bar (like the reference screenshot).
+				DrawRect(bar, MinionBar_FrameColor);
+
+				// Current HP centered inside the bar, in dark text.
+				char hpText[16];
+				sprintf(hpText, "%d", cur);
+				const int hpX = MinionBar_X + (MinionBar_Width - GetTextWidth(hpText)) / 2;
+				DrawLevelInfoText(hpX, curY + MinionBar_Height - 1, hpText, C_0_White, true); // white + black outline, like life/mana orb numbers
+
+				curY += MinionBar_Step;
+			}
+		}
+	}
+}
+
 //---- (th2) --------------------------------------------------------------
 void DrawInfoLeft()
 {
@@ -2027,7 +2777,7 @@ void DrawInfoLeft()
 	};
     Player& player = Players[CurrentPlayerIndex];
 	if( Dungeon != DUN_0_TOWN && player.notHittableFramesAfterTransition > 0 ){
-		draw( C_4_Orange, "Invulnerability period: %d sec", player.notHittableFramesAfterTransition / ENGINE_FPS + 1 );
+		draw( C_4_Orange, L("Invulnerability period: %d sec"), player.notHittableFramesAfterTransition / ENGINE_FPS + 1 ); // (th4) localize
 	}
 	if( ShowSystemTime ){
 		time_t timer;
@@ -2069,14 +2819,14 @@ void DrawInfoLeft()
     
     if( /*!is(GameMode, GM_NORMAL, GM_EASY) && */ ShowGameMode) {
 		if (player.gameChanger & BIT(GC_24_RUTHLESS)) {
-			draw(C_4_Orange, "game mode : ruthless iron");
+			draw(C_4_Orange, L("Game mode: %s"), getGameModeNameInGame(GM_IRONMAN, GC_24_RUTHLESS)); // (th4) localize; that overload already returns "Ruthless Iron"
 		}
 		else {
-			draw(C_4_Orange, "game mode: %s", getGameModeName(GameMode));
+			draw(C_4_Orange, L("Game mode: %s"), getGameModeNameInGame(GameMode)); // (th4) localize; CEL font, not the menu atlas
 		}
     }
 
-	if( ShowResolution ){ draw( C_3_Gold, "Resolution: %i x %i", ScreenWidth, ScreenHeight ); }
+	if( ShowResolution ){ draw( C_3_Gold, L("Resolution: %i x %i"), ScreenWidth, ScreenHeight ); } // (th4) localize
 
     if( is( GameMode, GM_SPEEDRUN ) ) {
         auto drawTimer = [&]( int color, const char* stepName, const char* timerValue ){
@@ -2101,8 +2851,12 @@ void DrawInfoLeft()
             }
         }
     }
-	if( TimeSpeed != 1.0 && (MaxCountOfPlayersInGame == 1 || DevelopMode) ){
-		draw( C_3_Gold, "Time speed: %0.2f", TimeSpeed );
+	if (TimeSpeed != 1.0 && (MaxCountOfPlayersInGame == 1 || DevelopMode)) {
+		draw(C_3_Gold, L("Time speed: %0.2f"), TimeSpeed); // (th4) localize
+	}
+
+	if (ShowMinionBars) {
+		DrawMinionBars(curY); // left-border minion HP bars (Hydramancer unaffected)
 	}
 	//extern int fullCellDelta;
 	//extern int nextCellPCmd;
@@ -2110,6 +2864,10 @@ void DrawInfoLeft()
 	//draw( C_3_Gold, "nextCellPCmd = %i", nextCellPCmd );
 }
 
+// (th4) These names are FORMAT ARGUMENTS, so they never passed through the
+// localisation and every language printed them in English -- "Reflect cooldown"
+// showed a Latin word inside an Arabic line. The two draw calls below now wrap
+// them in L(); a language without the row still gets the English back unchanged.
 array Cooldowns = {
 	"Nova",
 	"Fury",
@@ -2118,13 +2876,29 @@ array Cooldowns = {
 	"Stone Curse",
 	"Apocalypse",
 	"Force Wave",
+	//"Mercenary"
 };
+
+// (th4) Dark Campaign target noun for the "N left" counter. Mission levels are stocked with
+// the heroes who came to stop you -- except the Mausoleum, where the quarry is Az'Dog and his
+// fellow traitors. One helper so the two call sites below cannot drift apart.
+static const char* DarkCampaignTargetsLeftFmt( int count )
+{
+	if( Dungeon == DUN_64_MAUSOLEUM ){
+		return count == 1 ? "%i traitor left" : "%i traitors left";
+	}
+	if( Dungeon == DUN_72_NECROPOLIS ){	// (th4) DC mission 19: the quarry is the undead, not heroes
+		return count == 1 ? "%i monster left" : "%i monsters left";
+	}
+	return count == 1 ? "%i hero left" : "%i heroes left";
+}
+
 void DrawInfoRight()
 {
 	const Player& player = Players[CurrentPlayerIndex];
 	int curY = 25;
 	auto draw = [&](int color, const char* text, auto... a) {
-		sprintf(InfoPanelBuffer, text, a...);
+		sprintf(InfoPanelBuffer, L(text), a...);	// (th4) every line of this panel is localizable; L() returns the English when no entry exists
 		DrawLevelInfoText(ScreenWidth - GetTextWidth(InfoPanelBuffer) - 3, curY, InfoPanelBuffer, color, OnScreenTextOutline);
 		curY += 15;
 		};
@@ -2139,11 +2913,11 @@ void DrawInfoRight()
 					draw(C_4_Orange, "Battle Trance cooldown: %02i:%02i", cd / 60, cd % 60);
 				}
 				else {
-					draw(C_4_Orange, "%s cooldown: %02i:%02i", Cooldowns[i], cd / 60, cd % 60);
+					draw(C_4_Orange, "%s cooldown: %02i:%02i", L(Cooldowns[i]), cd / 60, cd % 60);
 				}
 			}
 			else {
-				draw(C_4_Orange, "%s cooldown: %02i:%02i", Cooldowns[i], cd / 60, cd % 60);
+				draw(C_4_Orange, "%s cooldown: %02i:%02i", L(Cooldowns[i]), cd / 60, cd % 60);
 			}
 		}
 	}
@@ -2157,7 +2931,11 @@ void DrawInfoRight()
 			int monstersLeft = GetNumberOfMonstersInDungeon();
 			int objLeft = GetNumberOfObjectsInDungeon();
 			//if (!Dungeon->isQuest) {
-			if (IsSomeMonstersActivated()) {
+			// (th4) DC mission 13: suppressed on DUN_121. The three friendlies are spawned
+			// awake, so IsSomeMonstersActivated() stays true for the whole mission and this
+			// line would sit there permanently -- including long after the last hero is dead.
+			if (IsSomeMonstersActivated()
+			 && !(GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC)) {
 				draw(C_2_Red, "In battle... %i monsters", MonstersActivated());
 			}
 				draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, "monsters left: %i", monstersLeft);
@@ -2166,22 +2944,41 @@ void DrawInfoRight()
 		}
 	}
 	else {// other GMs
-		if (Dungeon == DUN_0_TOWN) {
-			// do nothing
+		if (Dungeon == DUN_0_TOWN || Dungeon == DUN_117_DARKLORD_HIDEOUT) {
+			// do nothing -- (th4) the Deep Sanctum is the Dark Campaign's town: its kin are
+			// vendors, not enemies, so there is nothing to count.
 		}
-		else if (DisplayMonstersLeft) {
-			if (IsSomeMonstersActivated()) {
+		else if (DisplayMonstersLeft || GameMode == GM_OUTBREAK) {
+			// (th4) DC mission 13: suppressed on DUN_121. The three friendlies are spawned
+			// awake, so IsSomeMonstersActivated() stays true for the whole mission and this
+			// line would sit there permanently -- including long after the last hero is dead.
+			if (IsSomeMonstersActivated()
+			 && !(GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC)) {
 				draw(C_2_Red, "In battle... %i monsters", MonstersActivated());
 			}
 			int monstersLeft = GetNumberOfMonstersInDungeon();
-			draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, monstersLeft == 1 ? "%i monster left" : "% i monsters left", monstersLeft);
+			// (th4) In the Dark Campaign the quarry is not "monsters" -- see the helper.
+			if( GameMode == GM_DARK_CAMPAIGN ){
+				monstersLeft -= DarkCampaignEscortCountInLevel();	// the escort are not quarry
+				draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, DarkCampaignTargetsLeftFmt(monstersLeft), monstersLeft);
+			}else{
+				draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, monstersLeft == 1 ? "%i monster left" : "% i monsters left", monstersLeft);
+			}
 		}
 		else if (MaxCountOfPlayersInGame == 1 && !Dungeon->isQuest && (!IsSaveAndLeavingEnabled() || SaveAlwaysEnabled && IsSomeMonstersActivated())) {
-			draw(C_2_Red, "In battle... %i monsters", MonstersActivated());
+			if( !(GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_121_UNHOLY_ALTAR_DC) ){	// (th4) see above
+				draw(C_2_Red, "In battle... %i monsters", MonstersActivated());
+			}
 		}
 		else if (Dungeon->isQuest) {
 			int monstersLeft = MonstersCount - SummonMonsters_Count;
-			draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, monstersLeft == 1 ? "%i monster left" : "%i monsters left", MonstersCount - SummonMonsters_Count);
+			// (th4) Dark Campaign mission levels are not stocked with "monsters" -- see helper.
+			if( GameMode == GM_DARK_CAMPAIGN ){
+				monstersLeft -= DarkCampaignEscortCountInLevel();	// the escort are not quarry
+				draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, DarkCampaignTargetsLeftFmt(monstersLeft), monstersLeft);
+			}else{
+				draw(monstersLeft > 0 ? C_2_Red : C_1_Blue, monstersLeft == 1 ? "%i monster left" : "%i monsters left", monstersLeft);
+			}
 		}
 	}
 	
@@ -2193,33 +2990,51 @@ void DrawInfoRight()
         draw( C_0_White, "Timer_0 %02i:%02i", theRampagingDemonQuest.timer / 60, theRampagingDemonQuest.timer % 60 );
         draw( C_0_White, "Timer_1 %02i:%02i", TheDenMonsterSpawnTimer / 60, TheDenMonsterSpawnTimer % 60 );
     }
+
+	if (GameMode == GM_OUTBREAK && Dungeon == DUN_1_CHURCH_1) {
+		if (/*OutbreakPauseTimer != 0 &&*/ OutbreakWave <= 24 && GetNumberOfMonstersInDungeon() == 0) {
+			int seconds = (60 * 20 - OutbreakPauseTimer) / 20;
+			draw(C_5_Yellow, "Wave %i starts in %i seconds", OutbreakWave, seconds);
+		}
+		else if (OutbreakWave > 24) {
+			draw(C_5_Yellow, "Victory! You survived all 24 waves!");
+		}
+	}
 	
 	if( Dungeon != DUN_0_TOWN ){
         const int playerSummonsOffset = CurrentPlayerIndex * SummonMonstersPerPlayer_Count;
         
-        for( size_t i = 0, ie = SUM_COUNT; i < ie; ++i ){
-            int summonsStartIndex = 0;
-            int summonsSlotsAmount = 0;
-            GetSummonsTypeOffsets( i, &summonsStartIndex, &summonsSlotsAmount, CurrentPlayerIndex);
-            const int summonsBeginIndex = summonsStartIndex;
-            const int summonsEndIndex = summonsBeginIndex + summonsSlotsAmount;
-            
-            const Monster* summonPtr = nullptr;
-            int aliveCount = 0u;
-            for( int summonIndex = summonsBeginIndex; summonIndex < summonsEndIndex; ++summonIndex  ){
-                const Monster& summon = Monsters[ summonIndex + playerSummonsOffset ];
-                if( (summon.Row != 1 || summon.Col) && (summon.CurrentLife & (-64)) > 0 ){
-                    summonPtr = &summon;
-                    ++aliveCount;
-                }
-            }
-            
-            if( aliveCount == 1 ){
-                draw( C_0_White, "%s: %d of %d HP", summonPtr->Name, summonPtr->CurrentLife / 64, summonPtr->BaseLife / 64 );
-            }else if( aliveCount > 1 ){
-                draw( C_0_White, "%ss: %d", summonPtr->Name, aliveCount );
-            }
-		}
+		if (!ShowMinionBars) { // when minion bars are on, this upper-right minion text is replaced by left-border bars (Hydramancer unaffected, see below)
+			for (size_t i = 0, ie = SUM_COUNT; i < ie; ++i) {
+				int summonsStartIndex = 0;
+				int summonsSlotsAmount = 0;
+				GetSummonsTypeOffsets(i, &summonsStartIndex, &summonsSlotsAmount, CurrentPlayerIndex);
+				const int summonsBeginIndex = summonsStartIndex;
+				const int summonsEndIndex = summonsBeginIndex + summonsSlotsAmount;
+
+				const Monster* summonPtr = nullptr;
+				int aliveCount = 0u;
+				for (int summonIndex = summonsBeginIndex; summonIndex < summonsEndIndex; ++summonIndex) {
+					const Monster& summon = Monsters[summonIndex + playerSummonsOffset];
+					if ((summon.Row != 1 || summon.Col) && (summon.CurrentLife & (-64)) > 0) {
+						summonPtr = &summon;
+						++aliveCount;
+					}
+				}
+
+				if (aliveCount == 1) {// #show minion amount
+					draw(C_0_White, "%s: %d of %d HP", summonPtr->Name, summonPtr->CurrentLife / 64, summonPtr->BaseLife / 64);
+				}
+				else if (aliveCount > 1) {
+					if (summonPtr->SpritePtr->baseMonsterIndex == BM_392_WARLORD_MERC) {
+						draw(C_0_White, "Mercenaries: %d", /*summonPtr->Name,*/ aliveCount);
+					}
+					else {
+						draw(C_0_White, "%ss: %d", summonPtr->Name, aliveCount);
+					}
+				}
+			}
+		} // !ShowMinionBars
 
 		if(HasTrait(CurrentPlayerIndex, TraitId::Hydramancer))
 		{
@@ -2326,8 +3141,92 @@ void DrawInfoRight()
 	if (player.activeBuffFlag & BF_14_ACCU_BLESS) {
 		draw(C_1_Blue, "accuracy Bless");
 	}
-	
-	draw(FindElementColor(), "weapon slot: %i", player.altWeaponIndex + 1);
+
+	// (th4) Not in the Deep Sanctum -- no combat there, so the weapon slot is noise.
+	if( Dungeon != DUN_117_DARKLORD_HIDEOUT ){
+		draw(FindElementColor(), "weapon slot: %i", player.altWeaponIndex + 1);
+	}
+
+//	draw(FindElementColor(), "player.UnderArcType: %i", player.UnderArcType);
+
+/*
+	// Debug: show LightMap and related values for the tile under cursor
+	extern char LightMap[112][112];
+	if (Cur.Row >= 0 && Cur.Row < 112 && Cur.Col >= 0 && Cur.Col < 112) {
+		int lv = (uchar)LightMap[Cur.Row][Cur.Col];
+		draw(C_3_Gold, "Cur(%d,%d) LM=%d", Cur.Row, Cur.Col, lv);
+	}
+
+
+	// === ARCHWAY BANDING DEBUG: show per-pixel light values at cursor ===
+	if (Cur.Row >= 0 && Cur.Row < 112 && Cur.Col >= 0 && Cur.Col < 112) {
+		int   lm    = (uchar)LightMap[Cur.Row][Cur.Col];
+		int   fm    = FineMap[Cur.Row][Cur.Col];
+
+		// Screen pixel at cursor
+		int   scrX  = CursorX + Screen_LeftBorder;
+		int   scrY  = CursorY + Screen_TopBorder;
+		int   pos   = YOffsetHashTable[scrY] + scrX;
+		int   ws    = WorkingSurface ? WorkingSurface[pos] : 0;
+		int   ls    = LightSurface  ? LightSurface[pos]  : 0;
+		int   lsb   = LightSurfaceBase ? LightSurfaceBase[pos] : 0;
+		bool  lsDiff = (ls != lsb);  // true = contamination detected at cursor
+
+		// Sample WS every 8 pixels horizontally — read BEFORE drawing
+		// the crosshair (which overwrites these pixels with index 50).
+		int   wsV[9];
+		for (int i = 0; i < 9; i++)
+			wsV[i] = WorkingSurface ? WorkingSurface[pos + (i - 4) * 8] : 0;
+
+		// Draw a red crosshair at the cursor pixel.  20-pixel arms extend
+		// beyond the glove cursor sprite.  ClearScreen wipes it next frame
+		// so there is no cross-frame contamination.
+		const uchar crosshairColor = 50;
+		if (WorkingSurface) {
+			for (int dx = -20; dx <= 20; dx++) {
+				int p = pos + dx;
+				if ((size_t)(WorkingSurface + p) >= (size_t)WorkingSurfaceDrawBegin
+				 && (size_t)(WorkingSurface + p) <  (size_t)WorkingSurfaceDrawEnd)
+					WorkingSurface[p] = crosshairColor;
+			}
+			for (int dy = -20; dy <= 20; dy++) {
+				int p = pos + dy * WorkingWidth;
+				if ((size_t)(WorkingSurface + p) >= (size_t)WorkingSurfaceDrawBegin
+				 && (size_t)(WorkingSurface + p) <  (size_t)WorkingSurfaceDrawEnd)
+					WorkingSurface[p] = crosshairColor;
+			}
+		}
+
+		// Helper to fetch a cell's FM/LM/WT/CT
+		auto cell = [](int r, int c, int& fm, int& lm, int& wt, int& ct) {
+			if (r >= 0 && r < 112 && c >= 0 && c < 112) {
+				fm = FineMap[r][c];
+				lm = fm ? (uchar)LightMap[r][c] : 0;
+				wt = fm ? WallsTransparency[fm] : 0;
+				ct = fm ? CellTransparent[fm] : 0;
+			} else { fm = lm = wt = ct = 0; }
+		};
+		int b1r=Cur.Row-1, b1c=Cur.Col-1, b2r=Cur.Row-2, b2c=Cur.Col-2;
+		int f1r=Cur.Row+1, f1c=Cur.Col+1, f2r=Cur.Row+2, f2c=Cur.Col+2;
+		int b1fm,b1lm,b1wt,b1ct, b2fm,b2lm,b2wt,b2ct;
+		int f1fm,f1lm,f1wt,f1ct, f2fm,f2lm,f2wt,f2ct;
+		cell(b1r,b1c,b1fm,b1lm,b1wt,b1ct);
+		cell(b2r,b2c,b2fm,b2lm,b2wt,b2ct);
+		cell(f1r,f1c,f1fm,f1lm,f1wt,f1ct);
+		cell(f2r,f2c,f2fm,f2lm,f2wt,f2ct);
+
+		draw(lsDiff ? C_2_Red : C_3_Gold, "Cur(%d,%d) LM=%d  FM=%d  DL=%d/%d  WS=%d  LS=%d  LSB=%d%s  A8L8=%d  PxL=%d",
+			Cur.Row, Cur.Col, lm, fm, DarkLevel, LightMax, ws, ls, lsb,
+			lsDiff ? " *** CONTAM" : "",
+			g_A8L8Lighting, PixelLight);
+		draw(C_3_Gold, "WS@-32..+32: %3d %3d %3d %3d [%3d] %3d %3d %3d %3d",
+			wsV[0], wsV[1], wsV[2], wsV[3], wsV[4], wsV[5], wsV[6], wsV[7], wsV[8]);
+		draw(C_3_Gold, "-2:(%d,%d) FM=%d LM=%d WT=%d CT=%d  -1:(%d,%d) FM=%d LM=%d WT=%d CT=%d",
+			b2r,b2c,b2fm,b2lm,b2wt,b2ct, b1r,b1c,b1fm,b1lm,b1wt,b1ct);
+		draw(C_3_Gold, "+1:(%d,%d) FM=%d LM=%d WT=0x%02X CT=%d  +2:(%d,%d) FM=%d LM=%d WT=0x%02X CT=%d",
+			f1r,f1c,f1fm,f1lm,f1wt,f1ct, f2r,f2c,f2fm,f2lm,f2wt,f2ct);
+	}
+*/
 
 	//extern int nearbyAttackersCount; draw(C_3_Gold, "nearby attackers: %i", nearbyAttackersCount);
 	//extern int AutoHitShow; draw(C_3_Gold, "melee autohit: %i%%", AutoHitShow);
@@ -2341,12 +3240,12 @@ void QuestVideoOnEnter ()
 		if( horazonQuest.status2 < 1 ){
 			horazonQuest.status2 = 1;
 			PlayVideo("gendata\\hellfire.smk", 1);
-			PaletteFadeIn(8);// фикс сбитой палитры
+			PaletteFadeIn(8);// (rt) fix for a corrupted palette
 		}
 	}
 }
 
-// th2 новое меню для "не смогли в окне старое" --------------------------
+// (rt) th2 new menu for when the old one couldn't be used in a window --------------------------
 BOOL CALLBACK SinglePlayerDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch( message ){
@@ -2409,7 +3308,7 @@ BOOL CALLBACK SinglePlayerDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPA
 	return false;
 }
 
-// функция из 1.145
+// (rt) function from 1.145
 
 //----- (th2) -------------------------------------------------------------
 int GetPlayerKnockbackResistChance( uint playerIndex )
@@ -2478,6 +3377,7 @@ void CalcResistPercentMelee(int playerIndex)
 	
 	int smallFrameTraitPenalty = HasTrait(playerIndex, TraitId::SmallFrame) ? 10 : 0;
 	int sandmanTraitBenefitCur = HasTrait(playerIndex, TraitId::Sandman) ? 5 : 0;
+	int thiefTraitPenalty = HasTrait(playerIndex, TraitId::Thief) ? 15 : 0;
 	player.resistMeleeMin += sandmanTraitBenefitCur - smallFrameTraitPenalty;
 	player.resistMeleeMax += sandmanTraitBenefitCur - smallFrameTraitPenalty;
 	if( player.fullClassId == PFC_EXECUTIONER && !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) ){
@@ -2497,24 +3397,30 @@ void CalcResistPercentMelee(int playerIndex)
 	int synergyHardenedSteel = PerkValue(SYNERGY_HARDENED_STEEL, playerIndex, 0);
 	int pisto = HasTrait(playerIndex, TraitId::Pistoleer) ? 5 : 0;
 	int crup = HasTrait(playerIndex, TraitId::Crupellarius) ? 15 : 0;
+	int sciss = HasTrait(playerIndex, TraitId::Scissor) ? 5 : 0;
+	int mutie = player.gameChanger & BIT(GC_28_SUPERMUTANT) ? 5 : 0;
 
 	switch( player.fullClassId ){
 	case PFC_WARRIOR or PFC_INQUISITOR or PFC_TEMPLAR or PFC_TRAPPER or PFC_SHINOBI
 	  or PFC_MONK or PFC_ASSASSIN or PFC_BOMBARDIER or PFC_THRAEX or PFC_SECUTOR or PFC_MURMILLO:
-		player.resistPercentMeleeMinLimit = 0.60f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMin + fecht + synergyHardenedSteel + durable_syn + crup);
-		player.resistPercentMeleeMaxLimit = 0.75f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMax + fecht + synergyHardenedSteel + durable_syn + crup);// 32%, sm 22%, 42,5%
+		player.resistPercentMeleeMinLimit = 0.60f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMin + fecht + synergyHardenedSteel + durable_syn + crup + sciss);
+		player.resistPercentMeleeMaxLimit = 0.75f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMax + fecht + synergyHardenedSteel + durable_syn + crup + sciss);// 32%, sm 22%, 42,5%
 		break;
 	case PFC_IRON_MAIDEN or PFC_ROGUE or PFC_DIMACHAERUS or PFC_EXECUTIONER:
 		player.resistPercentMeleeMinLimit = 0.65f + 0.01f * (sandmanTraitBenefitMin + axepertiseTraitPlus + synergyHardenedSteel);
 		player.resistPercentMeleeMaxLimit = 0.75f + 0.01f * (sandmanTraitBenefitMax + axepertiseTraitPlus + synergyHardenedSteel);
 		break;
 	case PFC_ARCHER or PFC_SCOUT or PFC_SHARPSHOOTER or PFC_MAGE or PFC_ELEMENTALIST or PFC_WARLOCK or PFC_DEMONOLOGIST or PFC_NECROMANCER or PFC_BEASTMASTER:
-		player.resistPercentMeleeMinLimit = 0.50f + 0.01f * (-smallFrameTraitPenalty + momLuke + synergyHardenedSteel);
-		player.resistPercentMeleeMaxLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + momLuke + synergyHardenedSteel); // 40%, sf 50%
+		player.resistPercentMeleeMinLimit = 0.50f + 0.01f * (-smallFrameTraitPenalty + momLuke + synergyHardenedSteel - thiefTraitPenalty);
+		player.resistPercentMeleeMaxLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + momLuke + synergyHardenedSteel - thiefTraitPenalty); // 40%, sf 50%
+		break;
+	case PFC_GLADIATRIX:
+		player.resistPercentMeleeMinLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMin + fecht + synergyHardenedSteel + durable_syn + crup + sciss);
+		player.resistPercentMeleeMaxLimit = 0.75f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMax + fecht + synergyHardenedSteel + durable_syn + crup + sciss);
 		break;
 	default: // GUARDIAN, KENSEI, SHUGOKI, SAVAGE, BERSERKER, DRUID ?
-		player.resistPercentMeleeMinLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMin + synergyHardenedSteel - pisto);
-		player.resistPercentMeleeMaxLimit = 0.80f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMax + synergyHardenedSteel - pisto);// 25%, sm 15%, sf 35%
+		player.resistPercentMeleeMinLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMin + synergyHardenedSteel - pisto - mutie);
+		player.resistPercentMeleeMaxLimit = 0.80f + 0.01f * (-smallFrameTraitPenalty + sandmanTraitBenefitMax + synergyHardenedSteel - pisto - mutie);// 25%, sm 15%, sf 35%
 		break;
 	}
 	if( 0 ){ // for for additional sync resist points and percents
@@ -2525,7 +3431,7 @@ void CalcResistPercentMelee(int playerIndex)
 	LimitToRange(player.resistPercentMeleeMax, 0.0f, player.resistPercentMeleeMaxLimit );
 }
 
-// новая функция (007189A0) -------------------------------------------------------
+// (rt) new function (007189A0) -------------------------------------------------------
 float __fastcall ResistPercentMelee(int playerIndex)
 {
 	Player& player = Players[playerIndex];
@@ -2540,13 +3446,15 @@ void CalcResistPercentArrow(int playerIndex)// #ADR, #arrow damage resistance
 	int perkFightInTheShade = PerkValue(PERK_FIGHT_IN_THE_SHADE, playerIndex, 0);
 	int smallFrameTraitPenalty = HasTrait(playerIndex, TraitId::SmallFrame) ? 10 : 0;
 	int crup = HasTrait(playerIndex, TraitId::Crupellarius) ? 10 : 0;
-	int durable_syn = PerkValue(SYNERGY_DURABLE, playerIndex); 
+	int thiefTraitPenalty = HasTrait(playerIndex, TraitId::Thief) ? 15 : 0;
+	int durable_syn = PerkValue(SYNERGY_DURABLE, playerIndex);
 	player.resistArrowMin += perkFightInTheShade - smallFrameTraitPenalty;
 	player.resistArrowMax += perkFightInTheShade - smallFrameTraitPenalty;
 	if( player.fullClassId == PFC_EXECUTIONER && !(player.gameChanger & BIT(GC_9_NIGHT_KIN)) ){
 		player.resistArrowMin += 5 + player.CharLevel / 15;
 		player.resistArrowMax += 5 + player.CharLevel / 15;
 	}
+	int mutie = player.gameChanger & BIT(GC_28_SUPERMUTANT) ? 5 : 0;
 	// mor: these 2 lines are dragon's work, and are not used in the balancing
 	player.resistPercentArrowMin = player.scaleResist * player.resistArrowMin;
 	player.resistPercentArrowMax = player.scaleResist * player.resistArrowMax;
@@ -2559,8 +3467,8 @@ void CalcResistPercentArrow(int playerIndex)// #ADR, #arrow damage resistance
 		player.resistPercentArrowMaxLimit = 0.75f + 0.01f * (synergyHardenedSteel);
 		break;
 	default:
-		player.resistPercentArrowMinLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + perkFightInTheShadeCap + synergyHardenedSteel + durable_syn + crup);
-		player.resistPercentArrowMaxLimit = 0.80f + 0.01f * (-smallFrameTraitPenalty + perkFightInTheShadeCap + synergyHardenedSteel + durable_syn + crup); // 20%, 30% sf
+		player.resistPercentArrowMinLimit = 0.70f + 0.01f * (-smallFrameTraitPenalty + perkFightInTheShadeCap + synergyHardenedSteel + durable_syn + crup - mutie - thiefTraitPenalty);
+		player.resistPercentArrowMaxLimit = 0.80f + 0.01f * (-smallFrameTraitPenalty + perkFightInTheShadeCap + synergyHardenedSteel + durable_syn + crup - mutie - thiefTraitPenalty); // 20%, 30% sf
 		break;
 	}
 	if( 0 ){ // for additional sync resist points and percents
@@ -2581,35 +3489,35 @@ float __fastcall ResistPercentArrow(int playerIndex)
 //---------------------------------------------------------------------------------
 Ai AiFuncs[AI_count] = { // 004B37C0
 	{ AI_0_Zombie,                     Ai_0_Zombie },
-	{ AI_1_Overlord,                   Ai_1_MeleeRandomSecondAttackSwing },
+	{ AI_1_Overlord,                   Ai_1_Overlord },
 	{ AI_2_Skel_Melee,                 Ai_2_Skeleton_Melee },
-	{ AI_3_Skel_Archer,                Ai_3_ArcherRarelyRetreats },
+	{ AI_3_Skel_Archer,                Ai_3_Skeleton_Archer },
 	{ AI_4_Scavenger,                  Ai_4_Scavenger },
-	{ AI_5_Charger,                    Ai_5_ChargeAttack },
+	{ AI_5_Charger,                    Ai_5_Charger },
 	{ AI_6_Goat_Melee,                 Ai_6_Goat_Melee },
 	{ AI_7_Goat_Archer,                Ai_7_Goat_Archer },
 	{ AI_8_Fallen_One,                 Ai_8_Fallen },
-	{ AI_9_Magma,                      Ai_9_Universal_RangeSecondAttack_MagmaBall },
+	{ AI_9_Magma,                      Ai_9_Magma },
 	{ AI_10_Skel_King,                 Ai_10_SkeletonKing },
 	{ AI_11_Bat,                       Ai_11_Bat },
 	{ AI_12_Gargoyle,                  Ai_12_Gargoyle },
 	{ AI_13_Butcher,                   Ai_13_Butcher },
-	{ AI_14_Witch,                     Ai_14_RangerRetreatsOften_ArcaneStar },
+	{ AI_14_Witch,                     Ai_14_Succubus },
 	{ AI_15_Hidden,                    Ai_15_Hidden },
-	{ AI_16_Thunder_Demon,             Ai_16_Universal_RangeSecondAttack_Lightning },
+	{ AI_16_Thunder_Demon,             Ai_16_Lightning_Demon },
 	{ AI_17_Incinerator,               Ai_17_Incinerator },
 	{ AI_18_Gharbad,                   Ai_18_Garbud },
-	{ AI_19_Acid_Beast,                Ai_19_Universal_RangeSecondAttack_AcidMissile },
-	{ AI_20_Acid_Beast_Ranger,         Ai_20_RangerRetreatsOften_AcidMissile },
+	{ AI_19_Acid_Beast,                Ai_19_Acid_Beast },
+	{ AI_20_Acid_Beast_Ranger,         Ai_20_Acid_Beast_Ranger },
 	{ AI_21_Golem,                     Ai_21_Golem },
 	{ AI_22_Zhar_the_Mad,              Ai_22_Zhar },
 	{ AI_23_Snotspll,                  Ai_23_Snotspill },
 	{ AI_24_Viper,                     Ai_24_Viper },
 	{ AI_25_Advocate,                  Ai_25_Mage },
-	{ AI_26_Balrog,                    Ai_26_Universal_ShortRangeSecondAttack_Incinerate },
-	{ AI_27_Diablo,                    Ai_27_Universal_RangeSecondAttack_Apoc },
+	{ AI_26_Balrog,                    Ai_26_Balrog },
+	{ AI_27_Diablo,                    Ai_27_Diablo },
 	{ AI_28_Lazarus,                   Ai_28_Lazarus },
-	{ AI_29_RedVex,                    Ai_29_Lazarus_s_Slut },
+	{ AI_29_RedVex,                    Ai_29_Redvex_Blackjade },
 	{ AI_30_Lachdanan,                 Ai_30_Lachdanan },
 	{ AI_31_Warlord_of_Blood,          Ai_31_Warlord },
 	{ AI_32_Ranger_Firebolt,           Ai_32_RangerRetreatsOften_Firebolt },
@@ -2619,27 +3527,28 @@ Ai AiFuncs[AI_count] = { // 004B37C0
 	{ AI_36_Arch_Lich,                 Ai_36_RangerRetreatsOften_YelowBlast },
 	{ AI_37_Ranger_Fire_Arrow,         Ai_37_RangerRetreatsOften_FireArrow },
 	{ AI_38_Beholder,                  Ai_38_RangerRetreatsOften_RedBlast },
-	{ AI_39_Mixed_White_Star_phys,     Ai_39_Universal_RangeSecondAttack_Physical_Blue_Blast }, //melee + blue-white physical star
-	{ AI_40_Bonewing_cold_blasts,      Ai_40_Universal_RangeSecondAttack_ColdBlast }, // greater skel (melee +circle and habibi shots)
+	{ AI_39_Mixed_White_Star_phys,     Ai_39_Hybrid_Physical_Blue_Blast }, //melee + blue-white physical star
+	{ AI_40_Bonewing_cold_blasts,      Ai_40_Hybrid_ColdBlast }, // greater skel (melee +circle and habibi shots)
 	{ AI_41_Ranger_snowbolt,           Ai_41_RangerRetreatsOften_ColdSnakes }, // shooter of ice bolt ?
-	{ AI_42_Mixed_Firebolt,            Ai_42_Universal_RangeSecondAttack_Firebolt }, // shredded
+	{ AI_42_Mixed_Firebolt,            Ai_42_Hybrid_Firebolt }, // shredded
 	{ AI_43_Ranger_Acid_Arrow,         Ai_43_RangerRetreatsOften_Acid_Arrow },
 	{ AI_44_Ranger_Cold_Arrow,         Ai_44_RangerRetreatsOften_Cold_Arrow },
 	{ AI_45_Ranger_Arcane_Arrow,       Ai_45_RangerRetreatsOften_Arcane_Arrow },
 	{ AI_46_Ranger_Blue_Star,          Ai_46_RangerRetreatsOften_ArcaneStarBlue }, // shooter of blue arc.star
-	{ AI_47_Mixed_Beholder_Star,       Ai_47_Universal_RangeSecondAttack_Bluestar }, // melee + red star
-	{ AI_48_Mixed_Yellow_Star,         Ai_48_Universal_RangeSecondAttack_Yellowstar }, // melee + yellow star
+	{ AI_47_Mixed_Beholder_Star,       Ai_47_Hybrid_Bluestar }, // melee + red star
+	{ AI_48_Mixed_Yellow_Star,         Ai_48_Hybrid_Yellowstar }, // melee + yellow star
 	{ AI_49_Ranger_Fireblast,          Ai_49_RangerRetreatsOften_Fireblast },
-	{ AI_50_Mixed_Fireblast,           Ai_50_Universal_RangeSecondAttack_Fireblast },
-	{ AI_51_Mixed_Arcane_Star,         Ai_51_Universal_RangeSecondAttack_Arcanestar }, // melee + arcStar
-	{ AI_52_Mixed_Snowbolt,            Ai_52_Universal_RangeSecondAttack_SnowBolt },
+	{ AI_50_Mixed_Fireblast,           Ai_50_Hybrid_Fireblast },
+	{ AI_51_Mixed_Arcane_Star,         Ai_51_Hybrid_Arcanestar }, // melee + arcStar
+	{ AI_52_Mixed_Snowbolt,            Ai_52_Hybrid_SnowBolt },
 	{ AI_53_Exploder,                  Ai_53_Exploder }, // exploder
-	{ AI_54_Mixed_Chargedbolt,         Ai_54_Universal_RangeSecondAttack_Charged_Bolt },
+	{ AI_54_Mixed_Chargedbolt,         Ai_54_Hybrid_Charged_Bolt },
 	{ AI_55_Wyrm,                      Ai_55_RangerRetreatsOften_Wyrm }, // wyrm
 	{ AI_56_Rammer,                    Ai_56_Rammer },
 	{ AI_57_Hybrid_Arc_Star,           Ai_57_Hybrid_ArcaneStar },
-	{ AI_58_Mixed_Psychic_Bite,        Ai_58_Universal_RangeSecondAttack_Psychic }, // melee + psychic (distant) hit with no animation (invisible arrow)
+	{ AI_58_Mixed_Psychic_Bite,        Ai_58_Hybrid_Psychic }, // melee + psychic (distant) hit with no animation (invisible arrow)
 	{ AI_59_Tentaclist,                Ai_59_Tentaclist },
+	{ AI_60_Invisible_Stalker,         Ai_60_Invisible_Stalker }, // th4
 };
 
 //---- (th2) ------------------------------------------------------------------
@@ -2674,7 +3583,7 @@ void LoadQuestDungeonMainMapTown(char* dunFileName, int playerRowPos, int player
 
 	for( int i = 0; i < 112 * 112; i++ ){
 		char& archGraphicsMap = ArchGraphicsMap[ 0 ][ i ];
-		switch( FineMap[ 0 ][ i ] ){ // копия блока генерации города
+		switch( FineMap[ 0 ][ i ] ){ // (rt) copy of the town generation block
 			case 360:			archGraphicsMap = 1;			break;
 			case 358:			archGraphicsMap = 2;			break;
 			case 129:			archGraphicsMap = 6;			break;
@@ -2712,7 +3621,7 @@ int ModifyBarrelExplodeDamage()
 	if (Difficulty >= DL_3_CRUCIBLE) {
 		damage *= Difficulty - 1;
 	}
-	return damage;// возврат через edx
+	return damage;// (rt) return via edx
 }
 
 //----- (00705554) --------------------------------------------------------
@@ -2780,10 +3689,10 @@ void __fastcall ApplyFullSetEffectToBufferItem (int playerIndex)
 	}
 }
 
-// th2, вывод информации о меню. Еще некоторое время последить что меню грамотно отрабатывает, потом стереть. 09.03
+// (rt) th2, output of menu information. Keep checking for a while that the menu works correctly, then remove. 09.03
 void DrawMenuInfo()
 {
-	//Расчеты из 004712B7 чтобы вывести результат на экран. ПОменяв код там, следует поменять и тут.
+	//(rt) Calculations from 004712B7 to show the result on screen. If the code there changes, change it here too.
 	int width, height;
 	if( IsBigMenuBox ){
 		width = Dialog_591_Width;
@@ -2800,13 +3709,13 @@ void DrawMenuInfo()
 	DrawLevelInfoText(8, 33, dest, 3, OnScreenTextOutline);
 }
 
-// th2, тут можно выполнять различный отладочный вывод на экран.
+// (rt) th2, various debug output to the screen can be done here.
 void DrawDebugInfo(int& y)
 {
 	//DrawLevelInfo(); 		
 	//DrawMenuInfo();
 	
-	// сниппет вывода отладочной информации
+	// (rt) debug information output snippet
 	char dest[ 256 ];
 	//static int i = 0;
 
@@ -2887,7 +3796,12 @@ bool ActionClick()
 	 || IsGoldSplitPanelVisible
 	 || Cur.GraphicsID >= CM_2_IDENTIFY && Cur.GraphicsID <= CM_10_HEAL_OTHER 
 	 || Cur.GraphicsID >= CM_12_ITEMS_PICS_START
-	 || Speech_IsPanelVisible );
+	 || Speech_IsPanelVisible
+	 // (th4) Dark Campaign hub: the monsters standing around the Hideout are talked to, not
+	 // fought, so a held button must not repeat the click the way it does on a real target.
+	 // Town NPCs get this for free -- talking to one opens a dialog, and CurrentDialogIndex
+	 // above already kills auto-click -- but these are monsters, so say it explicitly.
+	 || (GameMode == GM_DARK_CAMPAIGN && Dungeon == DUN_117_DARKLORD_HIDEOUT && Cur.MonsterID >= 0) );
 }
 
 bool PanelClick = false;
@@ -2910,6 +3824,7 @@ void CheckPanelClick()
 	 || IsTransmutePanelVisible   && CursorIntoDisplayObject(TransmutePanel)
 	 || IsPerksPanelVisible       && CursorIntoDisplayObject(PerksPanelPos)
 	 || IsInfoWindowVisible       && CursorIntoDisplayObject(InfoWindowRect)
+	 || IsChatHistoryVisible      && CursorIntoDisplayObject(ChatHistoryRect)
 	 || IsPerksPanelVisible       && getPlayerPerksPointsLeft(PERK_TYPE_COMMON) > 0 && !SelectCurSpellMode && CursorIntoPerkUpButton()
 	 || Players[ CurrentPlayerIndex ].AvailableLvlPoints && !SelectCurSpellMode && CursorIntoLevelUpButton();
 	if( prevPanelClick != PanelClick && PanelClick && IsShiftPressed && !ShiftReleasedEvent ){
@@ -2924,9 +3839,9 @@ void CheckPanelClick()
 void Repeat_Mouse_LButtonDown()
 {
 	if( MouseButtonPressed == MBP_1_LEFT ){
-		if( ! RButtonEvent && (EasyClick || IsShiftPressed) ){ // разобраться с этими условиями ниже, возможно вытащить !EasyClick выше
-			// Mouse_LButtonDown обрабатывает клики в интерфейсе даже при "спец"проверке, пробую исправить
-			if( !IsGameMenuActive() && (/*!ShiftPressedEvent && !ShiftReleasedEvent ||*/ !PanelClick || EnteredPanelWithAutoClick) ){ // проверка что не интерфейс и не дроп
+		if( ! RButtonEvent && (EasyClick || IsShiftPressed) ){ // (rt) sort out these conditions below; possibly move !EasyClick higher
+			// (rt) Mouse_LButtonDown handles interface clicks even with the "special" check; trying to fix it
+			if( !IsGameMenuActive() && (/*!ShiftPressedEvent && !ShiftReleasedEvent ||*/ !PanelClick || EnteredPanelWithAutoClick) ){ // (rt) check that it's neither the interface nor a drop
 				int isGameObject = IsoLand_CheckLButtonClick( ShiftPressedEvent ? ShiftPressedEvent : IsShiftPressed, EasyClick ? (ShiftPressedEvent ? 1 : !ShiftReleasedEvent) : 0 );
 				if( ShiftReleasedEvent /*&& ! ShiftPressedEvent*/ ){
                     TrackInit( true /*isGameObject*/ );
@@ -2981,6 +3896,19 @@ void Repeat_Mouse_RButtonDown()
 void __fastcall OnMouseWheel (uint wParam)
 {
 	short wheelDelta = (uint)wParam >> 16;
+	// (th4) THE IN-GAME MENU WAS NEVER WIRED TO THE WHEEL. Every other panel below
+	// has an arm -- dialogs, quests, perks, info window, chat, help, stash,
+	// transmute -- but the pause/options menu has none, so scrolling did nothing
+	// there in ANY language. It is modal, so it takes priority over the rest, and
+	// it moves by the same path the arrow keys use.
+	if( CurrentMenuWindowPtr ){
+		if( wheelDelta > 0 )      Menu_DispatchKey( VK_UP );
+		else if( wheelDelta < 0 ) Menu_DispatchKey( VK_DOWN );
+		return;
+	}
+	// (th4) WHEEL ROUTING: the open panels below take the wheel first; `used` says whether one did.
+	// What a FREE wheel does is decided at the end, in one place.
+	bool used = true;
 	if( wheelDelta > 0 ){
 		if( CurrentDialogIndex ){
 			DialogUp();
@@ -2990,14 +3918,16 @@ void __fastcall OnMouseWheel (uint wParam)
             PerkPanel_Shift(-1);
 		}else if (IsInfoWindowVisible) {
 			InfoWindow_Prev();
+		}else if( IsChatHistoryVisible ){
+			ChatHistory_ScrollUp();
 		}else if( IsHELPVisible ){
 			ShiftHelpUp();
 		}else if( IsStashPanelVisible ){
 			StashPanel_PrevTab();
-		}else if( IsTransmutePanelVisible ){
-			if( TransmuteShowRecipeList && ! TransmuteSlots.count ){
-				TransmuteRecipeListUp();
-			}
+		}else if( IsTransmutePanelVisible && TransmuteShowRecipeList && ! TransmuteSlots.count ){
+			TransmuteRecipeListUp();
+		}else{
+			used = false;
 		}
 	}else if( wheelDelta < 0 ){
 		if( CurrentDialogIndex ){
@@ -3008,16 +3938,23 @@ void __fastcall OnMouseWheel (uint wParam)
             PerkPanel_Shift(1);
 		}else if (IsInfoWindowVisible) {
 			InfoWindow_Next();
+		}else if( IsChatHistoryVisible ){
+			ChatHistory_ScrollDown();
 		}else if( IsHELPVisible ){
 			ShiftHelpDown();
 		}else if( IsStashPanelVisible ){
 			StashPanel_NextTab();
-		}else if( IsTransmutePanelVisible ){
-			if( TransmuteShowRecipeList && ! TransmuteSlots.count ){
-				TransmuteRecipeListDown();
-			}
+		}else if( IsTransmutePanelVisible && TransmuteShowRecipeList && ! TransmuteSlots.count ){
+			TransmuteRecipeListDown();
+		}else{
+			used = false;
 		}
 	}
+	// (th4) THE FREE WHEEL. Config DynamicZoom: zooms the world (DynamicZoom.cpp DynZoom_OnWheel), and then the
+	// spell swap below does NOT also run -- provisional, Mordor will decide how the two share the wheel; this
+	// is the one place to change it. (Before: a Transmute panel without its recipe list let the spell swap run;
+	// it still does, because `used` stays false there.)
+	if( !used && DynZoom_OnWheel( wheelDelta ) ) return;
 	if (SwapSpellsOnScroll) {
 		HandleSwapSpellOnScroll(wheelDelta);
 	}
@@ -3026,7 +3963,7 @@ void __fastcall OnMouseWheel (uint wParam)
 //----- (th2) -------------------------------------------------------------
 void HandleSwapSpellOnScroll(int wheelDelta)
 {
-	if (SwapSpellsOnScroll && !CurrentDialogIndex && !IsQUESTPanelVisible && !IsPerksPanelVisible && !IsHELPVisible && !IsStashPanelVisible && !IsInfoWindowVisible) {
+	if (SwapSpellsOnScroll && !CurrentDialogIndex && !IsQUESTPanelVisible && !IsPerksPanelVisible && !IsHELPVisible && !IsStashPanelVisible && !IsInfoWindowVisible && !IsChatHistoryVisible) {
 		Player& player = Players[CurrentPlayerIndex];
 		bool newSpell = true;
 		int lifeCycle;

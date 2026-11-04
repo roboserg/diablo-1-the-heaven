@@ -22,6 +22,7 @@ enum MAIN_MENU
 	//#if 0
 	MM_7_COLISEUM = 7,
 	MM_8_CLASSIC = 8,
+	MM_9_OUTBREAK = 9
 	//#endif
 };
 
@@ -1277,8 +1278,39 @@ enum SPEECH: int
 	SP_443 = 443,
 	SP_444 = 444,
 	SP_445 = 445,
-
-	
+	SP_ADRIA_SOM_QUEST_SP_1 = 446,
+	SP_ADRIA_SOM_QUEST_SP_2 = 447,
+	SP_ADRIA_SOM_QUEST_SP_3 = 448,
+	SP_DC_MISSION_1_BRIEF = 449,	// (th4) Dark Campaign: Poisoned Water Supply briefing
+	SP_DC_MISSION_2_BRIEF = 450,	// (th4) Dark Campaign: Still Springs briefing
+	SP_DC_MISSION_3_BRIEF = 451,	// (th4) Dark Campaign: Lower Scriptorium briefing
+	SP_DC_MISSION_4_BRIEF = 452,	// (th4) Dark Campaign: Az'dog the traitor briefing
+	SP_DC_MISSION_5_BRIEF = 453,	// (th4) Dark Campaign: the war council briefing
+	SP_DC_MISSION_6_BRIEF = 454,	// (th4) Dark Campaign: the Valor armor intercept briefing
+	SP_DC_MISSION_7_BRIEF = 455,	// (th4) Dark Campaign: the Sewers outpost assault briefing
+	SP_DC_MISSION_8_BRIEF = 456,	// (th4) Dark Campaign: the Ancient Crypts storming briefing
+	SP_DC_MISSION_9_BRIEF = 457,	// (th4) Dark Campaign: the Dark Nest shortcut briefing
+	SP_DC_MISSION_10_BRIEF = 458,	// (th4) Dark Campaign: return to the Poisoned Water Supply briefing
+	SP_DC_MISSION_11_BRIEF = 459,	// (th4) Dark Campaign: the Anvil of Fury briefing
+	SP_DC_MISSION_12_BRIEF = 460,	// (th4) Dark Campaign: intercept the new hero general at Pandemonium
+	SP_DC_MISSION_13_BRIEF = 461,	// (th4) Dark Campaign: keep Arch-Bishop Lazarus alive
+	SP_DC_LAZARUS_THANKS   = 462,	// (th4) Dark Campaign: Lazarus thanks the player once the lair is clear
+	SP_DC_MISSION_14_BRIEF = 463,	// (th4) Dark Campaign: kill the three Sorcerers in Blood Keep
+	SP_DC_MISSION_15_BRIEF = 464,	// (th4) Dark Campaign: defend Hephasto at the Hellforge
+	SP_DC_HEPHASTO_THANKS  = 465,	// (th4) Dark Campaign: Hephasto rewards the player once the forge is safe
+	SP_DC_MISSION_16_BRIEF = 466,	// (th4) Dark Campaign: the Fetid Cavern briefing
+	SP_DC_MISSION_17_BRIEF = 467,	// (th4) Dark Campaign: the Mining Caves briefing
+	SP_DC_MISSION_18_BRIEF = 468,	// (th4) Dark Campaign: the Hell Gate briefing
+	SP_DC_MISSION_19_BRIEF = 469,	// (th4) Dark Campaign: the Necropolis briefing
+	SP_DC_MISSION_20_BRIEF = 470,	// (th4) Dark Campaign: the Gibbet briefing
+	SP_DC_MISSION_21_BRIEF = 471,	// (th4) Dark Campaign: the Sepulcher briefing
+	SP_DC_MISSION_22_BRIEF = 472,	// (th4) Dark Campaign: the Ruined Temple briefing
+	SP_DC_MISSION_23_BRIEF = 473,	// (th4) Dark Campaign: the Dim Undercroft briefing
+	SP_DC_MISSION_24_BRIEF = 474,	// (th4) Dark Campaign: the Haunted Labyrinth briefing
+	SP_DC_MISSION_25_BRIEF = 475,	// (th4) Dark Campaign: the Church Sacristy briefing
+	SP_DC_BUTCHER_FREED = 476,	// (th4) Dark Campaign: the Butcher joins the player
+	SP_DC_MISSION_26_BRIEF = 477,	// (th4) Dark Campaign: the Ravenholm briefing
+	SP_DC_CAMPAIGN_END = 478,	// (th4) Dark Campaign: the Dark Lord closes the campaign
 	SP_COUNT
 };
 
@@ -2383,14 +2415,14 @@ enum SOUND: int
 	S_1095 = 1095,
 	S_1096 = 1096,
 	S_1097 = 1097,
-	S_1098 = 1098,
+	S_1098_METAL_BOOTS_INV = 1098,
 	S_1099 = 1099,
 	S_1100 = 1100,
 	S_1101 = 1101,
 	S_1102 = 1102,
 	S_1103 = 1103,
 	S_1104 = 1104,
-	S_1105 = 1105,
+	S_1105_METAL_BOOTS_FLIP = 1105,
 	S_1106 = 1106,
 	S_1107_HOLY_ARROW_SOUND = 1107,
 	S_1108_ARCANE_ARROW_SHOOT_SOUND = 1108,
@@ -3135,9 +3167,108 @@ enum SOUND: int
 	S_1847_TENTACLIST_GREET_4 = 1847,
 	S_1848_TENTACLIST_GREET_5 = 1848,
 	S_1849_TENTACLIST_HIT	  = 1849,
-
+	S_1850_POWERUP			  = 1850,
+	S_1851_SIGIL_FLIP		  = 1851,
+	S_1852_SIGIL			  = 1852,
+	S_1853 = 1853,
+	S_1854 = 1854,
+	S_1855 = 1855,
+	S_1856_TERM_HIT_1		  = 1856,
+	S_1857_TERM_HIT_2		  = 1857,
+	S_1858_PHASED_PLASMA_R95  = 1858,
+	S_1859_LAZERHIT1		  = 1859,
+	S_1860_GAUSS_PISTOL		  = 1860,
+	S_1861_LASER_PISTOL_1	  = 1861,
+	S_1862_LASER_PISTOL_2	  = 1862,
+	S_1863_RAIL_PISTOL		  = 1863,
+	S_1864_UZI_9_MILIMIDA_1	  = 1864,
+	S_1865_UZI_9_MILIMIDA_2	  = 1865,
+	S_1866_M79_1			  = 1866,
+	S_1867_M79_2			  = 1867,
+	S_1868_DOUBLE_BARREL_SBS  = 1868,
+	S_1869_PARTICLE_PISTOL	  = 1869,
+	S_1870_SKYNET_PLASMA_V96  = 1870,
+	S_1871_PHASED_PLASMA_PIST = 1871,
+	S_1872_MAGNETIC_XELERATOR = 1872,
+	S_1873_THERMAL_PISTOL_1	  = 1873,
+	S_1874_THERMAL_PISTOL_2	  = 1874,
+	S_1875_BERETTA_92FS_1	  = 1875,
+	S_1876_BERETTA_92FS_2	  = 1876,
+	S_1877_BEAM_TRACER_1	  = 1877,
+	S_1878_BEAM_TRACER_2	  = 1878,
+	S_1879_REFRACTION_KERNEL1 = 1879,
+	S_1880_REFRACTION_KERNEL2 = 1880,
+	S_1881_ION_BLASTER		  = 1881,
+	S_1882_PROTOPLASMA_1	  = 1882,
+	S_1883_PROTOPLASMA_2	  = 1883,
+	S_1884_MINIGUN_HEAVY_2	  = 1884,
+	S_1885_MUTIE_HIT_1		  = 1885,
+	S_1886_MUTIE_HIT_2 = 1886,
+	S_1887_MUTIE_HIT_3 = 1887,
+	S_1888_MUTIE_HIT_4 = 1888,
+	S_1889_MUTIE_HIT_5 = 1889,
+	S_1890_MUTIE_HIT_6 = 1890,
+	S_1891_MUTIE_BURN_1 = 1891,
+	S_1892_MUTIE_BURN_2 = 1892,
+	S_1893_MUTIE_BURN_3 = 1893,
+	S_1894_MUTIE_BURN_4 = 1894,
+	S_1895_MUTIE_BURN_5 = 1895,
+	S_1896_MUTIE_BURN_6 = 1896,
+	S_1897_GAUSS_MINIGUN_1 = 1897,
+	S_1898_GAUSS_MINIGUN_2 = 1898,
+	S_1899_MINIGUN_HEAVY_1 = 1899,
+	S_1900_XM214_MINIGUN = 1900,
+	S_1901_M61_VULCAN	= 1901,
+	S_1902_GAU8_AVENGER = 1902,
+	S_1903_MK24_OBLITERATOR = 1903,
+	S_1904_BLACKOUT_KG92 = 1904,
+	S_1905_X59_DECIMATOR = 1905,
+	S_1906_X11_REAPER = 1906,
+	S_1907_GRIZ_STORM	= 1907,
+	S_1908_ARM13LC_GAUSS_MINIGUN = 1908,
+	S_1909_MCM2_VINDICATOR_R19S = 1909,
+	S_1910_MUTIE_FURY	= 1910,
+	S_1911_HEAVY_WOOD_STEP_1 = 1911,
+	S_1912_HEAVY_WOOD_STEP_2 = 1912,
+	S_1913_HEAVY_WOOD_STEP_3 = 1913,
+	S_1914_HEAVY_WOOD_STEP_4 = 1914,
+	S_1915_KEY_INV_PLACE = 1915,
+	S_1916_KEY_FLIP = 1916,
+	S_1917_THE_JUDGE = 1917,
+	S_1918_DEACON = 1918,
+	S_1919_AMB_RAVEN_1 = 1919,
+	S_1920_AMB_RAVEN_2 = 1920,
+	S_1921_AMB_RAVEN_3 = 1921,
+	S_1922_AMB_RAVEN_4 = 1922,
+	S_1923_AMB_RAVEN_5 = 1923,
+	S_1924_COLD_WIND_1 = 1924,
+	S_1925_COLD_WIND_2 = 1925,
+	S_1926_COLD_WIND_3 = 1926,
+	S_1927_COLD_WIND_4 = 1927,
+	S_1928_MOAN_1 = 1928,
+	S_1929_MOAN_2 = 1929,
+	S_1930_MOAN_3 = 1930,
+	S_1931_MOAN_4 = 1931,
+	S_1932_MOAN_5 = 1932,
+	S_1933_MOAN_6 = 1933,
+	S_1934_THUMP = 1934,
+	S_1935_THUMP = 1935,
+	S_1936_THUMP = 1936,
+	S_1937_THUMP = 1937,
+	S_1938_THUMP = 1938,
+	S_1939_THUMP = 1939,
+	S_1940_SCREAM = 1940,
+	S_1941_SCREAM = 1941,
+	S_1942_SCREAM = 1942,
+	S_1943_SCREAM = 1943,
+	S_1944_SCREAM = 1944,
+	S_1945_SCREAM = 1945,
+	S_1946_THUNDER = 1946,	// (th4) town storm nights, Weather.cpp
 	S_COUNT
 };
+
+// (th4) Weather.cpp Weather_Tonight: the roll for one night in the normal town
+enum WEATHER { WEATHER_CLEAR, WEATHER_MIST, WEATHER_STORM, WEATHER_GLOW, WEATHER_BLOOD };	// BLOOD: blood moon night (Fireflies.cpp BloodNight_Active, dx_utility.cpp BIOGLOW)	// GLOW: bioluminescent night (Fireflies.cpp / TownWater.cpp / dx_utility.cpp BIOGLOW)
 
 enum PLAYER_SPELL: int // must be int
 {
@@ -3207,8 +3338,8 @@ enum PLAYER_SPELL: int // must be int
 	PS_COUNT
 };
 
-// CAST_NONE  = 0 // Это значение в массиве эффектов заклинаний игрока означает отсутсвие эффекта 
-// CAST_ARROW = 0 // А в остальных местах это обычная стрела 
+// (rt) CAST_NONE  = 0 // This value in the player's spell effect array means no effect 
+// (rt) CAST_ARROW = 0 // Everywhere else it's a normal arrow 
 enum MISSILE: uchar
 {
 	MI_0_NONE_ARROW 				 = 0,
@@ -3357,6 +3488,22 @@ enum MISSILE: uchar
 	MI_143_BULLET					 = 143,
 	MI_144_HYDRAMANCER_CHARGED_BOLT  = 144,
 	MI_145_TENTACLE					 = 145,
+	MI_146_LASER					 = 146,
+	MI_147_LASER_BLUE				 = 147,
+	MI_148_LASER_ORNG				 = 148,
+	MI_149_GRENADE					 = 149, 
+	MI_150_LASER_CRIMZ				 = 150,
+	MI_151_LASER_YELLOW				 = 151,
+	MI_152_LASER_WHITE				 = 152,
+	MI_153_PLASMA_YELLOW			 = 153,
+	MI_154_EMP_WHITE				 = 154,
+	MI_155_PLASMA_CRIMZ				 = 155,
+	MI_156_CORROSIVE_SHOT			 = 156,
+	MI_157_FIRE_SHOT				 = 157,
+	MI_158_LASER_SHOT				 = 158,
+	MI_159_GRAVITY_SHOT				 = 159,
+	MI_160_BLESSED_HAMMER			 = 160, // by (th4): Templar orbiting hammer
+	MI_161_TOWN_ARCANE_STAR			 = 161, // by (th4): decorative swirling star in Tristram (Maiden of Anguish active); no damage
 	MI_count
 };
 
@@ -3377,8 +3524,8 @@ enum ELEMENTAL_TYPE : char
 	ET_2_LIGHTNING  = 2,
 	ET_3_ARCAN      = 3,
 	ET_4_ACID       = 4,
-	ET_5_HOLY       = 5, // для Holy магии и Holy стрел сейчас стоит ET_0_PHYSICAL, разобраться
-	ET_6_COLD       = 6, // новые
+	ET_5_HOLY       = 5, // (rt) Holy magic and Holy arrows currently have ET_0_PHYSICAL, look into it
+	ET_6_COLD       = 6, // (rt) new
 	//ET_7_CURSE      = 7, // TODO: check why removed
 	ET_COUNT,
 	ET_CAP = 8,
@@ -3394,6 +3541,7 @@ enum COOLDOWN_TYPE : char
 	CD_STONE,
 	CD_APOCALYPSE,
 	CD_FORCEWAVE,
+	//CD_MERC,
     
     CD_COUNT,
 	CD_CAP = 16,
@@ -3510,6 +3658,16 @@ enum MISSILE_SPRITE : uchar {
 	MIS_84_BULLET          = 84,
 	MIS_85_TENTACLE        = 85,
 	MIS_86_SPIKE           = 86,
+	MIS_87_LASER		   = 87, 
+	MIS_88_LASER_BLUE	   = 88,
+	MIS_89_LASER_ORNG	   = 89,
+	MIS_90_LASER_CRIMZ	   = 90,
+	MIS_91_LASER_YELLOW	   = 91, 
+	MIS_92_LASER_WHITE	   = 92,
+	MIS_93_PLASMA_YELLOW   = 93,
+	MIS_94_EMP_WHITE	   = 94, 
+	MIS_95_PLASMA_CRIMZ	   = 95,
+	MIS_96_PLASMA_ORANGE   = 96,
     MIS_count
 };
 
@@ -3583,7 +3741,20 @@ enum FLIP: uchar
 	FL_65_LITECLUB = 65,
 	FL_66_DAGGA = 66,
 	FL_67_GUN = 67,
-	FL_68_COUNT
+	FL_68_SIGIL = 68,
+	FL_69_RAZORARM = 69,
+	FL_70_CLAW = 70,
+	FL_71_SHURIK = 71,
+	FL_72_EFF1 = 72,
+	FL_73_EFF2 = 73,
+	FL_74_MINIGUN = 74,
+	FL_75_SELF_REPAIR_MODULE = 75,
+	FL_76_ES_RIFLE = 76,
+	FL_77_KEY = 77,
+	FL_78_IRON_FIGURINE = 78,
+	FL_79_CRATE = 79,
+	FL_80_CHEST = 80,
+	FL_81_COUNT
 };
 
 enum BASE_MONSTER : int
@@ -3988,7 +4159,38 @@ enum BASE_MONSTER : int
 	BM_C_391_LEORIC = 391,
 
 	// --------------classic end-----------------
-
+	BM_392_WARLORD_MERC = 392,
+	BM_H_393_SORC_L_T = 393,
+	BM_H_394_ROG_L_B = 394,
+	BM_H_395_WAR_L_X = 395,
+	BM_H_396_SORC_L_T = 396,
+	BM_H_397_ROG_L_B = 397,
+	BM_H_398_WAR_L_X = 398,
+	BM_H_399_WAR_L_SS = 399,
+	BM_H_400_SORC_M_T = 400,
+	BM_H_401_MONK_M_MS = 401,
+	BM_H_402_BERS_M_X = 402,
+	BM_H_403_ROG_M_B = 403,
+	BM_H_404_WAR_M_MS = 404,
+	BM_H_405_SOR_M_T_HYBRID = 405,
+	BM_H_406_SCOUT = 406,
+	BM_H_407_MONK_M_X = 407,
+	BM_H_408_WAR_M_SS = 408,
+	BM_H_409_MONK_H_T = 409,
+	BM_H_410_MONK_H_SS = 410,
+	BM_H_411_ROG_H_B = 411,
+	BM_H_412_WAR_H_X_EXEC = 412,
+	BM_H_413_SOR_H_T = 413,
+	BM_H_414_WAR_H_MS = 414,
+	BM_H_415_ROG_H_B_ELITE_ARCHER = 415,
+	BM_H_416_MON_H_MS = 416,
+	BM_H_417_WAR_H_SS_WARRIOR_ELITE = 417,
+	BM_H_418_SOR_H_T_SORC_ELITE = 418,
+	BM_H_419_ROG_H_B_SS_ELITE = 419,
+	BM_NPC_420_GRISWOLD = 420,
+	BM_H_421_WAR_H_X_EXEC_ELITE = 421,
+	BM_H_422_WAR_H_ROYAL_GUARD = 422,
+	BM_H_423_ROG_H_B_BLACK_ARCHER = 423,
 	BM_COUNT,
 };
 
@@ -4223,7 +4425,7 @@ enum EFFECT_ACTION: char
 	EA_RANDOM_DAMAGE,
 	EA_LIFE_STEAL_RND,
 
-	//EA_THORNS_FIRE, // и т.п. (по аналогии с elemental hit выше)
+	//(rt) EA_THORNS_FIRE, // etc. (by analogy with elemental hit above)
 	EA_COUNT,
 	EA_CAP = 100,
 };
@@ -4240,7 +4442,7 @@ enum TRIGGER : uint
 	T_TAKE_MELEE	= BIT(6),
 	T_TAKE_RANGED	= BIT(7),
 	T_TAKE_DAMAGE	= BIT(8),
-	T_DURABILITY	= BIT(9), // добавить индекс моба попавшего в броню, параметры смотреть в вещи
+	T_DURABILITY	= BIT(9), // (rt) add the index of the monster that hit the armour; see the item for parameters
 	T_KILL			= BIT(10),
 	T_HEAL			= BIT(11),
 	T_MOVE			= BIT(12),
@@ -4380,105 +4582,105 @@ enum AFFIX_EFFECT: uchar
 	AE_MANA_MOVED_TO_HEALTH,
 	AE_HEALTH_MOVED_TO_MANA,
 
-	AE_GOLD_FIND	,	// 1-2 байт	+/-X% gold find (настраиваемый процент) // ----- th2 новые эффекты аффиксов -----------------------------------------------------:
+	AE_GOLD_FIND	,	// (rt) 1-2 bytes	+/-X% gold find (configurable percentage) // ----- th2 new affix effects -----------------------------------------------------:
 	AE_GOLD_ABS_FIND	,	// +/-X or +/-X-Y gold find
-	AE_MAGIC_FIND	,	// 1-2 байт	+/-X% chance to find magic items (настраиваемый процент)
-	AE_SPELL_LEVEL	,	// 2-10 байт (индекс типа(1 байт) или маска заклов (8 байт) и значение (до 2 байт)) // +/-X spell level(s) to Y (X - настраиваемое число, Y - заклинание)
-	AE_SPELL_PERCENT,	// 2-10 байт (индекс или маска спелла и урон) +/-X% to spell damage
-	AE_SPELL_DAMAGE	,	// 2-10 байт (индекс или маска спелла и урон) +/-X-Y to spell damage
-	AE_ELEMENT_PERCENT	,	// 2-4 байта (2 маска типа и 2 урон) +/-X% to Fire/Lightning/Magic/Holy/Other damage spells
+	AE_MAGIC_FIND	,	// (rt) 1-2 bytes	+/-X% chance to find magic items (configurable percentage)
+	AE_SPELL_LEVEL	,	// (rt) 2-10 bytes (type index (1 byte) or spell mask (8 bytes) and value (up to 2 bytes)) // +/-X spell level(s) to Y (X - configurable number, Y - spell)
+	AE_SPELL_PERCENT,	// (rt) 2-10 bytes (spell index or mask and damage) +/-X% to spell damage
+	AE_SPELL_DAMAGE	,	// (rt) 2-10 bytes (spell index or mask and damage) +/-X-Y to spell damage
+	AE_ELEMENT_PERCENT	,	// (rt) 2-4 bytes (2 type mask and 2 damage) +/-X% to Fire/Lightning/Magic/Holy/Other damage spells
 	AE_ELEMENT_DAMAGE	, // element damages and to hit (chance)
 	
-	AE_ACTION	,	// эти три эффекта заменют группу закоменнтированных ниже
+	AE_ACTION	,	// (rt) these three effects replace the commented-out group below
 	AE_ACTION_PERCENT	,
 	AE_ACTION_VALUE	,
 
-	//AE_TO_LIFE_STEAL,	// 1 байт +/-X% life steal // было 4 бита 3% lifesteal, 3% manasteal, 4% lifesteal, 4% manasteal
-	//AE_TO_MANA_STEAL,	// 1 байт +/-X% mana steal
-	//AE_DAMAGE_TAKEN_TO_MANA,	// 1 байт X% damage taken goes to mana (Absorb ?)
-	//AE_THORNS	,	// 6 байт шипы: attacker takes Z damage of X-Y (for melee attacks from monsters, Z - dmg type)
-	//AE_THORNS_PERCENT,	// 6 байт шипы: +X% attacker takes Z damage (for melee attacks from monsters, Z - dmg type)
-	//AE_THORNS_CHANCE,	// 6 байт шипы: +X% attacker chance takes Z damage (for melee attacks from monsters, Z - dmg type)
+	//(rt) AE_TO_LIFE_STEAL,	// 1 byte +/-X% life steal // used to be 4 bits: 3% lifesteal, 3% manasteal, 4% lifesteal, 4% manasteal
+	//(rt) AE_TO_MANA_STEAL,	// 1 byte +/-X% mana steal
+	//(rt) AE_DAMAGE_TAKEN_TO_MANA,	// 1 byte X% damage taken goes to mana (Absorb ?)
+	//(rt) AE_THORNS	,	// 6 bytes thorns: attacker takes Z damage of X-Y (for melee attacks from monsters, Z - dmg type)
+	//(rt) AE_THORNS_PERCENT,	// 6 bytes thorns: +X% attacker takes Z damage (for melee attacks from monsters, Z - dmg type)
+	//(rt) AE_THORNS_CHANCE,	// 6 bytes thorns: +X% attacker chance takes Z damage (for melee attacks from monsters, Z - dmg type)
 
-	AE_CAST_SPEED	,	// 3 бита ( 1,2,3 - по схеме атаки/хита) fast/faster/fastest casting (ускорения каста заклинаний: -1 frame, -1/2, -2) //  changed to -1,-2,-3
-	AE_ALL_STAT_PERCENT	,	// 1 байт	+/-X% to all stats (attributes)
-	AE_STAT_PERCENT	,	// 4 байта	+/-X% to stat
-	AE_LIFE_REGEN	,	// 1-2 байт +X to life regeneration
-	AE_MANA_REGEN	,	// 1-2 байт +X to mana regeneration
-	AE_LIFE_REGEN_PERCENT	,	// 1-2 байт +X% to life regeneration
-	AE_MANA_REGEN_PERCENT	,	// 1-2 байт +X% to mana regeneration
-	AE_XP_GAIN	,	// 4 байт +/-X experience gained
-	AE_XP_GAIN_PERCENT	,	// 1-2 байт +/-X% experience gained
-	AE_ABSORB_MELEE_DAMAGE	,	// 1-2 байт +/-X% damage absorbed (бонус к поглощению мили урона персонажем),
-	AE_ABSORB_RANGED_DAMAGE	,	// 1-2 байт (переработанный AE_ARD) кстати возможно что этот  аффикс надо интегрировать в броню, и сделать его больше для брони, меньше раза в 3 для шлема, и еще меньше для пояса перчаток и ботинок (типа 100%, 35%, 10%, 20%, 15%).
-	AE_SUMMON_HP_PERCENT	,	// 1-2 байта +/-X % to summoned minion HPs
-	AE_SUMMON_DAMAGE_PERCENT	,	// 1-2 байта +/-X % to summoned minion damage //пусть работает сразу для любого типа урона. даже для магии
-	AE_SUMMON_AC_PERCENT	,	// 1-2 байта +/-X % to summoned minion AC
-	AE_SUMMON_TO_HIT	,	// 1-2 байта +/-X % to summoned minion ToHit
-	AE_SUMMON_HP	,	// 2-4 байта +/-X to summoned minion HPs
-	AE_SUMMON_DAMAGE	,	// 2-4 байта +/-X to summoned minion damage //пусть работает сразу для любого типа урона. даже для магии
-	AE_SUMMON_AC	,	// 2-4 байта +/-X to summoned minion AC
-	AE_BLOCK_CHANCE	,	// 1 байт +/-X% chance of blocking
-	AE_CRIT_CHANCE	,	// 2 байт +X% chance of critical hit chance
-	AE_CRIT_DAMAGE_PERCENT	,	// 2 байта +/-X% to critical hit damage (если сложно кодить, то можно +25%, +50%)
-	AE_CRIT_PERCENT	,	// 2 байта +/-X% to critical hit damage (если сложно кодить, то можно +25%, +50%)
+	AE_CAST_SPEED	,	// (rt) 3 bits ( 1,2,3 - following the attack/hit scheme) fast/faster/fastest casting (spell cast speed-ups: -1 frame, -1/2, -2) //  changed to -1,-2,-3
+	AE_ALL_STAT_PERCENT	,	// (rt) 1 byte	+/-X% to all stats (attributes)
+	AE_STAT_PERCENT	,	// (rt) 4 bytes	+/-X% to stat
+	AE_LIFE_REGEN	,	// (rt) 1-2 bytes +X to life regeneration
+	AE_MANA_REGEN	,	// (rt) 1-2 bytes +X to mana regeneration
+	AE_LIFE_REGEN_PERCENT	,	// (rt) 1-2 bytes +X% to life regeneration
+	AE_MANA_REGEN_PERCENT	,	// (rt) 1-2 bytes +X% to mana regeneration
+	AE_XP_GAIN	,	// (rt) 4 bytes +/-X experience gained
+	AE_XP_GAIN_PERCENT	,	// (rt) 1-2 bytes +/-X% experience gained
+	AE_ABSORB_MELEE_DAMAGE	,	// (rt) 1-2 bytes +/-X% damage absorbed (bonus to the character's melee damage absorption),
+	AE_ABSORB_RANGED_DAMAGE	,	// (rt) 1-2 bytes (reworked AE_ARD) by the way, maybe this affix should be built into armour, bigger for body armour, about 3x smaller for helmets, and smaller still for belts, gloves and boots (like 100%, 35%, 10%, 20%, 15%).
+	AE_SUMMON_HP_PERCENT	,	// (rt) 1-2 bytes +/-X % to summoned minion HPs
+	AE_SUMMON_DAMAGE_PERCENT	,	// (rt) 1-2 bytes +/-X % to summoned minion damage //let it work for any damage type at once. even for magic
+	AE_SUMMON_AC_PERCENT	,	// (rt) 1-2 bytes +/-X % to summoned minion AC
+	AE_SUMMON_TO_HIT	,	// (rt) 1-2 bytes +/-X % to summoned minion ToHit
+	AE_SUMMON_HP	,	// (rt) 2-4 bytes +/-X to summoned minion HPs
+	AE_SUMMON_DAMAGE	,	// (rt) 2-4 bytes +/-X to summoned minion damage //let it work for any damage type at once. even for magic
+	AE_SUMMON_AC	,	// (rt) 2-4 bytes +/-X to summoned minion AC
+	AE_BLOCK_CHANCE	,	// (rt) 1 byte +/-X% chance of blocking
+	AE_CRIT_CHANCE	,	// (rt) 2 bytes +X% chance of critical hit chance
+	AE_CRIT_DAMAGE_PERCENT	,	// (rt) 2 bytes +/-X% to critical hit damage (if it's hard to code, +25%, +50% will do)
+	AE_CRIT_PERCENT	,	// (rt) 2 bytes +/-X% to critical hit damage (if it's hard to code, +25%, +50% will do)
 	AE_CRIT_DAMAGE	,	// +/-X to critical hit damage
-	AE_SPICIES_DAMAGE	,	// 3 байта +X damage to demons/beasts/undead
-	AE_SPICIES_DAMAGE_PERCENT	,	// 3 байта +X% damage to demons/beasts/undead
-	AE_SPICIES_TO_HIT	,	// 3 байта +X% hit to demons/beasts/undead
+	AE_SPICIES_DAMAGE	,	// (rt) 3 bytes +X damage to demons/beasts/undead
+	AE_SPICIES_DAMAGE_PERCENT	,	// (rt) 3 bytes +X% damage to demons/beasts/undead
+	AE_SPICIES_TO_HIT	,	// (rt) 3 bytes +X% hit to demons/beasts/undead
 	AE_SPICIES_AC	,
 	AE_SPICIES_AC_PERCENT	,
-	AE_SPICIES_DFE	,	// 2-3 байта -/+X DFE of (Y) beast/demon/undead type (for all damage types)
-	AE_LIFE_PERCENT	,	// 1-2 байта +/-X% life/mana (increases character life/mana based on basic character value)
-	AE_MANA_PERCENT	,	// 1-2 байта
-	AE_WEAPON_PERCENT	,	// 4 байта +/-X% to sword/mace/axe/polearm/bow/crossbow/staff proficiency
+	AE_SPICIES_DFE	,	// (rt) 2-3 bytes -/+X DFE of (Y) beast/demon/undead type (for all damage types)
+	AE_LIFE_PERCENT	,	// (rt) 1-2 bytes +/-X% life/mana (increases character life/mana based on basic character value)
+	AE_MANA_PERCENT	,	// (rt) 1-2 bytes
+	AE_WEAPON_PERCENT	,	// (rt) 4 bytes +/-X% to sword/mace/axe/polearm/bow/crossbow/staff proficiency
 	AE_RESIST	, // +/-X% resist to Z element
     AE_THORNS_PERCENT   ,
 	AE_STUN_RESIST	,
 	AE_REQUIRED_CLVL,
 	AE_SOCKET,
 
-	AE_CLVL_AC,            // +броня
-	AE_CLVL_HIT,           // +меткость
-	AE_CLVL_DAMAGE,        // +урон
-	AE_CLVL_DAMAGE_PERCENT,// +% урон
-	AE_CLVL_DFE,           // -дфе
-	AE_CLVL_RESIST_ALL,    // резист олл
-	AE_CLVL_STAT_ALL,      // +все аттрибуты
-	AE_CLVL_HP,            // +жизнь
-	AE_CLVL_MANA,          // +мана
-	AE_CLVL_MELEE_RES,     // + мили рез
-	AE_CLVL_ARROW_RES,     // +арроу рез
-	AE_CLVL_STUN_RES,      // стан резист
-	AE_CLVL_GOLD,          // +% голды
-	AE_CLVL_XP,            // +% экспы
-	AE_CLVL_SPELL_ALL,     // +% урон от заклов (всем спеллам)
-	AE_CLVL_RESIST,        // индивидуальные резисты
-	AE_CLVL_STAT,          // +аттрибут
+	AE_CLVL_AC,            // (rt) +armour
+	AE_CLVL_HIT,           // (rt) +accuracy
+	AE_CLVL_DAMAGE,        // (rt) +damage
+	AE_CLVL_DAMAGE_PERCENT,// (rt) +% damage
+	AE_CLVL_DFE,           // (rt) -DFE
+	AE_CLVL_RESIST_ALL,    // (rt) resist all
+	AE_CLVL_STAT_ALL,      // (rt) +all attributes
+	AE_CLVL_HP,            // (rt) +life
+	AE_CLVL_MANA,          // (rt) +mana
+	AE_CLVL_MELEE_RES,     // (rt) + melee resistance
+	AE_CLVL_ARROW_RES,     // (rt) +arrow resistance
+	AE_CLVL_STUN_RES,      // (rt) stun resistance
+	AE_CLVL_GOLD,          // (rt) +% gold
+	AE_CLVL_XP,            // (rt) +% experience
+	AE_CLVL_SPELL_ALL,     // (rt) +% spell damage (all spells)
+	AE_CLVL_RESIST,        // (rt) individual resistances
+	AE_CLVL_STAT,          // (rt) +attribute
 	AE_CLVL_SPELL_LVL,     // +slvls
-	AE_CLVL_ELEM_PERCENT,  // +% элементальный урон (каждому элементу)
-	AE_CLVL_SPELL_PERCENT, // +% урон от заклов (каждому спеллу)
+	AE_CLVL_ELEM_PERCENT,  // (rt) +% elemental damage (each element)
+	AE_CLVL_SPELL_PERCENT, // (rt) +% spell damage (each spell)
 	AE_CLVL_CRIT_CHANCE,
 	AE_CLVL_CRIT_DAMAGE_PERCENT,
-	AE_CLVL_SUMMON_DAMAGE,        // урон саммонов
-	AE_CLVL_SUMMON_DAMAGE_PERCENT,// %урон саммонов
-	AE_CLVL_SUMMON_TO_HIT,        // меткость саммонов
-	AE_CLVL_SUMMON_AC,            // +армор саммонов
-	AE_CLVL_SUMMON_HP,            // +хп саммонов
-	AE_CLVL_SUMMON_HP_PERCENT,    // +% хп саммонов
+	AE_CLVL_SUMMON_DAMAGE,        // (rt) summon damage
+	AE_CLVL_SUMMON_DAMAGE_PERCENT,// (rt) % summon damage
+	AE_CLVL_SUMMON_TO_HIT,        // (rt) summon accuracy
+	AE_CLVL_SUMMON_AC,            // (rt) +summon armour
+	AE_CLVL_SUMMON_HP,            // (rt) +summon HP
+	AE_CLVL_SUMMON_HP_PERCENT,    // (rt) +% summon HP
 
-	AE_COUNT,                 // Item.PrefixEffect и Item.PostfixEffect - uchar - максимум 254 эффекта
+	AE_COUNT,                 // (rt) Item.PrefixEffect and Item.PostfixEffect - uchar - 254 effects max
 	AE_NO	= 255,
 };
 
 enum BUFF_FLAG
 {
-	BF_1_ETHEREAL     = BIT(1), // 1   Бессмертие в d1/hf, Иммунитет к магии в th
+	BF_1_ETHEREAL     = BIT(1), // (rt) 1   Immortality in d1/hf, Immunity to magic in th
 	BF_2_FURY_ACTIVE  = BIT(2), // 2
 	BF_3_FURY_LETARGY = BIT(3), // 4
 	BF_4_ARMOR_BLESS  = BIT(4), // 8  
 	BF_5_DAMAGE_BLESS = BIT(5), // 16
-	BF_6_RESIST_BLESS = BIT(6), // 32  th2 новые флаги
+	BF_6_RESIST_BLESS = BIT(6), // (rt) 32  th2 new flags
 	BF_7_EXP_BLESS    = BIT(7), // 64
 	BF_8_GOLD_BLESS   = BIT(8), // 128
 	BF_9_MAGIC_FIND   = BIT(9),
@@ -4567,6 +4769,7 @@ enum MAIN_PANEL_BUTTON
 	B_PVP     = 9,
 	B_SYNERGY = 10,
 	B_TIME    = 11,
+	B_CHAT    = 12,
 	B_COUNT
 };
 
@@ -4654,35 +4857,6 @@ enum NET_CMD: uchar
 	CMD_56_ACTIVATEPORTAL = 56,
 	CMD_57_DEACTIVATEPORTAL = 57,
 
-	CMD_DLEVEL = BIT(8),
-
-	// unused, can be reused
-	// CMD_58_DLEVEL_0 = 58,
-	// CMD_59_DLEVEL_1 = 59,
-	// CMD_60_DLEVEL_2 = 60,
-	// CMD_61_DLEVEL_3 = 61,
-	// CMD_62_DLEVEL_4 = 62,
-	// CMD_63_DLEVEL_5 = 63,
-	// CMD_64_DLEVEL_6 = 64,
-	// CMD_65_DLEVEL_7 = 65,
-	// CMD_66_DLEVEL_8 = 66,
-	// CMD_67_DLEVEL_9 = 67,
-	// CMD_68_DLEVEL_10 = 68,
-	// CMD_69_DLEVEL_11 = 69,
-	// CMD_70_DLEVEL_12 = 70,
-	// CMD_71_DLEVEL_13 = 71,
-	// CMD_72_DLEVEL_14 = 72,
-	// CMD_73_DLEVEL_15 = 73,
-	// CMD_74_DLEVEL_16 = 74,
-	// CMD_75_DLEVEL_17 = 75,
-	// CMD_76_DLEVEL_18 = 76,
-	// CMD_77_DLEVEL_19 = 77,
-	// CMD_78_DLEVEL_20 = 78,
-	// CMD_79_DLEVEL_21 = 79,
-	// CMD_80_DLEVEL_22 = 80,
-	// CMD_81_DLEVEL_23 = 81,
-	// CMD_82_DLEVEL_24 = 82,
-	
 	CMD_83_DLEVEL_JUNK = 83,
 	CMD_84_DLEVEL_END = 84,
 
@@ -4710,7 +4884,14 @@ enum NET_CMD: uchar
 	CMD_106_MONSTACIDDOT = 106,
 	CMD_107_TSPELLXYD = 107,
 	CMD_108_PVP = 108,
-	CMD_109_WallRecast,
+	CMD_109_WallRecast = 109,
+
+	// *** RESERVED RANGE: NET_CMD values [CMD_DLEVEL_START .. CMD_DLEVEL_START + DungeonCount - 1]
+	// *** (currently 128..243) are exclusively used for dungeon level delta synchronisation.
+	// *** bCmd is set to CMD_DLEVEL_START + dungeon_index when sending per-dungeon delta packets.
+	// *** DO NOT add any new NET_CMD entries whose numeric value falls in this range,
+	// *** or dungeon delta sync logic in DReceiveChunk / DParseChunk will silently break.
+	CMD_DLEVEL_START = 128,
 };
 
 // original diablo drop type constants:
@@ -4848,7 +5029,7 @@ enum ITEM_CODE: int // must be int for flag being
 	IC_11_GOLD			= 11, // 0B Gold
 	IC_12_RING			= 12, // 0C Rings
 	IC_13_AMULET		= 13, // 0D Amulets
-	IC_14_EAR			= 14, // placeholder для пока непонятного оригинального кода
+	IC_14_EAR			= 14, // (rt) placeholder for original code that isn't understood yet
 	IC_15_GLOVE			= 15, // 0F Gloves
 	IC_16_BOOTS			= 16, // 10 Boots
 	IC_17_BELT			= 17, // 11 Belts
@@ -5137,9 +5318,29 @@ enum DUNGEON: char
 	DUN_112_STILL_SPRINGS		   = 112,
 	DUN_113_THE_MAZE			   = 113,
 	DUN_114_LOWER_SCRIPTORIUM	   = 114,
+	DUN_115_VALOR_TOMB			   = 115,
+	DUN_116_MINING_CAVES		   = 116,
+	DUN_117_DARKLORD_HIDEOUT	   = 117,
+	DUN_118_POISONED_WATER_SUPPLY_DC = 118,	// (th4) DC mission 10: the heroes return to the water supply
+	DUN_119_DEEPER_CAVES           = 119,	// (th4) DC mission 11: the Anvil of Fury
+	DUN_120_PANDEMONIUM_DC         = 120,	// (th4) DC mission 12: intercept the heroes' new general
+	DUN_121_UNHOLY_ALTAR_DC        = 121,	// (th4) DC mission 13: Lazarus' lair
+
 	DungeonCount
 };
 static_assert( DungeonCount <= 127, "DUNGEON enum size needs expansion");
+static_assert( CMD_DLEVEL_START + DungeonCount <= 255, "Too many dungeons: CMD_DLEVEL_START + DungeonCount overflows NET_CMD uchar range");
+
+// (th4) Dark Campaign per-mission state, stored in Player::darkMission[].
+enum DARK_MISSION_STATE : uchar
+{
+	DCM_0_UNTOUCHED = 0,	// never briefed
+	DCM_1_BRIEFED   = 1,	// Dark Lord has given the briefing; portal is open
+	DCM_2_COMPLETE  = 2,	// mission level cleared
+};
+
+// (th4) Dark Campaign: fixed tile of the outbound mission portal in the Hideout.
+enum { DARK_PORTAL_ROW = 18, DARK_PORTAL_COL = 46 };
 // for expansion required change DungeonExpantionLimit = 128,
 // DungeonVisited arrays and flags in player struct,
 // uchar sgbDeltaChunks = DELTA_CHUNKS = DungeonCount + 4
@@ -5188,6 +5389,8 @@ enum QUEST: char
 	Q_36_CLEAR_WATER = 36,
 	Q_37_PRICE_OF_HUBRIS = 37,
 	Q_38_OGDENS_SIGN_MP = 38,
+	Q_39_VALOR_MP = 39,
+	Q_40_SECRETS_OF_MAGIC = 40,
 	Quest_Count, // used for both Quests and BaseQuests, but can differ // TODO: add save file count storing
 };
 
@@ -5476,6 +5679,7 @@ enum PLAYER_SUBLASS : char
     PSC_ROGUE_ASSASSIN = 1,
     PSC_ROGUE_IRON_MAIDEN = 2,
     PSC_ROGUE_BOMBARDIER = 3,
+	PSC_ROGUE_GLADIATRIX = 4,
     PSC_ROGUE_SUBLASSES_COUNT,
 
     PSC_SAVAGE_SAVAGE = 0,
@@ -5530,6 +5734,7 @@ enum PLAYER_FULL_CLASS : char
     PFC_ASSASSIN,           // ROGUE
     PFC_IRON_MAIDEN,        // ROGUE
     PFC_BOMBARDIER,         // ROGUE
+	PFC_GLADIATRIX,			// ROGUE
 
     PFC_SAVAGE,             // SAVAGE
     PFC_BERSERKER,          // SAVAGE
@@ -5590,7 +5795,8 @@ enum ITEM_PLAYER_CLASS_MASK : uint
     IPCM_ASSASSIN      = 1 << PFC_ASSASSIN,
     IPCM_IRON_MAIDEN   = 1 << PFC_IRON_MAIDEN,
     IPCM_BOMBARDIER    = 1 << PFC_BOMBARDIER,
-    IPCM_ANY_ROGUE     = IPCM_ROGUE | IPCM_ASSASSIN | IPCM_IRON_MAIDEN | IPCM_BOMBARDIER,
+	IPCM_GLADIATRIX	   = 1 << PFC_GLADIATRIX,
+    IPCM_ANY_ROGUE     = IPCM_ROGUE | IPCM_ASSASSIN | IPCM_IRON_MAIDEN | IPCM_BOMBARDIER | IPCM_GLADIATRIX,
 
     IPCM_SAVAGE        = 1 << PFC_SAVAGE,
     IPCM_BERSERKER     = 1 << PFC_BERSERKER,
@@ -5715,6 +5921,13 @@ enum class TraitId : unsigned char
 	Abnegation,
 	Giant,
 	Feral,
+	Scissor,
+	Capitalist,
+	Frenzied,
+	Late_Bloomer,
+	Warlord,
+	RawPower,
+	Thief,			// (th4) v0.500 Sharpshooter stealth trait (SP only)
     TRAIT_COUNT
 };
 
@@ -5775,8 +5988,8 @@ enum MONSTER_CLASS : int
 
 enum SOUND_FLAG: uchar
 {
-	SF_1_SOLO				 = BIT(1),// похоже из всех звуков с этим флагом может одновременно играть только один
-	SF_2_MIX				 = BIT(2),// из звуков с этим флагом могут играть сразу несколько
+	SF_1_SOLO				 = BIT(1),// (rt) apparently only one of all sounds with this flag can play at a time
+	SF_2_MIX				 = BIT(2),// (rt) several of the sounds with this flag can play at once
 	SF_4_MENU				 = BIT(3),
 	SF_8_MONK				 = BIT(4),
 	SF_16_SCOUT_ASSASIN		 = BIT(5),
@@ -6327,6 +6540,8 @@ enum BASE_ITEM: int
 	BI_2474_TOOL_CHEST				 = 2474,
 	BI_2475_CRYSTAL_EYEPIECE		 = 2475,
 	BI_2476_THE_STRANGE_BOOK		 = 2476,
+	BI_2504_SIGIL_FIRST				 = 2504,
+	BI_2508_SIGIL_LAST				 = 2508,
 	BI_2510_DUSTY_CRATE				 = 2510,
 	BI_2511_MT_CONTAINERS			 = 2511,
 	BI_2512_FULL_CONTAINERS			 = 2512,
@@ -6338,6 +6553,82 @@ enum BASE_ITEM: int
 	BI_2654_POTION_OF_FULL_HEAL_CLS	 = 2654,
 	BI_2658_SCROLL_OF_HEAL_CLS		 = 2658,
 	BI_2660_RELICT_OF_TP_CLS		 = 2660,
+	BI_2706_SCROLL_OF_MAGIC			 = 2706,
+	BI_2707_SCROLL_OF_MAGIC			 = 2707,
+	BI_2708_38_SW_MODEL_15			 = 2708,
+	BI_2709_45_LONGSLIDER_LS		 = 2709,
+	BI_2710_12ga_M1887_SO			 = 2710,
+	BI_2711_PHASED_PLASMA_R95		 = 2711,
+	BI_2712_PPK12_GAUSS_PISTOL		 = 2712,
+	BI_2713_TLSP_LASER_PISTOL		 = 2713,
+	BI_2714_RAIL_PISTOL_RPAP_20W	 = 2714,
+	BI_2715_UZI_9MM					 = 2715,
+	BI_2716_M79_GL					 = 2716,
+	BI_2717_DOUBLE_BARREL_SBS		 = 2717,
+	BI_2718_PARTICLE_PISTOL			 = 2718,
+	BI_2719_SKYNET_PLASMA_V96		 = 2719,
+	BI_2720_MM1_GRENADE_LAUNCHER	 = 2720,
+	BI_2721_PHASED_PLASMA_PISTOL_40W = 2721,
+	BI_2722_MAGNETIC_ACCELERATOR_EM4 = 2722,
+	BI_2723_THERMAL_OVERLOAD_PISTOL  = 2723,
+	BI_2724_BERETTA_92FS			 = 2724,
+	BI_2725_DESERT_EAGLE_PISTOL		 = 2725,
+	BI_2726_IR_8_BEAM_TRACER		 = 2726,
+	BI_2727_REFRACTION_KERNEL_WX9	 = 2727,
+	BI_2728_BV_3_FUSION_CUTTER		 = 2728,
+	BI_2729_GD_VSB_90_S				 = 2729,
+	BI_2730_GD_VSB_95_S				 = 2730,
+	BI_2731_ION_BLASTER_QDB_2		 = 2731,
+	BI_2732_PROTOPLASMA_THROWER		 = 2732,
+	BI_2733_MINIGUN_01				 = 2733,
+	BI_2734_XM214_MINIGUN			 = 2734,
+	BI_2735_M61_VULCAN				 = 2735,
+	BI_2736_GAU8_AVENGER			 = 2736,
+	BI_2737_HR556					 = 2737,
+	BI_2738_X11_REAPER				 = 2738,
+	BI_2739_MK24_OBLITERATOR		 = 2739,
+	BI_2740_REQUIEM_R3				 = 2740,
+	BI_2741_BLACKOUT_KG92			 = 2741,
+	BI_2742_CX7_FIREFLY				 = 2742,
+	BI_2743_ARM12_GAUSS_MINIGUN		 = 2743,
+	BI_2744_Z15_NEMESIS				 = 2744,
+	BI_2745_X59_DECIMATOR			 = 2745,
+	BI_2746_F6_MINIGUN				 = 2746,
+	BI_2747_KC1_MINIGUN				 = 2747,
+	BI_2748_XM215					 = 2748,
+	BI_2749_T33_MINIGUN				 = 2749,
+	BI_2750_M74GE_MINIGUN			 = 2750,
+	BI_2751_ARM13LC_GAUSS_MINIGUN	 = 2751,
+	BI_2752_X12_MINIGUN				 = 2752,
+	BI_2753_S66_MINIGUN				 = 2753,
+	BI_2754_V40U_MINIGUN			 = 2754,
+	BI_2755_T38_MINIGUN				 = 2755,
+	BI_2756_MCM2_VINDICATOR_R19S	 = 2756,
+	BI_2757_F7_MINIGUN				 = 2757,
+
+	BI_2767_STANDARD_FATIGUES		 = 2767,
+	BI_2768_FIELD_FATIGUES			 = 2768,
+	BI_2769_HAZMAT_SUIT				 = 2769,
+	BI_2770_RECLAMATION_SUIT		 = 2770,
+	BI_2771_SYNDICATE_FIELDWEAR		 = 2771,
+	BI_2772_RIOT_CONTROL_ARMOR		 = 2772,
+	BI_2773_ENCLAVE_COMBAT_ARMOR	 = 2773,
+	BI_2774_ENCLAVE_SURGE_ARMOR		 = 2774,
+	BI_2775_CHEMICAL_CORPS_ARMOR	 = 2775,
+	BI_2776_ERA13					 = 2776,
+	BI_2777_T45D_PA					 = 2777,
+	BI_2778_T51B_PA					 = 2778,
+	BI_2779_T60A_PA					 = 2779,
+	BI_2780_X01_APA					 = 2780,
+	BI_2781_BOS_PA					 = 2781,
+	BI_2782_ENVIRONMENTAL_PA		 = 2782,
+	BI_2783_T65X_PA					 = 2783,
+	BI_2784_HELLFIRE_ASSAULT_PA		 = 2784,
+	BI_2785_X02_APA					 = 2785,
+	BI_2786_HELLFIRE_PURGER_PA		 = 2786,
+	BI_2787_PXA20_PA				 = 2787,
+
+	BI_2888_SELF_REPAIR_MODULE		 = 2888
 
 };
 
@@ -6604,7 +6895,7 @@ enum UNIQUE_MONSTER
 	UM_258_Grimhorn	= 258,
 	UM_259_Hellzap	= 259,
 	UM_260_Irontooth_the_Viper	= 260,
-	UM_261_Heartburn	= 261,
+	UM_261_Heartfire	= 261,
 	UM_262_Bloodcrusher	= 262,
 	UM_263_Glasskull_the_Jagged	= 263,
 	UM_264_Ghostflame	= 264,
@@ -6995,7 +7286,7 @@ enum UNIQUE_MONSTER
 	UM_649 = 649,
 	UM_650 = 650,
 	UM_651 = 651,
-	UM_652_Griefbang = 652,
+	UM_652_Griefzap = 652,
 	UM_653_Deathbite = 653,
 	UM_654_Bonehack_the_Sharp = 654,
 	UM_655_Redwing_the_Doomsayer = 655,
@@ -7120,7 +7411,7 @@ enum UNIQUE_MONSTER
 	UM_774_Swarmbringer = 774,
 	UM_775_Zephris = 775,
 	UM_776_Nightflare = 776,
-	UM_777_The_Phantom_Knight = 777,
+	UM_777_Phantom_Knight = 777,
 	UM_778_Sir_Benedict = 778,
 	UM_779_Lord_Everild = 779,
 	UM_780_Lady_Elenor = 780,
@@ -7249,7 +7540,57 @@ enum UNIQUE_MONSTER
 	UM_C_901_DOOMGRIN = 901,
 	UM_C_902_RAGEHORN = 902,
 	// -----------------end of clasic--------------------
-
+	UM_903_AZGOR	  = 903,
+	UM_904_DOBAZZU	  = 904,
+	UM_905_DC_Griswold = 905,	// (th4) Dark Campaign: killing him unlocks the next difficulty
+	UM_906_DC_LORD_ANTONIUS = 906,
+	UM_907_DC_ZYPHERYS = 907,
+	UM_908_DC_LORD_KINDRETT = 908,
+	UM_909_DC_SCRIBE_VABIUS = 909,
+	UM_910_DC_AZDOG = 910,
+	UM_911_DC_COMMANDER_ALDRIC = 911,
+	UM_912_DC_CAPTAIN_ILSE = 912,
+	UM_913_DC_MAGISTER_CORVANE = 913,
+	UM_914_DC_BROTHER_SILAS = 914,
+	UM_915_DC_SIR_CABBOT = 915,
+	UM_916_DC_PALADIN_LOXLEY = 916,
+	UM_917_DC_PRIEST_GWIDEON = 917,
+	UM_918_DC_MADAME_PERESIDE = 918,
+	UM_919_DC_Archimandrite_Bozu = 919,
+	UM_920_DC_Bishop_Lucian = 920,
+	UM_921_DC_Deacon_Raduel = 921,
+	UM_922_DC_Donna_Paloosa = 922,
+	UM_923_DC_Abbot_Hirosh = 923,
+	UM_924_DC_Commander_Latham = 924,
+	UM_925_DC_Abbot_Balatt = 925,
+	UM_926_DC_Black_Hawk = 926,
+	UM_927_DC_General_Carnabus = 927,
+	UM_928_DC_Darkmoor = 928,
+	UM_929_DC_Moonrose = 929,
+	UM_930_DC_Commander_Degroe = 930,
+	UM_931_DC_Madame_Sarbine = 931,
+	UM_932_DC_Malachar_the_Warden = 932,
+	UM_933_DC_Zerath_the_Sage = 933,
+	UM_934_DC_Faldir_the_Keeper = 934,
+	UM_935_DC_Captain_Nagvot = 935,
+	UM_936_DC_Ludwig_the_Paranoid = 936,
+	UM_937_DC_Lord_Voss = 937,
+	UM_938_DC_Lord_Tiberius = 938,
+	UM_939_DC_Ravenshot = 939,
+	UM_940_DC_Darius_the_Ronin = 940,
+	UM_941_DC_Lord_Tenabris = 941,
+	UM_942_DC_Venturius_the_Inquisitor = 942,
+	UM_943_DC_Paladin_Orphius = 943,
+	UM_944_DC_Knight_Grimald = 944,
+	UM_945_DC_Prophetess_Lyssia = 945,
+	UM_946_DC_Cleric_Dwaynor = 946,
+	UM_947_DC_High_Exemplar_Kastor = 947,
+	UM_948_DC_Warden_Gaspax = 948,
+	UM_949_DC_Paladin_Godfrey = 949,
+	UM_950_DC_Captain_Dorian = 950,
+	UM_951_DC_Grand_Justicar_Rosalind = 951,
+	UM_952_DC_Elara_Longshot = 952,
+	UM_953_DC_Grandmaster_Ortus = 953,
 	UM_count
 };
 
@@ -7298,6 +7639,7 @@ enum Gui_Param: int
 	GUI_PanelWidth = 320,
 	GUI_PanelHeight = GUI_Height - 128 + 110, // 110 from expanding inventory/char panel
 	GUI_MainPanelHeight = 144,
+	GUI_MainPanelArtHeight = 128, // (th4) the main panel ART height (DrawMainPanel copies 128 rows); the 16-row strip above it is globe overhang + version text
 	
 	GUI_QuestPanelWidth = GUI_PanelWidth,
 	GUI_QuestPanelHeight = GUI_PanelHeight,
@@ -7359,10 +7701,10 @@ enum SIZE_CONST
 	MIN_CACHE = 0,
 	MAX_CACHE = 0xFFFFFFFF,
 
-	MAX_9000_ITEM_PICS = 9000, // 3440 стояло в th2 до начала сверки, 1784 максимально возможная длина ItemFlipTable
+	MAX_9000_ITEM_PICS = 9000, // (rt) 3440 was in th2 before the comparison started; 1784 is the maximum possible length of ItemFlipTable
 	ANIM_DIRS_16 = 16, // Animation directions count
 
-	// максимальное количество неактивирорванных объектов подзмелья, достаточное чтобы игра пометила уровень как выполненный в режиме Ironman
+	// (rt) maximum number of unactivated dungeon objects that is enough for the game to mark the level as done in Ironman mode
 	MaxIronmanObjects = 3,
 
 	// Counts Parameters
@@ -7379,6 +7721,7 @@ enum SIZE_CONST
 	DeadMonsters_Sprites_Max_Count = 64,
 	Monsters_Max_Count = 244,
 	Lights_32_Count = 32,
+	Lights_128_Count = 128, // (th4) Rev 2.46: runtime light-slot capacity (LightList/LightTintList/LightIndexes/V2 stamps). Rev 2.50: v30 saves serialize the full 128-entry LightIndexes block; pre-v30 saves keep the 32-byte block, repaired on load by a rebuild that restores the pool permutation.
 	MaxObjects_127 = 127,
 	MaxItems_255 = 255,
 	MissilesMax = 3000,
@@ -7396,7 +7739,7 @@ enum SIZE_CONST
 	//MultiQuestsCount_10 = 10,
 	MaxChatString_128 = 128,
 	MaxItemCellWidth_4 = 4,
-	MaxItemCellHeight_4 = 4,
+	MaxItemCellHeight_7 = 7,
 	EnchantMax_5 = 5,
 	SocketMax_6 = 6,
 	QuenchesMax_1 = 1,
@@ -7483,25 +7826,25 @@ enum VAR_TYPES
 
 enum Dialog_Param: int 
 {
-	Dialog_591_Width = 591, // максимальная ширина строки  в пикселях 
-	Dialog_302_Height = 302, // максимальная высота строк в пикселях 
-	Dialog_HalfWidth = 271, // максимальная ширина строки в пикселях на половине экрана 
+	Dialog_591_Width = 591, // (rt) maximum line width in pixels 
+	Dialog_302_Height = 302, // (rt) maximum line height in pixels 
+	Dialog_HalfWidth = 271, // (rt) maximum line width in pixels on half the screen 
 };
 
 enum Speech_Param: int
 {
-	Speech_LeftMargin = 24, // отступ слева 
-	Speech_TopMargin = 20, // отступ сверху 
-	Speech_LetterMaxWidth = 22, // максимальная ширина буквы 
-	Speech_Spacing = 2, // расстояние между буквами по горизонтали 
-	Speech_LineMaxLen = 128, // максимальная длина строки речи 
-	Speech_LineHeight = 38, // высота линии в пикселях 
+	Speech_LeftMargin = 24, // (rt) left indent 
+	Speech_TopMargin = 20, // (rt) top indent 
+	Speech_LetterMaxWidth = 22, // (rt) maximum letter width 
+	Speech_Spacing = 2, // (rt) horizontal distance between letters 
+	Speech_LineMaxLen = 128, // (rt) maximum speech line length 
+	Speech_LineHeight = 38, // (rt) line height in pixels 
 };
 
 enum Gold_Param: int 
 {
-	Gold_1000_LowLimit = 1000, // значение меньше которого кучки золота считаются маленькими
-	Gold_2500_HiLimit = 2500, // значение, которое делит немаленькие кучки золота на средние и большие
+	Gold_1000_LowLimit = 1000, // (rt) value below which gold piles count as small
+	Gold_2500_HiLimit = 2500, // (rt) value that splits non-small gold piles into medium and large
 	Gold_4_SmallPic = 4,
 	Gold_5_MediumPic = 5,
 	Gold_6_BigPic = 6,
@@ -7550,7 +7893,7 @@ enum TEXT_COLOR
 	C_3_Gold = 3,
 	C_4_Orange = 4,
 	C_5_Yellow = 5,
-	C_6_Brownish = 6,
+	C_6_Banana = 6,
 	C_7_Grey = 7,
 	C_8_Pink = 8,
 	C_9_RedGold = 9,
@@ -7613,6 +7956,17 @@ enum PLAYER_TRADE: int
 	PT_12_Identify_Feet = -12,
 	PT_Identify_SecondLeftHand_2 = -13,
 	PT_Identify_SecondRightHand_2 = -14,
+	// (th4) The extra ring/amulet slots (IS_LeftRing2..IS_Neck2 = body slots 10..16), live with
+	// the Lord of the Rings trait and the Enclave Soldier game changer. Written into the
+	// IndexOfPlayerItemInDialog char table by IdentifyMenu and read back by IdentifyItemByKain
+	// (both PlayerTrade.cpp); a new code needs a case in BOTH places.
+	PT_Identify_LeftRing2 = -15,
+	PT_Identify_LeftRing3 = -16,
+	PT_Identify_LeftRing4 = -17,
+	PT_Identify_RightRing2 = -18,
+	PT_Identify_RightRing3 = -19,
+	PT_Identify_RightRing4 = -20,
+	PT_Identify_Neck2 = -21,
 
 	PT_Witch_ForcedItemsCount = 3,
 	PT_2_Healer_Singleplayer_ForcedItemsCount = 2,
@@ -7665,8 +8019,9 @@ enum PLAYER_TRADE: int
 	PT_DialogRows_12_WirtMain_Talk = 8,
 	PT_DialogRows_12_WirtMain_ActionLabel1 = 12,
 	PT_DialogRows_12_WirtMain_ActionLabel2 = 14,
-	PT_DialogRows_12_WirtMain_ActionLabel3 = 16,
-	PT_DialogRows_12_WirtMain_BuyItem = 18,
+	//PT_DialogRows_12_WirtMain_ActionLabel3 = 16,
+	PT_DialogRows_12_WirtMain_BuyItem = 16,
+	PT_DialogRows_12_WirtMain_PowerUps = 18,
 	PT_DialogRows_12_WirtMain_Leave = 20,
 
 	PT_DialogRows_13_WirtBuy_Item = 10,
@@ -7876,6 +8231,8 @@ enum ONSCREEN_MESSAGE
 	OM_109,
 	OM_110_Powers_and_Treasure, // "Powers and Treasure await you in Darkness"
 	OM_111_Only_Arena, // "Only arena is available in coliseum mode"
+	OM_112_DC_Exit_Portal, // (th4) "Exit portal has arrived"
+	OM_113_DC_Mission_Failed, // (th4) "Mission failed!"
 };
 
 enum AI: uchar
@@ -7940,6 +8297,7 @@ enum AI: uchar
 	AI_57_Hybrid_Arc_Star           = 57,
 	AI_58_Mixed_Psychic_Bite        = 58,// Floater uses this attack
 	AI_59_Tentaclist                = 59,
+	AI_60_Invisible_Stalker			= 60, // th4: instant-hide circler, spit/charge 50/50, melee-locks <=50% HP
 	AI_count
 };
 
@@ -8065,8 +8423,12 @@ enum GAME_MODE : char
     GM_SPEEDRUN,
 	GM_COLISEUM,
 	GM_CLASSIC,
+	GM_OUTBREAK,
+	GM_DARK_CAMPAIGN, // (th4) Dark Campaign: SP-only story mode from the monsters' side
 	GM_count
 };
+
+
 
 enum GAME_CHANGER : uint
 {
@@ -8097,6 +8459,9 @@ enum GAME_CHANGER : uint
 	GC_24_RUTHLESS = 24,
 	GC_25_ACCELERATION = 25,
 	GC_26_ASCETICISM = 26,
+	GC_27_TERMINATOR = 27,
+	GC_28_SUPERMUTANT = 28,
+	GC_29_ENCLAVE_SOLDIER = 29,
 	GC_COUNT
 };
 
@@ -8232,7 +8597,13 @@ enum SMART_DROP_FLAG
 	IF_NO_BOW           = BIT(3),
 	IF_CASTER_HARNESS	= BIT(4),
 	IF_NON_THORNS_HARNESS	= BIT(5),
-	IF_MAMLUK_HARNESS	= BIT(6)
+	IF_MAMLUK_HARNESS	= BIT(6),
+	IF_PISTOLEER_GUNS	= BIT(7),
+	IF_TERMINATOR_GUNS	= BIT(8),
+	IF_SUPERMUTANT_GUNS = BIT(9),
+	IF_ENCLAVE_GUNS		= BIT(10),
+	IF_FULL_SUIT_ARMOR  = BIT(11),
+	IF_GUARD_BASE_ARMOR = BIT(12)
 };
 
 enum MUSIC {
@@ -8429,6 +8800,29 @@ enum PERKS
 	PERK_FORTIFIED_SHIELD	 = 177,
 	PERK_MINION_CRITS		 = 178,
 	PERK_CASTING_POWERS		 = 179,
+	PERK_UNARMED_PROTOCOL	 = 180,
+	PERK_IRIDIUM_POWER_CELL	 = 181,
+	PERK_RECONSTRUCTION		 = 182,
+	PERK_TARGETING_MATRIX	 = 183,
+	PERK_CONCENTRATED_FIRE	 = 184,
+	PERK_MUTILATION			 = 185,
+	PERK_MAINTENANCE		 = 186,
+	PERK_PRECISION			 = 187,
+	PERK_PIERCING_ROUNDS	 = 188,	
+	PERK_OVERPENETRATION	 = 189,
+	PERK_STRONG_MERCENARIES	 = 190,
+	PERK_FRESH_RESERVES		 = 191,
+	PERK_TOUGH_MERCENARIES	 = 192,
+	PERK_INDOMITABLE_SPIRIT	 = 193,
+	PERK_DAMAGE_SOAK		 = 194,
+	PERK_MERC_DFE			 = 195,
+	PERK_MERC_CRITS			 = 196,
+	PERK_MERC_ARMOR			 = 197,
+	PERK_MERC_ACCURACY		 = 198,
+	PERK_BLESSED_HAMMER		 = 199, // by (th4): Templar orbiting hammer; level>0 activates it, adds damage
+	PERK_MORE_HAMMERS		 = 200, // by (th4): +1 hammer per level, orbiting at greater radius
+	PERK_SHADOW_STRIKE		 = 201, // by (th4): THIEF only; each level +100% to her ambush multiplier vs unaware monsters
+	PERK_RICOCHET			 = 202, // by (th4): THIEF+bow only; arrows bounce off walls once per level
 	PERKS_ONLY,
 
 	/* ------------------------
@@ -8514,6 +8908,12 @@ enum PERKS
 	SYNERGY_LAST_STAND		 = 475,
 	SYNERGY_RIGIDITY		 = 476,
 	SYNERGY_STRONG_HEART	 = 477,
+	SYNERGY_IMPENETRABLE	 = 478,
+	SYNERGY_INTIMIDATION	 = 479,
+	SYNERGY_ALLOY_MEMORY	 = 480,
+	SYNERGY_COMBAT_LOGS		 = 481,
+	SYNERGY_REGENERATION	 = 482,
+	SYNERGY_ONE_MORE		 = 483,
 	PERKS_SYNERGY,
 
 	/* ------------------------
@@ -8756,6 +9156,9 @@ enum RLE_DRAW
 	R_DARK    = BIT(4), // use DarkLevel
 	R_TRANS   = BIT(5), // transparent
 	R_OUTLINE = BIT(6), // outline
+	R_LIGHT_OUTLINE = BIT(7), // ring-only light lift, run after the body draw
+	R_OVERLAY_CLEAR = BIT(8), // (th4) Stage 2: zero Alpha/SpriteLayerSurface under written px (cursor pass in RleDraw)
+	R_TINT_CLEAR = BIT(9), // (th4) Stage 3: write TINT_WHITE into LightTintSurface under written px (UI ink must never carry the world's light color)
 	R_PAL = R_DARK | R_RED,
 };
 
@@ -8904,4 +9307,29 @@ enum MONSTER_AVIALABILITY
 	MA_MOD = 1,
 	MA_CLASSIC = 2,
 	MA_ALL = -1,
+};
+
+// Sprite type identification for A8L8 EnrichedLight mode post-render silhouette pass.
+// Threaded through g_CurrentPostRenderType -> Rle2Draw so the renderer
+// knows what it's drawing without fragile lightFill==0 heuristics.
+enum class SpriteType : uchar {
+	Player  = 0,  // player character — always full-bright through walls
+	Monster = 1,  // monster — enhanced silhouette through walls
+	Missile = 2,  // missile/projectile — enhanced silhouette (same formula)
+	Object  = 3,  // dungeon object — no silhouette (inherits ambient)
+	Item    = 4,  // ground item — no silhouette (inherits ambient)
+	InfravisionMonster = 5,  // (th4) infravision — no silhouette, uniform brightness
+	InfravisionMonsterThief = 6, // (th4) Thief + infravision — open pixels bright, wall-occluded pixels keep ambient (no silhouette)
+	PlayerShaded = 7, // (th4) THIEF: the player drawn shaded by her cell's ambient light; same shade through walls (no bright silhouette)
+};
+
+// Wall occlusion bitmask for A8L8 silhouette pass.
+// WallOcclusionSurface stores per-pixel OR of these bits.
+// Currently only WOB_WALL is active; WOB_OBJECT and WOB_ITEM are
+// reserved for future dungeon-object and ground-item occlusion.
+enum WallOcclusionBits : uchar {
+	WOB_NONE   = 0x00,  // no occlusion at this pixel
+	WOB_WALL   = 0x01,  // opaque wall tile drawn at this pixel
+	WOB_OBJECT = 0x02,  // reserved: dungeon object (door, chest, etc.)
+	WOB_ITEM   = 0x04,  // reserved: ground item
 };

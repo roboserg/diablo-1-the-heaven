@@ -19,10 +19,10 @@ static_assert( sizeof( TMegaPkt ) == 32008, "Wrong TMegaPkt size" );
 struct TBuffer
 {
     DWORD dwNextWriteOffset;
-    uchar bData[4096];
+    uchar bData[8192]; // doubled from 4096 to reduce silent-drop overflow under packet bursts
 };
 
-static_assert( sizeof( TBuffer ) == 4100, "Wrong TBuffer size" );
+static_assert( sizeof( TBuffer ) == 8196, "Wrong TBuffer size" );
 
 struct TPktHdr
 {
@@ -109,6 +109,7 @@ void multi_copy_packet( TBuffer* buf, void* packet, uchar size );
 void multi_send_packet( void* packet, uchar size );
 void build_pkt_hdr( TPkt* packet );
 void NetSendHiPri( uchar* msg = nullptr, uchar size = 0 );
+void NetSendDirect( uchar* msg, uchar size ); // bypasses TBuffer; use for critical packets that must never be dropped
 uchar* multi_recv_packet( TBuffer* packet, uchar* body, int* size );
 void NetSendMask( uint pmask, uchar* body, uchar bodySize );
 void process_turn();
@@ -134,7 +135,7 @@ bool NetInit( bool singleGame, bool* exitProgram );
 bool multi_init_single( client_info* client_info, user_info* user_info, battle_info* ui_info );
 bool multi_init_multi( client_info* client_info, user_info* user_info, battle_info* ui_info, bool* pfExitProgram );
 void buffer_init( TBuffer* buffer );
-void multi_send_pinfo( int playerIndex, char netCmdIndex );
+void multi_send_pinfo( int playerIndex, uchar netCmdIndex );
 void SetupLocalCoords();
 bool multi_upgrade( bool* pfExitProgram );
 void recv_plrinfo( int playerIndex, const TCmdPlrInfoHdr* p, bool recv );

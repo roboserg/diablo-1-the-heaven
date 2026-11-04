@@ -4,21 +4,21 @@ int MenuMusicIndex = 0;
 
 char* MainMenuMusic[] = {
 	//"Music\\Dintr1.wav", // reserved for Andariel quest level 1
-	"Music\\ambience_gru.wav",
-    "Music\\ambience_gru_v3.wav",
+	"Music\\ambience_gru.ogg",
+    "Music\\ambience_gru_v3.ogg",
 	//"Music\\Dintr3.wav",
-	"Music\\Dintr4.wav",
-    "Music\\ambience_mm_moody.wav",
+	"Music\\Dintr4.ogg",
+    "Music\\ambience_mm_moody.ogg",
 };
 
 char* MainMenuOrigMusic[] = {
-	"Music\\or\\dintro.wav",
+	"Music\\or\\dintro.ogg",
 };
 
 char* MainMenuDoomMusic[] = {
-    "Music\\doom\\0_menu.wav",
-    "Music\\doom\\0_1_menu.wav",
-    "Music\\doom\\0_2_menu.wav",
+    "Music\\doom\\0_menu.ogg",
+    "Music\\doom\\0_1_menu.ogg",
+    "Music\\doom\\0_2_menu.ogg",
 };
 
 //----- (0042E2ED) --------------------------------------------------------
@@ -50,12 +50,12 @@ void DisplayMainMenu()
     v0 = 0;
     do{
         dialogResult = 0;
-        //LoadDragonMenuPalette(); // уже не нужны, так как загружаются из оригинальной таблицы storm.dll
-        if( LoadOnStart ){ // сразу загружать заданную запись для быстрой сверки
+        //(rt) LoadDragonMenuPalette(); // no longer needed, since they are loaded from the original storm.dll table
+        if( LoadOnStart ){ // (rt) load the specified save immediately for a quick comparison
 			dialogResult = LoadMulti ? MM_2_MULTI_PLAYER : MM_1_SINGLE_PLAYER;
 		}else{
-			// устанавливаем курсор по центру экрана при старте главного меню на весь экран
-			// из-за временного сдвига мета-меню при отрисовке (до замены меню с нуля или допиливания storm.dll)
+			// (rt) place the cursor in the centre of the screen when the fullscreen main menu starts
+			// (rt) because of the temporary meta-menu offset when drawing (until the menu is rewritten from scratch or storm.dll is finished)
 			if( IsFullScreen ){
 				SetCursorPos( GUI_Width / 2 * WinWidth / ScreenWidth, GUI_Height / 2 * WinHeight / ScreenHeight);
 			}
@@ -67,7 +67,7 @@ void DisplayMainMenu()
 			MainMainMenu = false;
 			//EnableWindow( global_hWnd, FALSE );
 		}
-        //LoadMainMenuPalette(); // уже не нужны, так как загружаются из оригинальной таблицы storm.dll
+        //(rt) LoadMainMenuPalette(); // no longer needed, since they are loaded from the original storm.dll table
         if( dialogResult == MM_1_SINGLE_PLAYER || !OriginalMenu ){
 			v2 = SinglePlayerGame();
             goto LABEL_16;
@@ -112,10 +112,10 @@ int SinglePlayerGame()
         }
 		#endif
 		if( OriginalMenu ){
-			if( LoadOnStart ){ // сразу загружать заданную запись для быстрой сверки
+			if( LoadOnStart ){ // (rt) load the specified save immediately for a quick comparison
 				LoadCharSlots(nullptr);
 				singlePlayerSelection = NewGameOnStart ? HM_1_NEW_GAME : HM_2_LOAD_GAME;
-				strcpy( HeroName, CharNameSlots[ AutoLoadSlot ] ); // где то в hell.dll определяется номер текущей записи
+				strcpy( HeroName, CharNameSlots[ AutoLoadSlot ] ); // (rt) the current save number is determined somewhere in hell.dll
 			}else{
 				if( !UiSelHeroSingDialog(LoadCharSlots, UiCreateHero, DeleteCharSlot,	GetStartingStatsByClass, &singlePlayerSelection, HeroName, &Difficulty, Enable5Class, Enable6Class) ){
 					TerminateWithError("Unable to display SelHeroSing");
@@ -124,7 +124,7 @@ int SinglePlayerGame()
 					return 1;
 				}
 			}
-        }else{ // код для использования без оригинального мета меню
+        }else{ // (rt) code for use without the original meta menu
             LoadCharSlots(nullptr);
             ShowCursor(1);
             singlePlayerSelection = DialogBox(HInstance, MAKEINTRESOURCE(IDD_SINGLEPLAYER), ghMainWnd, SinglePlayerDialogProc);
@@ -144,14 +144,14 @@ int __fastcall DoMenu(int heroMenuSelection)
     if( heroMenuSelection == HM_4_CANCEL ){
         result = 1;
     }else{
-        StopMusic();
+        StopMusic();	// (th4) meta menu <-> game switches music at once, no crossfade (SoundBuffer.cpp MUSIC_FADE_MS)
         gbRunGameResult = StartGame(heroMenuSelection != HM_2_LOAD_GAME, heroMenuSelection != HM_3_NETWORK_GAME );
         if( gbRunGameResult ){
             StartMenuMusic();
         }
         result = gbRunGameResult;
     }
-    //LoadMainMenuPalette(); // уже не нужны, так как загружаются из оригинальной таблицы storm.dll
+    //(rt) LoadMainMenuPalette(); // no longer needed, since they are loaded from the original storm.dll table
     return result;
 }
 
@@ -165,9 +165,9 @@ int MultiPlayerGame()
 			IsFastWalkEnabled = 1;
 		}
 		MaxCountOfPlayersInGame = 4;
-		// надо добавить авто создание сетевой игры заданного сейва
-		// через меню th в разных потоках не может создать одновременно два подменю выбора игрока, не реентарабельно
-		if( LoadOnStart ){ // сразу загружать заданную запись для быстрой сверки
+		// (rt) auto-creation of a network game for a given save should be added
+		// (rt) via the th menu, two player-selection submenus can't be created at once in different threads; not reentrant
+		if( LoadOnStart ){ // (rt) load the specified save immediately for a quick comparison
 			LoadCharSlots(nullptr);
 			multiPlayerSelection = HM_3_NETWORK_GAME;
 			strcpy( HeroName, CharNameSlots[ AutoLoadSlot ] );

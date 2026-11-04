@@ -27,7 +27,7 @@ struct TransmuteInfo
 
 struct DungeonInfo
 {
-	// swap weapon info сохраняется отдельным от игрока блоком в сейве
+	// (rt) swap weapon info is saved as a block separate from the player in the save
 	Player                          _1;
 	LastPlayerInfo                  _2;
 	decltype(PlayerMap            ) _3;
