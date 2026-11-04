@@ -35,15 +35,17 @@ For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.m
    - **Option A:** Use your existing Diablo 1 installation directory
    - **Option B:** Create a new "Diablo The Heaven" folder and copy `DIABDAT.MPQ` there
 
-2. **Download [The Hell 4](https://www.moddb.com/mods/diablo-the-hell-4/downloads/th4)** (v0.774) from ModDB, extract it, and copy `TH4data.mor` to your chosen directory
+2. **Get The Hell 4 v0.774** and copy its `TH4data.mor` to your chosen directory. Use your own copy of v0.774, or download the [backup copy](https://drive.google.com/file/d/1p50lTU8JDtfFM8lgLKiXp9vUwr3V4ROT/view) (`TH4_v0.774.7z`, extract it with [7-Zip](https://www.7-zip.org/)). The Heaven is built on v0.774, so `TH4data.mor` from an older TH4 won't work
 
 3. **Download The Heaven mod** from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases) and extract all files to the same directory
 
 4. **Run `TheHeaven.exe`** and enjoy!
 
-### Case 2: Existing TH4 Installation
+### Case 2: Existing TH4 v0.774 Installation
 
 > **Important:** Make a backup copy of your TH4 folder before upgrading. Do not mix The Heaven saves with The Hell 4 saves — they are not compatible.
+>
+> If your TH4 is older than v0.774, follow Case 1 instead.
 
 1. **Download The Heaven mod** from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases)
 

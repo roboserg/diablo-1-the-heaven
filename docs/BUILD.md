@@ -63,6 +63,8 @@ TH4data.mor     from The Hell 4 v0.774 (required: graphics and sounds)
 config.ini      from The Hell 4 v0.774 (optional; created on first launch otherwise)
 ```
 
+No TH4 v0.774? Download the [backup copy](https://drive.google.com/file/d/1p50lTU8JDtfFM8lgLKiXp9vUwr3V4ROT/view) (`TH4_v0.774.7z`) and take `TH4data.mor` and `config.ini` from it.
+
 Then launch `TheHeaven.exe`.
 
 ---
