@@ -69,6 +69,13 @@ enum STRING_TABLE
 	STR_83_New_hero_classic = 83,
 	STR_84_Classic_char = 84,
 	STR_85_Murder_classic = 85,
+	STR_86_New_hero_outbreak = 86,
+	STR_87_Outbreak_char = 87,
+	STR_88_Murder_outbreak = 88,
+	STR_89_New_hero_dark_campaign = 89,	// (th4) Dark Campaign
+	STR_90_Dark_campaign_char = 90,		// (th4)
+	STR_91_Murder_dark_campaign = 91,	// (th4)
+	STR_92_New_villain = 92,			// (th4) Dark Campaign list entry
 
 	STR_1003_Horror_difficulty = 1003,
 	STR_1008_Enter_game_name = 1008,
@@ -95,6 +102,7 @@ enum STRING_TABLE
 	STR_1068_Rogues_Descriptions_Start = 1068,
 	STR_1072_Savages_Descriptions_Start = 1072,
 	STR_1084_Druid_Description = 1084,
+	STR_1085_Gladiatrix_Description = 1085,
 
 	STR_1076_Summoners_Descriptions_Start = 1076,
 	STR_1079_Gladiators_Descriptions_Start = 1079,
@@ -156,6 +164,7 @@ extern char *GameName_1;
 extern DWORD ErrorCode;
 
 int __fastcall SelectOk_2( HWND hdlg, char *errorString, char *dlgTitleText, int dlgHasPentagram );
+void LoadStringL( UINT id, char* buf, int bufSize, const char* lead, const char* key ); // (th4) Hell.cpp: localized LoadStringA for OK boxes/titles
 int InitSelection();
 TextWin* __cdecl AllocTextWin();
 int __fastcall LoadDialogBackground( HWND hwnd, HWND parent, char *dlgTypeName, int mask, int flag, char *PicFileName, unsigned __int8 **dlgDataSurface, SIZE *size, int isMenuPalette );
@@ -186,7 +195,7 @@ int __stdcall UiCategoryCallback(int a1, int a2, user_info* userInfo, int a4, in
 // BattleGetCursorLink
 HCURSOR __stdcall UiGetDataCallback( int provider, int cursorType, CursorLink *cursorLink, unsigned int curSizeNeed, unsigned int *curSizeGet );
 
-// BattleGetErrorString, возможно это авторизация для battle.net, так как в ней есть только три основных класса (даже без монаха)
+// (rt) BattleGetErrorString; possibly battle.net authorization, since it has only the three basic classes (not even the monk)
 int __stdcall UiAuthCallback( int isCallbackIf1, char *playerName, char *aPlayerDescription, char flag, char *gameStatString, LPSTR errorTextBuffer, int cchBufferMax );
 
 // BattlePlaySound

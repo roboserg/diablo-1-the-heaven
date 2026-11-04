@@ -42,20 +42,20 @@ void __fastcall UpdateHash( ShaInfo& info, uchar* buffer, int size )
 void __fastcall TransformHash( ShaInfo& info )
 {
 	int w[80] {};
-	// 16 слов по 32-бита дополняются до 80 32-битовых слов:
+	// (rt) 16 32-bit words are extended to 80 32-bit words:
 	memcpy(w, info.data, SHA1_BLOCK_SIZE);
 	for( int i = 16; i < 80; i++ ){
-		w[i] = w[i - 3] ^  w[i - 8] ^ w[i - 14] ^ w[i - 16];// циклический сдвиг влево 1
+		w[i] = w[i - 3] ^  w[i - 8] ^ w[i - 14] ^ w[i - 16];// (rt) rotate left by 1
 	}
 
-	// Инициализация хеш-значений этой части:
+	// (rt) Initialize the hash values of this part:
 	int a = info.digest[0];
 	int b = info.digest[1];
 	int c = info.digest[2];
 	int d = info.digest[3];
 	int e = info.digest[4];
 
-	// Основной цикл:
+	// (rt) Main loop:
 	int f, k;
 	#define S(n,x) ((x << n) | (x >> (32 - n)))
 	#define CALC int temp = S(5, a) + f + e + k + w[i]; e = d; d = c; c = S(30, b); b = a; a = temp
@@ -83,7 +83,7 @@ void __fastcall TransformHash( ShaInfo& info )
 	#undef S
 	#undef CALC
 
-	// Добавляем хеш-значение этой части к результату:
+	// (rt) Add this part's hash value to the result:
 	info.digest[0] += a;
 	info.digest[1] += b;
 	info.digest[2] += c;

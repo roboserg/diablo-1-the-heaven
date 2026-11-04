@@ -10,7 +10,7 @@ int __fastcall CalculateManaRequiredToCastSpell(int casterIndex, int spellIndex)
 	if( spellLevelToDecrement > 0 ){
 		spellDecrement = spellLevelToDecrement * spell.ManaDecrementOnLevel;
 	}
-	// Если фаер болт, делим пополам
+	// (rt) If Firebolt, halve it
 	if( spellIndex == PS_1_FIREBOLT ){
 		spellDecrement /= 2;
 	}
@@ -19,7 +19,7 @@ int __fastcall CalculateManaRequiredToCastSpell(int casterIndex, int spellIndex)
 		spellDecrement = spellLevelToDecrement * ((uint)spell.InitialManaToCast >> 3);
 	}
 	int initialManaToCast = spell.InitialManaToCast;
-	// Если -1, значит тратим абсолютно всю имеющуюся ману.
+	// (rt) If -1, spend absolutely all available mana.
 	int manaToCast;
 	if( initialManaToCast == -1 ){
 		manaToCast = player.MaxBaseMana;
@@ -28,7 +28,17 @@ int __fastcall CalculateManaRequiredToCastSpell(int casterIndex, int spellIndex)
 	}
 	int calculatedCostMana = (manaToCast - spellDecrement) * 64;
 	if( spellIndex == PS_2_HEALING ){
-		calculatedCostMana = GetHealManaCost( Spells[PS_2_HEALING].InitialManaToCast + 2 * player.CharLevel - spellDecrement, 8) << 6;
+		if( GameMode == GM_CLASSIC ){
+			// (th4) CLASSIC keeps the original Diablo / Hellfire cost -- Jarulf's Guide v1.62, 4.1.5, footnote 4: "Heal and
+			// Heal Other cost 8 + 2*clvl - 3*slvl mana to cast". That is the same 5 + 2*clvl - 3*(slvl-1) as below
+			// (Spells[] InitialManaToCast 5, ManaDecrementOnLevel 3), WITHOUT The Hell's clamp to a share of the max
+			// mana (GetHealManaCost). As in the original, it never goes below 0 here, and the table's minimum (MinimalMana
+			// 1) is applied further down.
+			const int m = Spells[PS_2_HEALING].InitialManaToCast + 2 * player.CharLevel - spellDecrement;
+			calculatedCostMana = ( m > 0 ? m : 0 ) << 6;
+		}else{
+			calculatedCostMana = GetHealManaCost( Spells[PS_2_HEALING].InitialManaToCast + 2 * player.CharLevel - spellDecrement, 8) << 6;
+		}
 	}
 	if( spellIndex == PS_34_HEAL_OTHER ){
 		calculatedCostMana = GetHealOtherManaCost( Spells[PS_2_HEALING].InitialManaToCast + 2 * player.CharLevel - spellDecrement, 20) << 6;
@@ -39,21 +49,21 @@ int __fastcall CalculateManaRequiredToCastSpell(int casterIndex, int spellIndex)
 	if( player.effectFlag[EA_MANACOST] ){
 		calculatedCostMana -= calculatedCostMana / 4; // -25%
 	}
-	// Классовые скидки стоимости заклинаний
+	// (rt) Class discounts on spell cost
 	#ifdef CLASS_DISCOUNT
 	int playerClass = player.ClassID;
 	if( playerClass == PC_2_MAGE ){
-		calculatedCostMana /= 2;// Магу скидка на стоимость 50%
+		calculatedCostMana /= 2;// (rt) 50% cost discount for the Mage
 	}else if( playerClass == PC_1_ARCHER || playerClass == PC_3_MONK || playerClass == PC_4_ROGUE ){
-		calculatedCostMana -= calculatedCostMana / 4;// Лучнице, монаху и аське скидка 25%
+		calculatedCostMana -= calculatedCostMana / 4;// (rt) 25% discount for the Archer, Monk and Assassin
 	}
 	#endif
-	// Если в результате получилась цена маны меньше минимальной, приравниваем её к минимальной
+	// (rt) If the resulting mana cost is below the minimum, set it to the minimum
 	int minimalMana = Spells[spellIndex].MinimalMana;
 	if( minimalMana > calculatedCostMana / 64 ){
 		calculatedCostMana = minimalMana * 64;
 	}
-	return calculatedCostMana; // * (100 - player.ExtraSpellVal) / 100; // оригинальная баго фича, здесь по идее должно было быть ExtraSpellLevel
+	return calculatedCostMana; // (rt) * (100 - player.ExtraSpellVal) / 100; // original bug/feature; it should presumably have been ExtraSpellLevel here
 }
 
 //----- (00714810) ---------------------------------------------------------
@@ -163,7 +173,7 @@ void __fastcall CastPlayerSpell(int casterIndex, int spellIndex, int casterX, in
 	if( casterType == CT_0_PLAYER ){
 		direction = Players[ casterIndex ].dir;
 		int baseMissile = PS_0_NONE;
-		switch (spellIndex) { // стена/кольцо молний и стена/кольцо огня.  This should exclude Bombardier's flask flames.
+		switch (spellIndex) { // (rt) lightning wall/ring and fire wall/ring.  This should exclude Bombardier's flask flames.
 		case PS_6_FIRE_WALL:
 		case PS_19_FLAME_RING:
 			baseMissile = MI_5_FIRE_WALL_SEGMENT; // Why not MI_81_FLAME_RING???
@@ -176,7 +186,7 @@ void __fastcall CastPlayerSpell(int casterIndex, int spellIndex, int casterX, in
 			break;
 		}
 
-		if( baseMissile ){ // убирание предыдущих кастов стен/кольц огня/молнии.
+		if( baseMissile ){ // (rt) removing previous casts of fire/lightning walls/rings.
 			direction = Players[casterIndex].newDirection;
 			if (SpellIdxToWallType.find(spellIndex) != SpellIdxToWallType.end()) { // If spell type is one of the recast types, remember spell parameters for recast.
 				uchar wallSpellIndex = SpellIdxToWallType[spellIndex];
@@ -202,14 +212,14 @@ void __fastcall CastPlayerSpell(int casterIndex, int spellIndex, int casterX, in
 		direction = Monsters[ casterIndex ].Orientation;
 	} // else caster is trap ?
 	for( int i = 0; i < 3 && spell.Effect[ i ]; i++ ){
-		CastMissile( casterX, casterY, targetX, targetY, direction, spell.Effect[ i ], casterType, casterIndex, 0, spellLevel, spellIndex ); // Dragon здесь кастуется манашилд
+		CastMissile( casterX, casterY, targetX, targetY, direction, spell.Effect[ i ], casterType, casterIndex, 0, spellLevel, spellIndex ); // (rt) Dragon: mana shield is cast here
 	}
 	if( spell.Effect[ 0 ] == MI_10_TOWN_PORTAL ){ // Town portal
-		MinusManaOrChargeOrRelicByPriceOfSSpell( casterIndex, PS_7_TOWN_PORTAL );// Почему взятие платы не добавили туда к порталу или наоборот все взятие платы не добавили сюда?
+		MinusManaOrChargeOrRelicByPriceOfSSpell( casterIndex, PS_7_TOWN_PORTAL );// (rt) Why wasn't the cost deduction added to the portal, or all cost deduction moved here instead?
 	}
-	if( spell.Effect[ 0 ] == MI_52_CHARGED_BOLT ){ // Костыль. По хорошему нужно сделать как у всех нормальных кастов. две составляющих.
-												 // одна берёт плату и создаёт болты, а другая собственно болты.
-												 // Charged bolt молния
+	if( spell.Effect[ 0 ] == MI_52_CHARGED_BOLT ){ // (rt) Workaround. Properly this should be done like all normal casts, with two parts:
+												 // (rt) one takes the cost and creates the bolts, the other is the bolts themselves.
+												 // (rt) Charged bolt lightning
 		MinusManaOrChargeOrRelicByPriceOfSSpell( casterIndex, PS_30_CHARGED_BOLT );
 		int boltCount = (spellLevel / 4) + 2;
 		while( boltCount-- ){

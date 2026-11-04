@@ -37,7 +37,7 @@ void __fastcall DeltaRemovePlayer( int playerIndex)
 }
 
 //----- (00417AAF) --------------------------------------------------------
-void __fastcall DThreadSendPLayerInfoChunk( int playerIndex, char cmd, void* src, size_t size)
+void __fastcall DThreadSendPlayerInfoChunk( int playerIndex, uchar cmd, void* src, size_t size)
 {
 	if( MaxCountOfPlayersInGame == 1 ) return;
 

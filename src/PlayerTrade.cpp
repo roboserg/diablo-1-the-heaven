@@ -1,9 +1,10 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
-// Модуль всех действий с горожанами
+// (rt) Module for all interactions with townspeople
 
 int Put2x2ItemToInventoryCellsOrder [10] = { 8, 28, 6, 26, 4, 24, 2, 22, 0, 20}; // 004A0DE8
-int TopSelectedRow;// 006EE898 // индекс строки на экране в которой находится самая верхнаяя из показанных вещей
+int TopSelectedRow;// (rt) 006EE898 // index of the screen row holding the topmost displayed item
 int DialogRowsCount;// 006EE89C
 int SelectedDialogRowInPrevDialog;// 006EE8A0
 Item WirtItem;// 006EE8A8
@@ -30,10 +31,10 @@ int SelectedDialogRow;// 006FC850
 char DialogScrollDownDelay;// 006FC854
 int EndIndexOfGossibSpeechByCurrentCityzen;// 006FC858
 char* PentSpn2CELPtr;// 006FC85C
-int FirstVisibleItem;// 006FC860 // индекс самой первой из показанных вещей
+int FirstVisibleItem;// (rt) 006FC860 // index of the first displayed item
 int WirtItemHalfQlvl;// 006FC864
 Item BasicalItemsArray[PT_BasicItemsCount];// 006FC868
-int BottomSelectedRow;// 006FECBC // индекс строки на экране в которой находится самая нижняя из показанных вещей
+int BottomSelectedRow;// (rt) 006FECBC // index of the screen row holding the bottommost displayed item
 char DialogScrollUpDelay;// 006FECC0
 PLAYER_DIALOG CurrentDialogIndex;// 006FECC4
 
@@ -125,7 +126,7 @@ void ShopItemsGenerationByPlayerLevel()
         return;
     }
 
-    SetRndSeed(DungeonRandSeed[(DUNGEON)Dungeon] * ms(GetTickCountTh())); // перехватываем вызов
+    SetRndSeed(DungeonRandSeed[(DUNGEON)Dungeon] * ms(GetTickCountTh())); // (rt) intercept the call
     int itemQualityLevel = ShopQlvl(player);
 
     PutGoldBaseData();
@@ -204,6 +205,25 @@ void FreeCELPtr()
 
 //Interface
 
+// (th4) TOWNER DIALOG PLACEMENT.
+// The NPC service window (DrawTownerDialog) and everything drawn into it -- rows, separator
+// lines, pentagrams, the right-aligned price column, the scroll bar -- was written for a
+// 640x480 screen with hardcoded positions: the half-width menu box at x 344, the full-width
+// list box at x 24, both with their bottom edge at y 327 (the classic layout DrawDialogBox's
+// own x==0 / y==0 defaults still produce). At larger resolutions it stayed in that top-left
+// 640x480 corner.
+// DrawTownerDialog now places the box centred on the screen, in the area ABOVE the main
+// panel (GUI_MainPanelHeight), and DrawDialogBox records how far that is from the classic
+// spot. Every hardcoded position below adds DialogShiftX / DialogShiftY, so the text keeps
+// its exact classic offset INSIDE the box. Mouse picking needs nothing: it reads DialogWin,
+// which is set from the real position right here.
+// Only the two towner box widths get a shift. Help.cpp draws the full-width box through the
+// same row functions at the classic spot (x = 0), which yields a shift of 0, so the help
+// screen is unchanged; Speeches.cpp uses its own width and its own text code, also shift 0.
+// Anchor to verify against: at 640x480 the full-width box still lands on x 24, y 327.
+int DialogShiftX = 0, DialogShiftY = 0;
+enum { DIALOG_CLASSIC_FULL_X = 24, DIALOG_CLASSIC_HALF_X = 344, DIALOG_CLASSIC_BOTTOM = 327 };
+
 //----- (th2) -------------------------------------------------------------
 void __fastcall DrawDialogBox( int width, int height, char* bitmap, int x, int y )
 {
@@ -211,7 +231,20 @@ void __fastcall DrawDialogBox( int width, int height, char* bitmap, int x, int y
 	int rollback = 0;
 	if( ! x ) x = (/*ScreenWidth*/ GUI_Width - width) / 2;
 	if( ! y ) y = height + ((GUI_Height/*ScreenHeight*/ - height - GUI_MainPanelHeight) / 2) + 8;
+	if( width == Dialog_591_Width ){          // (th4) see TOWNER DIALOG PLACEMENT above
+		DialogShiftX = x - DIALOG_CLASSIC_FULL_X; DialogShiftY = y - DIALOG_CLASSIC_BOTTOM;
+	}else if( width == Dialog_HalfWidth ){
+		DialogShiftX = x - DIALOG_CLASSIC_HALF_X; DialogShiftY = y - DIALOG_CLASSIC_BOTTOM;
+	}else{
+		DialogShiftX = 0; DialogShiftY = 0;
+	}
 	extern RECT DialogWin; DialogWin = { x, y - height + 1, x + width - 1, y };
+	// (th4) Register the panel so true-colour icons under it dim with the 8-bit art, and
+	// so the text drawn into it afterwards can be lifted back above them.
+	ItemOverlay_QueueDimRect( x, y - height + 1, width, height, 0.50f );
+	// (th4) DYNAMIC ZOOM: the checkerboard below lets the world show through; the zoom must keep that world
+	// zoomed (DynamicZoom.cpp SEE-THROUGH BOXES). Its rows run y-3 .. y-height+3, its columns from x+3 on.
+	DynZoom_NoteSeeThrough( x + 3, y - height + 3, x + width - 2, y - 2 );
 	x += Screen_LeftBorder;
 	y += Screen_TopBorder;
 	Surface_DrawCEL( x, y, bitmap, 1, width );
@@ -235,6 +268,7 @@ void __fastcall DrawDialogBox( int width, int height, char* bitmap, int x, int y
 		}
 		currentPixel -= rollback + YOffsetHashTable[ 1 ];
 	}
+	ItemOverlay_SnapshotDimRect();	// (th4) dithered, no text yet
 }
 
 //----- (0046C61C) --------------------------------------------------------
@@ -247,66 +281,115 @@ void __fastcall DrawGameDialogTitleText( int position, int rowIndex, int isAlign
     if( IsBigMenuBox ){
         width = 577;//588;
 		height = 302;
-		xPos = Screen_LeftBorder + 32;//((WorkingWidth - width) >> 1);
-		yPos = Screen_TopBorder + 44 + TownersDialogRows[ rowIndex ].verticalIndent + StringRowYPosition[ rowIndex ];
+		xPos = Screen_LeftBorder + 32 + DialogShiftX;//((WorkingWidth - width) >> 1);
+		yPos = Screen_TopBorder + 44 + DialogShiftY + TownersDialogRows[ rowIndex ].verticalIndent + StringRowYPosition[ rowIndex ];
     }else{
         width = 257;//268;
 		height = 302;
-		xPos = Screen_LeftBorder + 346;//((WorkingWidth - width) >> 1);
-		yPos = Screen_TopBorder + 44 + TownersDialogRows[ rowIndex ].verticalIndent + StringRowYPosition[ rowIndex ];
+		xPos = Screen_LeftBorder + 346 + DialogShiftX;//((WorkingWidth - width) >> 1);
+		yPos = Screen_TopBorder + 44 + DialogShiftY + TownersDialogRows[ rowIndex ].verticalIndent + StringRowYPosition[ rowIndex ];
     }
     int charPos = YOffsetHashTable[yPos] + position + xPos;
     size_t len = strlen(rowText);
     
     int indent = 0;
-    if( isAligned ){
-        indent = width;
-        // Из длинны отведенной под строку отнимаем ширину каждой буквы и ширину расстояния между буквами
-        for( size_t i = 0; i < len; i++ ){
-            indent -= FontWidthSmall[FontIndexSmall[Codepage[rowText[i]]]] + 1;
+    // (th4) SNOWBOUND TOWN (Mordor, 2026-10-11): the box lets the world show through its dither (DrawDialogBox), and
+    // over the Ice Age town's white SNOW GROUND (dx_utility.cpp SnowGround_Active: Tristram and Ravenholm) the letters
+    // got lost in it. There every row is drawn with the small font's black outline -- DrawLetter's own, the one the
+    // on-screen texts use (OnScreenTextOutline). The speech window does the same: Speeches.cpp DrawLetterInSpeech.
+    // Help.cpp's help screen draws its rows through here too, so it gets the outline in the snow as well.
+    const bool outline = SnowGround_Active();
+
+    // (th4) ARABIC: shape ONCE here, then derive both the horizontal offset and the
+    // pentagram position from the same number. The old code measured the row byte by
+    // byte for the offset but shifted the text separately inside the draw branch, so
+    // `indent` stayed 0 on non-centred rows and the selection pentagram was left
+    // stranded at the far left while the text sat over on the right.
+    static AR_Glyph arG[ 256 ];
+    int arN = 0, arW = 0;
+    if( GameLanguage == LANG_AR ){
+        arN = AR_Layout( rowText, arG, 256 );
+        for( int k = 0; k < arN; ++k ){
+            if( arG[k].isForm )   arW += AR_Advance( arG[k].cell, 0 );
+            else if( arG[k].raw ) arW += FontWidthSmall[ FontIndexSmall[ Codepage[ arG[k].raw ] ] ] + 1;
         }
-        // Получаем разницу между максимальной шириной и используемой. Поделив пополам получаем отступ
+        // Centred rows centre. Every other row hangs off the RIGHT margin, but the
+        // second pentagram is pinned near the panel edge on those rows, so leave it
+        // 20px or the marker would sit on top of the first word.
+        if( arW < width ) indent = isAligned ? ( ( width - arW ) >> 1 ) : ( width - arW - 20 );
+        if( indent < 0 ) indent = 0;
+        charPos += indent;
+    }
+    else if( isAligned ){
+        indent = width;
+        // (rt) Subtract the width of each letter and the letter spacing from the length reserved for the line
+        for( size_t i = 0; i < len; ){ // (th4) CHI: step by character, not byte
+            int lid, w;
+            i += ChiNextSmall( (const uchar*)rowText + i, &lid, &w );
+            indent -= w + 1;
+        }
+        // (rt) Get the difference between the maximum and the used width; half of it is the indent
         indent = indent >> 1;
         charPos += indent;
     }
 
-    // Рисуем пентаграмму левую если строка выделена
+    // (rt) Draw the left pentagram if the line is selected
     if( SelectedDialogRow == rowIndex ){
         int pentagramPos = indent + xPos + position - 20;
         Surface_DrawCEL(pentagramPos, yPos + 1, PentSpn2CELPtr, CursorPentAnimationNumber, 12);
     }
 
-    // пишем все буквы строки
-    for( size_t i = 0; i < len; i++ ){
-        uchar currentChar = FontIndexSmall[Codepage[rowText[i]]];
-        indent += FontWidthSmall[currentChar] + 1;
-        if( currentChar && indent <= width ){
-            DrawLetter(charPos, currentChar, color);
+    // (rt) write all the letters of the line
+    // (th4) ARABIC. This panel is why the NPC dialog box came up EMPTY: the loop below
+    // asks ChiNextSmall for a letter id per byte pair, and ChiLetterID returns -1 for
+    // Arabic on purpose (a stored pair is a base letter, the font holds forms), so
+    // DrawLetter's guard skipped every glyph. The row is shaped once above instead.
+    if( GameLanguage == LANG_AR ){
+        // arG/arW were shaped above; charPos already carries the alignment offset.
+        int arX = charPos;
+        for( int k = 0; k < arN; ++k ){
+            if( arG[k].isForm ){
+                DrawLetter( arX, AR_FIRST_ID + arG[k].cell, color, outline );
+                arX += AR_Advance( arG[k].cell, 0 );
+            }else if( arG[k].raw ){
+                const int li = FontIndexSmall[ Codepage[ arG[k].raw ] ];
+                if( li ) DrawLetter( arX, li, color, outline );
+                arX += FontWidthSmall[ li ] + 1;
+            }
         }
-        charPos += FontWidthSmall[currentChar] + 1;
+        indent += arW;   // the Latin loop below accumulates too; the 2nd pentagram reads it
+    }else
+    for( size_t i = 0; i < len; ){ // (th4) CHI: step by character; currentChar widened for CJK
+        int currentChar, w;
+        i += ChiNextSmall( (const uchar*)rowText + i, &currentChar, &w );
+        indent += w + 1;
+        if( currentChar && indent <= width ){
+            DrawLetter(charPos, currentChar, color, outline);
+        }
+        charPos += w + 1;
     }
 
-    // с правого края, справа пишем цифру золота, с выравниванием по правому краю.
+    // (rt) at the right edge, write the gold amount right-aligned
     if( !isAligned && gold >= 0 ){
         char goldString[32];
         sprintf(goldString, "%i", gold);
-        charPos = YOffsetHashTable[yPos] - position + Screen_LeftBorder + 592; // + xPos + width - CELL_SIZE;
+        charPos = YOffsetHashTable[yPos] - position + Screen_LeftBorder + 592 + DialogShiftX; // + xPos + width - CELL_SIZE;
         for( int i = strlen(goldString) - 1; i >= 0; i-- ){
             uchar currentChar = FontIndexSmall[Codepage[goldString[i]]];
             charPos += - 1 - FontWidthSmall[currentChar];
             if( currentChar ){
-                DrawLetter(charPos, currentChar, color);
+                DrawLetter(charPos, currentChar, color, outline);
             }
         }
     }
 
-    // рисуем правую пентаграмму у выделенной строки
+    // (rt) draw the right pentagram for the selected line
     if( SelectedDialogRow == rowIndex ){
         int pentagramPos;
         if( isAligned ){
             pentagramPos = indent + xPos + position + 4;
         }else{
-            pentagramPos = Screen_LeftBorder + 596 - position; // xPos + width - CELL_SIZE;
+            pentagramPos = Screen_LeftBorder + 596 + DialogShiftX - position; // xPos + width - CELL_SIZE;
         }
         Surface_DrawCEL(pentagramPos, yPos + 1, PentSpn2CELPtr, CursorPentAnimationNumber, 12);
     }
@@ -315,7 +398,7 @@ void __fastcall DrawGameDialogTitleText( int position, int rowIndex, int isAlign
 //----- (0046C82A) --------------------------------------------------------
 void __fastcall DrawDialogLine( int rowIndex )
 {
-    // Линия получается путем копирования верхней линии бокса
+    // (rt) The line is made by copying the top line of the box
     int width;
     int height;
 	int xPos;
@@ -323,18 +406,25 @@ void __fastcall DrawDialogLine( int rowIndex )
     if( IsBigMenuBox ){
         width = 586;
         height = 302;
-		xPos = Screen_LeftBorder + 26;//(WorkingWidth - width) / 2;
-		yPos = Screen_TopBorder + 25;//Screen_TopBorder + ((ScreenHeight - height - 144) / 2);
+		xPos = Screen_LeftBorder + 26 + DialogShiftX;//(WorkingWidth - width) / 2;
+		yPos = Screen_TopBorder + 25 + DialogShiftY;//Screen_TopBorder + ((ScreenHeight - height - 144) / 2);
     }else{
         width = 266;
         height = 302;
-		xPos = Screen_LeftBorder + 346;// (WorkingWidth - width) / 2;
-		yPos = Screen_TopBorder + 25;//Screen_TopBorder + ((ScreenHeight - height - 144) / 2);
+		xPos = Screen_LeftBorder + 346 + DialogShiftX;// (WorkingWidth - width) / 2;
+		yPos = Screen_TopBorder + 25 + DialogShiftY;//Screen_TopBorder + ((ScreenHeight - height - 144) / 2);
     }
     uchar* dst = &WorkingSurface[xPos] + YOffsetHashTable[yPos + StringRowYPosition[rowIndex] + 13];
     uchar* src = &WorkingSurface[xPos] + YOffsetHashTable[yPos];
     for( int i = 0; i < 3; i++ ){
         memcpy(dst, src, width);
+        // (th4) Stage 2 (2026-09-04): the copied separator is UI ink drawn
+        // without RleDraw — clear the alpha overlay under the row so occluded
+        // sprites don't composite on top of the line (Rev 2.33).
+        AlphaOverlayClearRow(dst, width);
+        // (th4) Stage 3 (2026-09-05): same for the colored-light tint — the
+        // separator line must not be multiplied by the world's light color.
+        TintClearRow(dst, width);
         dst += WorkingWidth;
         src += WorkingWidth;
     }
@@ -349,33 +439,33 @@ void __fastcall DrawDialogScroolBox( int firstRow, int lastRow )
     int scrollXOffset = 2;
     int scrollYOffset = 5;
     int xPos = ((WorkingWidth - width) >> 1);
-    int yPos = Screen_TopBorder + 44; // Screen_TopBorder + ((ScreenHeight - height - 144) >> 1) + scrollYOffset;
+    int yPos = Screen_TopBorder + 44 + DialogShiftY; // Screen_TopBorder + ((ScreenHeight - height - 144) >> 1) + scrollYOffset;
     int scrollUp = StringRowYPosition[firstRow] + yPos;
     int scroolBottom = StringRowYPosition[lastRow] + yPos;
 
-    // стрелка вверх
+    // (rt) up arrow
     int scrollBoxPicIndex;
     if( DialogScrollUpDelay == -1 ){
         scrollBoxPicIndex = 10;
     }else{
         scrollBoxPicIndex = 12;
     }
-    Surface_DrawCEL(Screen_LeftBorder + 601/*xPos + width - scrollWidth - scrollXOffset*/, scrollUp, TextSlidCELPtr, scrollBoxPicIndex, 12);
+    Surface_DrawCEL(Screen_LeftBorder + 601 + DialogShiftX/*xPos + width - scrollWidth - scrollXOffset*/, scrollUp, TextSlidCELPtr, scrollBoxPicIndex, 12);
 
-    // стрелка вниз
+    // (rt) down arrow
     if( DialogScrollDownDelay == -1 ){
         scrollBoxPicIndex = 9;
     }else{
         scrollBoxPicIndex = 11;
     }
-    Surface_DrawCEL(Screen_LeftBorder + 601/*xPos + width - scrollWidth - scrollXOffset*/, scroolBottom, TextSlidCELPtr, scrollBoxPicIndex, 12);
+    Surface_DrawCEL(Screen_LeftBorder + 601 + DialogShiftX/*xPos + width - scrollWidth - scrollXOffset*/, scroolBottom, TextSlidCELPtr, scrollBoxPicIndex, 12);
 
-	// полоска
+	// (rt) bar
 	for( int i = scrollUp + 12; i < scroolBottom; i += 12 ){
-		Surface_DrawCEL(Screen_LeftBorder + 601/*xPos + width - scrollWidth - scrollXOffset*/, i, TextSlidCELPtr, 14, 12);
+		Surface_DrawCEL(Screen_LeftBorder + 601 + DialogShiftX/*xPos + width - scrollWidth - scrollXOffset*/, i, TextSlidCELPtr, 14, 12);
 	}
 
-	// ползунок
+	// (rt) thumb
 	int v11 = SelectedDialogRow;
 	if( SelectedDialogRow == PT_DialogRows_BigDialog_Back ){
 		v11 = SelectedDialogRowInPrevDialog;
@@ -386,7 +476,7 @@ void __fastcall DrawDialogScroolBox( int firstRow, int lastRow )
 	}else{
 		scroolBoxPos = (StringRowYPosition[lastRow] - StringRowYPosition[firstRow] - 24) * 1000 * (FirstVisibleItem + ((v11 - TopSelectedRow) / TradeRows)) / (DialogRowsCount - 1) / 1000;
 	}
-	Surface_DrawCEL(Screen_LeftBorder + 601/*xPos + width - scrollWidth - scrollXOffset*/, scrollUp + scroolBoxPos + 12, TextSlidCELPtr, 13, 12);
+	Surface_DrawCEL(Screen_LeftBorder + 601 + DialogShiftX/*xPos + width - scrollWidth - scrollXOffset*/, scrollUp + scroolBoxPos + 12, TextSlidCELPtr, 13, 12);
 }
 
 //----- (0046C9A5) --------------------------------------------------------
@@ -442,7 +532,7 @@ void __fastcall SetDialogRow( int position, int rowIndex, int isAligned, char* t
     TownersDialogRow& curDialogRow = TownersDialogRows[rowIndex];
     curDialogRow.position = position;
     curDialogRow.verticalIndent = 0;
-    strcpy(curDialogRow.text, text);
+    strcpy(curDialogRow.text, L(text)); // (th4) localized
     curDialogRow.isAligned = isAligned;
     curDialogRow.color = color;
     curDialogRow.isLine = false;
@@ -498,7 +588,7 @@ void __fastcall DrawBuyBasicalItems( int firstItem )
     for( int dialogRow = PT_DialogRows_BigDialog_ContentStart, itemNum = firstItem; dialogRow < 20 && itemNum < DialogRowsCount; dialogRow += TradeRows, itemNum++ ){
         Item& basicItem = BasicalItemsArray[itemNum];
         if( basicItem.ItemCode != IC_M1_NONE ){
-            // Выбор цвета
+            // (rt) Colour selection
             uchar color = C_0_White;
             if( basicItem.MagicLevel == ML_1_MAGIC ){
                 color = C_1_Blue;
@@ -506,7 +596,7 @@ void __fastcall DrawBuyBasicalItems( int firstItem )
             if( !basicItem.IsReqMet ){
                 color = C_2_Red;
             }
-            // Выбор полного или сокращённого имени
+            // (rt) Full or short name selection
             char* name; 
             if( basicItem.MagicLevel != ML_0_USUAL && basicItem.Identified ){
                 name = basicItem.FullMagicalItemName;
@@ -764,7 +854,7 @@ void __fastcall DrawPlayersItems(int firstItem, PLAYER_DIALOG Caller)
             continue;
         }
         char color = ItemColor(item);
-        // Выбор полного или сокращённого имени
+        // (rt) Full or short name selection
         char* name ; 
         if( item.MagicLevel != ML_0_USUAL && item.Identified ){
             name = item.FullMagicalItemName;
@@ -881,17 +971,17 @@ void RepairItemMenu()
     bool hasItemToRepair = false;
     DialogRowsCount = 0;
     IsBigMenuBox = true;
-    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// Обнуление
+    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// (rt) Reset
         PlayerItemsForSomeAction[i].ItemCode = IC_M1_NONE;
     }
-    for( int repairId = 0; repairId < countof(RepairSlot); ++repairId ){ // в оригинале без цикла. Небольшая оптимизация
+    for( int repairId = 0; repairId < countof(RepairSlot); ++repairId ){ // (rt) no loop in the original. A small optimization
         Item& item = player.OnBodySlots[RepairSlot[repairId]];
         if( item.ItemCode != IC_M1_NONE && item.CurDurability != item.BaseDurability ){
             hasItemToRepair = true;
             AddItemToRepairList(&item, RepairId[repairId] );
         }
     }
-	// добавление второго комплекта в список починки
+	// (rt) add the second set to the repair list
 	memcpy( &TempItem, &player.ItemOnCursor, sizeof( Item ) );
 
 	auto addAltWeapon = [&]( int altItemIndex, int inventoryItemIndex )
@@ -910,8 +1000,8 @@ void RepairItemMenu()
     addAltWeapon( AW_RightHand_2, PT_Repair_SecondRightHand_2 );
     
 	memcpy( &player.ItemOnCursor, &TempItem, sizeof( Item ) );
-	// добавление инвентаря в список починки
-    for( int repairId = 0; repairId < player.InvItemCount && DialogRowsCount < PT_48_PlayerItemsCount; repairId++ ){// Проходим по всем вещам в инвентаре
+	// (rt) add the inventory to the repair list
+    for( int repairId = 0; repairId < player.InvItemCount && DialogRowsCount < PT_48_PlayerItemsCount; repairId++ ){// (rt) Go through all items in the inventory
         if( ItemNeedRepair(repairId) ){
             hasItemToRepair = true;
             AddItemToRepairList(&player.InventorySlots[repairId], repairId);
@@ -942,12 +1032,12 @@ void __fastcall AddItemToRepairList( Item* linkOfItemSlot, int inventoryItemInde
 {   
     Item& item = PlayerItemsForSomeAction[DialogRowsCount];
     memcpy(&item, linkOfItemSlot, sizeof (Item));
-    if( item.MagicLevel != ML_0_USUAL && item.Identified ){// Если это магическая идентифицированая вещь
+    if( item.MagicLevel != ML_0_USUAL && item.Identified ){// (rt) If this is an identified magic item
         item.basePrice = 30 * item.Price / 100;
     }
     int priceOfRepair = item.basePrice * (25 * (item.BaseDurability - item.CurDurability) / item.BaseDurability) / 100;
     if( !priceOfRepair ){
-		#ifdef CLASSIC_NO_REPAIR // непочинка нераспознанных вещей отключена в th1
+		#ifdef CLASSIC_NO_REPAIR // (rt) not repairing unidentified items is disabled in th1
 		if( item.MagicLevel != ML_0_USUAL && item.Identified ) return;
 		#endif
         priceOfRepair = 1;
@@ -964,7 +1054,7 @@ void __fastcall AddItemToRepairList( Item* linkOfItemSlot, int inventoryItemInde
 void WitchAdriaMenu()
 {
     Player& player = Players[CurrentPlayerIndex];
-    if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC) {
+    if (GameMode != GM_COLISEUM && GameMode != GM_CLASSIC && !(player.gameChanger & BIT(GC_27_TERMINATOR))) {
         if (player.CurMana != player.MaxCurMana) {
             PlayGlobalSound(S_88_CAST9);
         }
@@ -997,7 +1087,7 @@ void __fastcall DrawAdriaItems( int firstItem )
         if( item.ItemCode == IC_M1_NONE ){
             continue;
         }
-        // Выбор цвета
+        // (rt) Colour selection
         uchar color = C_0_White;
         if( item.MagicLevel != ML_0_USUAL ){
             color = C_1_Blue;
@@ -1005,7 +1095,7 @@ void __fastcall DrawAdriaItems( int firstItem )
         if( !item.IsReqMet ){
             color = C_2_Red;
         }
-        // Выбор полного или сокращённого имени
+        // (rt) Full or short name selection
         char* name; 
         if( item.MagicLevel != ML_0_USUAL && item.Identified ){
             name = item.FullMagicalItemName;
@@ -1054,7 +1144,7 @@ int __fastcall CanSellItemToAdria( int inventoryIndex )
     int result = 0;
 	Player& player = Players[CurrentPlayerIndex];
     Item* itemPtr;
-    if( inventoryIndex < 0 ){// Если индекс отрцательный - смотрим пояс
+    if( inventoryIndex < 0 ){// (rt) If the index is negative, look at the belt
         itemPtr = &player.BeltInventory[-(inventoryIndex + 1)];
     }else{
         itemPtr = &player.InventorySlots[inventoryIndex];
@@ -1090,7 +1180,7 @@ void WitchAdriaSellMenu()
     Player& player = Players[CurrentPlayerIndex];
     IsBigMenuBox = true;
     DialogRowsCount = 0;
-    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// Обнуление
+    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// (rt) Reset
         PlayerItemsForSomeAction[i].ItemCode = IC_M1_NONE;
     }
 
@@ -1105,7 +1195,7 @@ void WitchAdriaSellMenu()
                 item.basePrice = item.Price;
             }
             item.basePrice /= PT_SellRatio;
-            LimitToMin(item.basePrice, 1); // в 1.216 минимум 1 монетка
+            LimitToMin(item.basePrice, 1); // (rt) minimum 1 coin in 1.216
             item.Price = item.basePrice;
             IndexOfPlayerItemInDialog[DialogRowsCount++] = inventoryItemIndex;
         }
@@ -1121,7 +1211,7 @@ void WitchAdriaSellMenu()
                 item.basePrice = item.Price;
             }
             item.basePrice /= PT_SellRatio;
-            LimitToMin(item.basePrice, 1); // в 1.216 минимум 1 монетка
+            LimitToMin(item.basePrice, 1); // (rt) minimum 1 coin in 1.216
             item.Price = item.basePrice;
             IndexOfPlayerItemInDialog[DialogRowsCount++] = -(beltItemIndex + 1);
         }
@@ -1178,20 +1268,20 @@ void RechargeItemMenu()
     Player& player = Players[CurrentPlayerIndex];
     IsBigMenuBox = true;
     DialogRowsCount = 0;
-    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// Обнуление
+    for( int i = 0; i < PT_48_PlayerItemsCount; i++ ){// (rt) Reset
         PlayerItemsForSomeAction[i].ItemCode = IC_M1_NONE;
     }
     bool hasStaffToRecharge = false;
 	Item tempItem;
-	for( int rechargeId = 0; rechargeId < IS_Inventory; ++rechargeId ){ // в оригинале без цикла. Небольшая оптимизация
+	for( int rechargeId = 0; rechargeId < IS_Inventory; ++rechargeId ){ // (rt) no loop in the original. A small optimization
 		Item& item = player.OnBodySlots[rechargeId];
-		if( item.ItemCode != IC_M1_NONE && item.CurCharges != item.BaseCharges ){// Палка надета и нуждается в подзарядке
+		if( item.ItemCode != IC_M1_NONE && item.CurCharges != item.BaseCharges ){// (rt) The staff is equipped and needs recharging
 			hasStaffToRecharge = true;
 			memcpy(&tempItem, &item, sizeof (Item));
 			AddItemToRechargeList(-(rechargeId + 1), 0, tempItem);
 		}
     }
-	// добавление второго комплекта в список зарядки
+	// (rt) add the second set to the recharge list
 	auto addAltWeapon = [&]( int altItemIndex, int inventoryItemIndex )
     {
 	    LoadItem( &WeaponSwapItems[ altItemIndex ], &tempItem );
@@ -1207,8 +1297,8 @@ void RechargeItemMenu()
     addAltWeapon( AW_LeftHand_2, PT_Recharge_SecondLeftHand_2 );
     addAltWeapon( AW_RightHand_2, PT_Recharge_SecondRightHand_2 );
     
-	// добавление инвентаря в список зарядки
-	for( int inventoryItemIndex = 0; inventoryItemIndex < player.InvItemCount && DialogRowsCount < PT_48_PlayerItemsCount; inventoryItemIndex++ ){// Палка в инвентаре
+	// (rt) add the inventory to the recharge list
+	for( int inventoryItemIndex = 0; inventoryItemIndex < player.InvItemCount && DialogRowsCount < PT_48_PlayerItemsCount; inventoryItemIndex++ ){// (rt) Staff in the inventory
         if( StaffNeedRecharge(inventoryItemIndex) ){
             hasStaffToRecharge = true;
             memcpy(&tempItem, &player.InventorySlots[inventoryItemIndex], sizeof (Item));
@@ -1258,12 +1348,12 @@ void NoRoom()
 void ConfirmActionMenu()
 {
     Player& player = Players[CurrentPlayerIndex];
-    // Расчистка места
+    // (rt) Clearing space
     ChangeTownerDialog(ConfirmationCaller);
     DialogHasScroolBox = false;
     ClearRowsInInterval(PT_DialogRows_BigDialog_ContentStart, PT_DialogRows_BigDialog_DialogEnd); 
     char itemMagicLevel = player.ItemOnCursor.MagicLevel;
-    // Задание цвета вещи
+    // (rt) Setting the item's colour
     int color = ItemColor(player.ItemOnCursor);
     if( !player.ItemOnCursor.IsReqMet ){
         color = C_2_Red;
@@ -1319,7 +1409,7 @@ void ConfirmActionMenu()
         case PD_8_RechargeItem:		confirmQwestion = "Are you sure you want to recharge this item?";	break;
         case PD_17_IdentifyItem:		confirmQwestion = "Are you sure you want to identify this item?";	break;
     }
-    // Выдача вопроса + вариантов ответа
+    // (rt) Show the question and the answer options
     strcpy(InfoPanelBuffer, confirmQwestion);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_11_Confirm_ConfirmQuestion, true, InfoPanelBuffer, C_0_White, false);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_11_Confirm_Yes, true, "Yes", C_0_White, true);
@@ -1332,17 +1422,33 @@ void WirtMainMenu()
     IsBigMenuBox = false;
     DialogHasScroolBox = false;
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_Logo, true, "Wirt the Peg-legged boy", C_3_Gold, false);
-	SetDialogLine( PT_DialogRows_5_SmallDialog_Separator );
-    if( WirtItem.ItemCode == IC_M1_NONE ){
-        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_NoItem_Talk, true, "Talk to Wirt", C_1_Blue, true);
-        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_NoItem_Leave, true, "Say goodbye", C_0_White, true);
-        return;
+    SetDialogLine(PT_DialogRows_5_SmallDialog_Separator);
+
+    Player& player = Players[CurrentPlayerIndex];
+    bool allowPowerups = true;
+
+    if (GameMode == GM_COLISEUM || GameMode == GM_CLASSIC || player.gameChanger & BIT(GC_27_TERMINATOR)) { 
+        allowPowerups = false; 
     }
-    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_Talk, true, "Talk to Wirt", C_1_Blue, true);
-    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_ActionLabel1, true, "I have something for sale,", C_3_Gold, false);
-    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_ActionLabel2, true, "but it will cost 50 gold", C_3_Gold, false);
-    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_ActionLabel3, true, "just to take a look. ", C_3_Gold, false);
-    SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_BuyItem, true, "What have you got?", C_0_White, true);
+   // if (player.gameChanger & BIT(GC_5_LOTL)) allowPowerups = false;
+    if (HasTrait(CurrentPlayerIndex, TraitId::Leper)) allowPowerups = false;
+
+    if (WirtItem.ItemCode == IC_M1_NONE) {
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_NoItem_Talk, true, "Talk to Wirt", C_1_Blue, true);
+        // NoItem_Leave is GONE - we'll use the real Leave at the bottom
+    }
+    else {
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_Talk, true, "Talk to Wirt", C_1_Blue, true);
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_ActionLabel1, true, "I have something for sale,", C_3_Gold, false);
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_ActionLabel2, true, "take a look for 50 gold", C_3_Gold, false);
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_BuyItem, true, "What have you got?", C_0_White, true);
+    }
+
+    if (allowPowerups) {
+        SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_PowerUps, true, "Buy Power-Ups", C_0_White, true);
+    }
+
+    // ONE goodbye at the end, always works
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_12_WirtMain_Leave, true, "Say goodbye", C_0_White, true);
 }
 
@@ -1350,14 +1456,14 @@ void WirtMainMenu()
 void WirtSellMenu()
 {
     Player& player = Players[CurrentPlayerIndex];
-    // Настройки окна
+    // (rt) Window settings
     IsBigMenuBox = true;
     DialogHasScroolBox = false;
     sprintf(InfoPanelBuffer, "Let's see what I have got :           Your gold : %i", player.TotalGold);
     SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_BigDialog_Logo, true, InfoPanelBuffer, C_3_Gold, false);
     SetDialogLine(PT_DialogRows_BigDialog_TopSeparator);
     SetDialogLine(PT_DialogRows_BigDialog_BottomSeparator);
-    // Выбор цвета
+    // (rt) Colour selection
     char color = C_0_White;
     if( WirtItem.MagicLevel != ML_0_USUAL ){
         color = C_1_Blue;
@@ -1365,7 +1471,7 @@ void WirtSellMenu()
     if( !WirtItem.IsReqMet ){
         color = C_2_Red;
     }
-    // Выбор имени
+    // (rt) Name selection
     char* name;
     if( WirtItem.MagicLevel != ML_0_USUAL ){
         name = WirtItem.FullMagicalItemName;
@@ -1383,8 +1489,8 @@ void WirtSellMenu()
 void PepinMainMenu()
 {
     Player& player = Players[CurrentPlayerIndex];
-    if (GameMode != GM_COLISEUM /*&& GameMode != GM_CLASSIC*/) {
-        if (player.CurLife != player.MaxCurLife) {// лечение
+    if (GameMode != GM_COLISEUM /*&& GameMode != GM_CLASSIC*/ && !(player.gameChanger & BIT(GC_27_TERMINATOR))) {
+        if (player.CurLife != player.MaxCurLife) {// (rt) healing
             PlayGlobalSound(S_88_CAST9);
         }
         player.CurLife = player.MaxCurLife;
@@ -1419,7 +1525,7 @@ void __fastcall DrawBuyItemsFromPepin( int firstItem )
             SetItemPrice(dialogRow, BuyPrice(item));
             PrintItemParamToTownsmenTradeDialog(&item, dialogRow + 1, color);
             BottomSelectedRow = dialogRow;
-            itermNum++;// косяк или фича. При встрече первой пустой вещи, дальше заполнять не будет
+            itermNum++;// (rt) bug or feature: after the first empty item, it stops filling
         }
     }
     if( !TownersDialogRows[SelectedDialogRow].selectable ){
@@ -1489,7 +1595,11 @@ void __fastcall AddItemToIdentifyList(char itemInventoryIndex, int edx_unused, c
 	++DialogRowsCount;
 }
 
-int BodyItemIndexes[ 10 ] = { 0, 6, 4, 5, 1, 2, 3, 7, 8, 9 }; // для сохранения порядка при сверке
+// (th4) Display order of the worn items in Cain's Identify list, as body-slot numbers: head, torso,
+// hands, then each ring side followed by its extra slots (10..15, Lord of the Rings / Enclave
+// Soldier), amulets, waist, gloves, boots. Covers all IS_Inventory body slots; every slot listed
+// needs a case in the IdentifyMenu switch and in IdentifyItemByKain.
+int BodyItemIndexes[ IS_Inventory ] = { 0, 6, 4, 5, 1, 10, 11, 12, 2, 13, 14, 15, 3, 16, 7, 8, 9 };
 //----- (0046EAEB) --------------------------------------------------------
 void IdentifyMenu()
 {
@@ -1498,10 +1608,12 @@ void IdentifyMenu()
     bool hasItemToIdentify = false;
     DialogRowsCount = 0;
     IsBigMenuBox = true;
-    for( int itemIndex = 0; itemIndex < PT_48_PlayerItemsCount; itemIndex++ ){// Обнуление
+    for( int itemIndex = 0; itemIndex < PT_48_PlayerItemsCount; itemIndex++ ){// (rt) Reset
         PlayerItemsForSomeAction[itemIndex].ItemCode = IC_M1_NONE;
     }
-    for( int i = 0; i < IS_Inventory; ++i ){ // оптимизация. Было 7 проверок отдельных
+    // (th4) Loop over the table itself: it used to hold only 10 slots while this loop ran to
+    // IS_Inventory (17), reading 7 ints past its end. It now lists all 17, extra rings included.
+    for( int i = 0; i < (int)(sizeof(BodyItemIndexes) / sizeof(BodyItemIndexes[0])); ++i ){ // (rt) optimization. Used to be 7 separate checks
         int bodyItemIndex = BodyItemIndexes[i];
 		Item& item = player.OnBodySlots[bodyItemIndex];
         if( ItemNeedIdentify(&item) ){
@@ -1517,13 +1629,21 @@ void IdentifyMenu()
 			case IS_Waist:	itemIndex = PT_10_Identify_Waist; break;
 			case IS_Hands:	itemIndex = PT_11_Identify_Hands; break;
 			case IS_Feet:		itemIndex = PT_12_Identify_Feet; break;
+			case IS_LeftRing2:	itemIndex = PT_Identify_LeftRing2; break;   // (th4) extra ring/amulet slots
+			case IS_LeftRing3:	itemIndex = PT_Identify_LeftRing3; break;
+			case IS_LeftRing4:	itemIndex = PT_Identify_LeftRing4; break;
+			case IS_RightRing2:	itemIndex = PT_Identify_RightRing2; break;
+			case IS_RightRing3:	itemIndex = PT_Identify_RightRing3; break;
+			case IS_RightRing4:	itemIndex = PT_Identify_RightRing4; break;
+			case IS_Neck2:		itemIndex = PT_Identify_Neck2; break;
+			default: continue;   // (th4) never hand AddItemToIdentifyList an unset index
             }
             hasItemToIdentify = true;
             memcpy(&tempItem, &item, sizeof(Item));
             AddItemToIdentifyList(itemIndex, 0, tempItem);
         }
     }
-	// идентификация второго комплекта
+	// (rt) identification of the second set
 	auto addAltWeapon = [&]( int altItemIndex, char inventoryItemIndex )
     {
 	    LoadItem( &WeaponSwapItems[altItemIndex], &tempItem );
@@ -1550,7 +1670,12 @@ void IdentifyMenu()
     if( hasItemToIdentify ){
         FirstVisibleItem = 0;
         DialogHasScroolBox = true;
-        ItemCount = player.InvItemCount;
+        // (th4) Scroll range = rows in THIS list, same formula as the shop lists (e.g. ~724).
+        // It was player.InvItemCount, which ignores the worn and weapon-swap entries at the top
+        // of the list: with few inventory items the rows below the first screen could not be
+        // reached, and with many identified inventory items you could scroll into blank rows.
+        ItemCount = DialogRowsCount - TradeRows;
+        LimitToMin( ItemCount, 0 );
         sprintf(InfoPanelBuffer, "Identify which item?            Your gold : %i", player.TotalGold);
         SetDialogRow(PT_DialogRows_NoIndent, PT_DialogRows_BigDialog_Logo, true, InfoPanelBuffer, C_3_Gold, false);
         SetDialogLine(PT_DialogRows_BigDialog_TopSeparator);
@@ -1575,7 +1700,7 @@ void ItemIdentifiedMenu()
     ChangeTownerDialog(ConfirmationCaller);
     DialogHasScroolBox = false;
     ClearRowsInInterval(PT_DialogRows_BigDialog_ContentStart, PT_DialogRows_BigDialog_DialogEnd);
-    // Выбор цвета
+    // (rt) Colour selection
     int color = ItemColor(cursorItem);
     if( !cursorItem.IsReqMet ){
         color = C_2_Red;
@@ -1616,7 +1741,7 @@ void TalkToMenu()
         if( Quests[questIndex].status == QS_2_IN_PROGRESS 
             && TownersSpeechAboutQuestArray[CurrentTowner][questIndex] != SP_M1
             && Quests[questIndex].talkToFlag ){
-                SetDialogRow(PT_DialogRows_NoIndent, topQwestRow, true, BaseQuests[questIndex].questName, C_0_White, true);
+                SetDialogRow(PT_DialogRows_NoIndent, topQwestRow, true, LocalizedQuestName( questIndex, BaseQuests[questIndex].questName ), C_0_White, true);
                 topQwestRow += interval;
         }
     }
@@ -1735,6 +1860,7 @@ void __fastcall ChangeTownerDialog(PLAYER_DIALOG dialogIndex)
 	IsQUESTPanelVisible = false;
 	IsGoldSplitPanelVisible = false;
 	IsInfoWindowVisible = false;
+	IsChatHistoryVisible = false;
 	ClearRowsInInterval(0, PT_DialogRowsCount);
 	Dialog_MouseClick();
 	switch( dialogIndex ){
@@ -1789,19 +1915,25 @@ void __fastcall ChangeTownerDialog(PLAYER_DIALOG dialogIndex)
 
     CurrentDialogIndex = dialogIndex;
     if( dialogIndex == PD_2_BasicalItems && !DialogRowsCount ){
-        ChangeTownerDialog(PD_1_BlacksmithMain);// оптимизировал. В оригинале было циклом некрасивым
+        ChangeTownerDialog(PD_1_BlacksmithMain);// (rt) optimized. The original used an awkward loop
     }
 }
 
 //----- (0046F3FF) --------------------------------------------------------
 void DrawTownerDialog()
 {
-    if( IsBigMenuBox ){// Выбор размера бокса
-		DrawDialogBox( Dialog_591_Width, Dialog_302_Height, TextBoxCel );
+    // (th4) Centred on the screen, in the area above the main panel -- same formula the
+    // x==0 / y==0 defaults of DrawDialogBox use for 640x480, but with the real screen size.
+    // DrawDialogBox derives DialogShiftX/Y from these, which moves every row with the box.
+    const int dlgW = IsBigMenuBox ? Dialog_591_Width : Dialog_HalfWidth;
+    const int dlgX = (ScreenWidth - dlgW) / 2;
+    const int dlgY = Dialog_302_Height + (ScreenHeight - Dialog_302_Height - GUI_MainPanelHeight) / 2 + 8;
+    if( IsBigMenuBox ){// (rt) Box size selection
+		DrawDialogBox( Dialog_591_Width, Dialog_302_Height, TextBoxCel, dlgX, dlgY );
     }else{
-		DrawDialogBox( Dialog_HalfWidth, Dialog_302_Height, TextBox2CELPtr, 344, 327 );
+		DrawDialogBox( Dialog_HalfWidth, Dialog_302_Height, TextBox2CELPtr, dlgX, dlgY );
     }
-    if( DialogHasScroolBox ){// Если это список вещей - нарисовать их
+    if( DialogHasScroolBox ){// (rt) If this is an item list, draw the items
         switch( CurrentDialogIndex ){
             case PD_2_BasicalItems:	DrawBuyBasicalItems		(FirstVisibleItem); break;
             case PD_3_BlacksmithSale:
@@ -1817,14 +1949,14 @@ void DrawTownerDialog()
     }
     for( int rowIndex = 0; rowIndex < PT_DialogRowsCount; rowIndex++ ){
         TownersDialogRow& currentDlgRow = TownersDialogRows[rowIndex];
-        if( currentDlgRow.isLine ){// Если это линия, рисуем её
+        if( currentDlgRow.isLine ){// (rt) If this is a line, draw it
             DrawDialogLine(rowIndex);
         }
-        if( *currentDlgRow.text ){// Если есть текст, пишем его
+        if( *currentDlgRow.text ){// (rt) If there is text, write it
             DrawGameDialogTitleText(currentDlgRow.position, rowIndex, currentDlgRow.isAligned, currentDlgRow.text, currentDlgRow.color, currentDlgRow.price);
         }
     }
-    if( DialogHasScroolBox ){// Если есть скрол, рисуем его
+    if( DialogHasScroolBox ){// (rt) If there is a scroll bar, draw it
         DrawDialogScroolBox(4, 20);
     }
     if( IsMainDraw ) CursorPentAnimationNumber = (CursorPentAnimationNumber & 7) + 1;
@@ -2075,7 +2207,7 @@ void __fastcall ClearGoldByInventoryAsPrice( int price )
 
     int priceLeft = price;
 
-    // Первый проход - вычитаем из неполных кучек пояса
+    // (rt) First pass: subtract from the incomplete piles on the belt
     for( int i = 0; i < IS_8_Belt_Count && priceLeft > 0; ++i ){
         Item& item = player.BeltInventory[i];
         if( item.ItemCode == IC_11_GOLD ){
@@ -2093,7 +2225,7 @@ void __fastcall ClearGoldByInventoryAsPrice( int price )
         }
     }
 
-    // Второй проход, из оставшихся кучек пояса
+    // (rt) Second pass: from the remaining piles on the belt
     for( int i = 0; i < IS_8_Belt_Count && priceLeft > 0; ++i ){
         Item& item = player.BeltInventory[i];
         if( item.ItemCode == IC_11_GOLD ){
@@ -2109,7 +2241,7 @@ void __fastcall ClearGoldByInventoryAsPrice( int price )
         }
     }
 
-    // Третий проход - вычитаем из неполных кучек инвентаря
+    // (rt) Third pass: subtract from the incomplete piles in the inventory
     for( int i = 0; i < player.InvItemCount && priceLeft > 0; ++i ){
         Item& item = player.InventorySlots[i];
         if( item.ItemCode == IC_11_GOLD ){
@@ -2127,7 +2259,7 @@ void __fastcall ClearGoldByInventoryAsPrice( int price )
         }
     }
 
-    // Четвертый проход, из оставшихся кучек инвентаря
+    // (rt) Fourth pass: from the remaining piles in the inventory
     for( int i = 0; i < player.InvItemCount && priceLeft > 0; ++i ){
         Item& item = player.InventorySlots[i];
         if( item.ItemCode == IC_11_GOLD ){
@@ -2154,7 +2286,7 @@ void BuyBasicalItemFromGriswold()
         cursorItem.Identified = false;
     }
     AutoPutCursorToInventoryOrDrop();
-    // удаляем вещь из середины массива со сдвигом всех вещей
+    // (rt) remove an item from the middle of the array, shifting all later items
     int itemIndex = GET_ITEM_INDEX;
     if( itemIndex == PT_BasicItemsCount - 1 ){
         BasicalItemsArray[PT_BasicItemsCount - 1].ItemCode = IC_M1_NONE;
@@ -2224,6 +2356,7 @@ void __fastcall PutOneGoldPileInInventory(int amount)
 //----- (004700BD) --------------------------------------------------------
 void SellItem()
 {
+    // TODO : need to adapt this for sigils
     Player& player = Players[CurrentPlayerIndex];
     int itemIndex = GET_ITEM_INDEX;
     int itemIndexInDialog = IndexOfPlayerItemInDialog[itemIndex];
@@ -2445,6 +2578,13 @@ void IdentifyItemByKain()
 		case PT_10_Identify_Waist:		identifyItem = &onBodySlots[IS_Waist];	 break;
 		case PT_11_Identify_Hands:		identifyItem = &onBodySlots[IS_Hands];	 break;
 		case PT_12_Identify_Feet:		identifyItem = &onBodySlots[IS_Feet];		 break;
+		case PT_Identify_LeftRing2:		identifyItem = &onBodySlots[IS_LeftRing2];  break;   // (th4) extra ring/amulet slots
+		case PT_Identify_LeftRing3:		identifyItem = &onBodySlots[IS_LeftRing3];  break;
+		case PT_Identify_LeftRing4:		identifyItem = &onBodySlots[IS_LeftRing4];  break;
+		case PT_Identify_RightRing2:	identifyItem = &onBodySlots[IS_RightRing2]; break;
+		case PT_Identify_RightRing3:	identifyItem = &onBodySlots[IS_RightRing3]; break;
+		case PT_Identify_RightRing4:	identifyItem = &onBodySlots[IS_RightRing4]; break;
+		case PT_Identify_Neck2:			identifyItem = &onBodySlots[IS_Neck2];      break;
 		case PT_8_Identify_SecondLeftHand:	identifySwapItem = &WeaponSwapItems[AW_LeftHand]; break;
 		case PT_9_Identify_SecondRightHand: identifySwapItem = &WeaponSwapItems[AW_RightHand]; break;
 		case PT_Identify_SecondLeftHand_2:	identifySwapItem = &WeaponSwapItems[AW_LeftHand_2]; break;
@@ -2843,7 +2983,12 @@ void HandleWirtMainMenu ()
             StartIndexOfGossibSpeechByCurrentCityzen = SP_225;
             EndIndexOfGossibSpeechByCurrentCityzen = SP_234;
             ChangeTownerDialog(PD_19_Talk);
-    }else{
+    }
+    // --- power-ups ---
+    else if (SelectedDialogRow == PT_DialogRows_12_WirtMain_PowerUps) {
+        Powerups_Open();
+    }
+    else{
         CurrentDialogIndex = PD_0_None;
     }
 }
@@ -2924,7 +3069,7 @@ void HandlePepinItemBuy ()
     
     if( SelectedDialogRow == PT_DialogRows_BigDialog_Back ){
         ChangeTownerDialog(PD_14_HealerMain);
-        SelectedDialogRow = PT_DialogRows_14_HealerMain_Leave;// TODO: косяк оригинала. Должно быть PT_DialogRows_14_HealerMain_BuyItems ( 14 )
+        SelectedDialogRow = PT_DialogRows_14_HealerMain_Leave;// (rt) TODO: original bug. Should be PT_DialogRows_14_HealerMain_BuyItems ( 14 )
         return;
     }
     SelectedDialogRowInPrevDialog = SelectedDialogRow;
@@ -3198,7 +3343,7 @@ int CheckDialogMouseClick()
 	if( ! PtInRect( &DialogWin, { CursorX, CursorY } ) ){
 		CurrentDialogIndex = PD_0_None; // completely close the dialog by clicking the mouse outside the dialog
 		//OutDialog = 1;
-		return 1; // если тут вернуть 0, то будет сразу идти (в нажатую мимо диалога точку)
+		return 1; // (rt) returning 0 here would make the player walk immediately (to the point clicked outside the dialog)
     }
 	//OutDialog = 0;
     int row = (CursorY - DialogWin.top - 6) / 12;

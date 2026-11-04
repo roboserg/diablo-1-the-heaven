@@ -389,8 +389,8 @@ UniqueSet UniqueSets[] = {
            {                    // Effects
 				{ 2, { AE_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
 				{ 3, { AE_HIT_RECOVERY,	0,	3,	3,	0,	0,	0,	0 } },
-				{ 3, { AE_RESIST_All,	0,	50,	50,	0,	0,	0,	0 } },
-				{ 4, { AE_ATTACK_SPEED,	0,	4,	4,	0,	0,	0,	0 } },
+				{ 3, { AE_RESIST_All,	0,	30,	30,	0,	0,	0,	0 } },
+				{ 4, { AE_ATTACK_SPEED,	0,	2,	2,	0,	0,	0,	0 } },
 				{ 5, { AE_STUN_RESIST,	0,	15,	15,	0,	0,	0,	0 } },
 				{ 5, { AE_MANA_STEAL_PERCENT,	0,	2,	2,	0,	0,	0,	0 } },
 				{ 6, { AE_ALL_STAT,	0,	20,	20,	0,	0,	0,	0 } },
@@ -465,6 +465,86 @@ UniqueSet UniqueSets[] = {
 				{ 7, { AE_CLVL_DFE,	0,	0,	0,	-50,	-50,	0,	0 } },
 				{ 8, { AE_CLVL_MELEE_RES,	0,	0,	0,	60,	60,	0,	0 } },
 				{ 8, { AE_CLVL_ARROW_RES,	0,	0,	0,	80,	80,	0,	0 } },
+           }
+		},
+
+/*23*/	{ "Crimson Arsenal",        // Name
+            7,                  // UniquesCount
+           {                    // UniquesList
+				4901 /* amulet */,
+				4902 /* helm */,
+				4903 /* boots */,
+				4904 /* gloves */,
+				4905 /* red ring */,
+				4906 /* blu ring */,
+				4907 /* ama */,
+           },
+           10,                   // EffectCount
+           {                    // Effects
+				{ 2, { AE_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
+				{ 3, { AE_HIT_RECOVERY,	0,	3,	3,	0,	0,	0,	0 } },
+				{ 3, { AE_RESIST_All,	0,	30,	30,	0,	0,	0,	0 } },
+				{ 4, { AE_ATTACK_SPEED,	0,	2,	2,	0,	0,	0,	0 } },
+				{ 5, { AE_STUN_RESIST,	0,	15,	15,	0,	0,	0,	0 } },
+				{ 5, { AE_MANA_STEAL_PERCENT,	0,	2,	2,	0,	0,	0,	0 } },
+				{ 6, { AE_ALL_STAT,	0,	20,	20,	0,	0,	0,	0 } },
+				{ 6, { AE_AC,	0,	100,	100,	0,	0,	0,	0 } },
+				{ 7, { AE_ABSORB_MELEE_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
+				{ 7, { AE_ABSORB_RANGED_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
+           }
+		},
+
+/*24*/	{ "War Arsenal",        // Name
+            7,                  // UniquesCount
+           {                    // UniquesList
+				4908 /* amulet */,
+				4909 /* helm */,
+				4910 /* boots */,
+				4911 /* gloves */,
+				4912 /* red ring */,
+				4913 /* blu ring */,
+				4914 /* ama */,
+           },
+           10,                   // EffectCount
+           {                    // Effects
+				{ 2, { AE_SUMMON_AC,	0,	20,	20,	0,	0,	0,	0 } },
+				{ 3, { AE_SUMMON_HP_PERCENT,	0,	20,	20,	0,	0,	0,	0 } },
+				{ 3, { AE_SUMMON_TO_HIT,	0,	0,	0,	0,	0,	25,	25 } },
+				{ 4, { AE_SUMMON_DAMAGE_PERCENT,	0,	25,	25,	0,	0,	0,	0 } },
+				{ 5, { AE_STUN_RESIST,	0,	15,	15,	0,	0,	0,	0 } },
+				{ 5, { AE_MANA_STEAL_PERCENT,	0,	2,	2,	0,	0,	0,	0 } },
+				{ 6, { AE_ALL_STAT,	0,	20,	20,	0,	0,	0,	0 } },
+				{ 6, { AE_AC,	0,	100,	100,	0,	0,	0,	0 } },
+				{ 7, { AE_ABSORB_MELEE_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
+				{ 7, { AE_ABSORB_RANGED_DAMAGE,	0,	50,	50,	0,	0,	0,	0 } },
+           }
+		},
+
+/*25*/	{ "Sisters' Blood",        // Name
+            9,                  // UniquesCount
+           {                    // UniquesList
+				4917 /* amulet */,
+				4918 /* helm */,
+				4919 /* boots */,
+				4920 /* gloves */,
+				4921 /* red ring */,
+				4922 /* blu ring */,
+				4923 /* ama */,
+				4924 /* shield */,
+				4925 /* belt */,
+           },
+           10,                   // EffectCount
+           {                    // Effects
+				{ 2, { AE_DFE,	0,	-10,	-10,	0,	0,	0,	0 } },
+				{ 2, { AE_HIT_RECOVERY,	0,	3,	3,	0,	0,	0,	0 } },
+				{ 3, { AE_RESIST_All,	0,	35,	35,	0,	0,	0,	0 } },
+				{ 3, { AE_XP_GAIN_PERCENT,	0,	25,	25,	0,	0,	0,	0 } },
+				{ 4, { AE_STUN_RESIST,	0,	15,	15,	0,	0,	0,	0 } },
+				{ 5, { AE_ATTACK_SPEED,	0,	2,	2,	0,	0,	0,	0 } },
+				{ 6, { AE_ALL_STAT,	0,	20,	20,	0,	0,	0,	0 } },
+				{ 7, { AE_AC,	0,	100,	100,	0,	0,	0,	0 } },
+				{ 8, { AE_ABSORB_MELEE_DAMAGE,	0,	60,	60,	0,	0,	0,	0 } },
+				{ 9, { AE_ABSORB_RANGED_DAMAGE,	0,	60,	60,	0,	0,	0,	0 } },
            }
 		},
 

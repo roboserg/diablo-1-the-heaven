@@ -3,7 +3,7 @@
 i64 sgdwOwnerWait;
 int sgdwRecvOffset;
 int sgnCurrMegaPlayer;
-char sbLastCmd;
+uchar sbLastCmd;
 TMegaPkt* sgpCurrPkt;
 
 // buffer to receive level information
@@ -310,6 +310,10 @@ void RunDeltaInfo()
 void MegaRunPackets()
 {
 	TMegaPkt* mega = sgpMegaPkt;
+	// playerIndex starts as -1 ("not yet set") — an intentional invalid sentinel that is
+	// guaranteed to be overwritten by CMD_103_FAKE_SETID before ParseCmd is ever called.
+	// Note: -1 == SNPLAYER_ALL numerically but has NO relation to the SNet broadcast API here;
+	// using that macro would be misleading — this is simply an uninitialised-slot marker.
 	for( int playerIndex = -1; mega; mega = mega->pNext ){
 		uchar* data = mega->data;
 		int size = sizeof(mega->data);
@@ -356,19 +360,19 @@ void DeltaSendAllLevels( int playerIndex) // dx: DeltaExportData
 			int size = CompressChunk( base, data );
 			
 			// NetCMD enum must match total number of dungeons, mp quest area included
-			DThreadSendPLayerInfoChunk( playerIndex, dungeon | CMD_DLEVEL /*+ CMD_58_DLEVEL_0*/, base, size );
+			DThreadSendPlayerInfoChunk( playerIndex, CMD_DLEVEL_START + dungeon, base, size );
 		}
 
 		// send junk chunk -- save one byte for compress/uncompress flag
 		uchar* data = DeltaExportJunk( base + 1 );
 		int size = CompressChunk( base, data );
-        DThreadSendPLayerInfoChunk( playerIndex, CMD_83_DLEVEL_JUNK, base, size );
+        DThreadSendPlayerInfoChunk( playerIndex, CMD_83_DLEVEL_JUNK, base, size );
 		FreeMem(base);
 	}
 	
 	// send 1 byte terminator chunk
 	uchar chunk = 0; // mark as "uncompressed"
-    DThreadSendPLayerInfoChunk( playerIndex, CMD_84_DLEVEL_END, &chunk, 1 );
+    DThreadSendPlayerInfoChunk( playerIndex, CMD_84_DLEVEL_END, &chunk, 1 );
 }
 
 //----- (00446374) --------------------------------------------------------
@@ -770,15 +774,20 @@ void DeltaLoadLevelMonster( int monsterIndex, uchar dungeon )
     }
 	if( life ){ // Or life > 0?
         decode_enemy( monsterIndex, monsterInfo.target );
-        if( (row != 0 && row != 1) || col != 0 ){// непонятная проверка
+        if( (row != 0 && row != 1) || col != 0 ){// (rt) unclear check
             MonsterMap[ row ][ col ] = monsterIndex + 1;
         }
         if( monsterIndex < SummonMonsters_Count && summonInfo.spriteIndex != INIT_VAL ){
             AwakeSummon( monsterIndex, row, col, life, sgLevels[dungeon].summons[monsterIndex], true );
         }
         FixMonsterPosition(monsterIndex, monster.Orientation);
+        // (th4) a boss's light goes with him to where the delta put him; it stayed at his spawn point until
+        // he moved (DSF 1.09 bug list: boss light at its original position after re-entering a level)
+        if( monster.newBossId && monster.LightIndex > 0 && !(monster.flag & MF_1_INVISIBLE) ){
+            ChangeLightPos( monster.LightIndex, row, col );
+        }
         monster.ActivationCounter = monsterInfo.activationCounter;
-        // тут надо добавить сброс speechIndex (например для Lazarus) если он активирован
+        // (rt) a reset of speechIndex (e.g. for Lazarus) should be added here if it is activated
         //if( )
     }else{
         monster.PrevRow = row;
@@ -788,6 +797,9 @@ void DeltaLoadLevelMonster( int monsterIndex, uchar dungeon )
             AddMonsterCorpse(monster.Row, monster.Col, monster.newBossId ? monster.udeadNum : monster.SpritePtr->deadSpriteNum, monster.Orientation);
         }
 		monster.flag |= MF_15_KILLED;
+		if( monster.LightIndex ){
+			LightOff(monster.LightIndex);
+		}
         MayBe_KillPackBoss(monsterIndex);
     }
 }
@@ -891,7 +903,7 @@ void NetSendCmdAwakeSummon( uint summonIndex, int row, int col, int dungeon, con
 }
 
 //----- (00446DD2) --------------------------------------------------------
-void NetSendCmdLoc( int highPriority, char bCmd, short row, short col )
+void NetSendCmdLoc( int highPriority, uchar bCmd, short row, short col )
 {
 	TCmdLoc cmd{};
 	cmd.bCmd = bCmd;
@@ -905,7 +917,7 @@ void NetSendCmdLoc( int highPriority, char bCmd, short row, short col )
 }
 
 //----- (00446DFE) --------------------------------------------------------
-void NetSendCmdLocParam1( int someFlag, char netCmdIndex, short row, short col, ushort firstArg )
+void NetSendCmdLocParam1( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg )
 {
 	TCmdLocParam1 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -920,7 +932,7 @@ void NetSendCmdLocParam1( int someFlag, char netCmdIndex, short row, short col, 
 }
 
 //----- (00446E33) --------------------------------------------------------
-void NetSendCmdLocParam2( int someFlag, char netCmdIndex, short row, short col, ushort firstArg, ushort secondArg )
+void NetSendCmdLocParam2( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg )
 {
 	TCmdLocParam2 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -935,8 +947,21 @@ void NetSendCmdLocParam2( int someFlag, char netCmdIndex, short row, short col, 
 	}
 }
 
+// Direct-send variant: bypasses TBuffer, guaranteed delivery even during high-traffic frames.
+// Use only for critical one-shot state packets where double delivery would cause bugs.
+void NetSendCmdLocParam2Direct( uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg )
+{
+	TCmdLocParam2 src{};
+	src.netCmdIndex = netCmdIndex;
+	src.row = (char) row;
+	src.col = (char) col;
+	src.firstArg = firstArg;
+	src.secondArg = secondArg;
+	NetSendDirect( (uchar*)&src, sizeof( src ) );
+}
+
 //----- (00446E70) --------------------------------------------------------
-void NetSendCmdLocParam3( int someFlag, char netCmdIndex, short row, short col, ushort firstArg, ushort secondArg, ushort thirdArg )
+void NetSendCmdLocParam3( int someFlag, uchar netCmdIndex, short row, short col, ushort firstArg, ushort secondArg, ushort thirdArg )
 {
 	TCmdLocParam3 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -953,7 +978,7 @@ void NetSendCmdLocParam3( int someFlag, char netCmdIndex, short row, short col, 
 }
 
 //----- (00446EB6) --------------------------------------------------------
-void NetSendCmdParam1( int someFlag, char netCmdIndex, ushort firstArg )
+void NetSendCmdParam1( int someFlag, uchar netCmdIndex, ushort firstArg )
 {
 	TCmdParam1 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -966,7 +991,7 @@ void NetSendCmdParam1( int someFlag, char netCmdIndex, ushort firstArg )
 }
 
 //----- (00446EDE) --------------------------------------------------------
-void NetSendCmdParam2( int someFlag, char netCmdIndex, ushort firstArg, ushort secondArg )
+void NetSendCmdParam2( int someFlag, uchar netCmdIndex, ushort firstArg, ushort secondArg )
 {
 	TCmdParam2 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -980,7 +1005,7 @@ void NetSendCmdParam2( int someFlag, char netCmdIndex, ushort firstArg, ushort s
 }
 
 //----- (00446F0F) --------------------------------------------------------
-void NetSendCmdParam3( int someFlag, char netCmdIndex, ushort firstArg, ushort secondArg, ushort thirdArg )
+void NetSendCmdParam3( int someFlag, uchar netCmdIndex, ushort firstArg, ushort secondArg, ushort thirdArg )
 {
 	TCmdParam3 src{};
 	src.netCmdIndex = netCmdIndex;
@@ -1070,7 +1095,7 @@ uint On_ITEMEXTRA( const TCmdGItem* packet, int playerIndex )
 }
 
 //----- (004471D5) --------------------------------------------------------
-void NetSendCmdPItem( int someFlag, char netCmdIndex, short row, short col )
+void NetSendCmdPItem( int someFlag, uchar netCmdIndex, short row, short col )
 {
 	Player& player = Players[CurrentPlayerIndex];
 	Item& item = player.ItemOnCursor;
@@ -1246,12 +1271,22 @@ int ParseCmd( int playerIndex, const TCmd* packet)
 {
 	sbLastCmd = packet->bCmd;
 	//if( is(sbLastCmd, CMD_2_ACK_PLRINFO, 51, 53, 54) ) __debugbreak();
+	#ifdef _DEBUG
+	if( playerIndex < 0 || playerIndex >= PlayersMax_4 ){
+		__debugbreak();
+	}
+	#endif
 	if( sgwPackPlrOffsetTbl[playerIndex] != 0 && sbLastCmd != CMD_2_ACK_PLRINFO && sbLastCmd != CMD_54_SEND_PLRINFO ){
 		return 0;
 	}
 	#if 0
 	static ofstream cmdLog("cmd.log");
 	cmdLog << (int)packet->bCmd << endl;
+	#endif
+	#ifdef _DEBUG
+	if (packet->bCmd < 0) {
+		__debugbreak();
+	}
 	#endif
 	switch( packet->bCmd ){
 	case CMD_1_WALKXY                     : return On_WALKXY( (TCmdLoc*)packet, playerIndex );
@@ -1309,7 +1344,8 @@ int ParseCmd( int playerIndex, const TCmd* packet)
 	case CMD_56_ACTIVATEPORTAL            : return On_ACTIVATEPORTAL( (TCmdLocParam3*)packet, playerIndex );
 	case CMD_57_DEACTIVATEPORTAL          : return On_DEACTIVATEPORTAL( packet, playerIndex );
 
-	case CMD_83_DLEVEL_JUNK or CMD_84_DLEVEL_END: return DReceiveChunk( playerIndex, (TCmdPlrInfoHdr*)packet );
+	case CMD_83_DLEVEL_JUNK:
+	case CMD_84_DLEVEL_END: return DReceiveChunk( playerIndex, (TCmdPlrInfoHdr*)packet );
 
 	case CMD_85_HEALOTHER				  : return On_HEALOTHER( (TCmdParam1*)packet, playerIndex );
 	case CMD_86_STRING					  : return On_STRING( (TCmdString*)packet, playerIndex );
@@ -1333,7 +1369,7 @@ int ParseCmd( int playerIndex, const TCmd* packet)
 	case CMD_108_PVP					  : return On_PVP((TCmdPvP*)packet, playerIndex);
 	case CMD_109_WallRecast				  : return On_WallRecast((TCmdWallRecast*)packet, playerIndex);
 	default:
-		if( packet->bCmd | CMD_DLEVEL && (packet->bCmd & ~CMD_DLEVEL) < DungeonCount ){
+		if( packet->bCmd >= CMD_DLEVEL_START && packet->bCmd < CMD_DLEVEL_START + DungeonCount ){
 			return DReceiveChunk( playerIndex, (TCmdPlrInfoHdr*)packet );
 		}else{
 			SNetDropPlayer(playerIndex, 0x40000006); return 0; // wrong network command
@@ -1355,7 +1391,7 @@ int DReceiveChunk( int playerIndex, const TCmdPlrInfoHdr* packet)
 			// which means there is no delta information
         }
 		// TODO: check condition for town quest dlevel validity
-		else if( packet->bCmd != CMD_DLEVEL /*CMD_58_DLEVEL_0*/ || packet->wOffset != 0 ){
+		else if( packet->bCmd != CMD_DLEVEL_START || packet->wOffset != 0 ){
             return packet->wBytes + sizeof( *packet );
         }
 		gbDeltaSender = playerIndex;
@@ -1370,7 +1406,7 @@ int DReceiveChunk( int playerIndex, const TCmdPlrInfoHdr* packet)
             return packet->wBytes + sizeof( *packet );
         }
         // TODO: check condition for town quest dlevel validity
-		if( packet->bCmd != CMD_DLEVEL /*CMD_58_DLEVEL_0*/ || packet->wOffset != 0 ){
+		if( packet->bCmd != CMD_DLEVEL_START || packet->wOffset != 0 ){
 			// someone is in the middle of sending us info
 			// but we don't have the beginning
 			// just ignore the message
@@ -1418,8 +1454,8 @@ void DParseChunk( uchar cmd, int len )
 	if( cmd == CMD_83_DLEVEL_JUNK ){
         DParseJunk( data );
 	}
-	else if( cmd & CMD_DLEVEL ){
-		DLevel& netLevelData = sgLevels[cmd & ~CMD_DLEVEL];
+	else if( cmd >= CMD_DLEVEL_START && cmd < CMD_DLEVEL_START + DungeonCount ){
+		DLevel& netLevelData = sgLevels[cmd - CMD_DLEVEL_START];
 		if( NetItem ) data = DeltaParseItems( data, netLevelData.items );
 		data = DeltaParseObjects( data, netLevelData.objects );
         data = DeltaParseMonsters( data, netLevelData.monsters );
@@ -1638,7 +1674,7 @@ uint On_REQUESTGITEM( const TCmdGItem* packet, int playerIndex )
 		 || !CheckGetRecord(src->info) ){
 			return sizeof TCmdGItem;
 		}
-		// TODO: вроде почти одинаковы, но алгоритм в критических мелочах отличался. Наверняка либо тут либо выше ошибка
+		// (rt) TODO: they seem almost identical, but the algorithm differed in critical details; there is almost certainly a mistake either here or above
 		int itemIndex = FindGetItem(src->info.baseItemIndex, src->info.dropType, (int)src->info.seed, src->info.genVersion, src->info.quality, src->info.magicFind, src->info.uniqIndex);
 		if( itemIndex != -1 ){
 			// Item found
@@ -1679,7 +1715,7 @@ void NetSendMyselfPri(uchar* pbMsg, int bLen)
 }
 
 //----- (00448155) --------------------------------------------------------
-void NetSendCmdGItem2( int usOnly, char netCmdIndex, char master, char playerIndex, const TCmdGItem* packet )
+void NetSendCmdGItem2( int usOnly, uchar netCmdIndex, char master, char playerIndex, const TCmdGItem* packet )
 {
 	TCmdGItem src;
 	memcpy(&src, packet, sizeof TCmdGItem);
@@ -1693,7 +1729,7 @@ void NetSendCmdGItem2( int usOnly, char netCmdIndex, char master, char playerInd
 		return;
 	}
 
-	i64 time = GetTickCountTh(); // перехватываем вызов
+	i64 time = GetTickCountTh(); // (rt) intercept the call
 	if( src.timeStamp ){
 		if( time - src.timeStamp > 5000_ms ){
 			return;
@@ -1859,7 +1895,7 @@ uint On_REQUESTAGITEM( const TCmdGItem* packet, int playerIndex )
 		 || !CheckGetRecord(src->info) ){
 			return sizeof TCmdGItem;
 		}
-		// TODO: вроде почти одинаковы, но алгоритм в критических мелочах отличался. Наверняка либо тут либо выше ошибка
+		// (rt) TODO: they seem almost identical, but the algorithm differed in critical details; there is almost certainly a mistake either here or above
 		int itemIndex = FindGetItem(src->info.baseItemIndex, src->info.dropType, (int)src->info.seed, src->info.genVersion, src->info.quality, src->info.magicFind, src->info.uniqIndex);
 		if( itemIndex == -1 ){
 			if( !NetSendCmdReq2(CMD_40_REQUESTAGITEM, CurrentPlayerIndex, src->bPnum, packet) ){
@@ -2400,7 +2436,7 @@ uint On_WARP( const TCmdParam1* packet, int playerIndex )
 	}else{
 	    int playerTargetIndex = packet->firstArg;
 		StartWarpDungeon(playerIndex, playerTargetIndex);
-		// При телепорте пихаем вещь с курсора в инвентарь
+		// (rt) On teleport, put the cursor item into the inventory
 		if( playerIndex == CurrentPlayerIndex && Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){
 			#if 0 // TODO: continue here, find out why changed
 			Items[MaxItems_255] = player.ItemOnCursor;
@@ -2736,10 +2772,14 @@ uint On_PLAYER_JOINLEVEL( const TCmdLocParam1* packet, int playerIndex )
     else{
         Player& player = Players[playerIndex];
         player.lvlChanging = 0;
-        if( player.playerName[0] ){
-            if( !player.IsExists ){
-                player.IsExists = 1;
-                NetPlayerCount++;
+        // BUG FIX: always count the player as existing when they join a level,
+        // even if their CMD_54_SEND_PLRINFO was lost in transit (so playerName is still empty).
+        // Previously the outer if(playerName[0]) guard prevented IsExists from ever being
+        // set on packet loss, leaving the player permanently absent from the voice-chat list.
+        if( !player.IsExists ){
+            player.IsExists = 1;
+            NetPlayerCount++;
+            if( player.playerName[0] ){
                 AddNewPlayerStatusFormattedMessage( "Player '%s' (level %d) just joined The Game", &player.playerName, player.CharLevel );
             }
         }

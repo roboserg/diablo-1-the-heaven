@@ -1,11 +1,11 @@
 ﻿#include "stdafx.h"
 
-template<typename... T> __forceinline int I( const char* s, T... a ) { return sprintf_s( InfoPanelBuffer, sizeof(InfoPanelBuffer), s, a ... ); }
-template<typename... T> __forceinline int I( int l, T... a ) { return sprintf_s( InfoPanelBuffer + l, sizeof(InfoPanelBuffer) - l, a ... ); }
+template<typename... T> __forceinline int I( const char* s, T... a ) { return sprintf_s( InfoPanelBuffer, sizeof(InfoPanelBuffer), L(s), a ... ); } // (th4) L() translates format
+template<typename... T> __forceinline int I( int l, const char* s, T... a ) { return sprintf_s( InfoPanelBuffer + l, sizeof(InfoPanelBuffer) - l, L(s), a ... ); } // (th4) translated append form
 char* par( int v1, int v2 ){ static char buf[64]; if( v2 && v1 != v2 ){ sprintf( buf, "%c(%i-%i)", v1 < 0 ? '-' : '+', abs(v1), abs(v2) ); }else{ sprintf( buf, "%+i", v1 ); } return buf; }
 #define F [](Item& i, Effect& e, Player& p) // TODO: remove all player dependency from item generation data
 
-const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short (Item_TH2.PrefixEffect и Item_TH2.PostfixEffect - uchar - максимум 254 эффекта + 1 end marker)
+const AffixEffect AffixEffect::Table[255] = { // (rt) AFFIX_EFFECT Effect.id is short (Item_TH2.PrefixEffect and Item_TH2.PostfixEffect - uchar - 254 effects max + 1 end marker)
 	{	AE_TO_HIT,	                               Chance, F{ I( "accuracy: %+i", e.chance ); }	},
 	{	AE_PERCENT_DAMAGE,	               Min           , F{ I( "%+i%% weapon damage", e.minVal ); }	},
 	{	AE_TO_HIT_DAMAGE,	               Min    |Chance, F{ I( "%+i accuracy, %+i%% weapon damage", e.chance, e.minVal ); }	},
@@ -17,7 +17,7 @@ const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short
 	{	AE_EXTRA_CHARGES,	               Min           , F{ I( "Extra charges" ); }	},
 	{	AE_SPELL,	                       Min           , F{ I( "%i / %i %s charges", i.CurCharges, e.minVal, getSpellName( e.type ) ); }	},
 	{	AE_ELEM_HIT,	                   Min|Max       , F{ I( "%s %s damage", par(e.minVal, e.maxVal), BaseActions[e.type].name(i,e,p) ); }	},
-	{	AE_STAT,	                       Min           , F{ I( "%+i to %s", e.minVal, Stats[e.type] ); }	},
+	{	AE_STAT,	                       Min           , F{ I( "%+i to %s", e.minVal, L(Stats[e.type]) ); }	},
 	{	AE_ALL_STAT,	                   Min           , F{ I( "%+i to all attributes", e.minVal ); }	},
 	{	AE_DFE,	                           Min           , F{ I( "%+i damage from enemies", e.minVal ); }	},
 	{	AE_HIT_POINTS,	                   Min           , F{ I( "%+i to hit points", e.minVal ); }	},
@@ -28,14 +28,24 @@ const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short
 	{	AE_PLUS_LIGHT_RADIUS,	           Min           , F{ I( "+%i%% light radius", 10 * e.minVal ); }	},
 	{	AE_MINUS_LIGHT_RADIUS,	           Min           , F{ I( "-%i%% light radius", 10 * e.minVal ); }	},
 	{	AE_FLAG,	                       0             , F{ I( "%s"/*" (flag)"*/, BaseActions[e.type].name(i,e,p) ); }	}, // flag effect, does not sum values
-	{	AE_SPICIES_DAMAGE_TOTAL,	       Min           , F{ I( "%+i%% total melee damage to %s"/*" (max)"*/, e.minVal, Spicies[e.type]); }	},
+	{	AE_SPICIES_DAMAGE_TOTAL,	       Min           , F{ I( "%+i%% total melee damage to %s"/*" (max)"*/, e.minVal, LocalizedSpicies(Spicies[e.type])); }	},
 	{	AE_MANA_STEAL_PERCENT,             0/*Min*/      , F{ I( "melee hits leech %i%% mana"/*" (max)"*/, e.minVal ); }	},
 	{	AE_LIFE_STEAL_PERCENT,             0/*Min*/      , F{ I( "melee hits leech %i%% life"/*" (max)"*/, e.minVal ); }	},
 	{	AE_ARMOR_PIERCING,	               Min           , F{ I( "armor piercing: %+i%%", (e.minVal*100)/16 ); }	},
-	{	AE_ATTACK_SPEED,                   0/*Min*/      , F{ I( "%s attack"/*" (max)"*/, by(e.minVal-1, "quick", "fast", "faster", "fastest") ); }	},
-	{	AE_HIT_RECOVERY,                   0/*Min*/      , F{ I( "%s hit recovery"/*" (max)"*/, by(e.minVal-1, "fast", "faster", "fastest") ); }	},
-	{	AE_DAMAGE,	                       Min           , F{ I( "adds %i physical damage", e.minVal ); }	},
-	{   AE_UNUSUAL_ITEM_DAMAGE,            Min|Max       , F{ I("unusual base damage: %s", par(i.MinDamage, i.MaxDamage)); }	},
+	{	AE_ATTACK_SPEED,                   0/*Min*/      , F{ I( "%s attack"/*" (max)"*/, by(e.minVal-1, L("quick"), L("fast"), L("faster"), L("fastest")) ); }	},
+	{	AE_HIT_RECOVERY,                   0/*Min*/      , F{ I( "%s hit recovery"/*" (max)"*/, by(e.minVal-1, L("fast"), L("faster"), L("fastest")) ); }	},
+	{	AE_DAMAGE,
+		Min           ,
+		F{
+			if (Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)) {
+				I("adds %i to weapon damage", e.minVal);
+			}
+			else {
+				I("adds %i physical damage", e.minVal);
+			}
+		}
+	},
+	{   AE_UNUSUAL_ITEM_DAMAGE,            Min|Max       , F{ I("unusual item damage: %s", par(i.MinDamage, i.MaxDamage)); }	},
 	{	AE_UNUSUAL_DURABILITY,	           0             , F{ I( "unusual durability" ); }	},
 	{	AE_ONE_HANDED_STAFF,	           0             , F{ I( "one handed item" ); }	},
 	{	AE_NO_STR_REQ,	                   0             , F{ I( "no strength requirement" ); }	},
@@ -49,14 +59,14 @@ const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short
 	{	AE_SPELL_LEVEL,	                   Min           , F{ I( "%s: %+i spell levels", getSpellName( e.type ), e.minVal ); }	},
 	{	AE_SPELL_PERCENT,	               Min           , F{ I( "%s spell damage: %+i%%", getSpellName( e.type ), e.minVal ); }	},
 	{	AE_SPELL_DAMAGE,	               Min|Max|Chance, F{ if (!(e.minVal && e.maxVal)) I("%s spell: %+i accuracy", getSpellName(e.type), e.chance); else I(e.chance ? "%s to %s spell damage, %+i accuracy" : "%s to %s spell damage", par(e.minVal, e.maxVal), getSpellName(e.type), e.chance); }	},
-	{	AE_ELEMENT_PERCENT,	               Min           , F{ I( "%s element: %+i%% damage", Elements[e.type], e.minVal); }	},
-	{	AE_ELEMENT_DAMAGE,	               Min|Max|Chance, F{ if( !(e.minVal && e.maxVal) ) I( "%s element: %+i accuracy", Elements[e.type], e.chance ); else I( e.chance ? "%s to damage of %s elements, %+i accuracy" : "%s to damage of %s elements", par(e.minVal, e.maxVal), Elements[e.type], e.chance ); }	},
+	{	AE_ELEMENT_PERCENT,	               Min           , F{ I( "%s element: %+i%% damage", LocalizedElement(Elements[e.type]), e.minVal); }	},
+	{	AE_ELEMENT_DAMAGE,	               Min|Max|Chance, F{ if( !(e.minVal && e.maxVal) ) I( "%s element: %+i accuracy", LocalizedElement(Elements[e.type]), e.chance ); else I( e.chance ? "%s to damage of %s elements, %+i accuracy" : "%s to damage of %s elements", par(e.minVal, e.maxVal), LocalizedElement(Elements[e.type]), e.chance ); }	},
 	{	AE_ACTION,	                       Min|Max|Chance, F{ I( e.chance < 100 ? "%s %s, chance: %i%%" : "%s %s", BaseActions[e.type].name(i,e,p), par(e.minVal, e.maxVal), e.chance ); }	},
 	{	AE_ACTION_PERCENT,	               Min    |Chance, F{ I( e.chance ? "%s %+i%%, %+i accuracy" : "%s %+i%%", BaseActions[e.type].name(i,e,p), e.minVal, e.chance ); }	},
 	{	AE_ACTION_VALUE,	               Min|Max|Chance, F{ I( e.chance ? "%s %s, %+i accuracy" : "%s %s", BaseActions[e.type].name(i,e,p), par(e.minVal, e.maxVal), e.chance ); }	},
-	{	AE_CAST_SPEED,	                   0/*Min*/      , F{ I( "%s casting speed"/*" (max)"*/, by(e.minVal-1, "fast", "faster", "fastest" ) ); }	},
+	{	AE_CAST_SPEED,	                   0/*Min*/      , F{ I( "%s casting speed"/*" (max)"*/, by(e.minVal-1, L("fast"), L("faster"), L("fastest") ) ); }	},
 	{	AE_ALL_STAT_PERCENT,	           Min           , F{ I( "%+i%% to all attributes", e.minVal ); }	},
-	{	AE_STAT_PERCENT,	               Min           , F{ I( "%+i%% to %s", e.minVal, Stats[e.type] ); }	},
+	{	AE_STAT_PERCENT,	               Min           , F{ I( "%+i%% to %s", e.minVal, L(Stats[e.type]) ); }	},
 	{	AE_LIFE_REGEN,	                   Min           , F{ I( "%+i to life regeneration", e.minVal ); }	},
 	{	AE_MANA_REGEN,	                   Min           , F{ I( "%+i to mana regeneration", e.minVal ); }	},
 	{	AE_LIFE_REGEN_PERCENT,	           Min           , F{ I( "%+i%% to life regeneration", e.minVal ); }	},
@@ -77,16 +87,16 @@ const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short
 	{	AE_CRIT_DAMAGE_PERCENT,	           Min           , F{ I( "%+i%% crit damage", e.minVal ); }	},
 	{	AE_CRIT_PERCENT,	               Min    |Chance, F{ I( "%+i%% to crit damage, %+i%% crit chance", e.minVal, e.chance ); }	},
 	{	AE_CRIT_DAMAGE,	                   Min|Max       , F{ I( "%s to crit damage", par(e.minVal, e.maxVal) ); }	},
-	{	AE_SPICIES_DAMAGE,	               Min|Max       , F{ I( "%s damage to %s", par(e.minVal, e.maxVal), Spicies[e.type] ); }	},
-	{	AE_SPICIES_DAMAGE_PERCENT,	       Min           , F{ I( "%+i%% weapon damage to %s", e.minVal, Spicies[e.type] ); }	},
-	{	AE_SPICIES_TO_HIT,	                       Chance, F{ I( "%+i accuracy against %s", e.chance, Spicies[e.type] ); }	},
-	{	AE_SPICIES_AC,	                   Min           , F{ I( "%+i armor against %s", e.minVal, Spicies[e.type] ); }	},
-	{	AE_SPICIES_AC_PERCENT,	           Min           , F{ I( "%+i%% armor against %s", e.minVal, Spicies[e.type] ); }	},
-	{	AE_SPICIES_DFE,	                   Min           , F{ I( "%+i damage taken from %s", e.minVal, Spicies[e.type] ); }	},
+	{	AE_SPICIES_DAMAGE,	               Min|Max       , F{ I( "%s damage to %s", par(e.minVal, e.maxVal), LocalizedSpicies(Spicies[e.type]) ); }	},
+	{	AE_SPICIES_DAMAGE_PERCENT,	       Min           , F{ I( "%+i%% weapon damage to %s", e.minVal, LocalizedSpicies(Spicies[e.type]) ); }	},
+	{	AE_SPICIES_TO_HIT,	                       Chance, F{ I( "%+i accuracy against %s", e.chance, LocalizedSpicies(Spicies[e.type]) ); }	},
+	{	AE_SPICIES_AC,	                   Min           , F{ I( "%+i armor against %s", e.minVal, LocalizedSpicies(Spicies[e.type]) ); }	},
+	{	AE_SPICIES_AC_PERCENT,	           Min           , F{ I( "%+i%% armor against %s", e.minVal, LocalizedSpicies(Spicies[e.type]) ); }	},
+	{	AE_SPICIES_DFE,	                   Min           , F{ I( "%+i damage taken from %s", e.minVal, LocalizedSpicies(Spicies[e.type]) ); }	},
 	{	AE_LIFE_PERCENT,	               Min           , F{ I( "hit points: %+i%%", e.minVal ); }	},
 	{	AE_MANA_PERCENT,	               Min           , F{ I( "mana: %+i%%", e.minVal ); }	},
 	{	AE_WEAPON_PERCENT,	               Min           , F{ I( "%+i%% to %s dmg ", e.minVal, Weapons[e.type] ); }	},
-	{	AE_RESIST,	                       Min           , F{ I( "%+i to %s resistance", e.minVal, Elements[e.type]  ); }	},
+	{	AE_RESIST,	                       Min           , F{ I( "%+i to %s resistance", e.minVal, LocalizedElement(Elements[e.type])  ); }	},
 	{	AE_THORNS_PERCENT,	               Min           , F{ I( "%+i%% thorns damage", e.minVal ); }	},
 	{	AE_STUN_RESIST,                    Min           , F{ I( "%+i to stun threshold", e.minVal ); } },
 	{	AE_REQUIRED_CLVL,                  Min           , 0	}, // F{ I( "requires character level %i", e.minVal ); }	},
@@ -106,10 +116,10 @@ const AffixEffect AffixEffect::Table[255] = { // AFFIX_EFFECT Effect.id is short
 	{	AE_CLVL_GOLD,	                   Min|Max       , F{ int l = 0; l += I(l,"Gold found: ");                      l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_XP,	                       Min|Max       , F{ int l = 0; l += I(l,"Experience gained: ");               l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_SPELL_ALL,	               Min|Max       , F{ int l = 0; l += I(l,"Spell power: ");                     l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
-	{	AE_CLVL_RESIST,	                   Min|Max       , F{ int l = 0; l += I(l,"%s Resist: ", Elements[e.type]);		l += I(l,"%+i (",   e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
-	{	AE_CLVL_STAT,	                   Min|Max       , F{ int l = 0; l += I(l,"%s: ", Stats[e.type]);				l += I(l,"%+i (",   e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
+	{	AE_CLVL_RESIST,	                   Min|Max       , F{ int l = 0; l += I(l,"%s Resist: ", LocalizedElement(Elements[e.type]));		l += I(l,"%+i (",   e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
+	{	AE_CLVL_STAT,	                   Min|Max       , F{ int l = 0; l += I(l,"%s: ", L(Stats[e.type]));				l += I(l,"%+i (",   e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_SPELL_LVL,	               Min|Max       , F{ int l = 0; l += I(l,"%s level: ", getSpellName(e.type));	l += I(l,"%+i (",   e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
-	{	AE_CLVL_ELEM_PERCENT,	           Min|Max       , F{ int l = 0; l += I(l,"%s Damage: ", Elements[e.type]);		l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
+	{	AE_CLVL_ELEM_PERCENT,	           Min|Max       , F{ int l = 0; l += I(l,"%s Damage: ", LocalizedElement(Elements[e.type]));		l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_SPELL_PERCENT,	           Min|Max       , F{ int l = 0; l += I(l,"%s damage: ", getSpellName(e.type));	l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_CRIT_CHANCE,               Min|Max       , F{ int l = 0; l += I(l,"Crit chance: ");                     l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
 	{	AE_CLVL_CRIT_DAMAGE_PERCENT,	   Min|Max       , F{ int l = 0; l += I(l,"Crit damage: ");                     l += I(l,"%+i%% (", e.minVal + p.CharLevel * e.maxVal / 100); if( e.minVal ) l += I(l,"%i + ", e.minVal); I(l,"CLVL x %g)", double(e.maxVal)/100); } },
@@ -128,7 +138,7 @@ int ApplyWineFromTearsPerk(uint playerIndex, int type, int minVal, int maxVal, i
 
 void EffectAction::operator= (Effect& e){ id = (EFFECT_ACTION)e.type; minVal = e.minVal; maxVal = e.maxVal; chance = e.chance; }
 void EffectAction::operator+=(Effect& e){ id = (EFFECT_ACTION)e.type; minVal+= e.minVal; maxVal+= e.maxVal; chance+= e.chance; }
-template<typename... T> __forceinline char* N( const char* s, T... a ) { sprintf_s( ErrorTextBuffer, sizeof(ErrorTextBuffer), s, a ... ); return ErrorTextBuffer; }
+template<typename... T> __forceinline char* N( const char* s, T... a ) { sprintf_s( ErrorTextBuffer, sizeof(ErrorTextBuffer), L(s), a ... ); return ErrorTextBuffer; } // (th4) L() translates
 #define R return
 
 BaseAction BaseActions[] = {
@@ -136,14 +146,14 @@ BaseAction BaseActions[] = {
 
 	{ EA_MELEE_FIRE,            F{R N("Fire melee");},                          T_ATTACK,      0 }, // ET_1_FIRE
 	{ EA_MELEE_LIGHTNING,       F{R N("Lightning melee");},                     T_ATTACK,      0 }, // ET_2_LIGHTNING
-	{ EA_MELEE_ARCAN,           F{R N("Arcane melee");},                        T_ATTACK,      0 }, // ET_3_ARCAN
+	{ EA_MELEE_ARCAN,           F{R N("Magic melee");},                         T_ATTACK,      0 }, // ET_3_ARCAN
 	{ EA_MELEE_ACID,            F{R N("Acid melee");},                          T_ATTACK,      0 }, // ET_4_ACID
 	{ EA_MELEE_HOLY,            F{R N("Holy melee");},                          T_ATTACK,      0 }, // ET_5_HOLY
 	{ EA_MELEE_COLD,            F{R N("Cold melee");},                          T_ATTACK,      0 }, // ET_6_COLD
 
 	{ EA_ARROW_FIRE,            F{R N("Fire ranged");},                          T_ATTACK,      0 }, // ET_1_FIRE
 	{ EA_ARROW_LIGHTNING,       F{R N("Lightning ranged");},                     T_ATTACK,      0 }, // ET_2_LIGHTNING
-	{ EA_ARROW_ARCAN,           F{R N("Arcane ranged");},                        T_ATTACK,      0 }, // ET_3_ARCAN
+	{ EA_ARROW_ARCAN,           F{R N("Magic ranged");},						 T_ATTACK,      0 }, // ET_3_ARCAN
 	{ EA_ARROW_ACID,            F{R N("Acid ranged");},                          T_ATTACK,      0 }, // ET_4_ACID
 	{ EA_ARROW_HOLY,            F{R N("Holy ranged");},                          T_ATTACK,      0 }, // ET_5_HOLY
 	{ EA_ARROW_COLD,            F{R N("Cold ranged");},                          T_ATTACK,      0 }, // ET_6_COLD
@@ -159,12 +169,30 @@ BaseAction BaseActions[] = {
 	{ EA_QUENCH_SPELL_DAMAGE,   F{R N("Spell damage");},                        T_DAMAGE,      0 },
 	{ EA_QUENCH_SUMMON_DAMAGE,  F{R N("Summon damage");},                       T_DAMAGE,      0 },
 
+	// AE_FLAG series
 	{ EA_KNOCK_BACK,            F{R N("Knocks target back");},                  T_HIT,         0 },
 	{ EA_MULTISHOT,             F{R N("Multishot");},                           T_ATTACK,      0 },
 	{ EA_INFRAVISION,           F{R N("Infravision");},							T_PASSIVE,     0 },
 	{ EA_LOSE_REGENERATION,     F{R N("Lose all regeneration");},               T_PASSIVE,     0 },
 	{ EA_LOSE_RESISTANCE,       F{R N("Lose all resistances");},                T_PASSIVE,     0 },
-	{ EA_FURY_DURATION,         F{R N((p.ClassID == PC_2_MAGE ? "+%i seconds to duration of Concentration" : (p.fullClassId == PFC_KENSEI && MaxCountOfPlayersInGame == 1) ? "+%i seconds to duration of Battle Trance" : "+%i seconds to Fury duration"), p.CharLevel / 6 + 10);}, T_PASSIVE, 0 },
+	{ EA_FURY_DURATION,
+		F
+		{
+			const char* fmt;
+			if (p.ClassID == PC_2_MAGE) {
+			fmt = "+%i seconds to duration of Concentration";
+			}
+			else if (p.fullClassId == PFC_KENSEI && MaxCountOfPlayersInGame == 1) {
+				fmt = "+%i seconds to duration of Battle Trance";
+			}
+			else {
+				fmt = "+%i seconds to Fury duration";
+			}
+			R N(fmt, p.CharLevel / 6 + 10);
+		},
+		T_PASSIVE,
+		0
+	},
 	{ EA_FAST_BLOCK,            F{R N("fast blocking speed");},                 T_PASSIVE,     0 },
 	{ EA_RANDOM_SPEED_ARROW,    F{R N("fires random speed arrows");},           T_PASSIVE,     0 },
 	{ EA_LIFE_REGEN_DOUBLE,     F{R N("doubles basic life regeneration");},     T_PASSIVE,     0 },
@@ -176,7 +204,7 @@ BaseAction BaseActions[] = {
 	{ EA_RANDOM_DAMAGE,         F{R N("Randomized damage: 80-150%%");},         T_PASSIVE,     0 },
 	{ EA_LIFE_STEAL_RND,	    F{R N("Randomly increased life stealing" );},	T_HIT_MELEE,   0 },
 
-	//{ EA_THORNS_FIRE, "Thorns", T_TAKE_MELEE, 0 },  // тут можно будет добавить это:
+	//(rt) { EA_THORNS_FIRE, "Thorns", T_TAKE_MELEE, 0 },  // this could be added here:
 
 	{ EA_END_MARKER }
 };
@@ -217,6 +245,7 @@ BaseCrit BaseCrits[CR_COUNT][PFC_COUNT] = {
 	{ 12, 250, 10, 15, 0, 0 }, // ASSASSIN, +30%
 	{  8, 125, 0, 0, 0, 0 }, // IRON MAIDEN, +10%
 	{ 0, 0, 0, 0, 0, 0 }, // BOMBARDIER
+	{ 6, 100, 0, 0, 0, 0 }, // GLADIATRIX
 	{ 0, 0, 0, 0, 0, 0 }, // SAVAGE, NO CRITS
 	{  6, 150, 0, 0, 0, 0 }, // BERSERKER, +9%
 	{  5, 200, 0, 0, 0, 0 }, // EXECUTIONER, +10%
@@ -249,6 +278,7 @@ BaseCrit BaseCrits[CR_COUNT][PFC_COUNT] = {
 	{ 7, 250, 7, 9, 0, 0 }, // ASN, +17,5%
 	{ 9, 75, 0, 0, 0, 0 }, // IM, +6,75%
 	{ 0, 0, 0, 0, 0, 0 }, // BMB 0
+	{ 6, 100, 0, 0, 0, 0 }, // GLADIATRIX
 	{ 0, 0, 0, 0, 0, 0 }, // SAVAGE 0
 	{ 7, 50, 0, 0, 0, 0 }, // BRS, +3,6%
 	{ 4, 90, 0, 0, 0, 0 }, // EXE, +3,6%
@@ -281,6 +311,7 @@ BaseCrit BaseCrits[CR_COUNT][PFC_COUNT] = {
 	{ 0, 50, 0, 0, 14, 0 }, // ASSASSIN, +5% DPS on clvl 150 (10% for +50% dmg)
 	{ 0, 30, 0, 0, 0, 0 }, // IRON MAIDEN
 	{ 5, 85, 0, 0, 5, 0 }, // BOMBARDIER
+	{ 0, 0, 0, 0, 0, 0 }, // GLADIATRIX
 	{ 0, 10, 0, 0, 0, 0 }, // SAVAGE
 	{ 0, 10, 0, 0, 0, 0 }, // BERSERKER
 	{ 0, 10, 0, 0, 0, 0 }, // EXECUTIONER
@@ -313,6 +344,7 @@ BaseCrit BaseCrits[CR_COUNT][PFC_COUNT] = {
 	{ 0, 50, 0, 0, 0, 0 }, // ROGUE
 	{ 20, 200, 0, 0, 0, 0 }, // im, +40% DPS on clvl 150 (20% for +200% dmg)
 	{ 0, 50, 0, 0, 0, 0 }, // ROGUE
+	{ 0, 0, 0, 0, 0, 0 }, // GLADIATRIX
 	{ 0, 200, 0, 0, 0, 0 }, // SAVAGE
 	{ 0, 200, 0, 0, 0, 0 }, // SAVAGE
 	{ 0, 200, 0, 0, 0, 0 }, // SAVAGE
@@ -345,6 +377,7 @@ BaseCrit BaseCrits[CR_COUNT][PFC_COUNT] = {
 	{ 1, 60, 0, 0, 26, 0 }, // ASSASSIN, +3,6% DPS on clvl 150 (6% for +60% dmg)
 	{ 0, 50, 0, 0, 0, 0 }, // IRON MAIDEN
 	{ 0, 50, 0, 0, 0, 0 }, // BOMBARDIER
+	{ 0, 0, 0, 0, 0, 0 }, // GLADIATRIX
 	{ 0, 50, 0, 0, 0, 0 }, // SAVAGE
 	{ 0, 50, 0, 0, 0, 0 }, // BERSERKER
 	{ 0, 50, 0, 0, 0, 0 }, // EXECUTIONER
@@ -399,6 +432,11 @@ BaseCrit GetBaseCrits(int critType, int playerIndex)
 		if (critType == CR_MELEE) {
 			bc.chance = 0;
 			bc.percent = 0;
+		}
+		if (player.gameChanger & BIT(GC_28_SUPERMUTANT)) {
+			if (critType == CR_ARROW) {
+				bc.chance = 2;
+			}
 		}
 	}
 	if (GameMode == GM_CLASSIC) {
@@ -509,9 +547,10 @@ void OnTakeMeleeTrigger( int monsterIndex, int playerIndex )
 //----- (th3) -------------------------------------------------------------
 Affix* CurAffixesMagic()
 {
-	switch(GameMode){
+	// Then normal game mode logic
+	switch (GameMode) {
 	case GM_COLISEUM: return AffixesColiseum;
-	case GM_CLASSIC : return AffixesClassic;
-	default         : return Affixes;
+	case GM_CLASSIC: return AffixesClassic;
+	default: return Affixes;
 	}
 }

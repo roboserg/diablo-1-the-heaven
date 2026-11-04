@@ -1,4 +1,5 @@
 ﻿#include "stdafx.h"
+#include "ItemOverlay.h"
 
 /*
 Transmute item service at Cain. Something akin to Horadric Cube, but it costs gold. Available in modes where you can get gems & crafting.
@@ -13,29 +14,29 @@ Recipes:
 8) [?] magic / rare / enchanted (if without sockets) item + diamond (any grade) = affixes removed, item turns white, quenching lost too. gold cost: 100 + (CLVL x 10)
 9) to be continued... (looking for ideas btw)
 
-для сервиса трансмута должно открываться то же окно что и для опознания
-в этом окне вместо 2-х кнопок опознания (внизу слева) должна быть одна.
-В тултипе кнопки, если в окне нет предметов, написано: "Place item(s) to transmute" (подходящие рецептурно вещи выдадут иную надпись, об этом позже),
-id кнопки = 3 (не нажато), 4 (нажато). Из того же списка кнопок что и используются в торговле. (tradewindowbutn.cel)
-если нажатие на кнопку трансмута не выдает эффекта, то используется звук 1218
-если трансмутация свершилась, проигрывается звук 1808 (добавил его в ветке - обновлять дату не придется)
+(rt) the transmute service should open the same window as identification
+(rt) in this window there should be one button instead of the 2 identification buttons (bottom left).
+(rt) The button's tooltip, when the window has no items, reads: "Place item(s) to transmute" (items matching a recipe show different text, see below),
+(rt) button id = 3 (not pressed), 4 (pressed). From the same button list used in trading. (tradewindowbutn.cel)
+(rt) if pressing the transmute button has no effect, sound 1218 is used
+(rt) if the transmutation happened, sound 1808 plays (added in the branch, so the data date doesn't need updating)
 --------------------------------------------------------------------------------------------------------------------------------
-Сообщения для тултипа, если айтемы в окне подходят для рецепта:
-один белый предмет в окне. и у игрока достаточно золота по формуле рецепта:"transmute into a random magic item"
-один магический (именно синий. не рарный. не уник. не сокетный. не энчант. не сетовый) предмет"re-roll affixes"
-2 хилки:"transmute into potion of full healing"
-2 маны:"transmute into potion of full mana"
-2 холика:"transmute into full holy water potion"
+(rt) Tooltip messages when the items in the window match a recipe:
+(rt) one white item in the window, and the player has enough gold per the recipe formula: "transmute into a random magic item"
+(rt) one magic item (blue specifically: not rare, not unique, not socketed, not enchanted, not set): "re-roll affixes"
+(rt) 2 healing potions: "transmute into potion of full healing"
+(rt) 2 mana potions: "transmute into potion of full mana"
+(rt) 2 holy water potions: "transmute into full holy water potion"
 
-Сообщения для инфо- окна.
-Если ничего нет на станке, то выводится сообщение "Place item(s) to transmute"
-Если на станке предметы, которые нелья затрансмутить, то пишется "transmute impossible"
-В прочих случаях выводится то, что написано в условиях сообщений для тултипа (подходящие рецепты. + в нижней строке так же указана стоимость в золоте)
-В любом случае, на кнопке написано просто "Transmute". (если трансмут невозможен, то красным цветом).
+(rt) Messages for the info window.
+(rt) If the bench is empty, the message "Place item(s) to transmute" is shown
+(rt) If the bench holds items that can't be transmuted, "transmute impossible" is shown
+(rt) Otherwise, what the tooltip message conditions say is shown (matching recipes, plus the gold cost on the bottom line)
+(rt) In any case the button just reads "Transmute" (in red if transmutation is impossible).
 
-добавил в дату вот такой интерфейс
-находится по адресу data\\transmute\\tmpanel.cel
-есть вторая версия: data\\transmute\\tmpanel_v2.cel
+(rt) added this interface to the data
+(rt) located at data\\transmute\\tmpanel.cel
+(rt) there is a second version: data\\transmute\\tmpanel_v2.cel
 */
 
 bool IsTransmutePanelVisible;
@@ -146,7 +147,7 @@ Recipe Recipes[TR_count] = {
 						   IR( return item.subType == IST_OIL_REPAIR && item.grade == TransmuteSlots.items[transmuteIndexes[0]].grade; ) },
 						 IR( return 10 * item.grade * item.grade; ),
 						 Do<TR_UPGRADE_OIL>, true },
-	{ TR_MAGIC_TO_WHITE, { "Magic, Rare or Enchanted item", "To base item" },
+	{ TR_MAGIC_TO_WHITE, { "Magic or Enchanted item", "To base item" },
 	                     { IR( return not(item.ItemCode, IC_12_RING, IC_13_AMULET, IC_0_OTHER)
 							          && (item.MagicLevel == ML_1_MAGIC || item.dropType & (D_ENCHANT|D_ENCHANT_V1|D_RARE)); ) },
 						 IR( return 100 + player.CharLevel * 10; ),
@@ -223,18 +224,18 @@ void Transmute_DrawRecipeInfo()
 	int y = TransmutePanel.Top + 210;
 	int yend = TransmutePanel.Down - 40;
 	
-	DrawText(x, y, xend, "Transmute", C_3_Gold);
+	DrawText(x, y, xend, L("Transmute"), C_3_Gold);
 	if( ! TransmuteSlots.count ){
 		if( TransmuteShowRecipeList ){
 			y += 17 + 8;
 			for( int i = RecipeListPos; i < TR_count && y + 17 * (int)Recipes[i].info.size() < yend; RecipeListNext = ++i ){
 				auto& info = Recipes[i].info;
 				if( info.size() ){
-					sprintf(TransmuteString, "\x87%i.\x87 %s", i, info[0]);
+					sprintf(TransmuteString, "\x87%i.\x87 %s", i, L(info[0]));
 					DrawTextColored(x, y, xend, TransmuteString, C_0_White);
 					y += 17;
 					for( uint s = 1; s < info.size(); ++s ){
-						DrawText(x, y, xend, info[s], C_0_White);
+						DrawText(x, y, xend, L(info[s]), C_0_White);
 						y += 17;
 					}
 					y += 8;
@@ -242,17 +243,22 @@ void Transmute_DrawRecipeInfo()
 			}
 		}else{
 			y += 17 * 2;
-			DrawText(x, y, xend, "Place item(s) to transmute", C_0_White);
+			if( GameLanguage != LANG_EN ){
+				DrawText(x, y, xend, L("Place item(s)"), C_0_White);
+				DrawText(x, y + 17, xend, L("to transmute"), C_0_White);
+			}else{
+				DrawText(x, y, xend, "Place item(s) to transmute", C_0_White);
+			}
 		}
 	}else{
 		y += 17 * 2;
 		for(auto& s: Recipes[AvailableRecipe].info){
-			DrawText(x, y, xend, s, C_0_White);
+			DrawText(x, y, xend, L(s), C_0_White);
 			y += 17;
 		}
 		if( AvailableRecipe ){
 			y += 17;
-			sprintf(TransmuteString, "Cost: %i", TransmuteFullPrice);
+			sprintf(TransmuteString, L("Cost: %i"), TransmuteFullPrice);
 			DrawText(x, y, xend, TransmuteString, TransmuteFullPrice > player.TotalGold ? C_2_Red : C_1_Blue);
 		}
 	}
@@ -447,6 +453,11 @@ bool Do<TR_WHITE_TO_MAGIC>(vector<int>& itemIndexes, Player& player)
 	item.SetSeed(Rng64());
 	item.Identified = 1;
 	UpdateItem(item, false);
+
+	// Add XP for crafting magic item from white
+	i64 xpGain = 20LL * player.CharLevel * player.CharLevel + 80;
+	addUnlimitedXpToPlayer(xpGain, CurrentPlayerIndex);
+
 	return true;
 }
 
@@ -472,6 +483,11 @@ bool Do<TR_MAGIC_REROLL>(vector<int>& itemIndexes, Player& player)
 	item.SetSeed(Rng64());
 	item.Identified = 1;
 	UpdateItem(item, false);
+
+	// Add XP for re-rolling magic item affixes
+	i64 xpGain = 20LL * player.CharLevel * player.CharLevel + 80;
+	addUnlimitedXpToPlayer(xpGain, CurrentPlayerIndex);
+
 	return true;
 }
 
@@ -641,9 +657,14 @@ bool Do<TR_BOOK>(vector<int>& itemIndexes, Player& player)
 }
 
 //----- (th3) -------------------------------------------------------------
-bool Transmute_Allowed( const Item& item )
+bool Transmute_Allowed(const Item& item)
 {
-	return not(item.ItemCode, IC_11_GOLD) && ! IsQuestItem( item.baseItemIndex ) && item.socketsAmount == 0;
+	// Sigils cannot be transmuted
+	if (item.baseItemIndex >= BI_2504_SIGIL_FIRST && item.baseItemIndex <= BI_2508_SIGIL_LAST) {
+		return false;
+	}
+
+	return not(item.ItemCode, IC_11_GOLD) && !IsQuestItem(item.baseItemIndex) && item.socketsAmount == 0;
 }
 
 //----- (th3) -------------------------------------------------------------
@@ -668,6 +689,7 @@ void Transmute_RecalcItemsReq()
 //----- (th3) -------------------------------------------------------------
 void __fastcall Transmute_Open()
 {
+    IsChatHistoryVisible = false;
     IsTransmutePanelVisible = true;
     IsINVPanelVisible = true;
     CurrentDialogIndex = PD_0_None;
@@ -756,9 +778,10 @@ void __fastcall Transmute_DrawItems()
 			if( ItemHeightTable[graphicValue] >= CELL_SIZE * 3 ) y -= 3;
 			else if( ItemHeightTable[graphicValue] >= CELL_SIZE * 2 ) y -= 1;
 
+			const int overlayGfx = graphicValue;	// (th4) GetItemSprites() mutates it
 			char* itemsCELArray = GetItemSprites(graphicValue);
 			bool itemUnderCursor = Cur.InventoryCellID == invItemIndex - 1 + Stash_SlotIDStart;
-			// Выбираем цвет обводки
+			// (rt) Pick the outline colour
 			int colorOfBorder = -1;
 			if(itemUnderCursor){
 				colorOfBorder = 197;
@@ -769,7 +792,8 @@ void __fastcall Transmute_DrawItems()
 					colorOfBorder = 229;
 				}
 			}
-			CEL_Draw(x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+			ItemCEL_Draw( overlayGfx, x, y, itemsCELArray, graphicValue, itemWidthTable, 0, 8, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1, colorOfBorder);
+			ItemOverlay_Queue(overlayGfx, x, y, itemWidthTable, ItemHeightTable[overlayGfx], inventorySlot.mirrorImage != 0, colorOfBorder, (int)!(inventorySlot.IsReqMet || InventoryTurnOffRedColorItems /*|| itemUnderCursor*/) | inventorySlot.mirrorImage << 1);	// (th4)
 		}
 	}
 }
@@ -819,7 +843,7 @@ int GetSlotMouseAbove_Transmute()
 	if( item->ItemCode == IC_11_GOLD ){
 		char* currency = formatGoldAmount(item->amount);
 		char infoPanelString[260];
-		sprintf(infoPanelString, "%i gold %s", item->amount, currency);
+		sprintf(infoPanelString, L("%i gold %s"), item->amount, currency);
 		return inventoryCellIndex;
 	}
 	return inventoryCellIndex;
@@ -837,12 +861,12 @@ void __fastcall Transmute_MouseMove()
 	}else if( CursorIntoDisplayObject(TransmuteLeaveButton)) {
 		Tooltip_SetOffsetTop();
 		Tooltip_Clear();
-		Tooltip_AddLine("Exit");
+		Tooltip_AddLine(L("Exit"));
 	}else if( CursorIntoDisplayObject(TransmuteButton)) {
 		Tooltip_SetOffsetTop();
 		Tooltip_Clear();
-		Tooltip_AddLine("Transmute");
-		Tooltip_AddLine("Hotkey: T");
+		Tooltip_AddLine(L("Transmute"));
+		Tooltip_AddLine(L("Hotkey: T"));
 	}
 }
 
@@ -886,7 +910,7 @@ void __fastcall Transmute_TakeCursorItem(int playerIndex, int mX, int mY)
 		}
 	}
 
-	// тут чистая копия саба клеар инвентори слот. Только до рекалк плеер
+	// (rt) an exact copy of the ClearInventorySlot sub here, only up to RecalcPlayer
 	int takeItemIndex;
 
 	player.ItemOnCursor.ItemCode = IC_M1_NONE;
@@ -914,7 +938,7 @@ void __fastcall Transmute_TakeCursorItem(int playerIndex, int mX, int mY)
 		}
 	}
 
-	if( player.ItemOnCursor.ItemCode != IC_M1_NONE ){ //  если что то подцепили на курсор
+	if( player.ItemOnCursor.ItemCode != IC_M1_NONE ){ //  (rt) if something was picked up onto the cursor
 		if( player.ItemOnCursor.ItemCode == IC_11_GOLD ){
 			player.TotalGold = CalcTotalGold(playerIndex);
 		}
@@ -952,18 +976,18 @@ bool __fastcall Transmute_PutItemInStorage( int playerIndex, int aCellID, int aW
 		currentInvYPosition = 0;
 	}
 
-	for( int i = 0; haveRoomForItem; i++ ){// Вычисление есть ли место для вещи
+	for( int i = 0; haveRoomForItem; i++ ){// (rt) Calculating whether there is room for the item
 		if( currentInvYPosition >= TransmuteSlots.Rows ){
 			haveRoomForItem = false;
-			return haveRoomForItem;// На нет и суда нет
+			return haveRoomForItem;// (rt) Nothing to do in that case
 		}
 		currentInvXPosition = aCellID % TransmuteSlots.Cols;
-		if( currentInvXPosition < 0 ){// Если отрицательный - обнуляем
+		if( currentInvXPosition < 0 ){// (rt) If negative, set to zero
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( !haveRoomForItem ){// То есть по сути чтобы цикл вернул 1 нужно чтобы клетки инвентаря от текущей по х размер ширины были пусты.
-				return haveRoomForItem;// На нет и суда нет
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( !haveRoomForItem ){// (rt) So for the loop to return 1, the inventory cells from the current one across the item's width must be empty.
+				return haveRoomForItem;// (rt) Nothing to do in that case
 			}
 			int inventorySlotsIndex = abs(TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols]);
 			if( inventorySlotsIndex ){
@@ -975,14 +999,14 @@ bool __fastcall Transmute_PutItemInStorage( int playerIndex, int aCellID, int aW
 			currentInvXPosition++;
 		}
 		currentInvYPosition++;
-		if( i == aHeight - 1 ){//если есть место для вещи
-			break; // При выходе haveRoomForItem будет 1, что с ним делать следующая конструкция сама решить
+		if( i == aHeight - 1 ){//(rt) if there is room for the item
+			break; // (rt) On exit haveRoomForItem will be 1; the next block decides what to do with it
 		}
 	}
 	if( !haveRoomForItem || !isNotRoomTest ){
 		return haveRoomForItem;
 	}
-	// Собственно впихивание вещи. haveRoomForItem скорее всего будет равно 1, ибо в случаях когда не равно в предыдущем цикле сразу выход
+	// (rt) Placing the item itself. haveRoomForItem will most likely be 1, since otherwise the previous loop exits immediately
 	TransmuteSlots.items[TransmuteSlots.count] = player.ItemOnCursor;
 	TransmuteSlots.count++;
 	currentInvYPosition = aCellID / TransmuteSlots.Cols;
@@ -996,11 +1020,11 @@ bool __fastcall Transmute_PutItemInStorage( int playerIndex, int aCellID, int aW
 		if( currentInvXPosition < 0 ){
 			currentInvXPosition = 0;
 		}
-		for( int j = 0; j < aWidth; j++ ){// проходим по клеткам aWidth количество раз
-			if( j || i != aHeight - 1 ){// Обозначаем клетки как занятые вещью
-				TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols] = -TransmuteSlots.count; // Если одна из остальных клеток
+		for( int j = 0; j < aWidth; j++ ){// (rt) go through the cells aWidth times
+			if( j || i != aHeight - 1 ){// (rt) Mark the cells as occupied by the item
+				TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols] = -TransmuteSlots.count; // (rt) If it is one of the other cells
 			}else{
-				TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols] = TransmuteSlots.count; // Если клетка с картинкой
+				TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols] = TransmuteSlots.count; // (rt) If it is the cell with the picture
 			}
 			currentInvXPosition++;
 		}
@@ -1023,10 +1047,10 @@ void __fastcall Transmute_PutCursorItem(int playerIndex, int mX, int mY)
 	bool isHasGotToTheSlot = false;
 
 	if( !(ItemWidthCells & 1) ){ // even
-		xPos -= CELL_SIZE / 2; // Отступ влево на полклетки для вещей с чётной шириной. Чтобы ставились на клетки под вещьюа не правее
+		xPos -= CELL_SIZE / 2; // (rt) Shift left by half a cell for items of even width, so they land on the cells under the item and not to the right
 	}
 	if( !(ItemHeightCells & 1) ){ // even
-		yPos -= CELL_SIZE / 2; // Отступ вверх для вещей с чётной высотой. Для тех же целей
+		yPos -= CELL_SIZE / 2; // (rt) Shift up for items of even height, for the same purpose
 	}
 
 	int cellIndex = GetCellIndex(TransmuteSlots.rect, xPos, yPos);
@@ -1056,7 +1080,7 @@ void __fastcall Transmute_PutCursorItem(int playerIndex, int mX, int mY)
 				return;
 			}
 			bool haveRoomForItem = !TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols];
-			if( !haveRoomForItem ){ // Запоминаем какая вещь нам попалась под нашу вещь, если их несколько - выходим
+			if( !haveRoomForItem ){ // (rt) Remember which item is under ours; if there are several, exit
 				if( !itemForReplacing ){
 					itemForReplacing = TransmuteSlots.used[currentInvXPosition + currentInvYPosition * TransmuteSlots.Cols];
 					if( itemForReplacing < 0 ){
@@ -1072,13 +1096,13 @@ void __fastcall Transmute_PutCursorItem(int playerIndex, int mX, int mY)
 		currentInvYPosition++;
 	}
 
-	if( playerIndex == CurrentPlayerIndex ){ // Если кладём текущему игроку - играем соответствующий звук
+	if( playerIndex == CurrentPlayerIndex ){ // (rt) If placing for the current player, play the corresponding sound
 		PlayGlobalSound(Flip_InventorySound[ItemFlipTable[player.ItemOnCursor.GraphicValue]]);
 	}
 
-	int currentY;
+/*	int currentY;
 	if( !itemForReplacing ){
-		//если нечем заменять
+		(rt) //if there is nothing to replace with
 		currentY = cellIndex / TransmuteSlots.Cols - ((ItemHeightCells - 1) / 2);
 		if( currentY < 0 ){
 			currentY = 0;
@@ -1087,17 +1111,44 @@ void __fastcall Transmute_PutCursorItem(int playerIndex, int mX, int mY)
 		Transmute_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 );
 	}
 	else if( itemForReplacing ){
-		//если есть чем заменять
-		tempItem = TransmuteSlots.items[itemForReplacing - 1]; // Сохранили в темп заменяемую вещь
-		TransmuteSlots.Clear(itemForReplacing - 1); // Удаляемая вещь становится под номером равным количеству вещей
+		(rt) //if there is something to replace with
+		(rt) tempItem = TransmuteSlots.items[itemForReplacing - 1]; // Saved the item being replaced into temp
+		(rt) TransmuteSlots.Clear(itemForReplacing - 1); // The removed item gets the number equal to the item count
 		currentY = cellIndex / TransmuteSlots.Cols - ((ItemHeightCells - 1) / 2);
 		if( currentY < 0 ){
 			currentY = 0;
 		}
 		cellIndex = cellIndex % TransmuteSlots.Cols + TransmuteSlots.Cols * currentY;
-		Transmute_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 ); // Сюда вещь копируется с курсора
-		newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor); // Поменяли вещи
+		(rt) Transmute_PutItemInStorage( playerIndex, cellIndex, ItemWidth / CELL_SIZE, ItemHeight / CELL_SIZE, 1 ); // The item is copied here from the cursor
+		(rt) newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor); // Swapped the items
+	}*/
+
+	// Fixed item placement for 3+ cell wide items
+	//----------NEW SOLUTION TO PREVENT 3X2 OR 4X2 OR 4X7 ITEM ERASE WHEN PUTTING IN STASH (PREVIOUS SOLUTION IS COMMENTED OUT ABOVE)---------------
+	if (!itemForReplacing) {
+		int currentX = cellIndex % TransmuteSlots.Cols - (ItemWidthCells - 1) / 2;
+		if (currentX < 0) currentX = 0;
+		if (currentX + ItemWidthCells > TransmuteSlots.Cols) currentX = TransmuteSlots.Cols - ItemWidthCells;
+		int currentY = cellIndex / TransmuteSlots.Cols - (ItemHeightCells - 1) / 2;
+		if (currentY < 0) currentY = 0;
+		if (currentY + ItemHeightCells > TransmuteSlots.Rows) currentY = TransmuteSlots.Rows - ItemHeightCells;
+		cellIndex = currentX + TransmuteSlots.Cols * currentY;
+		Transmute_PutItemInStorage(playerIndex, cellIndex, ItemWidthCells, ItemHeightCells, 1);
 	}
+	else if (itemForReplacing) {
+		tempItem = TransmuteSlots.items[itemForReplacing - 1];
+		TransmuteSlots.Clear(itemForReplacing - 1);
+		int currentX = cellIndex % TransmuteSlots.Cols - (ItemWidthCells - 1) / 2;
+		if (currentX < 0) currentX = 0;
+		if (currentX + ItemWidthCells > TransmuteSlots.Cols) currentX = TransmuteSlots.Cols - ItemWidthCells;
+		int currentY = cellIndex / TransmuteSlots.Cols - (ItemHeightCells - 1) / 2;
+		if (currentY < 0) currentY = 0;
+		if (currentY + ItemHeightCells > TransmuteSlots.Rows) currentY = TransmuteSlots.Rows - ItemHeightCells;
+		cellIndex = currentX + TransmuteSlots.Cols * currentY;
+		Transmute_PutItemInStorage(playerIndex, cellIndex, ItemWidthCells, ItemHeightCells, 1);
+		newCursorGraphics = SwapItemsAndGetFirstItemGraphicsValue(&tempItem, &player.ItemOnCursor);
+	}
+	//------------------------------- END OF THIS SOLUTION -------------------------------------------
 	Transmute_UpdateAvailableRecipes();
 
 	RecalcPlayer(playerIndex, 1);
@@ -1117,7 +1168,7 @@ bool __fastcall Transmute_AutoPutCursorItem(int playerIndex, bool force /*= fals
 	if( ! Transmute_Allowed(cur) && ! force ) return false;
 
 	SetupItemSizes(cur.GraphicValue + CM_12_ITEMS_PICS_START);
-	vector<uchar> successionArray; // Сюда копируется приоритет места инвентаря для каждой позиции.
+	vector<uchar> successionArray; // (rt) The inventory placement priority for each position is copied here.
 	successionArray.reserve(TransmuteSlots.Max * 2);
 
 	GetSuccessionArray(TransmuteSlots.Cols, TransmuteSlots.Rows, ItemWidthCells, ItemHeightCells, successionArray);
@@ -1260,13 +1311,15 @@ Item* __fastcall TransmuteSlots_GetItemBySlotId( int slotId )
 }
 
 //----- (th3) -------------------------------------------------------------
-bool CanTransmute()
+bool CanTransmute()// transmute deactivated
 {
 	#if CHEATS
 	return true;
 	#endif
 	return GameMode != GM_COLISEUM && GameMode != GM_CLASSIC
 		&& !HasTrait(CurrentPlayerIndex, TraitId::Barbarian)
+		//&& (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_28_SUPERMUTANT)))
+		//&& (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_29_ENCLAVE_SOLDIER)))
 		&& (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_9_NIGHT_KIN)))
         && (!(Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM)));
 }

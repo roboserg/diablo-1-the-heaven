@@ -19,27 +19,27 @@ template<class T, class... Ts> struct is_any: bool_constant<(is_same_v<T, Ts> ||
 template<typename T> __forceinline void FreeMemZero( T& ptr ) { void* oldAddr = ptr; ptr = 0; FreeMem(oldAddr); }
 template<typename T> __forceinline void ReleaseZero( T& ptr ) { if( ptr ){ ptr->Release(); ptr = 0; } }
 
-// Если число больше максимума, присваеваем ему максимум
+// (rt) If the number is above the maximum, set it to the maximum
 template<class T, class V> __forceinline void LimitToMax( T& n, V max )
 {
 	if( n > max ) n = max;
 }
-// Если число меньше минимума, присваеваем ему минимум
+// (rt) If the number is below the minimum, set it to the minimum
 template<class T, class V> __forceinline void LimitToMin( T& n, V min )
 {
 	if( n < min ) n = min;
 }
-// Ограничиваем число сверху и снизу
+// (rt) Clamp the number from above and below
 template<class T, class Vmin, class Vmax> __forceinline void LimitToRange( T& n, Vmin min, Vmax max)
 {
 	if( n < min ) n = min;
 	else if( n > max ) n = max;
 }
 
-// если внутри есть вызов функции не th2-only и это не оптимизация оригинала
-// то выносим в таблицу и ставим адрес th2
-// Заворачиваем число вокруг диапазона [0; period - 1]
-// этой функцией пытались заменить несколько разных операций, с возможным нарушением логики, проверить все вызовы
+// (rt) if it contains a call to a non-th2-only function and it's not an optimization of the original
+// (rt) then move it into the table and set the th2 address
+// (rt) Wrap the number around the range [0; period - 1]
+// (rt) this function was used to replace several different operations, possibly breaking the logic; check all calls
 __forceinline void Wrap(int& n, int period)
 {
 	if( n >= period ){
@@ -47,8 +47,8 @@ __forceinline void Wrap(int& n, int period)
 	}else if( n < 0 ){
 		n += period;
 	}
-	// В оригинале нет подобных проверок, более того есть логика в которой явно требуется отрицательный результат
-	// а если нужно обрезать любые числа то это можно делать так: (uint&)n %= period - 1 ;
+	// (rt) The original has no such checks; moreover, there is logic that explicitly requires a negative result
+	// (rt) and if any number must be wrapped, it can be done like this: (uint&)n %= period - 1 ;
 	//#ifdef _DEBUG
 	//if( !InSegment(n, 0, period - 1) ){
 	//	TerminateWithError("Wrap illegal period (%d) or value (%d)", period, n);
@@ -71,7 +71,7 @@ template<typename... T> __forceinline void Limit112(T&... coord){ (..., LimitToR
 #define strcat(dst, src) strncat_s(dst, src, _TRUNCATE)
 #define strcat_s(dst, src) strncat_s(dst, src, _TRUNCATE)
 
-// вспомогательная функция для печати строки в саму себя
+// (rt) helper function for printing a string into itself
 template <size_t size>
 __forceinline void sprints( char (&dst)[size], const char* stemplate, const char* s1, const char* s2 )
 {
@@ -80,28 +80,28 @@ __forceinline void sprints( char (&dst)[size], const char* stemplate, const char
 	sprintf_s( dst, "%s", res );
 }
 
-// добавлено для целей сверки, после можно заменить на (int) и включить Extended Instructions в компиляторе - станет быстрый инлайн
+// (rt) added for comparison purposes; later it can be replaced with (int) and Extended Instructions enabled in the compiler for a fast inline
 #define ftol(x) (int)(x) //((int)(__int64)((double)x))
 
 // macro for selection value from index sequence, for example by difficulty: int add = by( Difficulty, 10, 20, 30 );
 template<typename T> __forceinline T by( size_t i, T v1, T v2, T v3 ) { return i ? ( i == 1 ? v2 : v3 ) : v1; }
 template<typename T, typename... V> __forceinline T by( size_t i, T v1, T v2, T v3, V... rest ) { T val[] = { v1, v2, v3, (T) rest... }; return val[ i < countof(val) ? i : countof(val) - 1 ]; }
 
-// macro for expression like baseMonsterIndex == 1 || baseMonsterIndex == 2 || ..., чтобы писать is(baseMonsterIndex, 1, 2, ...)
+// (rt) macro for expression like baseMonsterIndex == 1 || baseMonsterIndex == 2 || ..., so you can write is(baseMonsterIndex, 1, 2, ...)
 template<typename V, typename... T > __forceinline bool is( V&& var, T&& ... val ){ return ( ... || (var == val) ); }
 template<typename V, typename T, size_t N> __forceinline bool is( V&& var, T (&arr)[N] ){ for( auto v: arr ) if( var == v ) return true; return false; }
 
 template<typename V, typename... T > __forceinline bool has( V&& arr, T&& ... val ){ for( auto v: arr ) if( ( ... || (v == val) ) ) return true; return false; }
 template<typename V, typename... T > __forceinline bool has( int n, V&& arr, T&& ... val ){ for( int i = 0; i < n; ++i ) if( ( ... || (arr[i] == val) ) ) return true; return false; }
 
-// macro for expression like monsterResist & 1 && spellType == 1 || ..., чтобы писать bit_is(monsterResist, spellType, 1, 1, 2, 2, ...)
+// (rt) macro for expression like monsterResist & 1 && spellType == 1 || ..., so you can write bit_is(monsterResist, spellType, 1, 1, 2, 2, ...)
 template<typename V1, typename V2, typename... T> __forceinline bool bit_is( V1& v1, V2& v2, T... var ){ int v[] = {var...};
 	for( size_t i = 0; i < sizeof...(var); i+=2 ) if( v1 & v[i] && v2 == v[i+1] ) return true; return false; }
 
-// macro for expression like baseMonsterIndex1 == 1 && baseMonsterIndex2 == 1 || ..., чтобы писать all(1, baseMonsterIndex1, baseMonsterIndex2, ...)
+// (rt) macro for expression like baseMonsterIndex1 == 1 && baseMonsterIndex2 == 1 || ..., so you can write all(1, baseMonsterIndex1, baseMonsterIndex2, ...)
 template<typename V, typename... T > __forceinline bool all( V val, T ... var ) { return (... && (var == val)); }
 
-// macro for expression like baseMonsterIndex != 1 && baseMonsterIndex != 2 && ..., чтобы писать not(baseMonsterIndex, 1, 2, ...)
+// (rt) macro for expression like baseMonsterIndex != 1 && baseMonsterIndex != 2 && ..., so you can write not(baseMonsterIndex, 1, 2, ...)
 template<typename V, typename... T > __forceinline bool not( V&& var, T ... val ){ return ( ... && (var != val) ); }
 
 // macro for expression like item.AddsStrength += effectValue; item.AddsMagic += effectValue; ...

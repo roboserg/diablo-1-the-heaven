@@ -1579,7 +1579,7 @@ int __fastcall sub_15002230(HANDLE hFile, int a2, int a3, int a4, int a5)
 	int v26;                    // [sp+48h] [bp-408h]@1
 	int v27;                    // [sp+4Ch] [bp-404h]@1
 	char v28;                   // [sp+50h] [bp-400h]@1
-	char v29[1023];             // [sp+51h] [bp-3FFh]@2 // под звук чтоли ? а их уже 1084
+	char v29[1023];             // (rt) [sp+51h] [bp-3FFh]@2 // for sound perhaps? there are already 1084 of them
 	v9 = a4 * a5;
 	v10 = hFile;
 	v16 = 0;
@@ -1624,7 +1624,7 @@ int __fastcall sub_15002230(HANDLE hFile, int a2, int a3, int a4, int a5)
 
 // 150101B0: using guessed type _DWORD __stdcall SMemAlloc(_DWORD, _DWORD, _DWORD, char);
 // 1501C0CC: using guessed type __int16 word_1501C0CC;
-// 15002230: using guessed type char var_3FF[1023]; // звуки ?
+// (rt) 15002230: using guessed type char var_3FF[1023]; // sounds?
 //----- (150023C0) --------------------------------------------------------
 int __fastcall sub_150023C0(HANDLE hFile, int a2, DWORD a3, int a4, int a5)
 {
@@ -3965,7 +3965,7 @@ unsigned int __fastcall sub_15004AA0(int a1, char a2, int a3, int a4, int a5)
 	if( v5 != 1 )
 		goto LABEL_21;
 	if( !BYTE1(a3) ){
-		if( BYTE3(a3) ==/*__PAIR__(*/ BYTE2(a3)/*, 0)*/ ) // штука какая то
+		if( BYTE3(a3) ==/*__PAIR__(*/ BYTE2(a3)/*, 0)*/ ) // (rt) unknown entity
 		{
 			if( (uchar)a3 == (uchar)a4 && BYTE1(a4) ){
 				BYTE1(a3) = BYTE1(a4);
@@ -4196,7 +4196,7 @@ int __stdcall SCodeCompile(int a1, char* a2, int a3, unsigned int a4, unsigned i
 			v29 = v7 != 0 ? 3 : 1;
 			v30 = dword_1501E9BC * v29 + dword_1501E9CC;
 			*(uint*)(v27 + 24) = v30;
-			*(uint*)(v27 + 20) = SMemAlloc(v30, "SCODE.CPP", 1023, 0); // звуки? 1084 уже
+			*(uint*)(v27 + 20) = SMemAlloc(v30, "SCODE.CPP", 1023, 0); // (rt) sounds? already 1084
 			if( v65 ){
 				v31 = dword_1501E9CC + dword_1501E9BC * v29;
 				*(uint*)(v27 + 48) = v31;
@@ -6317,7 +6317,7 @@ int __stdcall SDlgDialogBoxIndirectParam(HINSTANCE exeHandle, int dialogHandle, 
 	HWND v6;    // esi@4
 	HANDLE v7;  // ebp@12
 	if( dword_1501E9F0 || sub_15006370() ){
-		v6 = S_CreateDialogWindow(exeHandle, dialogHandle, hWndParent, lpParam, lParam); // тут рисуется вне окна 
+		v6 = S_CreateDialogWindow(exeHandle, dialogHandle, hWndParent, lpParam, lParam); // (rt) drawn outside the window here 
 		if( v6 ){
 			if( hWndParent ){
 				if( hWndParent != GetDesktopWindow() ){
@@ -11039,7 +11039,7 @@ int __stdcall SFileOpenFile(char* fileName, HANDLE* fileHandle)
 						break;
 					int v15 = *v13++;
 					v16 = toupper(v15);
-					v30 = (j + v30) ^ *(uint*)(MpqDecryptBuffer + 4 * v16 + 1024); // буфер аллоцирован динамически 
+					v30 = (j + v30) ^ *(uint*)(MpqDecryptBuffer + 4 * v16 + 1024); // (rt) the buffer is allocated dynamically 
 				}
 				char* v17 = fileName;
 				int v18 = 0x7FED7FED;
@@ -18983,7 +18983,7 @@ int __stdcall SNetSelectGame(int a1, void* a2, void* a3, void* a4, void* a5, int
 		v8 = 87;
 		goto LABEL_7;
 	}
-	// в отладке в dword_15021184 + 52 пока только 0 видел, возможно это функция коннекта к серверу
+	// (rt) in the debugger only 0 has been seen at dword_15021184 + 52 so far; possibly a server connection function
 	v7 = *(int (__stdcall **)(uint, uint, uint, uint, uint, uint))(dword_15021184 + 52);
 	LeaveCriticalSection(&NetCritical);
 	return v7(a1, (uint)&v11, (uint)&v9, (uint)&v12, (uint)&v10, a6);
@@ -22105,7 +22105,7 @@ int __thiscall sub_1501A760(void* This, long double a2)
 	do{
 		v11 = pow(a2, (long double)(unsigned __int8) * (v3 - 1) * 0.00390625) * 256.0;
 		v4 = pow(a2, (long double)(unsigned __int8) * v3 * 0.00390625) * 256.0;
-		// 		UNDEF(v5);  // что то непонятное
+		// 		(rt) UNDEF(v5);  // unclear
 		if( v6 | v7 )
 			v8 = (__int64)(pow(a2, (long double)(unsigned __int8) * (v3 - 2) * 0.00390625) * 256.0);
 		else

@@ -18,7 +18,7 @@ int GetMapOfTheStarsMinutsPassedCount()
 //----- (0040B997) --------------------------------------------------------
 void OpenPopupScreen()
 {
-	SomeDword_60 = (-(GetMapOfTheStarsMinutsPassedCount() != 31)) & 0xE1 + 31;// принимает значения от 31 (при !=31) до 256 (при ==31)
+	SomeDword_60 = (-(GetMapOfTheStarsMinutsPassedCount() != 31)) & 0xE1 + 31;// (rt) takes values from 31 (when !=31) to 256 (when ==31)
 	if( ReadPopupScreen() ){
 		IsPopupScreenOpen = true;
 	}else{
@@ -47,7 +47,7 @@ void ClosePopupScreen()
 void DrawPopupScreen()
 {
 	if( IsPopupScreenOpen ){
-		// 64, 511 в оригинале. не тестировалось
+		// (rt) 64, 511 in the original. Not tested
 		
 		int height = 351;
 		Surface_DrawCEL((WorkingWidth - GUI_Width) / 2, (ScreenHeight - GUI_MainPanelHeight - height) / 2 + height + Screen_TopBorder /*511*/, PopupScreen, 1, 640);

@@ -578,4 +578,62 @@ Perk SynergyPerks[] = {
 		/* 3*/ { 41, IPCM_ANY_WARRIOR & ~IPCM_INQUISITOR | IPCM_ANY_MONK | IPCM_ROGUE | IPCM_ASSASSIN | IPCM_ANY_SAVAGE, {PERK_ENDURANCE, 20, PERK_STRONG_ARM, 20}/*perk*/, {}/*spell*/, 220,0,0,0/*sdmv*/, 10 },
 	} },
 
+	{ SYNERGY_IMPENETRABLE, {"melee damage resistance::and arrow damage resistance::    increased by %i points"}, "Impenetrable", {
+		/* 0*/ { 21, IPCM_SECUTOR, {PERK_STONEWALL, 1, PERK_WEAPON_THRIFT, 1}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 1 },
+		/* 1*/ { 25, IPCM_SECUTOR, {PERK_STONEWALL, 1, PERK_WEAPON_THRIFT, 2}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 2 },
+		/* 2*/ { 29, IPCM_SECUTOR, {PERK_STONEWALL, 2, PERK_WEAPON_THRIFT, 3}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 3 },
+		/* 3*/ { 33, IPCM_SECUTOR, {PERK_STONEWALL, 2, PERK_WEAPON_THRIFT, 4}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 4 },
+		/* 4*/ { 37, IPCM_SECUTOR, {PERK_STONEWALL, 3, PERK_WEAPON_THRIFT, 5}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 5 },
+	} },
+
+	{ SYNERGY_INTIMIDATION, {"critical hit damage::    increased by %i%%"}, "Intimidation", {
+		/* 0*/ { 16, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 1, PERK_JACKAL_TECHNIQUE,  2}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  20 },
+		/* 1*/ { 20, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 1, PERK_JACKAL_TECHNIQUE,  4}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  40 },
+		/* 2*/ { 26, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 2, PERK_JACKAL_TECHNIQUE,  6}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  60 },
+		/* 3*/ { 32, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 2, PERK_JACKAL_TECHNIQUE,  8}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  80 },
+		/* 4*/ { 40, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 3, PERK_JACKAL_TECHNIQUE, 10}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 100 },
+		/* 5*/ { 50, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 3, PERK_JACKAL_TECHNIQUE, 12}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 120 },
+		/* 6*/ { 60, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 4, PERK_JACKAL_TECHNIQUE, 14}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 140 },
+		/* 7*/ { 70, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 4, PERK_JACKAL_TECHNIQUE, 16}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 160 },
+		/* 8*/ { 80, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 5, PERK_JACKAL_TECHNIQUE, 18}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 180 },
+		/* 9*/ { 90, IPCM_SECUTOR, {PERK_EXPERT_KILLER, 5, PERK_JACKAL_TECHNIQUE, 20}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 200 },
+	} },
+
+	{ SYNERGY_ALLOY_MEMORY, {"self-repair protocol::adapts to damage taken::and enhances repairs.::basic repair efficiency::    increased by %i points"}, "Alloy Memory", {
+		/* 0*/ {  8, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  1, PERK_IRIDIUM_POWER_CELL,  1}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  1 },
+		/* 1*/ { 14, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  2, PERK_IRIDIUM_POWER_CELL,  2}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  2 },
+		/* 2*/ { 20, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  3, PERK_IRIDIUM_POWER_CELL,  3}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  3 },
+		/* 3*/ { 26, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  4, PERK_IRIDIUM_POWER_CELL,  4}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  4 },
+		/* 4*/ { 32, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  5, PERK_IRIDIUM_POWER_CELL,  5}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  5 },
+		/* 5*/ { 37, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  6, PERK_IRIDIUM_POWER_CELL,  6}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  6 },
+		/* 6*/ { 42, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  7, PERK_IRIDIUM_POWER_CELL,  7}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  7 },
+		/* 7*/ { 47, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  8, PERK_IRIDIUM_POWER_CELL,  8}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  8 },
+		/* 8*/ { 52, IPCM_GUARDIAN, {PERK_RECONSTRUCTION,  9, PERK_IRIDIUM_POWER_CELL,  9}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  9 },
+		/* 9*/ { 57, IPCM_GUARDIAN, {PERK_RECONSTRUCTION, 10, PERK_IRIDIUM_POWER_CELL, 10}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 10 },
+	} },
+
+	{ SYNERGY_COMBAT_LOGS, {"combat chassis::maintenance mode.::self-repairs accelerate::when not in battle.::    +%i%% repair rate"}, "Combat Logs", {
+		/* 0*/ { 21, IPCM_GUARDIAN, {PERK_CONSERVATOR, 2, PERK_WEAPON_THRIFT, 1}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  50 },
+		/* 1*/ { 29, IPCM_GUARDIAN, {PERK_CONSERVATOR, 4, PERK_WEAPON_THRIFT, 3}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 100 },
+		/* 2*/ { 37, IPCM_GUARDIAN, {PERK_CONSERVATOR, 6, PERK_WEAPON_THRIFT, 5}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 150 },
+		/* 3*/ { 50, IPCM_GUARDIAN, {PERK_CONSERVATOR, 8, PERK_WEAPON_THRIFT, 7}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 200 },
+	} },
+
+	{ SYNERGY_REGENERATION, {"    mercs regenerate %i points::of life per second"}, "Regeneration", {
+		/* 0*/ {  6, IPCM_INQUISITOR, {PERK_FORTITUDE,  2, PERK_TOUGH_MERCENARIES,  2}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  1 },
+		/* 1*/ { 15, IPCM_INQUISITOR, {PERK_FORTITUDE,  4, PERK_TOUGH_MERCENARIES,  4}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  2 },
+		/* 2*/ { 24, IPCM_INQUISITOR, {PERK_FORTITUDE,  6, PERK_TOUGH_MERCENARIES,  6}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  4 },
+		/* 3*/ { 33, IPCM_INQUISITOR, {PERK_FORTITUDE,  8, PERK_TOUGH_MERCENARIES,  8}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  6 },
+		/* 4*/ { 42, IPCM_INQUISITOR, {PERK_FORTITUDE, 10, PERK_TOUGH_MERCENARIES, 10}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/,  9 },
+		/* 5*/ { 51, IPCM_INQUISITOR, {PERK_FORTITUDE, 12, PERK_TOUGH_MERCENARIES, 12}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 12 },
+		/* 6*/ { 60, IPCM_INQUISITOR, {PERK_FORTITUDE, 14, PERK_TOUGH_MERCENARIES, 14}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 16 },
+		/* 7*/ { 69, IPCM_INQUISITOR, {PERK_FORTITUDE, 16, PERK_TOUGH_MERCENARIES, 16}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 20 },
+		/* 8*/ { 78, IPCM_INQUISITOR, {PERK_FORTITUDE, 18, PERK_TOUGH_MERCENARIES, 18}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 25 },
+		/* 9*/ { 87, IPCM_INQUISITOR, {PERK_FORTITUDE, 20, PERK_TOUGH_MERCENARIES, 20}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 30 },
+	} },
+
+	{ SYNERGY_ONE_MORE, {"+1 merc in your squad"}, "One More", {
+		/* 0*/ { 21, IPCM_INQUISITOR, {PERK_FRESH_RESERVES, 3, PERK_DAMAGE_SOAK, 3, PERK_UNSTOPPABLE, 5}/*perk*/, {}/*spell*/, 0,0,0,0/*sdmv*/, 1 },
+	} },
+
 };

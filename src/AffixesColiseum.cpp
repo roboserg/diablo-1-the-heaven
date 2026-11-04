@@ -1164,36 +1164,6 @@ Affix AffixesColiseum[] = {
 		{ 408,	"Magus",		AE_CAST_SPEED,	0,	2,	2,	0,	0,	0,	0,	 58,	IA_JEWEL | IA_STAFF,	IS_MAGIC,	0,	0,	1,	 8'000,	 8'000,	 8,	31,	34 },
 		{ 409,	"Dominus",		AE_CAST_SPEED,	0,	3,	3,	0,	0,	0,	0,	114,	IA_JEWEL | IA_STAFF,	IS_MAGIC,	0,	0,	0,	14'000,	14'000,	12,	56,	73 },
 
-	/*	{ 410,	"the Raven",	AE_LIFE_REGEN,	0,	 1,	 2,	0,	0,	0,	0,	  3,	IA_JEWEL | IA_SHIELD | IA_ARMOR,		IS_BATTLE,	0,	0,	1,	   300,	   600,	2,	 0,	 0 },
-		{ 411,	"the Owl",		AE_LIFE_REGEN,	0,	 3,	 4,	0,	0,	0,	0,	  9,	IA_JEWEL | IA_SHIELD | IA_ARMOR,		IS_BATTLE,	0,	0,	1,	 1'200,	 1'800,	3,	 2,	 2 },
-		{ 412,	"the Hawk",		AE_LIFE_REGEN,	0,	 5,	 6,	0,	0,	0,	0,	 20,	IA_JEWEL | IA_SHIELD | IA_ARMOR,		IS_BATTLE,	0,	0,	1,	 4'000,	 4'800,	4,	 5,	11 },
-		{ 413,	"the Falcon",	AE_LIFE_REGEN,	0,	 7,	 8,	0,	0,	0,	0,	 32,	IA_JEWEL | IA_SHIELD | IA_ARMOR,		IS_BATTLE,	0,	0,	1,	 7'000,	 8'000,	5,	13,	19 },
-		{ 414,	"the Eagle",	AE_LIFE_REGEN,	0,	 9,	10,	0,	0,	0,	0,	 49,	IA_JEWEL | IA_SHIELD | IA_ARMOR,		IS_BATTLE,	0,	0,	1,	 9'000,	10'000,	6,	20,	30 },
-		{ 414,	"the Eagle",	AE_LIFE_REGEN,	0,	11,	15,	0,	0,	0,	0,	 87,	IA_JEWEL | IA_SHIELD | IA_ARMOR,	IS_BATTLE,	0,	0,	1,	11'000,	15'000,	7,	47,	52 },
-		{ 414,	"the Eagle",	AE_LIFE_REGEN,	0,	16,	20,	0,	0,	0,	0,	121,	IA_JEWEL | IA_SHIELD | IA_ARMOR,	IS_BATTLE,	0,	0,	1,	16'000,	20'000,	8,	70,	80 },
-		{ 414,	"the Eagle",	AE_LIFE_REGEN,	0,	21,	25,	0,	0,	0,	0,	175,	IA_JEWEL | IA_SHIELD | IA_ARMOR,	IS_BATTLE,	0,	0,	0,	21'000,	25'000,	9,	89,	99 },
-
-		{ 415,	"the Gecko",	AE_MANA_REGEN,	0,	 1,	 2,	0,	0,	0,	0,	  3,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,			IS_MAGIC,	0,	0,	1,	   300,	   600,	2,	 0,	 0 },
-		{ 416,	"the Lizard",	AE_MANA_REGEN,	0,	 3,	 4,	0,	0,	0,	0,	  9,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,			IS_MAGIC,	0,	0,	1,	 1'200,	 1'800,	3,	 2,	 2 },
-		{ 417,	"the Turtle",	AE_MANA_REGEN,	0,	 5,	 6,	0,	0,	0,	0,	 20,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,			IS_MAGIC,	0,	0,	1,	 4'000,	 4'800,	4,	 5,	11 },
-		{ 418,	"the Wyrm",		AE_MANA_REGEN,	0,	 7,	 8,	0,	0,	0,	0,	 32,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,			IS_MAGIC,	0,	0,	1,	 7'000,	 8'000,	5,	13,	19 },
-		{ 419,	"the Dragon",	AE_MANA_REGEN,	0,	 9,	10,	0,	0,	0,	0,	 49,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,			IS_MAGIC,	0,	0,	1,	 9'000,	10'000,	6,	20,	30 },
-		{ 419,	"the Dragon",	AE_MANA_REGEN,	0,	11,	15,	0,	0,	0,	0,	 87,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,	IS_MAGIC,	0,	0,	1,	11'000,	15'000,	7,	47,	52 },
-		{ 419,	"the Dragon",	AE_MANA_REGEN,	0,	16,	20,	0,	0,	0,	0,	121,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,	IS_MAGIC,	0,	0,	1,	16'000,	20'000,	8,	70,	80 },
-		{ 419,	"the Dragon",	AE_MANA_REGEN,	0,	21,	25,	0,	0,	0,	0,	175,	IA_JEWEL | IA_STAFF | IA_SHIELD | IA_ARMOR | IA_SWORD_1H,	IS_MAGIC,	0,	0,	0,	21'000,	25'000,	9,	89,	99 },*/
-
-
-		// flat xp cancelled for now
-	//{ 420,	"Learning",			AE_XP_GAIN,	0,	   5,	  10, 	  15,	  20,	0,	0,	 2,	IA_JEWEL|IA_STAFF|IA_ARMOR|IA_FLASK|IA_TRAP | IA_KNIFE | IA_MALLET,	IS_ALL,	0,	0,	1,	200,	300,	2,	0,	0+2 },
-	//{ 421,	"Perspicacity",		AE_XP_GAIN,	0,	  20,	  30,	  40,	  50,	0,	0,	 7,	IA_JEWEL|IA_STAFF|IA_ARMOR|IA_SWORD_1H|IA_FLASK|IA_TRAP | IA_KNIFE | IA_MALLET,	IS_ALL,	0,	0,	1,	360,	540,	3,	2,	2+2 },
-	//{ 422,	"Insight",			AE_XP_GAIN,	0,	  50,	  70,	  90,	 110,	0,	0,	13,	IA_JEWEL|IA_STAFF|IA_ARMOR|IA_SWORD_1H|IA_FLASK|IA_TRAP | IA_KNIFE | IA_MALLET,	IS_ALL,	0,	0,	1,	600,	900,	4,	6,	6+2 },
-	//{ 423,	"Discernment",		AE_XP_GAIN,	0,	 120,	 160,	 200,	 250,	0,	0,	20,	IA_JEWEL|IA_STAFF|IA_ARMOR|IA_FLASK|IA_TRAP | IA_KNIFE | IA_MALLET,	IS_ALL,	0,	0,	1,	1200,	1800,	5,	10,	10+2 },
-	//{ 424,	"Shrewdness",		AE_XP_GAIN,	0,	 300,	 500,	 600,	 800,	0,	0,	28,	IA_JEWEL|IA_LIGHT_ARMOR|IA_MID_ARMOR|IA_HELM|IA_BELT|IA_GLOVE|IA_BOOTS,	IS_ALL,	0,	0,	1,	1800,	2700,	6,	14,	14+2 },
-	//{ 425,	"Sagacity",			AE_XP_GAIN,	0,	1000,	1400,	1600,	2000,	0,	0,	37,	IA_JEWEL|IA_LIGHT_ARMOR|IA_MID_ARMOR|IA_HELM|IA_BELT|IA_GLOVE|IA_BOOTS,	IS_ALL,	0,	0,	1,	2400,	3600,	7,	18,	18+2 },
-	//{ 426,	"Acumen",			AE_XP_GAIN,	0,	2000,	2600,	2900,	3500,	0,	0,	47,	IA_JEWEL|IA_LIGHT_ARMOR|IA_MID_ARMOR|IA_HELM|IA_BELT|IA_GLOVE|IA_BOOTS,	IS_ALL,	0,	0,	1,	3200,	4800,	8,	22,	22+2 },
-	//{ 427,	"Comprehension",	AE_XP_GAIN,	0,	3500,	4000,	4500,	5000,	0,	0,	58,	IA_JEWEL|IA_LIGHT_ARMOR|IA_MID_ARMOR|IA_HELM|IA_BELT|IA_GLOVE|IA_BOOTS,	IS_ALL,	0,	0,	0,	4000,	6000,	9,	26,	26+2 },
-//	{ 0,	"ARD",	AE_ABSORB_RANGED_DAMAGE,	0,	0,	0,	0,	0,	0,	0,	11,	IA_ALL,	IS_ALL,	0,	0,	1,	1000,	1000,	5,	5+2 },
-
 
 	/* ------------------------------------
 					  SUMMON BOOSTS

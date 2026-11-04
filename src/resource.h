@@ -24,6 +24,7 @@
 #define ID_MAINMENU_MULTIPLAYER			1001
 #define ID_MAINMENU_REPLAY_INTRO		1002
 #define ID_MAINMENU_CREDITS				1003
+#define ID_MAINMENU_DARK_CAMPAIGN		1003 // (th4) same control as the old CREDITS slot
 #define ID_MURDER						1006
 #define ID_HERO_LEVEL_VALUE				1014
 #define ID_VITALITY_VALUE				1015
@@ -169,6 +170,7 @@
 #define ID_TRAIT_4                      1189
 #define ID_TRAIT_5                      1190
 #define ID_TRAIT_6                      1191
+#define ID_DESC_SCROLL                  1215   // (th4) scrollbar on the trait description field
 #define ID_GAME_CHANGER_1               1192
 #define ID_GAME_CHANGER_2               1193
 #define ID_GAME_CHANGER_3               1194
@@ -190,6 +192,8 @@
 #define ID_CREATE_DIF_6					1210
 #define ID_SUBCLASS_DRUID				1211
 #define ID_MAINMENU_CLASSIC				1212
+#define ID_SUBCLASS_GLADIATRIX			1213
+#define ID_MAINMENU_OUTBREAK			1214
 
 
 // TODO: scrolling class/subclass selection list

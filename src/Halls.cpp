@@ -72,17 +72,17 @@ void FillSolidBlockTables()
 		if( solFlag & BIT(3) ) TileBlockMissle[i] = 1; // Blocks Missiles
 		if( solFlag & BIT(4) ) CellTransparent[i] = 1; // Transparency
 		WallsTransparency[i] = (solFlag >> 4) & 7;
-		if( solFlag & BIT(8) ) IsWall[i] = 1; // это стена
+		if( solFlag & BIT(8) ) IsWall[i] = 1; // (rt) this is a wall
 	}
 	FreeMem( sol );
 }
 
 int MaxDarkenTilePixelIndex = 0;
-// используется в модуле карт
+// (rt) used in the map module
 //----- (0041B869) --------------------------------------------------------
 void InitDarkenDungeonTiles()
 {
-	//return; // временно отключена до сравнения результатов в оригиналом, возможно ошибки в других функциях отрисовки
+	//(rt) return; // temporarily disabled until the results are compared with the original; there may be errors in other drawing functions
 	memset(TileLightMapTop, 0, sizeof(TileLightMapTop));
 	memset(TileLightMapCounter, 0, sizeof(TileLightMapCounter));
 	for( int i = 0; i < 2048; i++ ){
@@ -105,7 +105,7 @@ void InitDarkenDungeonTiles()
 	}
 	//VD;
 	SizeOfLevelCEL[0] = 0;
-	if( Dungeon->genType == DT_4_HELL ){// DRAW_BUG в тх2 нулится больше значений чем нужно
+	if( Dungeon->genType == DT_4_HELL ){// (rt) DRAW_BUG th2 zeroes more values than needed
 		int size = 0;
 		if( LevelCELsAmount > 0 ){
 			ushort* tileLightMapTop = TileLightMapTop;
@@ -171,7 +171,7 @@ void InitDarkenDungeonTiles()
 		for( int i = 0; i < LevelCELsAmount; i++ ){
 			int flag = 1;
 			uchar* cel = (uchar*)CurrentLevelCELFile + CurrentLevelCELFile[i];
-			if( TileLightMapCounter[i] ){ // декодирование tile'ов lightmap из CEL ?
+			if( TileLightMapCounter[i] ){ // (rt) decoding lightmap tiles from a CEL?
 				if( TileLightMapTop[i] == 0x1000 ){
 					uchar* pixel = cel;
 					for( int row = 0; row < 32; row++ ){
@@ -308,7 +308,7 @@ void __fastcall SwapTileData(int counter, int nextCounter)
 }
 
 
-// изометрическое преобразование координат для вывода тайлов на экран ?
+// (rt) isometric coordinate transform for drawing tiles on screen?
 //----- (0041BD6A) --------------------------------------------------------
 int __fastcall IsometricMapOffset(int row, int col) // CalcRot
 {
@@ -335,7 +335,15 @@ void InitDrawingTileWithLight()
 void InitDungeonTiles()
 {
 	int someCount;
-	if( Dungeon->genType == DT_0_TOWN || Dungeon->genType == DT_4_HELL ){
+	if( Dungeon->genType == DT_0_TOWN ){
+		// Town tileset MIN files carry 8 layers (16 words); the dungeon renderer
+		// draws (MaxTilesInCell >> 1) layers, so it must be 16 here or the top
+		// layers of tall buildings (Ravenholm roofs) are never emitted.
+		MaxTilesInCell = 16;
+		someCount = 16;
+	}else if( Dungeon->genType == DT_4_HELL ){
+		// Hell MIN records are 16 words but only 12 are real tile data;
+		// drawing beyond 6 layers would emit padding garbage.
 		MaxTilesInCell = 12;
 		someCount = 16;
 	}else{
@@ -358,7 +366,7 @@ void InitDungeonTiles()
 			}
 		}
 	}
-	InitDarkenDungeonTiles(); // тут задаются тайлы разной яркости
+	InitDarkenDungeonTiles(); // (rt) tiles of different brightness are set up here
 	InitDrawingTileWithLight();
 }
 
@@ -554,7 +562,7 @@ bool __fastcall GetMaxSizeForRoom(int floorTilesIndex, int starRow, int startCol
 		return 0;
 	}
 
-	// Двигаемся по двум лучам, определяем размер линии пола идущей паралельно лучу.
+	// (rt) Move along two rays, determining the length of the floor line running parallel to the ray.
 	uint rowSizesTable[20];
 	uint colSizesTable[20];
 	memset(rowSizesTable, 0, sizeof( rowSizesTable ));
@@ -570,7 +578,7 @@ bool __fastcall GetMaxSizeForRoom(int floorTilesIndex, int starRow, int startCol
 				if( Map[ curRow ][ curSizeIndex + startCol ] == floorTilesIndex ){
 					curRowSize++;
 				}else{
-					if( curRow >= minSizeOfRooms ){ // непонятное условие
+					if( curRow >= minSizeOfRooms ){ // (rt) unclear condition
 						break;
 					}
 					isNotFirstBeamBlocked = 0;
@@ -600,7 +608,7 @@ bool __fastcall GetMaxSizeForRoom(int floorTilesIndex, int starRow, int startCol
 
 	}
 
-	// если даже минимальную комнату не построить, то выходим
+	// (rt) if even the minimal room can't be built, exit
 	for( int curSizeIndex = 0; curSizeIndex < minSizeOfRooms; curSizeIndex++ ){
 		int curRowSize = rowSizesTable[curSizeIndex];
 		if( curRowSize < minSizeOfRooms ){
@@ -612,7 +620,7 @@ bool __fastcall GetMaxSizeForRoom(int floorTilesIndex, int starRow, int startCol
 		}
 	}
 
-	// определяем максимально возможные размеры комнаты
+	// (rt) determine the maximum possible room size
 	int minimumRowSize = (uint)rowSizesTable;
 	int minimumColSize = (uint)colSizesTable;
 	for( int curSizeIndex = 0; curSizeIndex < maxSizeOfRooms; curSizeIndex++ ){
@@ -834,6 +842,7 @@ bool __fastcall IsCoordinateNotNearAloneRoom( int row, int col )
 void _cdecl InitLevels()
 {
 	if( !DungeonDebug ){
-		Dungeon = DUN_0_TOWN;
+		// (th4): Dark Campaign starts in the Dark Lord's Hideout, not town.
+		Dungeon = GameMode == GM_DARK_CAMPAIGN ? DUN_117_DARKLORD_HIDEOUT : DUN_0_TOWN;
 	}
 }

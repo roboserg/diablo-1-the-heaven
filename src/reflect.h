@@ -7,100 +7,100 @@
 
 #include "template_counter.h"
 
-constexpr int MAX_REFLECT = 100; // максимальное количество сериализуемых типов
-constexpr int MAX_ARRAY_COUNT = 4096; // максимальное количество элементов в корневом сериализуемом массиве 
+constexpr int MAX_REFLECT = 100; // (rt) maximum number of serializable types
+constexpr int MAX_ARRAY_COUNT = 4096; // (rt) maximum number of elements in the root serializable array 
 
-// Проверка наличия поля в классе (классический метод, работает в старых компиляторах) 
-// применяется последним аргументом шаблона функции зависящей от наличия поля: 
-// , HasMember( класс::поле ) 
+// (rt) Check whether a class has a field (the classic method, works in old compilers) 
+// (rt) used as the last template argument of a function that depends on the field's presence: 
+// (rt) , HasMember( class::field ) 
 template<typename M, M> struct CheckMember;
 #define HasMember( memberName ) CheckMember< decltype(&memberName), &memberName > * = 0
 
-// частичная специализации шаблонной фукнции через перегрузку 
+// (rt) partial specialization of a template function via overloading 
 #define COMN_FUNC( T, subtype, functype ) template<class T> typename std::enable_if< std::subtype<T>::value, functype >::type 
-// полная специализация перегруженной шаблонной фукнции 
+// (rt) full specialization of an overloaded template function 
 #define SPEC_FUNC( T, subtype, functype ) template<> typename std::enable_if< std::subtype<T>::value, functype >::type
-// частичная специализации не такой шаблонной фукнции через перегрузку 
+// (rt) partial specialization of a not-quite-template function via overloading 
 #define COMN_OTHER_FUNC( T, subtype, functype ) template<class T> typename std::enable_if< ! std::subtype<T>::value, functype >::type 
-// полная специализация перегруженной не такой шаблонной фукнции 
+// (rt) full specialization of an overloaded not-quite-template function 
 #define SPEC_OTHER_FUNC( T, subtype, functype ) template<> typename std::enable_if< ! std::subtype<T>::value, functype >::type
-// частичная специализации не такой шаблонной фукнции через перегрузку 
+// (rt) partial specialization of a not-quite-template function via overloading 
 
-// функции вывода данных типа, int inner - уровень вложенности, th = 1 - вывод данных th1, 2 - th2
-COMN_FUNC( T	, is_class		, void ) out_( T* var, int inner = 0, int th = 1 ); // вывод структуры 
-COMN_FUNC( T	, is_union		, void ) out_( T* var, int inner = 0, int th = 1 ); // вывод объединения 
-COMN_FUNC( T	, is_array		, void ) out_( T* var, int inner = 0, int th = 1 ); // вывод массива 
-COMN_FUNC( T	, is_enum		, void ) out_( T* var, int inner = 0, int th = 1 ); // вывод перечисления 
-COMN_FUNC( T	, is_fundamental, void ) out_( T* var, int inner = 0, int th = 1 ) { cout << *var; } // вывод обычного типа 
-SPEC_FUNC( uchar, is_fundamental, void ) out_< uchar >( uchar *, int, int ); // вывод целого байта 
-SPEC_FUNC( char	, is_fundamental, void ) out_< char  >( char  *, int, int ); // вывод знакового целого байта 
-COMN_FUNC( T	, is_pointer	, void ) out_( T* var, int inner = 0, int th = 1 ); // вывод обычного указателя (возможно понадобиться переделать) 
-SPEC_FUNC( char*, is_pointer	, void ) out_< char* >( char* *, int, int ); // вывод строки 
+// (rt) type data output functions, int inner - nesting level, th = 1 - output th1 data, 2 - th2
+COMN_FUNC( T	, is_class		, void ) out_( T* var, int inner = 0, int th = 1 ); // (rt) output a struct 
+COMN_FUNC( T	, is_union		, void ) out_( T* var, int inner = 0, int th = 1 ); // (rt) output a union 
+COMN_FUNC( T	, is_array		, void ) out_( T* var, int inner = 0, int th = 1 ); // (rt) output an array 
+COMN_FUNC( T	, is_enum		, void ) out_( T* var, int inner = 0, int th = 1 ); // (rt) output an enum 
+COMN_FUNC( T	, is_fundamental, void ) out_( T* var, int inner = 0, int th = 1 ) { cout << *var; } // (rt) output a plain type 
+SPEC_FUNC( uchar, is_fundamental, void ) out_< uchar >( uchar *, int, int ); // (rt) output an unsigned byte 
+SPEC_FUNC( char	, is_fundamental, void ) out_< char  >( char  *, int, int ); // (rt) output a signed byte 
+COMN_FUNC( T	, is_pointer	, void ) out_( T* var, int inner = 0, int th = 1 ); // (rt) output a plain pointer (may need reworking) 
+SPEC_FUNC( char*, is_pointer	, void ) out_< char* >( char* *, int, int ); // (rt) output a string 
 
-// тип функции вывода одного элемента структуры/типа 
+// (rt) type of the function that outputs one struct element/type 
 typedef void (*func_out)(void* var, int inner, int th); // All machines have sizeof(char) == 1, but we need to unknowing size of var type, due to prevent improper calling
 
-// функции сравнения данных типа
-COMN_FUNC( T	, is_class		, bool ) dif_( T* var1, T* var2 ); // сравнение структуры 
-COMN_FUNC( T	, is_union		, bool ) dif_( T* var1, T* var2 ); // сравнение объединения 
-COMN_FUNC( T	, is_array		, bool ) dif_( T* var1, T* var2 ); // сравнение массива 
-COMN_FUNC( T	, is_enum		, bool ) dif_( T* var1, T* var2 ) { return *var1 != *var2; } // сравнение перечисления 
-COMN_FUNC( T	, is_fundamental, bool ) dif_( T* var1, T* var2 ) { return *var1 != *var2; } // сравнение обычного типа 
-COMN_FUNC( T	, is_pointer	, bool ) dif_( T* var1, T* var2 ); // сравнение обычного указателя
-SPEC_FUNC( char*, is_pointer	, bool ) dif_< char* >( char* *, char* * ); // сравнение строки 
+// (rt) type data comparison functions
+COMN_FUNC( T	, is_class		, bool ) dif_( T* var1, T* var2 ); // (rt) compare a struct 
+COMN_FUNC( T	, is_union		, bool ) dif_( T* var1, T* var2 ); // (rt) compare a union 
+COMN_FUNC( T	, is_array		, bool ) dif_( T* var1, T* var2 ); // (rt) compare an array 
+COMN_FUNC( T	, is_enum		, bool ) dif_( T* var1, T* var2 ) { return *var1 != *var2; } // (rt) compare an enum 
+COMN_FUNC( T	, is_fundamental, bool ) dif_( T* var1, T* var2 ) { return *var1 != *var2; } // (rt) compare a plain type 
+COMN_FUNC( T	, is_pointer	, bool ) dif_( T* var1, T* var2 ); // (rt) compare a plain pointer
+SPEC_FUNC( char*, is_pointer	, bool ) dif_< char* >( char* *, char* * ); // (rt) compare a string 
 SPEC_FUNC( HINSTANCE, is_pointer, bool ) dif_< HINSTANCE >( HINSTANCE *, HINSTANCE * );
 
-// тип функции сравнения структуры/типа 
+// (rt) type of the struct/type comparison function 
 typedef bool( *func_dif )(void* var1, void* var2);
 
-// метаданные для рефлексии переменной {offset,var_name,type_name,out_,dif_}
+// (rt) metadata for reflecting a variable {offset,var_name,type_name,out_,dif_}
 struct meta_{
-	const int offset; // смещение относительно начала структуры / размер переменной в массиве
-	const char* const field_name; // имя поля ( / массива ? )
-	const char* const field_type; // имя типа переменной 
-	const func_out out_; // функция вывода переменной этого типа
-	const func_dif dif_; // функция сравнения переменной этого типа
+	const int offset; // (rt) offset from the start of the struct / size of the variable in the array
+	const char* const field_name; // (rt) field name ( / array? )
+	const char* const field_type; // (rt) variable's type name 
+	const func_out out_; // (rt) function that outputs a variable of this type
+	const func_dif dif_; // (rt) function that compares a variable of this type
 };
 
 // has member detector http://stackoverflow.com/questions/1005476/how-to-detect-whether-there-is-a-specific-member-variable-in-class
 template<typename T, typename = void> struct has_reflect: std::false_type {};
 template<typename T> struct has_reflect<T, decltype(T::this_type(), void())>: std::true_type {};
 
-// определение константного массива с метаданными полей структуры в зависимости от количества полей (не более 500 для студии, ограничение компилятора)
-template< class T > constexpr int members_count = 0; // нельзя создать массив размером 0, поэтому для нерефлексированных структур будет ошибка
+// (rt) definition of a constant array with the struct's field metadata, depending on the number of fields (no more than 500 for Visual Studio, a compiler limit)
+template< class T > constexpr int members_count = 0; // (rt) an array of size 0 can't be created, so non-reflected structs will give an error
 template< class T > struct ext_reflect;
 template< class T, int> struct member_;
 template< class C, typename I = make_index_sequence< members_count<C> > > struct members_;
 template< class C, size_t... i > struct members_< C, index_sequence<i...> >
 {
-	// если рефлексия задана внутри структуры 
+	// (rt) if reflection is set inside the struct 
 	template<class T = C> static typename std::enable_if<   has_reflect<T>::value, const meta_* const >::type meta(){
 		static const meta_ membersData[ members_count<T> ] = { { T::member_<i>::offset_(), T::member_<i>::field_name(), T::member_<i>::field_type(), T::member_<i>::out_(), T::member_<i>::dif_() } ... };
 		return membersData;
 	}
-	// если рефлексия задана снаружи структуры 
+	// (rt) if reflection is set outside the struct 
 	template<class T = C> static typename std::enable_if< ! has_reflect<T>::value, const meta_* const >::type meta(){
 		static const meta_ membersData[ members_count<T> ] = { { member_<T,i>::offset_(), member_<T,i>::field_name(), member_<T,i>::field_type(), member_<T,i>::out_(), member_<T,i>::dif_() } ... };
 		return membersData;
 	}
 };
 
-// тип функции вывода корневого массива типов 
+// (rt) type of the function that outputs a root array of types 
 typedef void (*func_out_array)( void* var, int count );
 
-// метаданные для рефлексии корневого массива типа/структуры/класса { имя типа, функция сериализации массива типа } 
+// (rt) metadata for reflecting a root array of a type/struct/class { type name, type array serialization function } 
 struct meta_root{
-	const char* const	 type_name; // имя типа
-	const func_out_array out_array; // функция вывода корневого массива типа
+	const char* const	 type_name; // (rt) type name
+	const func_out_array out_array; // (rt) function that outputs a root array of the type
 };
 
-// рефлексия корневого массива типа/структуры/класса { имя типа, функция сериализации типа } 
+// (rt) reflection of a root array of a type/struct/class { type name, type serialization function } 
 template<int N> struct reflected{
 	static const char* const	type_name() { return ""; };
 	static const func_out_array	out_array() { return 0;	 };
 };
 
-// массив для поиска типа по имени и вывода шапки .cpp, для out_ и имени переменных не нужен
+// (rt) array for finding a type by name and for outputting the .cpp header; not needed for out_ and variable names
 #define F(N) { reflected<N>::type_name(), reflected<N>::out_array() },
 template<class T = meta_root> struct types_{
 	static const T* const meta(){
@@ -117,24 +117,24 @@ template<class T = meta_root> struct types_{
 #undef F
 
 //#if ! defined(__clang__)
-struct reflected_count{}; // счетчик сериализованных типов 
-// рефлексия корневого массива любого типа 
+struct reflected_count{}; // (rt) counter of serialized types 
+// (rt) reflection of a root array of any type 
 #define reflect( type )																									\
 template<> struct reflected< COUNTER(reflected_count) >{																\
 	static const char* const type_name   (){ return #type;															}	\
 	static const func_out_array out_array(){ return (func_out_array)(void(*)(type*,int))::out_array<type>;			}	\
 }; COUNTER_INC(reflected_count)
 
-// начало рефлексии структуры/класса begin_( struct_name );
+// (rt) start of a struct/class reflection begin_( struct_name );
 #define begin_( type )																									\
 	typedef type this_type;																								\
 	enum { begin_counter = __COUNTER__ };																				\
 	template<int> struct member_;
 
-// начало внешней рефлексии структуры/класса begin_( struct_name );
+// (rt) start of an external struct/class reflection begin_( struct_name );
 #define begin__( type )	template<> struct ext_reflect<type> { static constexpr int begin_counter = __COUNTER__; }
 
-// рефлексия поля/массива в структуре/классе _( name )
+// (rt) reflection of a field/array in a struct/class _( name )
 #define _( name )																										\
 template<> struct member_<__COUNTER__ - begin_counter - 1> {															\
 	static const int		 offset_	() { return offsetof( this_type, name );									}	\
@@ -143,7 +143,7 @@ template<> struct member_<__COUNTER__ - begin_counter - 1> {															\
 	static const func_out out_(){ return (func_out)(void(*)(decltype(this_type::name)*,int,int))::out_<decltype(this_type::name)>;}\
 	static const func_dif dif_(){ return (func_dif)(bool(*)(decltype(this_type::name)*,decltype(this_type::name)*))::dif_<decltype(this_type::name)>;}}
 
-// внешняя рефлексия поля/массива в структуре/классе __( struct, name )
+// (rt) external reflection of a field/array in a struct/class __( struct, name )
 #define _E( T, name )																									\
 template<> struct member_<T, __COUNTER__ - ext_reflect<T>::begin_counter - 1> {											\
 	static const int		 offset_	() { return offsetof( T, name );											}	\
@@ -152,7 +152,7 @@ template<> struct member_<T, __COUNTER__ - ext_reflect<T>::begin_counter - 1> {	
 	static const func_out out_(){ return (func_out)(void(*)(decltype(T::name)*,int,int))::out_<decltype(T::name)>;	}	\
 	static const func_dif dif_(){ return (func_dif)(bool(*)(decltype(T::name)*,decltype(T::name)*))::dif_<decltype(T::name)>;}	}
 
-// рефлексия поля со спецтипом
+// (rt) reflection of a field with a special type
 #define _U( name, type )																								\
 template<> struct member_<__COUNTER__ - begin_counter - 1> {															\
 	static const int		 offset_	() { return offsetof( this_type, name );									}	\
@@ -161,15 +161,15 @@ template<> struct member_<__COUNTER__ - begin_counter - 1> {															\
 	static const func_out out_(){ return (func_out)(void(*)(type*,int,int))::out_<type>;}								\
 	static const func_dif dif_(){ return (func_dif)(bool(*)(type*,type*))::dif_<type>;}}
 
-// маркер конца рефлексии данных структуры/класса
+// (rt) end marker of the struct/class data reflection
 #define end_(type, ...) template<> constexpr int members_count<type> = __COUNTER__ - type::begin_counter - 1 __VA_ARGS__
 
-// маркер конца внешней рефлексии данных структуры/класса
+// (rt) end marker of the external struct/class data reflection
 #define end__(type) template<> constexpr int members_count<type> = __COUNTER__ - ext_reflect<type>::begin_counter - 1
 
 char** enum_split(char* names, size_t count = 2048 );
 
-// рефлексия имен элементов enum 
+// (rt) reflection of enum element names 
 template< class En > struct Enum { static const char* const Name( En e ){ return "This enum is not reflected"; } };
 #define reflect_enum( En, ... ) template<> struct Enum< En >{ \
 	static constexpr const En values[] = { __VA_ARGS__ };	\
@@ -187,109 +187,109 @@ template< class En > struct Enum { static const char* const Name( En e ){ return
 		return 0;/*"Num not "#En;*/							\
 	} }
 
-// поиск имени enum по значению
+// (rt) find an enum name by value
 #define EnumName( En, e ) Enum< En >::Name( (En) (e) )
 
 #define ARGS_ template<typename R, typename...T> constexpr __forceinline
-// количество аргументов функции
+// (rt) number of function arguments
 ARGS_ size_t ArgsCount( R( __stdcall* )(T...) ) { return sizeof...(T); }
 ARGS_ size_t ArgsCount( R( __fastcall* )(T...) ) { return sizeof...(T); }
 ARGS_ size_t ArgsCount( R( _cdecl* )(T...) ) { return sizeof...(T); }
 ARGS_ size_t ArgsCount( R( _cdecl* )(T...,...) ) { return sizeof...(T) + 1; }
-// calling convention функции
+// (rt) function calling convention
 ARGS_ bool is_stdcall( R( __stdcall* )(T...) ) { return true; }
 ARGS_ bool is_stdcall( R( __fastcall* )(T...) ) { return false; }
 ARGS_ bool is_stdcall( R( _cdecl* )(T...) ) { return true; }
 ARGS_ bool is_stdcall( R( _cdecl* )(T...,...) ) { return true; }
-// есть ли возвращаемое значение у функции
+// (rt) whether the function has a return value
 ARGS_ bool is_ret( R( __stdcall* )(T...) ) { return ! is_void<R>::value; }
 ARGS_ bool is_ret( R( __fastcall* )(T...) ) { return ! is_void<R>::value; }
 ARGS_ bool is_ret( R( _cdecl* )(T...) ) { return !is_void<R>::value; }
 ARGS_ bool is_ret( R( _cdecl* )(T...,...) ) { return ! is_void<R>::value; }
-// функция вывода аргументов по типам
+// (rt) function that outputs arguments by type
 typedef void (_cdecl *args_out)(...);
-// вызов произвольного кода по списку типов параметров
-//struct pass { template<typename ...T> pass( T... ) {} }; //рекомендуется использовать initializer_list
-// вывода аргументов по типам
-// для usercall можно задать специальный макрос со списком регистров и выводить по нему
+// (rt) calling arbitrary code over a list of parameter types
+//(rt) struct pass { template<typename ...T> pass( T... ) {} }; //using initializer_list is recommended
+// (rt) output of arguments by type
+// (rt) for usercall a special macro with a list of registers can be set and output by it
 template<typename...T> void _cdecl OutArgs( int inner, int th, T... a ){ 
 	int i = 0; void* p = (void*)0x12345678;
 	initializer_list<int>{ ( ( is_reference<T>::value ? (p = &a, ::out_((remove_reference_t<T>**)&p,inner,th) ) : ::out_(&a,inner,th) ),
 	++i, (i < sizeof...(T) ? cout << ", " : cout << "" ), 0)... }; }
-// фукнция для получения функции вывода аргументов по типу
+// (rt) function that gets the argument output function by type
 ARGS_ args_out GetOutArgs( R( __stdcall* )(T...) )	{ return (args_out) (void*) OutArgs<T...>; }
 ARGS_ args_out GetOutArgs( R( __fastcall* )(T...) ) { return (args_out) (void*) OutArgs<T...>; }
 ARGS_ args_out GetOutArgs( R( _cdecl* )(T...) )		{ return (args_out) (void*) OutArgs<T...>; }
 ARGS_ args_out GetOutArgs( R( _cdecl* )(T...,...) ) { return (args_out) (void*) OutArgs<T...,int>; }
-// вывод возвращаемого значения по типу
+// (rt) output of the return value by type
 template<typename T> void _cdecl OutRet( int inner, int th, T a ){
 	void* p = (void*)0x12345678; if( is_reference<T>::value ){ p = &a; ::out_((remove_reference_t<T>**)&p,inner,th); }else{ ::out_(&a,inner,th); }
 }
-// фукнция для получения функции вывода возвращаемого значения по типу
+// (rt) function that gets the return value output function by type
 template<typename T> constexpr __forceinline args_out GetOutRet(){ return (args_out) (void*) OutRet<T>; }
 template<> constexpr __forceinline args_out GetOutRet<void>() { return (args_out) 0; }
-template<> constexpr __forceinline args_out GetOutRet<POINT>() { return (args_out) 0; } // с выводом составных значений пока не разобрался
+template<> constexpr __forceinline args_out GetOutRet<POINT>() { return (args_out) 0; } // (rt) haven't figured out output of compound values yet
 
-// рефлексия метаданных и адресов глобальных функций и переменных
+// (rt) reflection of metadata and addresses of global functions and variables
 struct SubInfo
 {
-	char*		name;	// имя функции
-	size_t		adr;	// адрес функции в th 1
-	void*		adrNew;	// адрес функции в th 2
-	bool		stable;	// переменные не проверяются, только сам вызов
-	size_t		args;	// количество аргументов функции
-	bool		stdcall;// тип передачи параметров
-	bool		ret;	// возвращает ли функция значение
-	args_out	out;	// функция вывода аргументов по типу
-	args_out	rout;	// функция вывода возвращаемого значения по типу
-	int			calls;	// количество вызовов для статистики
+	char*		name;	// (rt) function name
+	size_t		adr;	// (rt) function address in th 1
+	void*		adrNew;	// (rt) function address in th 2
+	bool		stable;	// (rt) variables are not checked, only the call itself
+	size_t		args;	// (rt) number of function arguments
+	bool		stdcall;// (rt) parameter passing type
+	bool		ret;	// (rt) whether the function returns a value
+	args_out	out;	// (rt) function that outputs arguments by type
+	args_out	rout;	// (rt) function that outputs the return value by type
+	int			calls;	// (rt) call count for statistics
 };
 struct VarInfo
 {
-	size_t		adr;	// адрес переменной в th 1
-	void*		adrNew;	// адрес переменной в th 2
-	char*		name;	// имя переменной
-	size_t		size;	// размер переменной
-	char*		type1;	// префикс тип
-	char*		type2;	// постфикс тип
-	func_out	out;	// функция вывода переменной данного типа
-	func_dif	dif;	// функция сравнения переменных данного типа
-	bool		stable;	// переменная не проверяется
+	size_t		adr;	// (rt) variable address in th 1
+	void*		adrNew;	// (rt) variable address in th 2
+	char*		name;	// (rt) variable name
+	size_t		size;	// (rt) variable size
+	char*		type1;	// (rt) type prefix
+	char*		type2;	// (rt) type postfix
+	func_out	out;	// (rt) function that outputs a variable of this type
+	func_dif	dif;	// (rt) function that compares variables of this type
+	bool		stable;	// (rt) the variable is not checked
 };
 template<int i> struct Sub { static constexpr SubInfo v = { nullptr, 0, 0, true, 0, true, false, 0, 0 }; };
 template<int i> struct Var { static const VarInfo v(){ return { 0, nullptr, 0, 0, 0, 0, 0, 0, true }; } };
 #define SUB_TABLE constexpr int SUB_COUNTER = __COUNTER__ + 1;
 #define VAR_TABLE constexpr int VAR_COUNTER = __COUNTER__ + 1;
 
-// адрес функции которую надо сверять
+// (rt) address of a function to be compared
 #define SUB_ADR( adr, name, stable, ret ) template<> struct Sub<__COUNTER__ - SUB_COUNTER> { static constexpr SubInfo v = \
 { #name, adr, &name, stable, ArgsCount(name), is_stdcall(name), is_ret(name), GetOutArgs(name), GetOutRet<ret>() }; };
-// адрес функции которую не надо сверять
+// (rt) address of a function not to be compared
 #define CRT_ADR( adr, name ) template<> struct Sub<__COUNTER__ - SUB_COUNTER> { static constexpr SubInfo v = { #name, adr, 0 /*&name*/, true, 0, true, false, 0, 0 }; };
-// адрес переменной которую надо сверять
+// (rt) address of a variable to be compared
 #define VAR_ADR( adr, name, stable, t1, t2 ) template<> struct Var<__COUNTER__ - VAR_COUNTER> { static const VarInfo v(){ return { adr, &name,	#name, sizeof( name ), #t1, #t2, \
 (func_out)(void(*)(decltype(name)*,int,int))::out_<decltype(name)>, (func_dif)(bool(*)(decltype(name)*,decltype(name)*))::dif_<decltype(name)>, stable }; } };
-// адрес динамического массива который надо сверять
+// (rt) address of a dynamic array to be compared
 #define DYN_ADR( adr, name, stable, t1, t2 ) template<> struct Var<__COUNTER__ - VAR_COUNTER> { static const VarInfo v(){ return { adr, &name,	#name, sizeof( name ), #t1, "", \
 (func_out)(void(*)(remove_pointer<decltype(name)>::type(**)t2,int,int))::out_<remove_pointer<decltype(name)>::type(*)t2>, \
 (func_dif)(bool(*)(remove_pointer<decltype(name)>::type(**)t2,remove_pointer<decltype(name)>::type(**)t2))::dif_<remove_pointer<decltype(name)>::type(*)t2>, stable }; } };
-// адрес системной переменной которую нельзя сверять
+// (rt) address of a system variable that must not be compared
 #define SYS_ADR( adr, name ) template<> struct Var<__COUNTER__ - VAR_COUNTER> { static const VarInfo v(){ return { adr, &name,	#name, sizeof( name ), 0, 0, 0, 0, true }; } };
-// старый адрес перенесенной переменной
+// (rt) old address of a moved variable
 #define OLD_ADR( adr, name ) template<> struct Var<__COUNTER__ - VAR_COUNTER> { static const VarInfo v(){ return { adr, 0,		#name, sizeof( name ), 0, 0, 0, 0, true }; } }
 
-constexpr int FCnt = 50; // максимальное количество функций 2500 == FCnt ^ 2
+constexpr int FCnt = 50; // (rt) maximum number of functions 2500 == FCnt ^ 2
 typedef SubInfo FuncTable[ FCnt*FCnt ];
-constexpr int VCnt = 40; // максимальное количество переменных 1600 == VCnt ^ 2
+constexpr int VCnt = 40; // (rt) maximum number of variables 1600 == VCnt ^ 2
 typedef VarInfo VarTable[ VCnt*VCnt ];
 
 void Validate( SubInfo* f = 0, int type = 5, int line = 0 );
 #define VD Validate( (SubInfo*)__func__, 5, __LINE__ );
 
-// ссылка на оригинальную переменную/функцию по адресу заданному вручную
+// (rt) reference to the original variable/function by a manually set address
 #define REF_EXE( adr, name ) namespace Exe { /*constexpr size_t adr_##name = adr;*/ __declspec(selectany) auto* p_##name = (decltype(::name)*)adr; __declspec(selectany) auto& name = *p_##name; }
 
-// объявление переменной или массива
+// (rt) declaration of a variable or array
 #define VAR( adr, type1, type2, name ) extern type1 name type2; VAR_ADR( adr, name, false, type1, type2 ) REF_EXE( adr, name )
 //#define VAR_( adr, type1, type2, name ) extern type1 name type2; VAR_ADR( adr, name, false, type1, type2 ) REF_EXE( adr, name )
 #define VAR_( adr, type1, type2, name ) extern type1 name type2; VAR_ADR( adr, name, true, type1, type2 ) REF_EXE( adr, name )
@@ -297,8 +297,8 @@ void Validate( SubInfo* f = 0, int type = 5, int line = 0 );
 #define DYN_( adr, type1, type2, name ) extern type1 name; DYN_ADR( adr, name, true, type1, type2 ) REF_EXE( adr, name )
 #define SYS( adr, type1, type2, name ) extern type1 name type2; SYS_ADR( adr, name ) REF_EXE( adr, name )
 #define OLD( adr, type1, type2, name ) extern type1 old_##name type2; OLD_ADR( adr, old_##name )
-// объявление функции
-// сюда можно добавить список параметров и тип вызова и анализировать параметры на старте функции
+// (rt) declaration of a function
+// (rt) the parameter list and call type could be added here and the parameters analysed at the function start
 #define SUB( adr, ret, call, name, ... ) ret call name( __VA_ARGS__ ); SUB_ADR( adr, name, false, ret ) REF_EXE( adr, name )
 #define SUB_( adr, ret, call, name, ... ) ret call name( __VA_ARGS__ ); SUB_ADR( adr, name, true, ret ) REF_EXE( adr, name )
 #define CRT( adr, ret, call, name, ... ) ret call name( __VA_ARGS__ ); CRT_ADR( adr, name ) REF_EXE( adr, name )

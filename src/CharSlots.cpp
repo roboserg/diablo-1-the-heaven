@@ -1,15 +1,15 @@
 ﻿#include "stdafx.h"
 
-char CryptKey[9] = "xrgyrkj1";	// статический ключ для шифровки сейвов, перенесён из dataseg.asm
-								// применяется только для сингл-плеер сейвов, для мульти применяется имя компьютера
-CharName CharNameSlots[MaxSaveSlots];                     // 10 для слотов и 1 для создания нового игрока
+char CryptKey[9] = "xrgyrkj1";	// (rt) static key for save encryption, moved from dataseg.asm
+								// (rt) used only for single-player saves; multiplayer uses the computer name
+CharName CharNameSlots[MaxSaveSlots];                     // (rt) 10 for the slots and 1 for creating a new player
 int gbValidSaveFile;
 int gbSaveFileExists;
 
 const int SaveSignature         = 'HEL4'; // HELF - th1, HEL2 - th2, HEL3 - th3, HEL4 - th4
 const int SaveSignatureReverse  = '4LEH';
 
-char* SaveFolders[4] = { "th4_save_sp\\", "th4_save_mp\\", "th4_save_col\\", "th4_save_cls\\" };
+char* SaveFolders[6] = { "th4_save_sp\\", "th4_save_mp\\", "th4_save_col\\", "th4_save_cls\\", "th4_save_ob\\", "th4_save_drk\\" }; // (th4) [5] = Dark Campaign
 char SaveFile_Hero[]       = "hero";
 char SaveFile_Stash[]      = "stash";
 char SaveFile_DunTemp[]    = "templ%03d";
@@ -38,6 +38,8 @@ char* SaveFolderName()
 	char* folder = SaveFolders[MaxCountOfPlayersInGame > 1];
 	if( ColiseumSaveFolder && GameMode == GM_COLISEUM ) folder = SaveFolders[2];
 	if( ClassicSaveFolder  && GameMode == GM_CLASSIC  ) folder = SaveFolders[3];
+	if (OutbreakSaveFolder && GameMode == GM_OUTBREAK ) folder = SaveFolders[4]; 
+	if( DarkCampaignSaveFolder && GameMode == GM_DARK_CAMPAIGN ) folder = SaveFolders[5]; // (th4)
 	return folder;
 }
 
@@ -46,7 +48,9 @@ char* SaveArchiveName() // TODO: change to scan and parse by file extentions (no
 {
 	char* name = MaxCountOfPlayersInGame == 1 ? "%s%sth4sp_%d.ssv" : "%s%sth4mp_%d.msv";
 	if( GameMode == GM_COLISEUM ) name = "%s%sth4col_%d.csv";
-	if( GameMode == GM_CLASSIC  ) name = "%s%sth3cls_%d.ksv";
+	if( GameMode == GM_CLASSIC  ) name = "%s%sth4cls_%d.ksv";
+	if (GameMode == GM_OUTBREAK ) name = "%s%sth4ob_%d.osv";
+	if( GameMode == GM_DARK_CAMPAIGN ) name = "%s%sth4drk_%d.dsv"; // (th4)
 	return name;
 }
 
@@ -57,6 +61,8 @@ char* SaveFileHero()
     hero = MaxCountOfPlayersInGame == 1 ? "sphero" : "mphero";
 	if( GameMode == GM_COLISEUM ) hero = "clhero";
 	if( GameMode == GM_CLASSIC  ) hero = "cphero";
+	if (GameMode == GM_OUTBREAK ) hero = "obhero";
+	if( GameMode == GM_DARK_CAMPAIGN ) hero = "drkhero"; // (th4)
 	return hero;
 }
 
@@ -67,6 +73,8 @@ char* SaveFileStash()
 	stash = MaxCountOfPlayersInGame == 1 ? "spstash" : "mpstash";
 	if( GameMode == GM_COLISEUM ) stash = "clstash";
 	if( GameMode == GM_CLASSIC  ) stash = "cpstash";
+	if (GameMode == GM_OUTBREAK ) stash = "obstash";
+	if( GameMode == GM_DARK_CAMPAIGN ) stash = "drkstash"; // (th4)
 	return stash;
 }
 
@@ -77,13 +85,13 @@ void __fastcall GetSaveArchivePath( char (&saveArchivePath)[MAX_PATH], int strin
 	if( !GetModuleFileNameA(HInstance, saveArchivePath, MAX_PATH) ){
 		TerminateWithError("Unable to get save directory");
 	}
-	char* pathEnd = strrchr(saveArchivePath, '\\'); // поиск справа
+	char* pathEnd = strrchr(saveArchivePath, '\\'); // (rt) search from the right
 	if( pathEnd ){
-		*pathEnd = 0;// обрезаем "\\" и имя exe
+		*pathEnd = 0;// (rt) cut off "\\" and the exe name
 	}
 	sprintf(buffer, SaveArchiveName(), "\\", SaveFolder ? SaveFolderName() : "", LoadOnStart && AutoLoadSlot != slotNum ? 'X' : slotNum);
 	strcat(saveArchivePath, buffer);
-	_strlwr(saveArchivePath);// неоригинальное CharLower(saveFullName);
+	_strlwr(saveArchivePath);// (rt) non-original CharLower(saveFullName);
 }
 
 //----- (00456034) --------------------------------------------------------
@@ -91,13 +99,13 @@ void InitSaveDirectory()
 {
 	char buffer[MAX_PATH];
 
-	// 10 метров хочет игра чтобы было на системном диске
+	// (rt) the game requires 10 MB on the system drive
 	if( !GetWindowsDirectoryA(buffer, MAX_PATH) ){
 		TerminateWithError("Unable to initialize save directory");
 	}
 	CheckDiskFreeSpace(buffer);
 
-	// и 10 метров на диске с игрой
+	// (rt) and 10 MB on the game drive
 	if( !GetModuleFileNameA(HInstance, buffer, MAX_PATH) ){
 		TerminateWithError("Unable to initialize save directory");
 	}
@@ -107,14 +115,14 @@ void InitSaveDirectory()
 //----- (00456093) --------------------------------------------------------
 void __fastcall CheckDiskFreeSpace( char* driveString )
 {
-	// из строки пути оставляем только букву диска в формате "C:\"
+	// (rt) keep only the drive letter from the path, in the form "C:\"
 	for( int curCharIndex = 0; driveString[curCharIndex]; curCharIndex++ ){
 		if( driveString[curCharIndex] == '\\' ){
 			driveString[curCharIndex + 1] = '\0';
 			break;
 		}
 	}
-	// проверяем место на диске. Если менее 10 метров, то завершаемся с ошибкой
+	// (rt) check the disk space. If less than 10 MB, exit with an error
 	DWORD sectorsPerCluster, bytesPerSector, numberOfFreeClusters, totalNumberOfClusters;
 	if( !GetDiskFreeSpaceA(driveString, &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters) ){
 		DiskFreeDlg((LPARAM)driveString);
@@ -127,7 +135,7 @@ void __fastcall CheckDiskFreeSpace( char* driveString )
 //----- (th2) --------------------------------------------------------
 void BackupSaveIfNeed( int slotIndex )
 {
-	if( AutoBackup ){ // можно сюда еще добавить глубину бэкапов
+	if( AutoBackup ){ // (rt) backup depth could be added here
 		char saveArchivePath[MAX_PATH];
 		GetSaveArchivePath(saveArchivePath, MAX_PATH, slotIndex, true);
 		string path = saveArchivePath;
@@ -311,7 +319,7 @@ template <typename Pi> bool NeedMurder(Pi* pi, CharName& name)
 	IS( Pi, PlayerInfo_TH1 ){
 		return false;
 	}else{
-		return ! pi->UberDialogKilled && ( (InstantMurderHero && strcmp(MurderHeroName, name) == 0)
+		return ! pi->UberDialogKilled && ( (InstantMurderHero && _strcmpi(MurderHeroName, name) == 0)
 			//|| is(pi->gameMode, GM_NIGHTMARE, GM_SPEEDRUN) 
 			);
 	}
@@ -333,6 +341,14 @@ template<> bool NeedMurder<uchar>(uchar* playerInfo, CharName& name)
 //----- (00456440) --------------------------------------------------------
 int __stdcall LoadCharSlots(void( __stdcall *allocFunc )( CharSaveInfo* ))
 {
+	// (th4) LoadPlayerInfo (SaveInfo.cpp) copies each listed hero's UberDialogKilled into the
+	// GLOBAL UberDiabloKilled. Listing heroes must not change game state: without this restore
+	// the global ended up holding the LAST listed hero's value, and a hero created next
+	// (CreateCharSlot -> SavePlayerInfo, SaveInfo.cpp pi.UberDialogKilled = UberDiabloKilled)
+	// was saved as "Uber killed" -- which disables Murder Hero deletion (menu.cpp
+	// MurderHeroInGame, NeedMurder below) and unlocks Save & Quit / saving in Ironman,
+	// Nightmare and Speedrun (menu.cpp). Every return below goes through the restore.
+	const bool uberKilledBeforeScan = UberDiabloKilled;
 	CharSaveInfo charInfo = {};
 	memset(CharNameSlots, 0, sizeof( CharNameSlots ));
 	int v10 = 1;
@@ -340,7 +356,12 @@ int __stdcall LoadCharSlots(void( __stdcall *allocFunc )( CharSaveInfo* ))
 		if( HANDLE archiveHandle = OpenArchive(&v10, slotIndex) ){
 			if( uchar* pi = ReadPlayerInfo(archiveHandle) ){
 				CharName& heroName = CharNameSlots[slotIndex];
-				if( NeedMurder(pi, heroName) ){
+				// (th4) a murder deletes only the EXACT save it was armed for (menu.cpp
+				// MurderHeroInGame): same slot, same single/multiplayer list, and the name check
+				// in NeedMurder on top. A hero elsewhere with the same name is never touched.
+				const bool murderTargetsThisSave = InstantMurderHero && slotIndex == MurderHeroSlot
+				                                && ( MaxCountOfPlayersInGame != 1 ) == MurderHeroMulti;
+				if( NeedMurder(pi, heroName) && murderTargetsThisSave ){
 					FreeMemZero(pi);
 					CloseArchiveRead(archiveHandle);
 					strcpy(charInfo.Name, heroName);
@@ -376,6 +397,11 @@ int __stdcall LoadCharSlots(void( __stdcall *allocFunc )( CharSaveInfo* ))
 			CloseArchiveRead(archiveHandle);
 		}
 	}
+	// Disarm after the full scan: if the armed murder matched no slot (e.g. the
+	// named save was manually moved/renamed), don't let it stay armed into a
+	// later, unrelated rescan.
+	InstantMurderHero = false; 
+	UberDiabloKilled = uberKilledBeforeScan;	// (th4) see the note at the top of this function
 	return true;
 }
 
@@ -398,21 +424,29 @@ uchar* __fastcall ReadPlayerInfo( HANDLE saveHandle )
 		uint bytesReaded = 0;
 		if( SFileReadFile(heroHandle, heroData, fileSize, (DWORD*)&bytesReaded, 0) ){
 			int decodeSize = DecodeFile( heroData, fileSize, (char*) key );
-			static const size_t AllowedPlayerInfoSizesToLoad[] = { sizeof(PlayerInfo_v26), sizeof(PlayerInfo_v22), sizeof(PlayerInfo_v21), sizeof(PlayerInfo_v18) };
+			static const size_t AllowedPlayerInfoSizesToLoad[] = 
+			{ 
+				11798,                           // old size for v26 (before powerups)
+				11798 + POWERUP_COUNT,           // (th4) v27 size (before totalKills)
+				sizeof(PlayerInfo_v26), 
+				sizeof(PlayerInfo_v22), 
+				sizeof(PlayerInfo_v21), 
+				sizeof(PlayerInfo_v18) 
+			};
 			if( ! has(AllowedPlayerInfoSizesToLoad, decodeSize) ) FreeMemZero(heroData);
-			// конвертация сейвов th1
+			// (rt) th1 save conversion
 			#ifdef ALLOW_TH1_CONVERTATION
 			else if( File_Seek( heroHandle, 0, 0, 0 ),
 				SFileReadFile( heroHandle, heroData, fileSize, (DWORD*) &bytesReaded, 0 );
 				DecodeFile( heroData, fileSize, (char*) key ) == sizeof( PlayerInfo_TH1 ) ){
-				memcpy( playerInfo, heroData, sizeof( PlayerInfo_TH1 ) ); // TH1 с single ключом
+				memcpy( playerInfo, heroData, sizeof( PlayerInfo_TH1 ) ); // (rt) TH1 with the single-player key
 				isSuccess = 1;
-			}else if( MaxCountOfPlayersInGame != 1 ){// попытка загрузки мультисейвов старого формата (ключ == сетевое имя компьютера)
+			}else if( MaxCountOfPlayersInGame != 1 ){// (rt) attempt to load old-format multiplayer saves (key == the computer's network name)
 				GetComputerNameA( (LPSTR) key, &nSize );
 				File_Seek( heroHandle, 0, 0, 0 );
 				SFileReadFile( heroHandle, heroData, fileSize, (DWORD*) &bytesReaded, 0 );
 				if( DecodeFile( heroData, fileSize, (char*) key ) == sizeof( PlayerInfo_TH1 ) ){
-					memcpy( playerInfo, heroData, sizeof( PlayerInfo_TH1 ) ); // TH1 c multi ключом
+					memcpy( playerInfo, heroData, sizeof( PlayerInfo_TH1 ) ); // (rt) TH1 with the multiplayer key
 					isSuccess = 1;
 				}
 			}
@@ -462,7 +496,7 @@ int __fastcall CheckSavefileSignature(HANDLE archiveHandle)
 		gbSaveFileExists = true;
 		if( DecodeFile(data2, fileSize, CryptKey) )	{
 			int saveTypeCode = *(uint*)data2;
-			// отключаем конвертацию сейвов th1
+			// (rt) disable th1 save conversion
 			if( saveTypeCode == SaveSignatureReverse
 				#ifdef ALLOW_TH1_CONVERTATION
 			 || saveTypeCode == 'FLEH'
@@ -501,13 +535,13 @@ int __stdcall UiCreateHero( CharSaveInfo* newSaveInfo )
 {
     LastPlayerInfo charInfo;// [sp+Ch] [bp-4F4h]@8
 	int firstFreeSlot = GetSlotByHeroName(newSaveInfo->Name);
-	if( firstFreeSlot >= MaxSaveSlots - 1 ){ // если имя не занято, ищем свободный слот, иначе перезаписываем
+	if( firstFreeSlot >= MaxSaveSlots - 1 ){ // (rt) if the name isn't taken, find a free slot, otherwise overwrite
 		for( firstFreeSlot = 0; firstFreeSlot < MaxSaveSlots; firstFreeSlot++ ){
 			if( !CharNameSlots[firstFreeSlot][0] ){
 				break;
 			}
 		}
-		if( firstFreeSlot >= MaxSaveSlots - 1 ){ // нет свободных слотов
+		if( firstFreeSlot >= MaxSaveSlots - 1 ){ // (rt) no free slots
 			return false;
 		}
 	}
@@ -522,6 +556,10 @@ int __stdcall UiCreateHero( CharSaveInfo* newSaveInfo )
 	CreatePlayer(0, newSaveInfo->Class, newSaveInfo->SubClass, newSaveInfo->Specialization, newSaveInfo->GameMode, newSaveInfo->GameChanger, newSaveInfo->Traits );
 	strncpy(player.playerName, newSaveInfo->Name, sizeof( CharName ));
 	player.playerName[sizeof( CharName ) - 1] = 0;
+	// (th4) A NEW hero has never killed Uber Diablo. SavePlayerInfo stores the global
+	// UberDiabloKilled into the save (SaveInfo.cpp), so clear it first -- whatever an earlier
+	// game or hero-list scan left in it must not be inherited (see LoadCharSlots).
+	UberDiabloKilled = false;
 	SavePlayerInfo( &charInfo, 0);
 	SaveCharacter(&charInfo);
 
@@ -623,7 +661,7 @@ void __fastcall CreateLoadLevelName( char (&key)[MAX_PATH] )
 	if( !OpenArchiveWrite(false, slotIndex) ){
 		TerminateWithError("Unable to read to save file archive, error num: %i", OpenFileError);
 	}
-	// эти две строки нельзя менять местами, т.к. в CloseArchiveWrite все хэши обнуляются
+	// (rt) these two lines must not be swapped, since CloseArchiveWrite resets all hashes
 	bool hashCollision = MpqFileExists(key);
 	CloseArchiveWrite(true, slotIndex); 
 	if( hashCollision ){

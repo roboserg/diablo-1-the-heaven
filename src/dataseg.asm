@@ -157,7 +157,7 @@ ItemFlipTable   db   2,  8, 17,  3,  4,  4,  4, 12, 12, 12
                 db 189 dup(0)
 
 ; char ConstByteArray10[260]
-; на самом деле массив [37][7]
+; (rt) actually an array [37][7]
 ConstByteArray10 db 7, 0Dh, 0, 0Dh, 90h, 0, 8Eh, 10h, 0Dh, 0, 0Dh, 90h;	0 ; ...
 		db 0, 8Eh, 0Fh,	0Dh, 0,	0Dh, 91h, 0, 8Eh, 5, 3 dup(0Dh); 12
 		db 98h,	8Ch, 8Bh, 5, 0Dh, 1, 0Dh, 8Fh, 92h, 8Bh, 5, 2 dup(0Dh);	25

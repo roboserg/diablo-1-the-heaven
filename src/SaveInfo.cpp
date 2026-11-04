@@ -10,7 +10,7 @@ void __fastcall SaveItem(LastItemInfo* itemInfo, const Item* item)
     }
 }
 
-//----- (00454DCF) -------------------------------------------------------- копия для изменения
+//(rt) ----- (00454DCF) -------------------------------------------------------- copy for modification
 void __fastcall SavePlayerInfo(LastPlayerInfo* playerInfo, int playerIndex)
 {
 	LastPlayerInfo& pi = *playerInfo;
@@ -61,15 +61,17 @@ void __fastcall SavePlayerInfo(LastPlayerInfo* playerInfo, int playerIndex)
 	pi.allowedDifficulty     = player.allowedDifficulty;
 	pi.Difficulty            = player.Difficulty;
 	pi.griswoldLevel         = player.griswoldLevel;
+	for (int i = 0; i < POWERUP_COUNT; ++i) pi.powerupLevel[i] = player.powerupLevel[i];
+	pi.totalKills            = player.totalKills;	// (th4) v28+
 	for( int i= 0; i < PERKS_MAX_800; ++i ) pi.perk[i] = player.perk[i];
 	pi.gameChanger           = player.gameChanger;
 	pi.CurrentSeedRun        = player.CurrentSeedRun;
 	pi.gameMode              = player.gameMode;
 }
 
-// обнуление индекса игровых объектов при превышении списка 
-// для загрузки записей новый версий на старой версии игры  
-// th2, новая функция -----------------------------------------------------
+// (rt) reset the game object index when the list overflows 
+// (rt) for loading saves of newer versions in an older version of the game  
+// (rt) th2, new function -----------------------------------------------------
 template<typename IndexType, class ArrayType>
 void Limit(IndexType& index, ArrayType* array)
 {
@@ -165,7 +167,7 @@ int __fastcall RandomizeGoldsSeed(Player* player)
     return invItemCount;
 }
 
-// ----- th2, проверка на фантомные вещи и их удаление
+// (rt) ----- th2, check for phantom items and remove them
 void CheckInvalidInvItems( int playerIndex )
 {
 	Player& player = Players[playerIndex];
@@ -177,10 +179,10 @@ void CheckInvalidInvItems( int playerIndex )
 		}
 	}
 	#endif
-	// проверка на недовыброшенные вещи ( player.InvItemCount < real count )
-	// некорректный InvItemCount возникает по неустановленной причине
-	// надо бы вынести изменения InvItemCount в единую функцию и половить этот баг
-	// эту новую проверку ниже не делаю в RecalcPlayer, потому что она может стать дырой для хаков
+	// (rt) check for items that weren't fully dropped ( player.InvItemCount < real count )
+	// (rt) an incorrect InvItemCount occurs for an unknown reason
+	// (rt) InvItemCount changes should be moved into a single function to track this bug down
+	// (rt) this new check below is not done in RecalcPlayer, since it could become a loophole for hacks
 	if( player.InvItemCount < 0 ) player.InvItemCount = 0;
 	check_start:
 	for( int i = 0; i < IS_70_40_Inv_Count; ++i ){
@@ -219,6 +221,53 @@ void CheckInvalidInvItems( int playerIndex )
 			}
 		}
 	}
+	// (th4) THE SAME REPAIR FOR THE SIGIL (TALISMAN) INVENTORY.
+	// The block above only ever repaired the NORMAL inventory (InvUsed / InvItemCount /
+	// InventorySlots). The sigil inventory is a second, identical set of three fields
+	// (TalUsed / TalItemCount / TalismanSlots, structs.h ~694) and had no validation at all,
+	// so a save whose sigil grid holds an out-of-range item number loaded as-is. Crash dump
+	// 2026-09-20: TalUsed held 71 and 108 with TalItemCount 0; clicking that cell read
+	// TalismanSlots[107] (past the 70-slot array, into the belt) as the "item", decremented
+	// the count to -1, and the next CalcCharParams did boostedSigils.reserve( (size_t)-1 ),
+	// which throws std::length_error -- an uncaught C++ exception, so the process dies.
+	// Rules, mirroring the normal-inventory pass above:
+	//   grid entry outside 1..70          -> clear the cell (it points at no slot)
+	//   grid entry above the count        -> the slot is not really there; clear both
+	//   counted slot with no grid cell    -> the item is unreachable; free the slot
+	// Anchor to verify against: after loading a healthy sigil inventory, TalItemCount equals
+	// the number of distinct positive entries in TalUsed, and every one of them is <= it.
+	if( player.TalItemCount < 0 ) player.TalItemCount = 0;
+	if( player.TalItemCount > IS_70_40_Inv_Count ) player.TalItemCount = IS_70_40_Inv_Count;
+	tal_check_start:
+	for( int i = 0; i < IS_70_40_Inv_Count; ++i ){
+		if( abs( player.TalUsed[ i ] ) > IS_70_40_Inv_Count ) player.TalUsed[ i ] = 0;
+		if( player.TalUsed[ i ] > 0 && player.TalismanSlots[ player.TalUsed[ i ] - 1 ].ItemCode != IC_M1_NONE ){
+			if( player.TalUsed[ i ] == player.TalItemCount + 1 ){
+				++player.TalItemCount;
+				goto tal_check_start;
+			}
+		}
+	}
+	for( int i = 0; i < IS_70_40_Inv_Count; ++i ){
+		if( player.TalUsed[ i ] > 0 && player.TalismanSlots[ player.TalUsed[ i ] - 1 ].ItemCode != IC_M1_NONE ){
+			if( player.TalUsed[ i ] > player.TalItemCount ){
+				player.TalismanSlots[ player.TalUsed[ i ] - 1 ].ItemCode = IC_M1_NONE;
+				player.TalUsed[ i ] = 0;
+			}
+		}
+	}
+	for( int itemIndex = 0; itemIndex < player.TalItemCount; ++itemIndex ){
+		Item& item = player.TalismanSlots[ itemIndex ];
+		if( item.ItemCode != IC_M1_NONE ){
+			bool inTal = false;
+			int itemNum = itemIndex + 1;
+			for( int i = 0; i < IS_70_40_Inv_Count; ++i ){
+				if( player.TalUsed[ i ] == itemNum ){ inTal = true; break; }
+			}
+			if( !inTal ) item.ItemCode = IC_M1_NONE;
+		}
+	}
+
 	player.TotalGold = CalcTotalGold( playerIndex );
 }
 
@@ -226,6 +275,13 @@ template <typename Pi> bool __fastcall LoadPlayerInfo(Pi* pi, int playerIndex, i
 {
 	Player& player = Players[playerIndex];
 	if( playerIndex < PlayersMax_4 ) ClearPlayerPath(playerIndex);
+
+	// (th4) Default the lifetime kill count for EVERY save version. Players[] is only
+	// zeroed at startup (AllocPlayers) and on CreatePlayer, so without this an older
+	// save (v22 and below never reaches the v26 branch that reads totalKills) would
+	// inherit the previously loaded character's count. The v26 branch overwrites this
+	// with the real value when the save is v28+.
+	player.totalKills = 0;
 
 	IS( Pi, PlayerInfo_TH1, OldPlayerInfo5, PlayerInfo_v17, PlayerInfo_v18, PlayerInfo_v21 ){
 		player.Row = pi->Row;
@@ -254,7 +310,7 @@ template <typename Pi> bool __fastcall LoadPlayerInfo(Pi* pi, int playerIndex, i
 		int baseLife = pi->BaseLife;
 		player.BaseLife = baseLife;
 		if (!isNetPlayer) {
-			baseLife &= 0xFFFFFFC0; // окруление жизни до кратного 4 
+			baseLife &= 0xFFFFFFC0; // (rt) rounding life to a multiple of 4 
 			if (baseLife < 64)
 				player.BaseLife = 64;
 		}
@@ -430,7 +486,13 @@ template <typename Pi> bool __fastcall LoadPlayerInfo(Pi* pi, int playerIndex, i
 		player.allowedDifficulty     = pi->allowedDifficulty;
 		player.Difficulty            = pi->Difficulty;
 		player.griswoldLevel         = pi->griswoldLevel;
-		for( int i = 0; i < PERKS_MAX_800; ++i ) player.perk[i] = pi->perk[i];
+		for (int i = 0; i < POWERUP_COUNT; ++i) player.powerupLevel[i] = pi->powerupLevel[i];
+		// (th4) totalKills only exists in v28+ saves. Older (v27) buffers are 4 bytes
+		// shorter, so reading pi->totalKills there would run past the loaded data.
+		// (Default 0 is already set at the top of this function.)
+		if( pi->version >= 28 ) player.totalKills = pi->totalKills;
+		for( int i = 0; i < PERKS_MAX_800; ++i ) player.perk[i] = pi->perk[i]; 
+		//uchar powerupLevel[15];
 		player.gameChanger           = pi->gameChanger;
 		player.CurrentSeedRun        = pi->CurrentSeedRun;
 		player.gameMode              = pi->gameMode; // LoadItem requires game mode
@@ -474,7 +536,7 @@ template<> bool __fastcall LoadPlayerInfo(uchar* playerInfo, int playerIndex, in
 		if(pi->version >= 17) LoadPlayerInfo((PlayerInfo_v17*)pi, playerIndex, isNetPlayer); else
 		if(pi->version >=  1) LoadPlayerInfo((OldPlayerInfo5*)pi, playerIndex, isNetPlayer); else
 		                      LoadPlayerInfo((PlayerInfo_TH1*)pi, playerIndex, isNetPlayer);
-		// добавлена проверка на фантомные вещи и их удаление
+		// (rt) added a check for phantom items and their removal
 		if( playerIndex < PlayersMax_4 ) CheckInvalidInvItems(playerIndex);
 	}else{
 		return false;

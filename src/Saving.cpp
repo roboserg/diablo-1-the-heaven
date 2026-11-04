@@ -43,6 +43,40 @@ void LoadItemMap()
 }
 
 char* saveFileData = 0;
+
+// (th4) Rev 2.50 fix (F1): repair a loaded light-pool block into a PERMUTATION of
+// 0..Lights_128_Count-1. Entries that are invalid (>= Lights_128_Count) or
+// duplicated are replaced by the values missing from the block, so both loaders
+// (v30: loadedCount 128, the whole block comes from the file; v29: loadedCount
+// 32, the rest of the pool is reconstructed) always hand AddLight/ProcessLightList
+// a valid pool. For a valid block this is a no-op. It also guarantees the payload
+// loop below reads exactly one payload per entry, so a malformed save can never
+// desync the rest of the stream (the F1 bug the bare `continue` had).
+static void RepairLightPoolBlock( int loadedCount )
+{
+	bool used[Lights_128_Count] = {};
+	int missing[Lights_128_Count];
+	for( int i = 0; i < loadedCount; i++ ){
+		int v = (uchar)LightIndexes[i];
+		if( v < Lights_128_Count && !used[v] ){
+			used[v] = true;
+		}else{
+			LightIndexes[i] = (char)-1; // malformed or duplicate byte
+		}
+	}
+	int missingCount = 0;
+	for( int v = 0; v < Lights_128_Count; v++ ){
+		if( !used[v] ) missing[missingCount++] = v;
+	}
+	int m = 0;
+	for( int i = 0; i < loadedCount; i++ ){
+		if( LightIndexes[i] == (char)-1 ) LightIndexes[i] = (char)missing[m++];
+	}
+	for( int w = loadedCount; m < missingCount; m++, w++ ){
+		LightIndexes[w] = (char)missing[m];
+	}
+}
+
 //----- (0042CE32) --------------------------------------------------------
 void __fastcall LoadGame( int loadFromMainMenu )
 {
@@ -55,7 +89,7 @@ void __fastcall LoadGame( int loadFromMainMenu )
 	CurSaveData = saveFileData;
 	int versionString = GetNextHtonl2();
 	SaveVersion = 0;
-	if( versionString != 'HELF' ){ // добавить поддержку версионности, для предотвращения морфинга в дальнейшем
+	if( versionString != 'HELF' ){ // (rt) add versioning support, to prevent morphing in the future
 		if( versionString == SaveSignature ){
 			SaveVersion = GetNextHtonl();
 		}else{
@@ -107,6 +141,19 @@ void __fastcall LoadGame( int loadFromMainMenu )
 	for( int index = loadQuestCount; index < Quest_Count; index++ ){
 		Quests[index].status = QS_0_NO;
 	}
+	// (th4) Dark Campaign mission states, written by SaveGame after the quest block.
+	// The count is stored so the array can grow later without another format change.
+	// MUST be version-guarded like the quest block above: a pre-v29 save has no mission
+	// block here, so reading one would consume the first bytes of the PORTAL block instead
+	// and desync every read after it (portals, TotalSlain, dungeon data) with no error.
+	for( auto& m: DarkMissionState ) m = DCM_0_UNTOUCHED;
+	if( SaveVersion >= 29 ){
+		int stored = GetNextByte();
+		for( int index = 0; index < stored; index++ ){
+			uchar v = (uchar)GetNextByte();
+			if( index < DARK_MISSION_MAX_50 ) DarkMissionState[index] = v;
+		}
+	}
 	for( int index = 0; index < PlayersMax_4; index++){		
 		LoadPortal(index);
 	}
@@ -118,7 +165,16 @@ void __fastcall LoadGame( int loadFromMainMenu )
 	PlayerRowPos = playerRow;
 	MonstersCount = monstersCount;
 	ItemsCount = itemsOnGroundCount;
-	MissileAmount = spellCastAmount;
+	// (th4) The saved missile LIST (MissileIndexes / MissileIndexList / missiles) is only read
+	// for dungeon and quest levels -- see the if( Dungeon->genType || Dungeon->isQuest ) block
+	// below. In town, LoadGameLevel above has already rebuilt the list (InitMissiles, then
+	// SyncPortals re-casting open portals), so the saved COUNT must not replace it: the extra
+	// zero-filled slots all pointed at missile 0 -- the town portal -- which was then updated
+	// and animated once per slot each tick ("town portal spins at double speed after loading
+	// a game saved in town").
+	if( Dungeon->genType || Dungeon->isQuest ){
+		MissileAmount = spellCastAmount;
+	}
 	PlayerColPos = playerCol;
 	ObjectsCount = objectsCount;
 
@@ -167,11 +223,58 @@ void __fastcall LoadGame( int loadFromMainMenu )
 		}
 
 		LightsCount = GetNextHtonl();
-		for( int index = 0; index < Lights_32_Count; index++){			
-			LightIndexes[index] = GetNextByte();		
+		// (th4) Rev 2.50 fix (F3): a corrupt NEGATIVE count passes both version
+		// clamps below (they only bound the top end). A negative count would
+		// (a) skip every payload read, desyncing the whole rest of the stream,
+		// and (b) reach AddLight, which reads LightIndexes[LightsCount] -> [-1]
+		// (OOB read) and writes LightList[thatIndex] / LightTintList[thatIndex]
+		// (OOB write, arbitrary mid-globals offset). The save is unrecoverable
+		// either way — reload the pool empty instead of corrupting memory.
+		if( LightsCount < 0 ) LightsCount = 0;
+		// (th4) Rev 2.50: v30 saves serialize the FULL light pool — the whole
+		// 128-byte LightIndexes permutation plus every live Light entry.
+		// Missiles/monsters are serialized with their LightIndex, so every
+		// referenced slot must round-trip; the pre-v30 32-clamp dropped entries
+		// 33..128 and left loaded owners with dangling slot references.
+		if( SaveVersion >= 30 ){
+			if( LightsCount > Lights_128_Count ) LightsCount = Lights_128_Count;
+			for( int index = 0; index < Lights_128_Count; index++ ){
+				LightIndexes[index] = GetNextByte();
+			}
+			// (th4) Rev 2.50 F1: repair the loaded block into a permutation BEFORE
+			// its values are used — invalid/duplicate bytes are replaced by the
+			// missing values, so the payload loop below reads exactly one payload
+			// per entry and a malformed file can never desync the stream.
+			RepairLightPoolBlock( Lights_128_Count );
+		}else{
+			// (th4) Rev 2.46 (v29, no bump): the block is fixed at 32 bytes.
+			// Pre-128 saves hold a permutation of 0..31 there; the 128-cap
+			// builds wrote the FRONT 32 of a 128-permutation, which may legally
+			// hold values >= 32 after swap-to-tail churn. Identity-filling slots
+			// 32..127 would duplicate those values and drop others, corrupting
+			// the AddLight/ProcessLightList pool after a load. Rebuild the tail
+			// from the values MISSING in the front block (replacing malformed or
+			// duplicate front bytes the same way) so the pool is always a
+			// permutation; genuine old saves load byte-identically.
+			if( LightsCount > Lights_32_Count ) LightsCount = Lights_32_Count;
+			for( int index = 0; index < Lights_32_Count; index++ ){
+				LightIndexes[index] = GetNextByte();
+			}
+			// Same repair as v30, but only the front 32 bytes come from the file:
+			// the helper reconstructs the tail from the values missing in the front
+			// (malformed/duplicate front bytes are replaced by missing values too).
+			RepairLightPoolBlock( Lights_32_Count );
 		}
-		for( int index = 0; index < LightsCount; index++ ){			
-			LoadObjectLight(LightIndexes[index]);	
+		for( int index = 0; index < LightsCount; index++ ){
+			int li = (uchar)LightIndexes[index];
+			if( li >= Lights_128_Count ){
+				// (th4) Rev 2.50 F1: unreachable after RepairLightPoolBlock, but a
+				// malformed save must never desync the stream — the payloads are
+				// positional, so consume this entry's payload and drop it.
+				CurSaveData += sizeof(Light);
+				continue;
+			}
+			LoadObjectLight(li);
 		}
 
 		VisionId = GetNextHtonl();
@@ -181,13 +284,24 @@ void __fastcall LoadGame( int loadFromMainMenu )
 		}
 	}
 
+	// (th4) DC mission 25: the monsters are back now. Add the Butcher if the save predates
+	// him joining, and in either case put his colours back -- his LightTable row is runtime
+	// state that nothing else refills, and an empty row draws him solid black.
+	DarkCampaignSpawnButcherIfMissing();
+	// (th4) ...and if anything upstream already put one here, make sure we did not end up
+	// with two. Must run BEFORE the TRN refresh below, so the colours are put back on the
+	// Butcher that survives rather than on one about to be retired.
+	DarkCampaignCollapseDuplicateButchers();
+	DarkCampaignRefreshButcherTrn();
+	DarkCampaignRefreshEndLordTrn();
+
 	LoadItemsActive();
 
 	for( int index = 0; index < 128; index++ ){			
 		CurSaveData++; // backward compatibility with now unused AlreadyDroppedUniqs, can be reused
 	}
 
-	// в оригинале данные в сэйве пишутся сначала по колонкам, потом по рядам
+	// (rt) in the original the save data is written first by columns, then by rows
 	for( int col = 0; col < FineMap_112; col++ ){
 		for( int row = 0; row < FineMap_112; row++ ){
 			LightMap[ row ][ col ] = GetNextByte();
@@ -257,6 +371,10 @@ void __fastcall LoadGame( int loadFromMainMenu )
 			}
 		}
 	}
+	// (th4) Rev 2.50: rebuild the colored static bake from the loaded
+	// StaticLightMap + object list — same replay rule as fresh generation, so
+	// save-game loads are byte-identical to the freshly generated level.
+	RebuildStaticTintMap();
 	GriswoldMagicItemCount = GetNextHtonl();
 	GriswoldItemsLevelParam = GetNextHtonl();
 	for( int index = 0; index < PT_MagicItemsCount; index++ ){
@@ -280,6 +398,23 @@ void __fastcall LoadGame( int loadFromMainMenu )
 	ChangeAllPlayersVisibility();
 	ProcessVisionList();
 	SetupMissilesAnimationsAfterLoading();
+	// (th4) Stage 3 load fix: same one-shot tint re-assert as LoadGameLevel —
+	// the restored missiles' lights (a town portal left in the dungeon, any
+	// tinted missile in flight at save time) would otherwise stay WHITE until
+	// the first ProcessMissiles tick, and the first frame after a save load is
+	// drawn before that tick (RunGameLoop draws once before the loop starts).
+	// Missile list is final here (loaded above); zero per-frame cost.
+	// (th4) LightTintList is NOT in the save, but the light slots are: the tints left in it are
+	// whatever LoadGameLevel (called above, before the save data replaced the light list)
+	// happened to paint. There the level is built first -- InitLighting, then SyncPortals re-casts
+	// the open town portal and its light can get slot 0, which the hero's light (restored from the
+	// save a moment later) also uses -- so slot 0 was left orange and the hero carried the portal's
+	// colour across the whole map until the next level change. Every slot is reset to white here;
+	// the real colours are re-asserted right below (missiles) and on the next tick (objects,
+	// Object.cpp ApplyObjectLightTint), both from the slots as loaded. Known-good check: load a save
+	// with an open portal in Ultra lighting -- the hero's light is white, the portal glows orange.
+	for( int i = 0; i < Lights_128_Count; ++i ){ LightTintList[ i ].r = 255; LightTintList[ i ].g = 255; LightTintList[ i ].b = 255; }
+	ReassertAllMissileLightTints();
 	RestoreScreenSurface();
 	SetCursorGraphics(CM_1_NORMAL_HAND);
 	BoolWithPlayer = 1;
@@ -702,6 +837,18 @@ void __fastcall LoadPlayer(int playerIndex)
 	p.AnimPitchBlock                 = player.AnimPitchBlock;
 	p.tunringAnimationFrameCount     = player.tunringAnimationFrameCount;
 	p.AnimPitchTurning               = player.AnimPitchTurning;
+	
+	if (SaveVersion < 27) {
+		for (int i = 0; i < POWERUP_COUNT; ++i) {
+			p.powerupLevel[i] = 0;
+		}
+	}
+	// (th4) totalKills is new in v28. For older game saves the bytes at that offset are
+	// the previously unused Player::reservedPointers (always zero in practice), but don't
+	// rely on that -- zero it explicitly, same as powerupLevel above.
+	if (SaveVersion < 28) {
+		p.totalKills = 0;
+	}
 
 	player = p;
 
@@ -714,8 +861,8 @@ void __fastcall LoadPlayer(int playerIndex)
 void __fastcall LoadMonster(int monsterIndex)
 {
 	ReadSaveData(&Monsters[monsterIndex], offsetof(Monster, Monster::Name) );
-	// (20) расширение номера босса 0042D46E
-	// Конвертация старой версии в новую
+	// (rt) (20) boss number extension 0042D46E
+	// (rt) Converting the old version to the new one
 	Monster& monster = Monsters[monsterIndex];
 	if( monster.BossID ){
 	 	monster.newBossId = monster.BossID;
@@ -792,7 +939,7 @@ void SaveGame()
 	SaveVersion = CurSaveVersion; // for buffer save/load 
 	CurSaveData = (char*)ptrSaveData;
 	PutNextHtonl2(SaveSignature);
-	PutNextHtonl(CurSaveVersion); // сейв th2 версии CurVersion
+	PutNextHtonl(CurSaveVersion); // (rt) th2 save of version CurVersion
 	PutNextHtonl(PlayerRowPos);
 	PutNextHtonl(PlayerColPos);
 	PutNextBool(IsINVPanelVisible);
@@ -815,6 +962,12 @@ void SaveGame()
 	PutNextByte(Quest_Count);
 	for( int index = 0; index < Quest_Count; index++){ // TODO: continue here, add Quest_Count saving
 		SaveQuest(index);	
+	}
+	// (th4) Dark Campaign mission states. World state, saved with the game rather than with
+	// the character, so New Game restarts the campaign while the hero keeps his progress.
+	PutNextByte(DARK_MISSION_MAX_50);
+	for( int index = 0; index < DARK_MISSION_MAX_50; index++ ){
+		PutNextByte(DarkMissionState[index]);
 	}
 	for( int index = 0; index < PlayersMax_4; index++){		
 		SavePortal(index);	
@@ -855,18 +1008,23 @@ void SaveGame()
 			SaveObject(ObjectActive[index]);	
 		}
 
+		// (th4) Rev 2.50: v30 serializes the FULL light pool — the whole 128-byte
+		// LightIndexes permutation plus every live Light entry. Missiles and
+		// monsters are serialized with their LightIndex, so dropping entries (the
+		// Rev 2.46 32-clamp) would leave loaded owners with dangling slot
+		// references; the pool round-trips exactly.
 		PutNextHtonl(LightsCount);
-		for( int index = 0; index < Lights_32_Count;	index++){			
-			PutNextByte(LightIndexes[index]);		
+		for( int index = 0; index < Lights_128_Count; index++ ){
+			PutNextByte(LightIndexes[index]);
 		}
-		for( int index = 0; index < LightsCount; index++ ){			
-			SaveObjectLight(LightIndexes[index]);	
+		for( int index = 0; index < LightsCount; index++ ){
+			SaveObjectLight(LightIndexes[index]);
 		}
 
 		PutNextHtonl(VisionId);
 		PutNextHtonl(VisionCount);
-		for( int index = 0; index < VisionCount; index++ ){		
-			SavePlayerVisibility(index);				
+		for( int index = 0; index < VisionCount; index++ ){
+			SavePlayerVisibility(index);
 		}
 	}
 
@@ -886,7 +1044,7 @@ void SaveGame()
 
 	for( int col = 0; col < FineMap_112; col++ ){
 		for( int row = 0; row < FineMap_112; row++ ){
-			PutNextByte(FlagMap[ row ][ col ] & ~(CF_1_SPELL_CAST | CF_2_VISIBLE_BY_PLAYER | CF_4_DEAD_PLAYER)); // 1111 1000 обнуляем 3 бита. Что они значат?
+			PutNextByte(FlagMap[ row ][ col ] & ~(CF_1_SPELL_CAST | CF_2_VISIBLE_BY_PLAYER | CF_4_DEAD_PLAYER)); // (rt) 1111 1000 clear 3 bits. What do they mean?
 		}
 	}
 
@@ -1188,6 +1346,19 @@ void LoadLevel()
 	uint loadedSize;
 	char* saveFileData = (char*)ReadSaveFile(fileName, &loadedSize, 0);
 	CurSaveData = saveFileData;
+	// (th4) LIGHTS OF KILLED BOSSES. InitMonsters has just rebuilt every boss of this level from the level
+	// seed, each with a fresh light (CreateBoss) -- the killed ones too. Remember those lights here (before
+	// MonstersCount is read from the file); once the saved monsters are loaded, the light of every boss that
+	// is no longer alive is switched off. Before, SyncUniqDead moved it onto the corpse, which then glowed
+	// again on every re-entry although the kill had put the light out (MonsterKilledByPlayer /
+	// KillMonsterByMonster LightOff), and a boss without a corpse kept it at his spawn point.
+	std::vector<std::pair<int, int>> freshBossLights;	// newBossId, LightIndex
+	if( Dungeon->genType || Dungeon->isQuest ){
+		for( int i = 0; i < MonstersCount; i++ ){
+			const Monster& m = Monsters[ MonsterIndexes[i] ];
+			if( m.newBossId && m.LightIndex > 0 ) freshBossLights.emplace_back( m.newBossId, m.LightIndex );
+		}
+	}
 	SaveVersion = GetNextHtonl();
 	if( SaveVersion < 20 ){ // for old save version (< 20) without map versioning
 		SaveVersion = 19;
@@ -1215,6 +1386,14 @@ void LoadLevel()
 		for( int index = 0; index < Monsters_Max_Count; index++) MonsterIndexes[index] = GetNextHtonl();
 		for( int index = 0; index < MonstersCount; index++) LoadMonster(MonsterIndexes[index]);
 		SetBossLightActive();
+		for( const auto& fresh : freshBossLights ){	// (th4) see freshBossLights above
+			bool alive = false;
+			for( int i = 0; i < MonstersCount && !alive; i++ ){
+				const Monster& m = Monsters[ MonsterIndexes[i] ];
+				alive = m.newBossId == fresh.first && ( m.CurrentLife & ~63 ) > 0;
+			}
+			if( !alive ) LightOff( fresh.second );
+		}
 
 		// Load object block
 		for( int index = 0; index < MaxObjects_127; index++) ObjectActive[index] = GetNextByte();		
@@ -1268,14 +1447,16 @@ void LoadLevel()
 		}
 		for( int col = 0; col < FineMap_112; col++ ){
 			for( int row = 0; row < FineMap_112; row++ ){
-				MissilesMap[ row ][ col ] = GetNextWord(); // в оригинале 0
+				MissilesMap[ row ][ col ] = GetNextWord(); // (rt) 0 in the original
 			}
 		}
 	}
 	
-	for( int r = 0; r < 112; r++ ){ // removes light leftovers from warps
-		for( int c = 0; c < 112; c++ ){
-			LightMap[r][c] = StaticLightMap[r][c];
+	if( Dungeon->genType || Dungeon->isQuest ){
+		for( int r = 0; r < 112; r++ ){ // removes light leftovers from warps
+			for( int c = 0; c < 112; c++ ){
+				LightMap[r][c] = StaticLightMap[r][c];
+			}
 		}
 	}
 

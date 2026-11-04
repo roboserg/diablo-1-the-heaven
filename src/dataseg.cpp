@@ -4,7 +4,7 @@
 // dataseg.asm
 //===============================================================
 
-int MainMenuEnterFlag; // используется в hell.dll
+int MainMenuEnterFlag; // (rt) used in hell.dll
 
 char* PlayerTrnName[128] = {
 	"Monsters\\Bat\\orange.trn",	
@@ -70,7 +70,8 @@ int DungeonSeedCheck2[ DungeonCount ];
 int DungeonSeedCheck3[ DungeonCount ];
 int DungeonSeedCheck4[ DungeonCount ];
 i64 AutoSaveTickCount;
-i64 PaletteFrameSync;
+i64 PaletteFrameSync; 
+int AmbientSfxCountdown[5] = { 0,0,0,0,0 }; // th4: per-series ambient caw timers (raven/wind/moan/thump/scream)
 
 char GameClientName[] = "The Hell Retail"; // "The Hell 2 Beta"; // 004B3CDC "The Hell Retail"
 char aLocal[]		= "local"; // 004B3CEC
@@ -102,7 +103,7 @@ char StepOrientationIndex[9] = {// 004B5A84
 	8, 4, 7 
 };
 
-int CountOfSpeeches = 382; // TH1, а должно быть 394, хотя может здеть только используемое количество, без заготовок
+int CountOfSpeeches = 382; // (rt) TH1; should be 394, though maybe only the used count is here, without placeholders
 double _0_95_TimeCoef = 0.95; // 004902D8
 double _0_01_ = 0.01; // 004902F8
 double GammaKoef = 0.00390625; // 0x00490300
@@ -308,8 +309,46 @@ uchar ItemHeightTable[MAX_9000_ITEM_PICS] = {
 };
 
 // 00834EE8
-// 1784 байт по факту выделено в th1 для этого массива
-// В этой таблице индексы изображений и звучаний вещей на земле
+// (rt) 1784 bytes are actually allocated for this array in th1
+// (rt) This table holds the indices of the images and sounds of items on the ground
+// (th4) HOW TO EDIT THIS TABLE SAFELY.
+//
+// INDEXED BY THE FINAL GraphicValue. Item art is written as "raw + base" in
+// BaseItems.cpp / Item.cpp, and THE BASE IS NOT DECORATION -- it picks which of the
+// three inventory CEL files the art comes from. GetItemSprites() (Item.cpp) splits on
+// spriteId, which is GraphicValue + CM_12_ITEMS_PICS_START:
+//
+//   base    GraphicValue      CEL file           frame within that file
+//   + 0        0 ..  167      Invobj1.cel        GraphicValue + 12
+//   + 168    168 .. 3884      TH2objcurs.cel     GraphicValue - 167
+//   + 3885  3885 ..           TH3objcurs.cel     GraphicValue - 3884
+//
+// so "raw" is essentially the frame number inside its own CEL, and the base shifts it
+// into the one flat GraphicValue space this table is indexed by. There is no per-file
+// sub-table: a sword at 1364+168 is index 1532, a sigil at 1730+3885 is index 5615,
+// and the //TH3objcurs marker further down sits at exactly 3885 for that reason.
+// (BaseItems.cpp also has two stray "+55" rows; same rule, they land in Invobj1.)
+//
+// THE /*NNNN*/ ROW LABELS ARE NOT THE ABSOLUTE INDEX. They are RAW numbers, so they
+//    only match the index inside the +0 region -- 334 of the 450 labelled rows do not
+//    match. Read a label as "raw", then add that region's base.
+//
+// TRAP when counting positions with a script: several rows carry TRAILING // COMMENTS
+//    CONTAINING DIGITS ("// unused: 84,", "// 183", "// 200", "// 275"). Strip //
+//    comments BEFORE extracting numbers, or the count drifts by five and you silently
+//    overwrite a neighbouring item's entry.
+//
+// ALWAYS sanity-check a computed index against items whose flip type is known, before
+//    writing: a short sword (1364+168) must read FL_8_SWORD, the Enclave guns
+//    (1530+3885, 1532+3885) FL_67_GUN, and every sigil in the Item.cpp randomizer
+//    FL_68_SIGIL.
+//
+// 0 IS NOT "EMPTY". It is FL_0_ARMOR2 -- mail armour -- and 99 BaseItems rows really do
+//    point at a 0 slot (Thick Mail, Hauberk, Lamellar Jacket, Haramaki Armor ...); some
+//    are annotated 0/*mail*/ in the rows below. 41% of the table is 0, so "it reads 0"
+//    is NOT proof that a slot is free. Before writing a new graphic, confirm no
+//    BaseItems.cpp / Item.cpp row already uses that raw+base, and only then treat the
+//    0 as spare.
 uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*0*/	 2,	3,	17,	3,	4,	4,	4,	12,	12,	12,	15,	12,	8,	12,	12,	3,	27,	21,	12,	3, 
 	/*20*/	 11,7,	17,	6,	6,	1,	26,	7,	32,	5,	24,	30,	7,	5,	22,	25,	24,	20,	23,	7,
@@ -336,7 +375,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*440*/	 24/*272*/,24,	24,	21,	7,	6,	63,	61,	60,	32,	59,	38,	38,	38,	38,	38,	38,	38,	38,	38,
 	/*460*/	 38/*292*/,38,	38,	38,	38,	38,	38,	38,	65,	66,	13,	66,	7,	26,	7,	21,	22,	22,	25,	2,
 	/*480*/	 2/*312*/,	2,	23,	20,	20,	12,	12,	12,	12,	12,	12,	12,	18,	40,	40,	40,	40,	29,	29,	29,
-	/*500*/	 29/*332*/,29,	29,	29,	39,	37,	37,	37,	37,	16,	16,	16,	16,	16,	16,	16,	12,	12,	12,	42,
+	/*500*/	 29/*332*/,29,	29,	29,	39,	37,	37,	37,	37,	16,	16,	16,	16,	16,	16,	16,	12,	77,	12,	42,
 	/*520*/	 42/*352*/,42,	5,	8,	14,	8,	1,	1,	51,	15,	5,	36,	36,	7,	7,	7,	7,	8,	8,	63,
 	/*540*/	 60/*372*/,59,	61,	62,	32,	60,	58,	63,	57,	57,	57,	57,	57,	57,	32,	59,	2,	22,	52,	12,
 	/*560*/	 12/*392*/,21,	21,	21,	7,	0,	0,	21,	2,	17,	17,	2,	12,	15,	21,	14,	50,	50,	14,	17,
@@ -400,13 +439,13 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*1720*/ 49/*1552*/,	8,	36,	46,	45,	46,	47,	46,	47,	47,	44,	50,	15,	8,	15,	31,	44,	12,	12,	12,
 	/*1740*/ 12/*1572*/,	64,	5,	5,	5,	5,	15,	7,	7,	15,	7,	7,	45,	46,	64,	8,	8,	8,	7,	0,
 	/*1760*/ 44/*1592*/,	44,	44,	17,	17,	48,	3,	3,	7,	7,	11,	11,	8,	8,	14,	0,	6,	1,	11,	6,
-	/*1780*/  3/*1612*/,	1,	3,	3,	7,	7,	48,	14,	14,	17,	60,	32,	63,	58,	44,	44,	44,	36,	39,	39,
-	/*1800*/ 39/*1632*/,	39,	39,	39,	40,	40,	40,	40,	40,	5,	5,	5,	13,	5,	5,	31,	5,	5,	5,	44,
+	/*1780*/  3/*1612*/,	1,	3,	3,	7,	7,	48,	14,	14,	17,	60,	32,	63,	58,	44,	44,	44,	36,	72,	72,
+	/*1800*/ 72/*1632*/,	72,	72,	72,	40,	40,	40,	40,	40,	5,	5,	5,	13,	5,	5,	31,	5,	5,	5,	44,
 	/*1820*/ 44/*1652*/,	44,	5,	44,	44,	12,	12,	12,	12,	12,	24,	17,	6,	49,	48,	5,	5,	5,	5,	5,
 	/*1840*/  5/*1672*/,	5,	5,	31,	31,	31,	11,	14,	42,	0,	42,	14,	1,	1,	1,	5,	5,	5,	5,	5,
 	/*1860*/  5/*1692*/,	5,	5,	5,	5,	31,	15,	0,	0,	0,	42,	0,	42,	17,	31,	31,	31,	31,	31,	31,
 	/*1880*/  5/*1712*/,	64,	31,	31,	5,	5,	5,	0,	17,	14,	50,	48,	48,	48,	48,	50,	49,	31,	31,	31,
-	/*1900*/ 31/*1732*/,	31,	31,	31,	31,	31,	5,	42,	5,	17,	0,	14,	14,	14,	0,	/* following three are CLAWS */8,	8,	8,	5,	5,
+	/*1900*/ 31/*1732*/,	31,	31,	31,	31,	31,	5,	42,	5,	17,	0,	14,	14,	14,	0,	/* following three are CLAWS */70,	70,	70,	5,	5,
 	/*1920*/  50/*1752*/,	49,	49,	50,	50,	48,	7,	7,	7,	7,	7,	7,	7,	7,	7,	31,	5,	5,	5,	5,
 	/*1940*/  5/*1772*/,	7,	6,	6,	8,	7,	7,	14,	42,	0,	42,	14,	1,	7,	7,	7,	7,	7,	7,	7,
 	/*1960*/  7/*1792*/,	7,	15,	15,	7,	7,	7,	5,	42,	0,	5,	5,	5,	5,	5,	5,	5,	5,	5,	14,
@@ -419,7 +458,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*2100*/  8/*1932*/,	8,	8,	8,	8,	8,	8,	0,	0,	0,	5,	5,	5,	5,	64,	5,	5,	5,	5,	5,
 	/*2120*/  5/*1952*/,	31,	5,	5,	5,	5,	5,	5,	5,	64,	5,	5,	17,	17,	0,	14,	0,	0,	45,	0,
 	/*2140*/  7/*1972*/,	7,	7,	7,	66,	18,	18/*1978-last*/,	12,	12,	18,	18,	18,	18,	18,	1,	0,	12,	12,	12,	17,
-	/*2160*/  5/*1992*/,	5,	5,	17,	0,	15,	48,	48,	48,	48,	48,	48,	49,	8,	5,	5,	31,	5,	15,	11,
+	/*2160*/  5/*1992*/,	5,	5,	17,	0,	15,	48,	48,	48,	48,	48,	48,	49,	70,	5,	5,	31,	5,	15,	11,
 	/*2180*/ 11/*2012*/,	11,	60,	11,	11,	11,	11,	17,	14,	17,	5,	31,	15,	15,	5,	5,	5,	31,	5,	5,
 	/*2200*/  5/*2032*/,	5,	1,	1,	1,	8,	5,	5,	5,	5,	8,	66,	8,	8,	8,	5,	5,	17,	47,	45,
 	/*2220*/ 47/*2052*/,	45,	45,	45,	46,	45,	45,	45,	46,	45,	46,	46,	45,	45,	45,	45,	45,	45,	45,	45,
@@ -434,8 +473,8 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*xxxx*/ 50/*2232*/,	46,	47,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	3,	3,	3,	3,	8,	8,
 	/*xxxx*/  8/*2252*/,	8,	8,	8,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,
 	/*xxxx*/  3/*2272*/,	3,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	38,	38,	38,
-	/*xxxx*/ 38/*2292*/,	38,	38,	8,	8,	8,	8,	8,	66,	66,	66,	8,	6,	6,	8,	8,	8,	6,	8,	1,
-	/*xxxx*/  1/*2312*/,	1,	51,	51,	7,	7,	8,	8,	8,	8,	8,	18,	18,	18,	18,	18,	18,	18,	18,	8,
+	/*xxxx*/ 38/*2292*/,	38,	38,	70,	70,	70,	70,	70,	66,	66,	66,	8,	6,	6,	70,	70,	70,	70,	70,	1,
+	/*xxxx*/  1/*2312*/,	1,	51,	51,	7,	7,	70,	8,	8,	8,	8,	18,	18,	18,	18,	18,	18,	18,	18,	8,
 	/*xxxx*/  8/*2332*/,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,
 	/*xxxx*/  8/*2352*/,	8,	8,	8,	8,	18,	6,	6,	6,	6,	51,	8,	66,	66,	66,	66,	66,	66,	66,	66,
 	/*xxxx*/ 45/*2372*/,	5,	5,	5,	17,	0,	5,	5,	5,	5,	14,	5,	15,	15,	15,	7,	7,	15,	15,	7,
@@ -445,29 +484,29 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*xxxx*/ 46/*2452*/,	46,	47,	47,	45,	45,	47,	46,	47,	12,	12,	12,	12,	7,	7,	7,	48,	49,	49,	48,
 	/*xxxx*/ 50/*2472*/,	48,	48,	50,	50,	48,	49,	48,	49,	50,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,
 	/*xxxx*/ 18/*2492*/,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,	18,
-	/*xxxx*/ 18/*2512*/,	18,	14,	0,	39,	0,	42,	44,	44,	44,	44,	44,	44,	44,	8,	6,	6,	6,	44,	50,
+	/*xxxx*/ 18/*2512*/,	18,	14,	0,	72,	0,	42,	44,	44,	44,	44,	44,	44,	44,	8,	6,	6,	6,	44,	50,
 	/*xxxx*/ 50/*2532*/,	50,	5,	1,	8,	8,	7,	7,	7,	7,	7,	8,	8,	8,	8,	1,	14,	14,	14,	14,
 	/*xxxx*/ 14/*2552*/,	14,	14,	14,	7,	8,	42,	5,	31,	31,	31,	31,	31,	17,	17,	17,	17,	12,	7,	7,
 	/*xxxx*/ 12/*2572*/,	12,	47,	47,	47,	50,	0,	0,	5,	14,	14,	14,	49,	49,	49,	44,	31,	5,	5,	5,
 	/*xxxx*/  5/*2592*/,	5,	5,	5,	12,	12,	12,	42,	42,	42,	5,	5,	12,	12,	12,	12,	42,	42,	51,	42,
 	/*xxxx*/ 42/*2612*/,	7,	44,	1,	42,	12,	12,	12,	3,	8,	13,	8,	6,	3,	3,	3,	3,	5,	5,	3,
-	/*xxxx*/ 44/*2632*/,	50,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	66,	66,	66,	8,	1,
+	/*xxxx*/ 44/*2632*/,	50,	70,	70,	70,	70,	70,	70,	70,	70,	70,	8,	8,	8,	8,	66,	66,	66,	8,	1,
 	/*xxxx*/  1/*2652*/,	1,	1,	7,	7,	7,	7,	7,	8,	7,	7,	42,	42,	42,	12,	12,	6,	6,	12,	12,
 	/*xxxx*/  7/*2672*/,	7,	7,	7,	7,	5,	5,	5,	5,	5,	5,	5,	5,	5,	5,	5,	5,	5,	3,	3,
 	/*xxxx*/  3/*2692*/,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,
 	/*xxxx*/ 12/*2712*/,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	12,	31,	15,	0,	12,	12,	47,
-	/*xxxx*/ 47/*2732*/,	47,	47,	47,	47,	7,	5,	45,	45,	5,	7,	7,	36,	39,	1,	7,	15,	8,	17,	47,
+	/*xxxx*/ 47/*2732*/,	47,	47,	47,	47,	7,	5,	45,	45,	5,	7,	7,	36,	73,	1,	7,	15,	70,	17,	47,
 	/*xxxx*/ 47/*2752*/,	47,	47,	17,	1,	47,	44,	5,	44,	44,	50,	5,	50,	47,	47,	47,	6,	6,	46,	32,
-	/*xxxx*/ 61/*2772*/,	63,	62,	60,	59,	60,	32,	56,	58,	63,	60,	59,	17,	5,	5,	42,	12,	6,	15,	5,
+	/*xxxx*/ 61/*2772*/,	63,	62,	60,	59,	60,	32,	56,	58,	63,	56,	59,	17,	5,	5,	42,	12,	6,	15,	5,
 	/*xxxx*/  8/*2792*/,	5,	6,	6,	6,	17,	48,	1,	8,	8,	8,	17,	5,	7,	5,	5,	0,	1,	1,	7,
 	/*xxxx*/ 66/*2812*/,	7,	7,	5,	5,	0,	6,	65,	65,	6,	64,	0,	14,	6,	17,	6,	6,	6,	0,	17,
-	/*xxxx*/  7/*2832*/,	3,	47,	35,	6,	65,	6,	14,	1,	1,	8,	8,	8,	8,	11,	35,	35,	6,	14,	0,
+	/*xxxx*/  7/*2832*/,	3,	47,	35,	6,	65,	6,	14,	1,	1,	70,	70,	70,	70,	11,	35,	35,	6,	14,	0,
 	/*xxxx*/ 17/*2852*/,	17,	17,	0,	6,	6,	6,	6,	5,	18,	18,	18,	18,	18,	18,	0,	3,	5,	18,	18,
 	/*xxxx*/ 18/*2872*/,	18,	18,	18,	18,	18,	18,	5,	5,	5,	5,	5,	5,	5,	5,	5,	5,	18,	12,	48,
 	/*xxxx*/  7/*2892*/,	8,	48,	48,	7,	7,	42,	47,	8,	46,	49,	1,	0,	47,	12,	15,	15,	12,	12,	12,
 	/*xxxx*/ 12/*2912*/,	12,	42,	44,	44,	44,	5,	12,	42,	12,	12,	12,	12,	44,	44,	66,	66,	66,	8,	21,
 	/*xxxx*/ 21/*2932*/,	21,	49,	55,	5,	15,	15,	50,	7,	46,	7,	7,	7,	7,	46,	15,	1,	12,	12,	12,
-	/*xxxx*/ 12/*2952*/,	12,	12,	12,	51,	1,	7,	8,	32,	56,	17,	5,	5,	5,	5,	5,	5,	5,	5,	5,
+	/*xxxx*/ 12/*2952*/,	12,	12,	12,	51,	1,	7,	70,	32,	56,	17,	5,	5,	5,	5,	5,	5,	5,	5,	5,
 	/*xxxx*/  5/*2972*/,	5,	5,	5,	5,	5,	5,	5,	12,	5,	5,	5,	5,	13,	5,	5,	5,	17,	50,	3,
 	/*xxxx*/  3/*2992*/,	50,	66,	66,	66,	66,	66,	66,	66,	65,	47,	47,	47,	63,	63,	63,	63,	63,	63,	63,
 	/*xxxx*/ 63/*3012*/,	63,	63,	63,	63,	32,	32,	32,	32,	32,	32,	32,	32,	32,	32,	56,	56,	56,	56,	56,
@@ -493,7 +532,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*xxxx*/  42/*3412*/,	14,	31,	31,	31,	5,	5,	5,	5,	5,	5,	5,	17,	17,	11,	11,	11,	11,	11,	11,
 	/*xxxx*/  65/*3432*/,	3,	8,	8,	8,	6,	7,	7,	15,	7,	7,	7,	7,	7,	7,	7,	7,	7,	7,	7,
 	/*xxxx*/  7/*3452*/,	65,	65,	65,	65,	65,	65,	65,	65,	65,	6,	6,	6,	6,	6,	6,	6,	6,	6,	66,
-	/*xxxx*/  66/*3472*/,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,
+	/*xxxx*/  66/*3472*/,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	70,
 	/*xxxx*/  44/*3492*/,	44,	44,	47,	47,	47,	47,	47,	47,	47,	47,	47,	45,	45,	45,	45,	45,	45,	45,	45,
 	/*xxxx*/  45/*3512*/,	45,	45,	45,	45,	45,	45,	45,	45,	45,	45,	45,	45,	36,	36,	36,	36,	36,	11,	11,
 	/*xxxx*/  11/*3532*/,	11,	11,	11,	11,	11,	11,	11,	11,	11,	11,	36,	36,	36,	36,	36,	36,	36,	17,	17,
@@ -502,7 +541,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*xxxx*/  0/*3592*/,	47,	46,	46,	46,	46,	46,	6,	44,	12,	48,	44,	44,	44,	44,	44,	48,	48,	48,	49,
 	/*xxxx*/  12/*3612*/,	12,	38,	47,	47,	47,	47,	5,	47,	5,	5,	5,	5,	5,	5,	5,	5,	42,	50,	12,
 	/*xxxx*/  42/*3632*/,	42, 42, 47, 12, 0,	6,	6,	50,	50, 50, 50, 50, 50, 15, 42, 42, 42, 42, 45,
-	/*xxxx*/  17/*3652*/,	5,	5,	5,	5,	5,	5,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,	66,
+	/*xxxx*/  17/*3652*/,	5,	5,	5,	5,	5,	5,	71,	71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71,
 	/*xxxx*/  5/*3672*/,	66,	66, 66, 66, 66, 66, 66, 7,	7,	7,	7,	7,	7,	7,	5,	5,	5,	5,	5,
 	/*xxxx*/  5/*3692*/,	12, 7,	36, 36, 66, 17,	8,	8,	8,	8,	8,	8,	8,	8,	8,	8,	5,	5,	0,
 	/*xxxx*/  0/*3712*/,	5,	5,	5,	5,
@@ -510,7 +549,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*0000-0019*/		5,	48,	48,	48,	48,	48,	15,	7,	7,	8,	8,	8,	8,	1,	6,	8,	8,	17,	0,	57,
 	/*0020-0039*/		1, 8, 8, 8, 8, 17, 13, 13, 8, 31, 5, 1, 18, 12, 3, 3, 3, 3, 3, 3,
 	/*0040-0059*/		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 12, 12, 15, 44, 44, 47,
-	/*0060-0079*/		46, 46, 1, 7, 1, 1, 1, 1, 8, 8, 8, 31, 31, 31, 45, 5, 5, 31, 31, 31,
+	/*0060-0079*/		46, 46, 1, 7, 1, 1, 1, 1, 70, 70, 70, 31, 31, 31, 45, 5, 5, 31, 31, 31,
 	/*0080-0099*/		31, 31, 31, 31, 31, 31, 17, 17, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,// unused: 84, 
 	/*0100-0119*/		12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
 	/*0120-0139*/		12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
@@ -521,12 +560,12 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*0220-0239*/		67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 44, 44, 44, 44, 49, 49, 49, 49,
 	/*0240-0259*/		50, 50, 50, 46, 46, 46, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 31, 42, 42, 42,
 	/*0260-0279*/		42, 48, 5, 14, 44, 44, 48, 48, 12, 12, 5, 5, 5, 42, 42, 56, 67, 67, 67, 67,// 275
-	/*0280-0299*/		67/*minigun-experimental*/, 31, 31, 48, 48, 45, 48, 31, 67, 67, 67, 48, 1, 1, 67, 67, 67, 67, 67, 67,
+	/*0280-0299*/		74, 31, 31, 48, 48, 45, 48, 31, 67, 67, 67, 48, 1, 1, 67, 67, 67, 67, 67, 67,
 	/*0300-0319*/		67, 67, 67, 67, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/*0320-0339*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/*0340-0359*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 48, 48,
-	/*0360-0379*/		48, 48, 0, 0, 0, 46, 46, 56, 56, 56, 56, 56, 42, 7, 50, 47, 20, 12, 7, 7,
-	/*0380-0399*/		7, 44, 44, 8, 5, 49, 7, 12, 18, 5, 5, 47, 47, 47, 49, 49, 49, 50, 47, 47,
+	/*0360-0379*/		48, 48, 0, 0, 0, 46, 46, 56, 56, 56, 56, 56, 42, 80, 78, 47, 20, 12, 80, 80,
+	/*0380-0399*/		80, 44, 44, 8, 5, 49, 80, 12, 18, 5, 5, 47, 47, 47, 49, 49, 49, 50, 47, 47,
 	/*0400-0419*/		47, 1, 1, 5, 18, 18, 18, 18, 18, 7, 7, 7, 7, 7, 7, 7, 7, 35, 35, 35,
 	/*0420-0439*/		35, 35, 35, 35, 7, 7, 46, 46, 47, 47, 46, 45, 47, 46, 46, 49, 49, 49, 49, 49,
 	/*0440-0459*/		0, 17, 6, 6, 6, 5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -543,7 +582,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*0660-0679*/		18, 49, 49, 46, 46, 46, 46, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
 	/*0680-0699*/		12, 12, 12, 5, 5, 5, 5, 12, 12, 12, 12, 12, 12, 12, 49, 67, 46, 46, 46, 49,
 	/*0700-0719*/		49, 49, 49, 49, 49, 12, 12, 42, 5, 5, 5, 5, 0/*mail*/, 49, 48, 48, 45, 45, 49, 12,
-	/*0720-0739*/		12, 44, 44, 44, 3, 3, 3, 3, 3, 6, 6, 66, 66, 6, 6, 66, 3, 3, 3, 8,
+	/*0720-0739*/		12, 44, 44, 44, 3, 3, 3, 3, 3, 6, 6, 66, 66, 6, 6, 71, 3, 3, 3, 8,
 	/*0740-0759*/		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 	/*0760-0779*/		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 	/*0780-0799*/		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
@@ -561,7 +600,7 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*1020-1039*/		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 42, 0, 0, 5, 5, 5,
 	/*1040-1059*/		5, 5, 5, 49, 49, 47, 47, 47, 17, 17, 17, 0, 0, 3, 3, 3, 3, 3, 6, 6,
 	/*1060-1079*/		6, 6, 6, 6, 1, 1, 1, 1, 1, 17, 47, 46, 50, 50, 50, 49, 5, 5, 5, 5,
-	/*1080-1099*/		0, 17, 0, 0, 17, 17, 17, 14, 17, 14, 14, 8, 8, 8, 8, 8, 8, 6, 45, 45,
+	/*1080-1099*/		0, 17, 0, 0, 17, 17, 17, 14, 17, 14, 14, 70, 70, 70, 70, 70, 70, 6, 45, 45,
 	/*1100-1119*/		3, 3, 3, 3, 3, 3, 3, 5, 6, 0, 5, 6, 7, 7, 7, 7, 7, 0, 0, 17,
 	/*1120-1139*/		17, 5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 	/*1140-1159*/		5, 5, 5, 45, 5, 6, 36, 0, 0, 6, 6, 6, 6, 6, 0, 17, 3, 3, 3, 3,
@@ -580,21 +619,21 @@ uchar ItemFlipTable[MAX_9000_ITEM_PICS] = {
 	/*1400-1419*/		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 	/*1420-1439*/		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 	/*1440-1459*/		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 8, 5, 5, 5, 5,
-	/*1460-1479*/		5, 49, 49, 49, 49, 7, 44, 44, 49, 49, 0/*mail*/, 42, 17, 0, 5, 7, 7, 7, 7, 48,
+	/*1460-1479*/		5, 49, 49, 49, 49, 79, 44, 44, 49, 49, 0/*mail*/, 42, 17, 0, 5, 7, 7, 7, 7, 48,
 	/*1480-1499*/		12, 3, 25, 25, 20, 23, 20, 23, 26, 7, 12, 12, 3, 3, 6, 31, 2, 11, 11, 11,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/*1500-1519*/		68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 68, 50, 47, 47, 69, 69,
+	/*1520-1539*/		69, 69, 69, 69, 68, 68, 68, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67,
+	/*1540-1559*/		67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 74, 74, 74, 74, 74, 74, 74, 74,
+	/*1560-1579*/		74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 74, 0, 0, 0,
+	/*1580-1599*/		0, 76, 76, 76, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/*1600-1619*/		0, 0, 76, 76, 76, 76, 76, 76, 76, 0, 0, 0, 0, 75, 76, 76, 76, 76, 76, 76,
+	/*1620-1639*/		76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 17, 0, 76, 76, 76,
+	/*1640-1659*/		76, 74, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76,
+	/*1660-1679*/		76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 14, 14, 14, 17, 17, 17, 14, 76, 17, 76,
+	/*1680-1699*/		76, 76, 74, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76,
+	/*1700-1719*/		76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 76, 17, 17, 76, 76, 76, 76, 17, 17, 5,
+	/*1720-1739*/		5, 42, 42, 0, 0, 14, 67, 67, 0, 8, 68, 68, 68, 68, 5, 12, 50, 17, 7, 47,
+	/*1740-1759*/		12, 12, 44, 68, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/*0040-0059*/		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -993,6 +1032,11 @@ const char* SummonerSpellsNames[3][3] = {
 	{ "stinger", "hellboar", "siegebreaker beast" },
 };
 
+char* SigilButtonCEL = nullptr;
+bool IsSigilPanelVisible = false;
+char* SigilGridCEL = nullptr;
+char* LitheBuildCoverCEL = nullptr;
+
 array<Button, B_COUNT> Buttons;
 array<Button, B_COUNT > ModButtons = { //      x,   y,  w,  h
 	Button{ B_CHAR   , "Character Stats", "'c'"  ,   7, 354, 37, 29, 3, 0, ToggleCharPanel     , &CtrlPan_NewButtonsCEL, { 1, 2}, 12, -1 },
@@ -1007,6 +1051,7 @@ array<Button, B_COUNT > ModButtons = { //      x,   y,  w,  h
 	Button{ B_PVP    , "Player Attack"  , 0      , 527, 443, 33, 32, 2, 0, TogglePvP           , &CtrlPan_P8But2CEL    , { 3, 4}, 13, (int)~B(GM_COLISEUM) },
 	Button{ B_SYNERGY, "Synergies"      , 0      ,  45, 414, 37, 29, 3, 0, ToggleSynergyPanel  , &CtrlPan_NewButtonsCEL, {11,12}, 12, (int)~B(GM_CLASSIC) },
 	Button{ B_TIME   , "Time speed"     , ">"    , 527, 443, 32, 32, 1, 0, TimeToggle          , &CtrlPan_TimeButtonCEL, { 1, 2}, 12, B(GM_IRONMAN)|B(GM_NIGHTMARE)|B(GM_SURVIVAL) },
+	Button{ B_CHAT   , "Chat History"   , "Alt+M",  87, 414, 23, 23, 2, 0, ChatHistory_Toggle  , &CtrlPan_LogButtonCEL,  { 1, 2},  4, -1 },
 };
 
 StatUpButton StatUpButtons[4] = {
@@ -1031,7 +1076,7 @@ HANDLE DeltaThreadHandle = INVALID_HANDLE_VALUE;
 
 // 00A09960
 char* OnScreenMessages[120] = {
-/* 0	*/	"", // OnScreenMessageIndex == 0, значит нет сообщения, не рисуется
+/* 0	*/	"", // (rt) OnScreenMessageIndex == 0 means no message, nothing is drawn
 /* 1	*/	"No automap available in town",
 /* 2	*/	"Not until the area is cleared...",
 /* 3	*/	"Direct Sound Creation Failed",
@@ -1142,7 +1187,9 @@ char* OnScreenMessages[120] = {
 /* 108	*/	"You must be at least level 86 to go there",
 /* 109	*/	"You must be at least level 87 to go there",
 /* 110	*/	"Powers and Treasures await you in Darkness",
-/* 111	*/	"Only arena is available in coliseum mode",
+/* 111	*/	"Only arena is available in Coliseum mode",
+/* 112	*/	"Exit portal has arrived",	// (th4) Dark Campaign: mission cleared
+/* 113	*/	"Mission failed!",			// (th4) Dark Campaign: mission 13, Lazarus died
 };
 
 int IsFastWalkEnabled = 0;
@@ -1171,7 +1218,7 @@ int OilsMagicCode[10] = {
 };
 
 // char *UniqueItemNameTable[FLIP_ITEM_COUNT]
-char* Flip_FileName[FL_68_COUNT] = { // 004A5888
+char* Flip_FileName[FL_81_COUNT] = { // 004A5888
 	"Armor2",   // FL_0_ARMOR2   
 	"Axe",      // FL_1_AXE      
 	"FBttle",   // FL_2_FBTTLE   
@@ -1224,9 +1271,9 @@ char* Flip_FileName[FL_68_COUNT] = { // 004A5888
 	"CBoots",   // FL_49_CBOOTS   
 	"MBoots",   // FL_50_MBOOTS   
 	"Mace",		// FL_51_MAUL
-	"FBttleTB",	// FL_52_FBTTLETB - тускло синяяя бутылочка
+	"FBttleTB",	// (rt) FL_52_FBTTLETB - dull blue flask
 	"Axeflip",	// FL_53_HEXENAXE
-	"MailShitBlood", // FL_54_MSILSHITBLOOD - броня кольчуга с примесью кровушки с дерьмом - заюзаем для уника :)
+	"MailShitBlood", // (rt) FL_54_MSILSHITBLOOD - chain mail armour stained with blood and grime; to be used for a unique
 	"fHeart", // FL_55_HEART - beastmaster hearts (offhand item)...
 	"relictBB", // blue
 	"RELICTBL", // black
@@ -1237,41 +1284,276 @@ char* Flip_FileName[FL_68_COUNT] = { // 004A5888
 	"RELICTGR",
 	"RELICTOR",
 	"MAILCOIF",
-	"liteclub",
+	"MALLET",
 	"dagga",
 	"gun", // FL_67
+	"sigil_v2",
+	"razorarm",
+	"claw",
+	"shuriken",// 71
+	"effigY1",
+	"effigY2",
+	"minigun",// 74
+	"self_repair_module",
+	"rifle",// 76
+	"key",
+	"figurine",// 78
+	"crate",
+	"chest"// 80
 };
 
-char Flip_FramesCount[FL_68_COUNT] = {
-	15,	13, 16, 13, 10, 13, 13, 13, 13,	10, 13, 13, 13, 13, 13, 13, 13, 13, 13// 0 // ...
-	, 1, 16, 16, 16, 16, 16, 16, 16, 16, 13, 12, 12, 13, 13, 13, 8, 10// 19
-	, 16, 16, 10, 10, 15, 15, 15, 12,// 36
-	13, 13, 13, 13, 13, 13, 13, 13, 16, 15, 15, 12, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13
+char Flip_FramesCount[FL_81_COUNT] = {
+	/*0*/	15,
+	/*1*/	13,
+	/*2*/	16,
+	/*3*/	13,
+	/*4*/	10,
+	/*5*/	13,
+	/*6*/	13,
+	/*7*/	13,
+	/*8*/	13,
+	/*9*/	10,
+	/*10*/	13,
+	/*11*/	13,
+	/*12*/	13,
+	/*13*/	13,
+	/*14*/	13,
+	/*15*/	13,
+	/*16*/	13,
+	/*17*/	13,
+	/*18*/	13,
+	/*19*/	1,
+	/*20*/	16,
+	/*21*/	16,
+	/*22*/	16,
+	/*23*/	16,
+	/*24*/	16,
+	/*25*/	16,
+	/*26*/	16,
+	/*27*/	16,
+	/*28*/	13,
+	/*29*/	12,
+	/*30*/	12,
+	/*31*/	13,
+	/*32*/	13,
+	/*33*/	13,
+	/*34*/	8,
+	/*35*/	10,
+	/*36*/	16,
+	/*37*/	16,
+	/*38*/	10,
+	/*39*/	10,
+	/*40*/	15,
+	/*41*/	15,
+	/*42*/	15,
+	/*43*/	12,
+	/*44*/	13,
+	/*45*/	13,
+	/*46*/	13,
+	/*47*/	13,
+	/*48*/	13,
+	/*49*/	13,
+	/*50*/	13,
+	/*51*/	13,
+	/*52*/	16,
+	/*53*/	15,
+	/*54*/	15,
+	/*55*/	12,
+	/*56*/	13,
+	/*57*/	13,
+	/*58*/	13,
+	/*59*/	13,
+	/*60*/	13,
+	/*61*/	13,
+	/*62*/	13,
+	/*63*/	13,
+	/*64*/	13,
+	/*65*/	13,
+	/*66*/	13,
+	/*67*/	13,
+	/*68*/	13,
+	/*69*/	13,
+	/*70*/	13,
+	/*71*/	13,
+	/*72*/	13,
+	/*73*/	13,
+	/*74*/	13,
+	/*75*/	13,
+	/*76*/	13,
+	/*77*/	13,
+	/*78*/	13,
+	/*79*/	13,
+	/*80*/	13
 };
-// 0x004A5968
-int Flip_DropSound[FL_68_COUNT] = {
-	S_30_I_FLIPBODY, 28, 1477, 32, 47, 33, 44, 43, 46,	41, 28,
-	45, 40, 33, 152, 38, 42, 34, 31, 31, 1477, 1477, 1477, 1477, 1477, 1477, 1477, 1477,
-	44, 31, 1477, 149, 29, 27, 45, S_1538_orb_flip/*orb*/, S_1716_WAND_FLIP, 42, 41,
-	31, 1283, 45, 35, 1090,//39
-	1099, 1100, 1101, 1102, 1103, 1104, 1105, 1106, 1477, 1122, S_30_I_FLIPBODY, S_1120_FLIPHEART,
-	29, 29, 29, 29, 29, 29, 29, 29, 1101/* mailcoif */, 1281, 1285, S_1674_GUN_FLIP
+
+int Flip_DropSound[FL_81_COUNT] = {
+	/*0*/	S_30_I_FLIPBODY,
+	/*1*/	S_28_I_FLIPAXE,
+	/*2*/	S_1477_FLIPPOT_TQ_POT,
+	/*3*/	S_32_I_FLIPBOW,
+	/*4*/	S_47_I_GOLD,
+	/*5*/	S_33_I_FLIPCAP,
+	/*6*/	S_44_I_FLIPSIGN,
+	/*7*/	S_43_I_FLIPSHLD,
+	/*8*/	S_46_I_FLIPSWOR,
+	/*9*/	S_41_I_FLIPROCK,
+	/*10*/	S_28_I_FLIPAXE,
+	/*11*/	S_45_I_FLIPSTAF,
+	/*12*/	S_40_I_FLIPRING,
+	/*13*/	S_33_I_FLIPCAP,
+	/*14*/	S_152_I_FLIPLTHR,
+	/*15*/	S_38_I_LITESHLD,
+	/*16*/	S_42_I_FLIPSCRL,
+	/*17*/	S_34_I_FLIPHARM,
+	/*18*/	S_31_I_FLIPBOOK,
+	/*19*/	S_31_I_FLIPBOOK,
+	/*20*/	S_1477_FLIPPOT_TQ_POT,
+	/*21*/	S_1477_FLIPPOT_TQ_POT,
+	/*22*/	S_1477_FLIPPOT_TQ_POT,
+	/*23*/	S_1477_FLIPPOT_TQ_POT,
+	/*24*/	S_1477_FLIPPOT_TQ_POT,
+	/*25*/	S_1477_FLIPPOT_TQ_POT,
+	/*26*/	S_1477_FLIPPOT_TQ_POT,
+	/*27*/	S_1477_FLIPPOT_TQ_POT,
+	/*28*/	S_44_I_FLIPSIGN,
+	/*29*/	S_31_I_FLIPBOOK,
+	/*30*/	S_1477_FLIPPOT_TQ_POT,
+	/*31*/	S_149_I_CP,
+	/*32*/	S_29_I_FLIPBLST,
+	/*33*/	S_27_I_FLIPANVL,
+	/*34*/	S_45_I_FLIPSTAF,
+	/*35*/	S_1538_orb_flip,
+	/*36*/	S_1716_WAND_FLIP,
+	/*37*/	S_42_I_FLIPSCRL,
+	/*38*/	S_41_I_FLIPROCK,
+	/*39*/	S_31_I_FLIPBOOK,
+	/*40*/	S_1283,
+	/*41*/	S_45_I_FLIPSTAF,
+	/*42*/	S_35_I_FLIPLARM,
+	/*43*/	S_1090,
+	/*44*/	S_1099,
+	/*45*/	S_1100,
+	/*46*/	S_1101,
+	/*47*/	S_1102,
+	/*48*/	S_1103,
+	/*49*/	S_1104,
+	/*50*/	S_1105_METAL_BOOTS_FLIP,
+	/*51*/	S_1106,
+	/*52*/	S_1477_FLIPPOT_TQ_POT,
+	/*53*/	S_1122_FLIPZEUSAXE,
+	/*54*/	S_30_I_FLIPBODY,
+	/*55*/	S_1120_FLIPHEART,
+	/*56*/	S_29_I_FLIPBLST,
+	/*57*/	S_29_I_FLIPBLST,
+	/*58*/	S_29_I_FLIPBLST,
+	/*59*/	S_29_I_FLIPBLST,
+	/*60*/	S_29_I_FLIPBLST,
+	/*61*/	S_29_I_FLIPBLST,
+	/*62*/	S_29_I_FLIPBLST,
+	/*63*/	S_29_I_FLIPBLST,
+	/*64*/	S_1101,
+	/*65*/	S_1281,
+	/*66*/	S_1285,
+	/*67*/	S_1674_GUN_FLIP,
+	/*68*/	S_1851_SIGIL_FLIP,
+	/*69*/	S_46_I_FLIPSWOR,
+	/*70*/	S_46_I_FLIPSWOR,
+	/*71*/	S_1285,
+	/*72*/	S_31_I_FLIPBOOK,
+	/*73*/	S_31_I_FLIPBOOK,
+	/*74*/	S_1674_GUN_FLIP,
+	/*75*/	S_29_I_FLIPBLST,
+	/*76*/	S_1674_GUN_FLIP,
+	/*77*/	S_1916_KEY_FLIP,
+	/*78*/	S_1105_METAL_BOOTS_FLIP,
+	/*79*/	S_43_I_FLIPSHLD,
+	/*80*/	S_43_I_FLIPSHLD,
 };
-// 0x004A5A18
-int Flip_InventorySound[FL_68_COUNT] = {// таблица звучаний вещи при установке в инвентарь в зависимости от флипа
-	S_52_I_INVBODY, 	S_50_I_INVAXE, 	S_60_I_INVPOT, 	S_54_I_INVBOW,	S_47_I_GOLD, 
-	55,	65, 64, 67, 62, 
-	50,	66,	61, 55,	153, 
-	59,	63,	57,	53,	53, 
-	60,	60,	60,	60,	60,
-	60,	60,	60,	65, 53, 
-	60,	150,51,	49,	66, 
-	1182,	S_1715_WAND_INV,	63,	62,	53, 
-	1282,	66,	58, 1091, //40
-	1092, 1093, 1094, 1095, 1096,
-	1097, 1098, 65, 60, 1121, S_52_I_INVBODY, S_1119_HEART01,
-	51, 51, 51, 51, 51, 51, 51, 51, 1094/* mailcoif */, 1280, 1284, S_1673_GUN_INVENTORY_PLACE
+
+int Flip_InventorySound[FL_81_COUNT] = {
+	/*0*/	S_52_I_INVBODY,
+	/*1*/	S_50_I_INVAXE,
+	/*2*/	S_60_I_INVPOT,
+	/*3*/	S_54_I_INVBOW,
+	/*4*/	S_47_I_GOLD,
+	/*5*/	S_55_I_INVCAP,
+	/*6*/	S_65_I_INVSIGN,
+	/*7*/	S_64_I_INVSHIEL,
+	/*8*/	S_67_I_INVSWORD,
+	/*9*/	S_62_I_INVROCK,
+	/*10*/	S_50_I_INVAXE,
+	/*11*/	S_66_I_INVSTAF,
+	/*12*/	S_61_I_INVRING,
+	/*13*/	S_55_I_INVCAP,
+	/*14*/	S_153_I_INVLTHR,
+	/*15*/	S_59_I_INVLITSH,
+	/*16*/	S_63_I_INVSCROL,
+	/*17*/	S_57_I_INVHARM,
+	/*18*/	S_53_I_INVBOOK,
+	/*19*/	S_53_I_INVBOOK,
+	/*20*/	S_60_I_INVPOT,
+	/*21*/	S_60_I_INVPOT,
+	/*22*/	S_60_I_INVPOT,
+	/*23*/	S_60_I_INVPOT,
+	/*24*/	S_60_I_INVPOT,
+	/*25*/	S_60_I_INVPOT,
+	/*26*/	S_60_I_INVPOT,
+	/*27*/	S_60_I_INVPOT,
+	/*28*/	S_65_I_INVSIGN,
+	/*29*/	S_53_I_INVBOOK,
+	/*30*/	S_60_I_INVPOT,
+	/*31*/	S_150_I_CQ,
+	/*32*/	S_51_I_INVBLST,
+	/*33*/	S_49_I_INVANVL,
+	/*34*/	S_66_I_INVSTAF,
+	/*35*/	S_1182_ORB,
+	/*36*/	S_1715_WAND_INV,
+	/*37*/	S_63_I_INVSCROL,
+	/*38*/	S_62_I_INVROCK,
+	/*39*/	S_53_I_INVBOOK,
+	/*40*/	S_1282,
+	/*41*/	S_66_I_INVSTAF,
+	/*42*/	S_58_I_INVLARM,
+	/*43*/	S_1091,
+	/*44*/	S_1092,
+	/*45*/	S_1093,
+	/*46*/	S_1094,
+	/*47*/	S_1095,
+	/*48*/	S_1096,
+	/*49*/	S_1097,
+	/*50*/	S_1098_METAL_BOOTS_INV,
+	/*51*/	S_65_I_INVSIGN,
+	/*52*/	S_60_I_INVPOT,
+	/*53*/	S_1121_ZEUSAXE,
+	/*54*/	S_52_I_INVBODY,
+	/*55*/	S_1119_HEART01,
+	/*56*/	S_51_I_INVBLST,
+	/*57*/	S_51_I_INVBLST,
+	/*58*/	S_51_I_INVBLST,
+	/*59*/	S_51_I_INVBLST,
+	/*60*/	S_51_I_INVBLST,
+	/*61*/	S_51_I_INVBLST,
+	/*62*/	S_51_I_INVBLST,
+	/*63*/	S_51_I_INVBLST,
+	/*64*/	S_1094,
+	/*65*/	S_1280,
+	/*66*/	S_1284,
+	/*67*/	S_1673_GUN_INVENTORY_PLACE,
+	/*68*/	S_1852_SIGIL,
+	/*69*/	S_67_I_INVSWORD,
+	/*70*/	S_67_I_INVSWORD,
+	/*71*/	S_1284,
+	/*72*/	S_53_I_INVBOOK,
+	/*73*/	S_53_I_INVBOOK,
+	/*74*/	S_1673_GUN_INVENTORY_PLACE,
+	/*75*/	S_51_I_INVBLST,
+	/*76*/	S_1673_GUN_INVENTORY_PLACE,
+	/*77*/	S_1915_KEY_INV_PLACE,
+	/*78*/	S_1098_METAL_BOOTS_INV,
+	/*79*/	S_64_I_INVSHIEL,
+	/*80*/	S_64_I_INVSHIEL,
 };
+
 char *SitemPtr = aSitem;
 int ScanedMapCol = 16;
 
@@ -1417,7 +1699,7 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	0, 
 	0, 
 	0, 
-	BM_132_BONEWING, //125
+	BM_132_BONEWING, //125 (7Dh)
 	BM_131_FIRE_BAT,//126
 	BM_80_DEVIL_KIN,//127
 	BM_111_OBSIDIAN_GOLEM,//128
@@ -1509,7 +1791,7 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_189_CARVER, 
 	BM_190_WINGED_DEMON, 
 	BM_191_DARK_MISTRESS, 
-	BM_192_UNRAVELLER, 
+	BM_192_UNRAVELLER, // D1h
 	BM_193_ABATAN,			
 	
 	BM_194_BLOODIED_HIDDEN, 
@@ -1543,8 +1825,8 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_220_SNOW_LICH, 
 	BM_221_RAT_MAN, 
 	BM_222_NIGHT_DEMON, //239
-	BM_223_DEMONOLOG_SUMMON_1,	
-	
+
+	BM_223_DEMONOLOG_SUMMON_1,		
 	BM_224_DEMONOLOG_SUMMON_2, // 241
 	BM_225_DEMONOLOG_SUMMON_3, 
 	BM_226_NECROMANT_SUMMON_1, 
@@ -1553,6 +1835,7 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_229_BEASTMASTER_SUMMON_1, 
 	BM_230_BEASTMASTER_SUMMON_2, 
 	BM_231_BEASTMASTER_SUMMON_3, 
+
 	BM_232_ABYSSAL_SUCCUBUS, 
 	BM_233_BLOOD_LORD,	// 250		
 	
@@ -1696,7 +1979,7 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_C_364_MAELSTORM ,
 	BM_C_365_MAGMA_DEMON ,
 	BM_C_366_BLOOD_STONE ,
-	BM_C_367_HELL_STONE ,
+	BM_C_367_HELL_STONE ,// 180h
 	BM_C_368_LAVA_LORD ,
 	BM_C_369_SLAYER ,
 	BM_C_370_GUARDIAN ,
@@ -1712,7 +1995,7 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_C_380_LAVA_MAW,
 	BM_C_381_FIEND,
 	BM_C_382_BLINK,
-	BM_C_383_GLOOM,
+	BM_C_383_GLOOM,// 190h
 	BM_C_384_FAMILIAR,
 	BM_C_385_SCAVENGER,
 	BM_C_386_PLAGUE_EATER,
@@ -1721,8 +2004,40 @@ int BaseMonsterIndexes[BM_COUNT + 16] = {
 	BM_C_389_DIABLO,
 	BM_C_390_BUTCHER ,
 	BM_C_391_LEORIC,
-
 		// --------------classic end-----------------
+	BM_392_WARLORD_MERC,
+		// ---DC heroes----------------------
+	BM_H_393_SORC_L_T, // 19Ah
+	BM_H_394_ROG_L_B, // 19Bh
+	BM_H_395_WAR_L_X,
+	BM_H_396_SORC_L_T,
+	BM_H_397_ROG_L_B, // 19Eh
+	BM_H_398_WAR_L_X,
+	BM_H_399_WAR_L_SS, // 1A0h
+	BM_H_400_SORC_M_T,
+	BM_H_401_MONK_M_MS,
+	BM_H_402_BERS_M_X,
+	BM_H_403_ROG_M_B, // 1A4h
+	BM_H_404_WAR_M_MS,
+	BM_H_405_SOR_M_T_HYBRID, // 1A6h
+	BM_H_406_SCOUT,
+	BM_H_407_MONK_M_X,
+	BM_H_408_WAR_M_SS, // 1A9h
+	BM_H_409_MONK_H_T,
+	BM_H_410_MONK_H_SS,
+	BM_H_411_ROG_H_B,
+	BM_H_412_WAR_H_X_EXEC,
+	BM_H_413_SOR_H_T, // 1AEh
+	BM_H_414_WAR_H_MS,
+	BM_H_415_ROG_H_B_ELITE_ARCHER, // 1B0h
+	BM_H_416_MON_H_MS,
+	BM_H_417_WAR_H_SS_WARRIOR_ELITE,
+	BM_H_418_SOR_H_T_SORC_ELITE, // 1B3h
+	BM_H_419_ROG_H_B_SS_ELITE,
+	BM_NPC_420_GRISWOLD,
+	BM_H_421_WAR_H_X_EXEC_ELITE,
+	BM_H_422_WAR_H_ROYAL_GUARD,
+	BM_H_423_ROG_H_B_BLACK_ARCHER
 };
 
 // 00A38B00// #hit splash animation
@@ -1744,15 +2059,15 @@ uchar CritSplashNumbers[501] = {
 	1, 0, 3, 1, 0, 1, 0, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 0, // 240 - 259
 	1, 3, 1, 1, 1, 1, 1, 2, 2, 1, 1, 3, 1, 3, 1, 1, 3, 3, 1, 1, // 260 - 279
 	1, 1, 1, 3, 1, 3, 1, 3, 3, 0, 0, 0, 1, 1, 1, 1, 3, 1, 1, 1, // 280 - 299
-	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 300 - 319
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 320 - 339
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 340 - 359
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 360 - 379
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, // 380 - 399
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 400 - 419
+	0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 420 - 439
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 440 - 459
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 460 - 479
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0
 };
@@ -1788,12 +2103,12 @@ MonsterFrameSpeed MonsterFramesSpeed[24] = {
 };
 
 char TypeOfAnimation[6] = {
-	'n', // 0 nothing (stop) 
-	'w', // 1 walk           
-	'a', // 2 attack         
-	'h', // 3 hit            
-	'd', // 4 die            
-	's'	 // 5 second attack  
+	'n', // 0 idle
+	'w', // 1 walk
+	'a', // 2 attack
+	'h', // 3 hit
+	'd', // 4 die
+	's'	 // 5 secondary attack
 };
 
 int OrientMinusOne[8] = { 7, 0, 1, 2, 3, 4, 5, 6};
@@ -1803,7 +2118,7 @@ int OrientInverted[8] = { 4, 5, 6, 7, 0, 1, 2, 3};
 HANDLE CurrentSaveArchiveHandle = INVALID_HANDLE_VALUE;
 
 HANDLE NetFrameSyncThreadHandle = INVALID_HANDLE_VALUE;
-// 00A34C50, было 0x004B3DC0
+// (rt) 00A34C50, was 0x004B3DC0
 BASE_OBJECT BaseObjectsTableIndexes[] = {
 //	0	1	2	3	4	5	6	7	8	9
 	BO_0_L1BRAZ,	BO_4_LEVER,		BO_20_CRUCIFIED_SKELETON,	BO_21_CRUCIFIED_SKELETON_2,	BO_22_CRUCIFIED_SKELETON_3,	BO_24_ANGEL,	BO_11_BANNER,	BO_12_BANNER,	BO_13_BANNER,	BO_0_L1BRAZ,	// 0
@@ -1864,7 +2179,7 @@ BASE_OBJECT BaseObjectsTableIndexes[] = {
 	BO_98_HELLFORGE
 };
 
-char* FloorObjectsNamesOriginal[57] = {// 00A3FB90, было 004B5090
+char* FloorObjectsNamesOriginal[57] = {// (rt) 00A3FB90, was 004B5090
 	"L1Braz",   // 0
 	"L1Doors",   // 1
 	"Lever",   // 2
@@ -1923,7 +2238,7 @@ char* FloorObjectsNamesOriginal[57] = {// 00A3FB90, было 004B5090
 	"LzStand",   // 55
 	"Hellforge",	//56
 };
-char *FloorObjectsNamesCrypt[57] = {// 00A3FE70, было 004B5170
+char *FloorObjectsNamesCrypt[57] = {// (rt) 00A3FE70, was 004B5170
 	"L1Braz",   // 0
 	"L5Door",   // 1
 	"L5Lever",   // 2
@@ -1983,7 +2298,7 @@ char *FloorObjectsNamesCrypt[57] = {// 00A3FE70, было 004B5170
 	"Hellforge",	//56
 };
 
-char* FloorObjectsNamesAbyss[57] = {// 00A40150, было 004B5250
+char* FloorObjectsNamesAbyss[57] = {// (rt) 00A40150, was 004B5250
 	"L1Braz",   // 0
 	"L1Doors",   // 1
 	"Lever",   // 2
@@ -2045,8 +2360,8 @@ char* FloorObjectsNamesAbyss[57] = {// 00A40150, было 004B5250
 
 // 004B5C98 - character animation timings
 ClassProperty ClassPropTable[6] = {
-	// AngryStayFrames, AttackFrames, AngryWalkFrames, BlockFrames, DeathFrames,
-	// SpellFrames, HitFrames, StayFrames, WalkFrames, AttackActionIndex, SpellActionIndex
+	// Dungeon_idle_Frames, Attack_Frames, dungeon_Walk_Frames, BlockFrames, DeathFrames,
+	// SpellFrames, HitFrames, StayFrames, WalkFrames, Attack_Frame, Cast_frame
 	{ 10, 16, 8, 2, 20, 20, 6, 20, 8,  9, 14 },
 	{  8, 18, 8, 4, 20, 16, 7, 20, 8,  9, 12 },
 	{  8, 16, 8, 6, 20, 12, 8, 20, 8, 11,  8 },
@@ -2076,17 +2391,7 @@ const char* ClassGroupsNames[PCG_COUNT] = {
 	"Gladiators"
 };
 
-// 0x004B5DD0
-//PlayerStat MaxStat[6] = {
-//	{ 240,	 60,	160,	180 },	// 0 Paladin
-//	{ 120,	 70,	250,	150 },	// 1 Scout
-//	{ 110,	250,	 90,	130 },	// 2 Mage
-//	{ 160,	 80,	220,	170 },	// 3 Monk
-//	{ 130,	140,	210,	160 },	// 4 Assassin
-//	{ 250,	 20,	130,	240 },	// 5 Gladiator
-//};
-
-int TownStartingRow[4] = { 57, 59, 61, 63 }; // координаты выхода из портала 
+int TownStartingRow[4] = { 57, 59, 61, 63 }; // town portal exit coordinates 
 int TownStartingCol[4] = { 40, 40, 40, 40 };
 
 int* dungeonTilesOffset = DungeonTilesOffset;
@@ -2104,7 +2409,7 @@ uint LeftTransMask[32] = {
 	0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,
 	0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,
 };
-// нет ссылок, очень странно, проверить, может предыщий 64
+// (rt) no references, which is odd; check, maybe the previous one is 64
 // 004B6E7D
 uint RightTransMask_1[32] = { 
 	0xAAAAAAAA,0x55555555,0xAAAAAAAA,0x55555555,0xAAAAAAAA,0x55555555,0xAAAAAAAA,0x55555555,
@@ -2119,7 +2424,7 @@ char IsSoundEnable = 1;
 char* MusicName = 0;
 char* AmbientName = 0;
 
-int YOffsetHashTable[Y_SIZE];// 006EB688 1024 в оригинале
+int YOffsetHashTable[Y_SIZE];// (rt) 006EB688 1024 in the original
 int DungeonRandSeed[DungeonExpantionLimit];
 /*int dword_6E25CC;*/
 /*int SomeDwordFlags;*/
@@ -2129,6 +2434,7 @@ char* Data_CharButCEL;
 int ButtonArray[10];
 int AttributeUpAvail[4];
 char* CtrlPan_P8But2CEL;
+char* CtrlPan_LogButtonCEL;
 char* CtrlPan_Panel8buCEL;
 char* CtrlPan_NewButtonsCEL;
 char* CtrlPan_TimeButtonCEL;
@@ -2145,8 +2451,10 @@ char SelectedSpellIndex;
 int MainPanelSelector;
 char* CtrlPan_GolddropCEL;
 char* Data_SpellBkBCEL;
-char InfoPanelHeader[MAX_PATH];      // было [255] 004D12F0
+char InfoPanelHeader[MAX_PATH];      // (rt) was [255] 004D12F0
 char InfoPanelBuffer[256]; // 004D11C0
+int g_MenuTextSkipLines = 0;   // (th4) see vars.h
+int g_MenuTextLineCount = 0;   // (th4)
 char MayPlayersTalk[4];    // some flags for drawing button // was char MayPlayersTalk[5]
 int CurrentSpellBookPage;
 int CurCellIndex;
@@ -2170,14 +2478,14 @@ int ItemWidth;
 int ItemHeight;
 int ItemWidthCells;
 int ItemHeightCells;
-int CurMon; // Monter Under Cursor 004D162C
+int CurMon; // Monster Under Cursor 004D162C
 
-// графика вещей в инвентаре
-char* ClassicItemSprites;
+// inventory item gfx
+char* Classic_Item_Sprites;
 char* AddonItemSprites;
-char* ClassicModItemSprites;
-char* AddonModItemSprites;
-char* Th3ItemSprites;
+char* Invobj1_item_sprites;
+char* TH2objcurs_Item_Sprites;
+char* TH3objcurs_Item_Sprites;
 
 char* SquareCELPtr;
 /*int SomeLevelsArray[26];*/
@@ -2187,8 +2495,18 @@ bool Light4Levels = 0; // 4 levels of light instead of 16
 bool DungeonDebug = 0;
 int GamePaused;
 char NotUsedFlagWithPalette;
-uchar* WorkingSurface;                      // указатель на память размером 656*768
-uchar* WorkingSurfaceDrawEnd;                   // это нижний придел, ниже которого целлы рисоваться не будут. например граница белта.
+uchar* WorkingSurface;                      // (rt) pointer to a 656*768 memory block
+uchar* LightSurface = nullptr;              // parallel to WorkingSurface; 1 byte/pixel = light level (0 = full bright, LightMax = full dark)
+uchar* WallOcclusionSurface = nullptr;      // (th4) bitmask of WallOcclusionBits; 0=open, WOB_WALL=opaque wall; cleared by non-wall sprites for depth ordering
+uchar* IndexFlagSurface = nullptr;          // (th4) ultra vignetting flag (texture s4): 255 where WorkingSurface >= 128, else 0
+uchar* AlphaSurface = nullptr;              // (th4) Stage 2 overlay weight (texture A byte source): 0 = no overlay
+uint* SpriteLayerSurface = nullptr;         // (th4) Stage 2 occluded-sprite RGB (texture s2); A byte unused/zeroed
+uint* LightTintSurface = nullptr;           // (th4) Stage 3 winning light color (texture s3); uint* indexed by PIXEL offset, A byte unused/zeroed
+bool g_LightTintActive = false;            // (th4) Stage 3 idle gate: any non-off light carries a non-white tint this frame — false skips ALL Stage-3 per-frame work
+bool g_StaticTintActive = false;           // (th4) Rev 2.46 Option C: this level has a colored static bake (StaticTintMap non-white) — feeds the idle gate and the V2 tint ambient
+uint rgbLUT[256];                           // (th4) shared per-frame palette->RGB table (BuildScreenPaletteRGBLUT)
+const uint TINT_WHITE = 0x00FFFFFFu;        // (th4) Stage 3 white tint word (A byte zero = no tint; the shader lerps by tint.a, so the CPU sentinel must keep A=0)
+uchar* WorkingSurfaceDrawEnd;                   // (rt) this is the lower limit below which cells are not drawn, e.g. the belt border.
 uchar* WorkingSurfaceDrawBegin;
 int PlayerSoundMessageDelay;	// 0057A214
 int SoundMessage;				// 0057A218
@@ -2204,7 +2522,7 @@ char CellTransparent[2049];// 0057C9D8
 alignas(4096) DebugMap __;
 #else
 int MonsterMap[ FineMap_112 ][ FineMap_112 ];
-uchar Map[ Map_40 ][ Map_40 ]; // Big tile map // Основная карта архитектуры подземелья, стены, полы по крупным тайлам 
+uchar Map[ Map_40 ][ Map_40 ]; // (rt) Big tile map // The main map of the dungeon architecture: walls and floors by large tiles 
 #endif
 
 char LightMap[ FineMap_112 ][ FineMap_112 ];
@@ -2212,7 +2530,7 @@ char PlayerMap[ FineMap_112 ][ FineMap_112 ];
 int FineMap[ FineMap_112 ][ FineMap_112 ]; // 005F5BB0
 uchar FlagMap[ FineMap_112 ][ FineMap_112 ];
 uchar ItemMap[ FineMap_112 ][ FineMap_112 ];
-MissileIndexT MissilesMap[FineMap_112][FineMap_112]; // 0 нет каста, -1 несколько, остальные - НОМЕРА заклинаний из Missiles[missileNum - 1];
+MissileIndexT MissilesMap[FineMap_112][FineMap_112]; // (rt) 0 no cast, -1 several, the rest are spell NUMBERS from Missiles[missileNum - 1];
 char ObjectsMap[ FineMap_112 ][ FineMap_112 ];
 Item Items[MaxItems_255 + 1]; // 0x00686280
 Missile Missiles[ MissilesMax ]; // 00697A58
@@ -2224,22 +2542,26 @@ int MissileIndexes[MissilesMax]; // 00697668
 ushort DeathMonstersMap[ FineMap_112 ][ FineMap_112 ];
 uchar BloodMap[ FineMap_112 ][ FineMap_112 ];
 
-// Все уровни имеют размер Map_40 * Map_40 клеток
-// 1) Новая версия, правильная: каждая клетка делится на 2*2 подклеток, и дополнительно по 16 подклеток с каждой стороны
-// для отрисовки внутренностей стен за краем карты и контролем движущихся объектов. В пользу это версии - то что помимо
-// FineMap_112*FineMap_112 = (16+Map_40*2+16)*(16+Map_40*2+16), есть еще и карты размером 80*80, а также постоянно встречающиеся формулы преобразования координат
+// (rt) All levels are Map_40 * Map_40 cells
+// (rt) 1) The new, correct version: each cell is split into 2*2 sub-cells, plus 16 sub-cells on each side
+// (rt) for drawing wall interiors beyond the map edge and for controlling moving objects. In favour of this version: besides
+// (rt) FineMap_112*FineMap_112 = (16+Map_40*2+16)*(16+Map_40*2+16), there are also 80*80 maps and the recurring coordinate conversion formulas
 // x112 = x40 * 2 + 16
-// 2) Нулевые координаты находятся в верхнем углу карты относительно экрана
-// по правой стороне координата y (row)
-// по левой x (col)
-uchar AltMap[ Map_40 ][ Map_40 ]; // Для смены архитектуры по рычагам и другим событиям 
-uchar FixedMap[ Map_40 ][ Map_40 ]; // Big tile flag map // Карта неизменяемых клеток на данном этапе генерации 
+// (rt) 2) The zero coordinates are in the top corner of the map relative to the screen
+// (rt) the y coordinate (row) along the right side
+// (rt) the x coordinate (col) along the left side
+uchar AltMap[ Map_40 ][ Map_40 ]; // (rt) For changing the architecture on levers and other events 
+uchar FixedMap[ Map_40 ][ Map_40 ]; // (rt) Big tile flag map // Map of the cells that are fixed at this generation stage 
 char ArchGraphicsMap[ FineMap_112 ][ FineMap_112 ];
 TileColumn TileLightMap[ FineMap_112 ][ FineMap_112 ];
 // for( int i = 0; i < 16; i++ ) TileMap[ IsometricMapOffset(row, col) ].tile[i]
 TileColumn TileMap[ FineMap_112 * FineMap_112 ]; // = ((ushort*)CurrentLevelMINFile[32 * (FineMap[ row ][ col ] - 1)])[14 - (i & 14) + (i & 1)];
 unsigned char StaticLightMap[ FineMap_112 ][ FineMap_112 ];
-unsigned char  PerPixelLight[32 * 32];
+uint StaticTintMap[ FineMap_112 ][ FineMap_112 ]; // (th4) Rev 2.46 Option C + Rev 2.50: static-bake winner COLOR per tile (word = B|G<<8|R<<16, white = no color). Built with the single first-`==`-match replay rule (RebuildStaticTintMap) after fresh generation AND on every load path, read by the V2 tint ambient only.
+unsigned char  s_PerPixelLightBuf[64 * 32]; // backing buffer for single-thread PerPixelLight path
+unsigned char* PerPixelLight = s_PerPixelLightBuf; // pointer; redirected to s_PPLData[r][c] in MT path
+int            PerPixelXOffset = 0;    // 0 for left sub-tile, 32 for right sub-tile
+bool           PerPixelLightUniform = false; // true when all 9 LightMap neighbors equal: skip bilinear fill, use fast linecpy path
 int TileLightMapIndex[2048];
 uchar WallsTransparency[2049];
 uchar TransMap[ FineMap_112 ][ FineMap_112 ];// 006078D0
@@ -2253,10 +2575,25 @@ uchar TileBlockSight[2049];// 006160F8
 int SizeOfLevelCEL[2048];
 uchar TileBlockMissle[2049];// 0061EB08
 Light VisionList[32];
-char LightIndexes[32];
+char LightIndexes[Lights_128_Count];
 uchar LightLevels[16][128];
 uchar LightDist[8][8][16][16];
-ushort TotalSlain[400];
+// (th4, A8L8 per-pixel light field — Phase 1 of the PixelLight_A8L8_PerPixelField plan)
+// Falloff LUT: g_A8L8LightBright[rad][i] = brightness 0..255 (255 = fully lit) at
+// linear distance i/64 tile units from the light center, i = 0..1024. Built in
+// MakeLightTable from the same formulas as the LightLevels A8L8 branches.
+// Not consumed by any render path yet (Phase 2 wires it in).
+uchar g_A8L8LightBright[16][1025];
+// (th4) Indexed by baseMonsterIndex, so it MUST be at least BM_COUNT. It was a bare 400
+// while BM_COUNT passed it, and TotalSlain[400]/[401] wrote straight into MonsterIndexes[0]
+// (the linker parks it immediately after) -- killing one of those monsters added 1 or 65536
+// to MonsterIndexes[0], and the next ProcessMonsters tick indexed Monsters[] out of bounds.
+// Sized to a fixed 1024 rather than BM_COUNT because this array goes into the GAME SAVE:
+// tying it to BM_COUNT would change the save layout every time a monster is added, and an
+// odd BM_COUNT would silently drop the last entry (the stream writes countof/2 ints).
+ushort TotalSlain[1024];
+static_assert( BM_COUNT <= countof(TotalSlain), "TotalSlain is smaller than BM_COUNT -- raise it" );
+static_assert( countof(TotalSlain) % 2 == 0, "TotalSlain size must be even: SaveGame writes it as int pairs" );
 int DMap16x64[1024];
 
 #if MULTI_PLAYER_DEBUG_CHECK
@@ -2269,6 +2606,64 @@ int LevelCELsAmount;
 uchar TransValue;
 int MaxTilesInCell;
 bool PixelLight = false;
+bool MultiThreadPixelLight = false;
+bool g_A8L8Lighting = false;
+bool A8L8PixelField = false; // per-pixel light field pre-fill (A8L8 only); default OFF during development
+bool g_ARGBLighting = false; // (th4) ultra two-texture mode (A8R8G8B8 + L8); default OFF during development
+int EnrichedLightUltraAlpha = 128; // (th4) Stage 2 overlay alpha 0-255; default 128 = overlay on at half translucency when ultra is on (0 = feature off, Stage-1 behavior). All uses are gated on g_ARGBLighting, so this default does no work when ultra is OFF.
+bool g_ARGBAlphaContrast = true; // (th4) Stage 2 rung 2: contrast-weighted per-pixel overlay alpha (modulates EnrichedLightUltraAlpha); default ON. Only read in ultra-gated paths (shader c0 + rim selection), so no work when ultra is OFF.
+bool g_ARGBAlphaRim = true; // (th4) Stage 2 rung 3: mask-edge emphasis — occluded-sprite outline keeps full base alpha even at low contrast (requires contrast ON); default ON. Only read in ultra-gated paths, so no work when ultra is OFF.
+int A8L8GammaBlendPct = 100; // A8L8 per-pixel falloff shape, percent: 100 = (1-f)^2 (original), 0 = linear — requested default is 100, already the initializer (no change)
+bool g_SkipSpriteLightClear = false;   // set true around DrawPlayer to protect archway LightSurface
+bool g_InDungeonRender = false;        // true only during DrawIsoLand; narrows R_DARK guard
+// Force LightSurface clearing for specific sprites (torches/light sources)
+// even when the dungeon-wide guard would otherwise skip it.
+bool g_ForceSpriteLightClear = false;
+// Post-render re-draw pass: when true, Rle2Draw & RleDraw skip WorkingSurface
+// writes and only write 0 to LightSurface.  Used at the end of DrawIsoLand
+// to re-apply the player glow (LightSurface=0) at exact sprite pixel positions
+// after all dungeon tiles have been rendered.
+bool g_LightSurfaceOnlyPass = false;
+// (th4) Stage 3: the sprite currently being replayed owns a colored light —
+// Rle2Draw writes white tint at its pixels (owner-pixel exclusion). Set per
+// sprite by the DrawIsoLand replay loops, read as a per-call snapshot.
+bool g_TintExcludeCurrentSprite = false;
+bool g_IsDrawingOpaqueWall = false;   // (th4) set during opaque wall rendering
+bool g_IsDrawingOpaqueObject = false; // (th4) set during opaque dungeon object rendering
+SpriteType g_CurrentPostRenderType = SpriteType::Monster;  // (th4) default
+// Saved player draw parameters for post-render (one slot per player index 0-3).
+PlayerReDrawCmd g_ReDraw[PlayersMax_4];
+
+// Post-render sprite command list for monsters and missiles (Option C).
+// Populated during normal rendering; replayed after all tiles to write LightSurface.
+PostRenderSpriteCmd g_PostRenderSprites[MAX_POSTRENDER_SPRITES];
+int g_PostRenderSpriteCount = 0;
+
+// Option C diagnostic: snapshot of LightSurface after the screen-space pre-fill.
+// Compared at checkpoints to detect LightSurface contamination during tile rendering.
+// Always declared (no #if) — allocated only when OPTION_C_DIAG_LIGHTSURFACEBASE is 1.
+uchar* LightSurfaceBase = nullptr;
+
+// Brightness mask companion to g_PPLAnimRemap.  0xFF = normal (lv applied); 0x00 = always
+// full-bright regardless of lv (crypt/abyss lava-range palette entries 1-15).  Set by MakeLightTable.
+uchar g_PPLBrightnessMask[256] = {
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+};
 char* CurrentLevelTilesFile;
 char* CurrentLevelMINFile;
 CurDungeon Dungeon; // 0060B1D8
@@ -2314,7 +2709,8 @@ int VisionId;
 int FullLighting;
 int MonstersCount;// 0069DC80
 bool SummonMonstersAdded;
-char SaveSound; // вроде через это передается IsSoundEnable между MayBe_KillDiabloEffect и Level16PlayerReset
+bool SummonCleanupSilent;	// (th4)
+char SaveSound; // (rt) apparently IsSoundEnable is passed through this between MayBe_KillDiabloEffect and Level16PlayerReset
 int MonsterArraySize;
 //int AfterDMap84x24;
 //int DwordArray257h[599];
@@ -2391,9 +2787,9 @@ int DiabloQuad4col;
 int ItemActive[MaxItems_255];
 int ItemAvailable[MaxItems_255];
 int ItemsCount;
-char* FlipItemCELFiles[FL_68_COUNT];
+char* FlipItemCELFiles[FL_81_COUNT];
 
-char CooldownDecDelay = 0;// новая переменная глобальная A37700
+char CooldownDecDelay = 0;// (rt) new global variable A37700
 int RowOfCornerStone;
 int ColOfCornerStone;
 int counterOfMap = 0;
@@ -2402,9 +2798,14 @@ int GriswoldQlvlRandomizationArray[] = { // 004A5AD0
 	-1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3
 };
 
-MonsterSprite MonsterSprites[Monsters_Sprites_Max_Count];             // Загруженная графика монстров. Одновременно на уровне доступно не более 24 видов монстров.
+// (th4) Loaded monster graphics. A dungeon level can hold at most
+// Monsters_Sprites_Max_Count (currently 40) distinct monster types at once.
+// Vanilla capped this at 24; the enum was raised and the old comment lagged.
+// In practice the fill loop in Monster.cpp usually stops on
+// Monsters_SeedingSize_Max first, whichever binds sooner.
+MonsterSprite MonsterSprites[Monsters_Sprites_Max_Count];
 int MonsterSpritesCount;
-int MonstersSeedingSizeTotal; // monstimgtot originally
+int MonstersSeedingSizeTotal; 
 int SomeBoolFlag_12 = 0;
 int MapRowArraySize;
 int MapRowArray[10];
@@ -2433,6 +2834,33 @@ HANDLE thmusi3MPQPtr;
 HANDLE helldfMPQPtr;
 HANDLE hfmonkMPQPtr;
 HANDLE hellgfxMPQPtr;
+HANDLE thlocRusMPQPtr; // (th4) RU audio pack
+HANDLE thlocIdMPQPtr;  // (th4) ID (Indonesian) audio pack
+HANDLE thlocPrtMPQPtr; // (th4) PT (Portuguese) loc datafile
+HANDLE thlocTurMPQPtr; // (th4) TR (Turkish) loc datafile
+bool DarkCampaignLazarusTalkWanted = false;    // (th4) DC m13
+bool DarkCampaignLazarusRewardPending = false; // (th4) DC m13
+bool DarkCampaignLazarusThanked = false;       // (th4) DC m13
+bool DarkCampaignHephastoTalkWanted = false;   // (th4) DC m15
+bool DarkCampaignHephastoRewardPending = false;// (th4) DC m15
+bool DarkCampaignHephastoThanked = false;      // (th4) DC m15
+bool DarkCampaignButcherTalkWanted = false;    // (th4) DC m25
+bool DarkCampaignButcherJoinPending = false;   // (th4) DC m25
+bool DarkCampaignButcherNeedsArrival = false;  // (th4) DC m25
+bool DarkCampaignEndArrived = false;           // (th4) DC m26
+int  DarkCampaignEndLordDelay = 0;             // (th4) DC m26
+int  DarkCampaignEndWalkSteps = 0;             // (th4) DC m26
+bool DarkCampaignEndTalkWanted = false;        // (th4) DC m26
+HANDLE thlocEspMPQPtr; // (th4) ES (Spanish) loc datafile
+HANDLE thlocPolMPQPtr; // (th4) PL (Polish) loc datafile
+HANDLE thlocCzeMPQPtr; // (th4) CS (Czech) loc datafile
+HANDLE thlocHrvMPQPtr; // (th4) HR (Croatian) loc datafile
+HANDLE thlocChiMPQPtr;// (th4) CHI (Chinese) loc datafile
+HANDLE thlocKorMPQPtr;// (th4) KO (Korean) loc datafile
+HANDLE thlocJpnMPQPtr;// (th4) JA (Japanese) loc datafile
+HANDLE thlocAraMPQPtr;// (th4) AR (Arabic) loc datafile
+HANDLE thlocHinMPQPtr;// (th4) HIN (Hindi) loc datafile
+HANDLE thlocBlgMPQPtr; // (th4) BG (Bulgarian) loc datafile
 HANDLE thassaMORPtr;
 HANDLE thgladMPQPtr;
 HANDLE thehell2MPQPtr;
@@ -2469,7 +2897,7 @@ char ErrorTextBuffer[256];
 int IsErrorExitThreadPresent = 0;
 DWORD ErrorExitThread = 0;
 
-// вот интересно, надо ли восстанавливать адресацию всех статических строк для сверки? или это не нужно?
+// (rt) should the addressing of all static strings be restored for the comparison, or is that unnecessary?
 
 //.data:004A0AFE                 align 10h
 //.data : 004A0B00 aMainProgramArc db 'Main program archive: diabdat.mpq', 0
@@ -2505,14 +2933,27 @@ const WeaponAnim WeaponAnims[PAW_COUNT] = { // 00490378
 	{ PAW_10_SWORD_ONE  , 'S', 0 }, // 10 - 'S' Dual Hand Sword
 	{ PAW_11_MACE_ONE   , 'M', 0 }, // 11 - 'M' Dual Hand Mace
 	{ PAW_12_PISTOL     , 'G', 0 }, // 12 - 'G' Gun
-	{ PAW_13_CLAWS      , 'C', 0 }, // 13 - 'C' Druid Claws
+	{ PAW_13_CLAWS      , 'C', 0 }, // 13 - 'C' Claws
 };
 static_assert( countof(WeaponAnims) <= 0xF, "WeaponAnim max == 16 - only 4 bit used in player.Appearance" );
 
 int WorldFrameIndex = 0;
 
-// индекс буквы в .cel файле шрифта + 1 (так как нулевой элемент файла - количество спрайтов)
-uchar FontIndexSmall[ 128 ] = {
+// (rt) letter index in the font .cel file + 1 (since the file's zero element is the sprite count)
+// ===================== LOCALIZATION: per-script font tables (th4) =====================
+// See src/Localization_Cyrillic_NOTES.h for the full rationale and frame map.
+// The engine reads `Codepage[b]` then `FontIndexSmall[that]` -> CEL frame, then
+// `FontWidthSmall[frame]` -> advance width. To support multiple scripts WITHOUT a
+// single global table that can only hold one codepage, we keep one table set per
+// SCRIPT (Latin, Cyrillic, ...) and expose `Codepage` / `FontIndexSmall` as POINTERS
+// that InitLocalization() points at the active script. Every existing call site uses
+// `Codepage[x]` / `FontIndexSmall[x]` which reads identically through a pointer, so
+// none of the ~70 reader sites change.
+//
+// Tables are 256-wide so high bytes (Cyrillic 0x80..0xFF) resolve.
+
+// ---- LATIN script (English default; identical content to the original tables) ----
+uchar FontIndexSmall_Latin[ 256 ] = {
 	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
 	 0, 54, 44, 57, 58, 56, 55, 47, 40, 41, 59, 39, 50, 37, 51, 52,
@@ -2520,15 +2961,108 @@ uchar FontIndexSmall[ 128 ] = {
 	62,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 63, 43, 64, 65,
 	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 40, 66, 41, 67,  0 
+	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 40, 66, 41, 67,  0,
+	// upper half 0x80..0xFF unused by Latin Codepage (it never emits >127): zeros
+	0
 };
 
-uchar FontWidthSmall[ 68 ] = {
+// ---- CYRILLIC script (CP1251). Lower 128 == Latin; upper half maps CP1251 bytes
+//      directly to CEL frames. Codepage_Cyrillic passes high bytes through unchanged
+//      (identity), so FontIndexSmall_Cyrillic[byte] is the frame. Missing letters use
+//      fallbacks: Ё(0xA8)->Е, Й(0xC9)->И, Ъ(0xDA)->Ь. Lowercase 0xE0..0xFF == uppercase
+//      (caps-only font), and Cyrillic lowercase ё(0xB8)->Е too.
+uchar FontIndexSmall_Cyrillic[ 256 ] = {
+	// 0x00..0x7F : identical to Latin lower half
+	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	 0, 54, 44, 57, 58, 56, 55, 47, 40, 41, 59, 39, 50, 37, 51, 52,
+	36, 27, 28, 29, 30, 31, 32, 33, 34, 35, 48, 49, 60, 38, 61, 53,
+	62,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 63, 43, 64, 65,
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 40, 66, 41, 67,  0,
+	// 0x80..0x8F
+	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	// 0x90..0x9F
+	 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	// 0xA0..0xAF   (0xA8 = Ё -> frame 5 = Е fallback)
+	 0,  0,  0,  0,  0,  0,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,
+	// 0xB0..0xBF   (0xB8 = ё -> frame 5 = Е fallback)
+	 0,  0,  0,  0,  0,  0,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,
+	// 0xC0..0xCF : А Б В Г Д Е Ж З И Й К Л М Н О П  (GAME letterIDs)
+	 1, 68,  2, 69, 70,  5, 71, 29, 72, 72, 11, 73, 13,  8, 15, 74,
+	// 0xD0..0xDF : Р С Т У Ф Х Ц Ч Ш Щ Ъ Ы Ь Э Ю Я
+	16,  3, 20, 25, 75, 24, 76, 77, 78, 79, 80, 81, 80, 82, 83, 84,
+	// 0xE0..0xEF : а б в г д е ж з и й к л м н о п  (== uppercase, caps font)
+	 1, 68,  2, 69, 70,  5, 71, 29, 72, 72, 11, 73, 13,  8, 15, 74,
+	// 0xF0..0xFF : р с т у ф х ц ч ш щ ъ ы ь э ю я
+	16,  3, 20, 25, 75, 24, 76, 77, 78, 79, 80, 81, 80, 82, 83, 84
+};
+
+//----- (th4) ----- Portuguese small font index: Latin base + accented high bytes
+// FOLDED to their base-letter frame (smaltext accent glyphs not yet mapped). This
+// keeps small-font PT text readable (a-acute -> a) and never blank; will be replaced
+// with real accent frames once smaltext's tail frames are read.
+uchar FontIndexSmall_Portuguese[ 256 ] = {
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0, 54, 44, 57, 58, 56, 55, 47, 40, 41, 59, 39, 50, 37, 51, 52,
+	 36, 27, 28, 29, 30, 31, 32, 33, 34, 35, 48, 49, 60, 38, 61, 53,
+	 62,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 63, 43, 64, 65,
+	  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+	 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 40, 66, 41, 67,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	  1,  1,  1,  1,  1,  0,  1,  3,  5,  5,  5,  5,  9,  9,  9,  9,
+	  4, 14, 15, 15, 15, 15, 15,  0, 15, 21, 21, 21, 21, 25, 20, 19,
+	  1,  1,  1,  1,  1,  0,  1,  3,  5,  5,  5,  5,  9,  9,  9,  9,
+	  4, 14, 15, 15, 15, 15, 15,  0, 15, 21, 21, 21, 21, 25, 20, 19,
+};
+
+// Active pointer (default Latin). InitLocalization() may repoint to Cyrillic.
+uchar* FontIndexSmall = FontIndexSmall_Latin;
+
+// Advance widths, now 84 entries (frames 0..83). Frames 0..67 unchanged (original
+// values), frames 67..83 are the Cyrillic block (measured pixel width + 3 kern).
+// NOTE: frame 67 (Б) overwrites nothing — original table had 68 entries (0..67),
+// and original frame 67 already existed as a Latin glyph slot; the Cyrillic CEL
+// reuses indices 67..83 for Cyrillic. Index 67 original value was 7 (kept).
+uchar FontWidthSmall[ 115 ] = {
 	8, 10,  7,  9,  8,  7,  6,  8,  8,  3,  3,  8,  6, 11,  9,	10,
 	6,  9,  9,  6,  9, 11, 10, 13, 10, 11,  7,  5,  7,  7,  8,  7,
 	7,  7,  7,  7, 10,  4,  5,  6,  3,  3,  4,  3,  6,  6,  3,  3,
 	3,  3,  3,  2,  7,  6,  3, 10, 10,  6,  6,  7,  4,  4,  9,  6,
-	6, 12,  3,  7 
+	6, 12,  3,  7,   // <- original entries 0..67 (unchanged)
+	//  Б   Г   Д   Ж   И   Л   П   Ф   Ц   Ч   Ш   Щ   Ь   Ы   Э   Ю   Я
+	//  68  69  70  71  72  73  74  75  76  77  78  79  80  81  82  83  84   (GAME letterIDs)
+	//  Advance = glyph pixel width (matches Latin convention; the art already
+	//  includes right-side spacing). Earlier these were pixel+3 -> erratic gaps.
+	//  Б and Д reduced (7->6, 13->8) after stray art pixels removed from the CEL.
+	     6,  6,  8, 13,  9, 10,  7, 10,  8,  7, 11, 12,  6, 10,  8, 11,  9,
+	//----- (th4) ----- Polish (LANG_PL) game letterIDs 85..93. APPENDED ONLY: entries
+	//  0..84 above are byte-for-byte unchanged, so RU (68..84) and every other
+	//  language read exactly the same values they always did. Only Codepage_Polish /
+	//  FontIndexSmall_Polish ever emit 85..93.
+	//   85=A-ogonek 86=C-acute 87=E-ogonek 88=L-stroke 89=N-acute
+	//   90=O-acute  91=S-acute 92=Z-acute  93=Z-dot
+	//  Advances copy the base letter; L-stroke gets +2 (its L is shifted right 2px
+	//  so the bar has room to cross the stem, which sits flush at col 0).
+	   10, 9, 7, 8, 9, 10, 6, 7, 7,
+	//----- (th4) ----- Czech (LANG_CS) game letterIDs 94..108, APPENDED ONLY like Polish.
+	//  Only Codepage_Czech / FontIndexSmall_Czech ever emit 94..108; the frames ship in
+	//  TH4loc_cze.mor (see the Czech tables further down for the id -> letter list).
+	//  Advances copy the base letter.
+	   10, 9, 8, 7, 7, 3, 9, 10, 9, 6, 9, 11, 11, 11, 7,
+	//----- (th4) ----- Croatian (LANG_HR) letterIDs 109 = C-acute, 110 = D-stroke, appended the same way.
+	//  C-caron / S-caron / Z-caron reuse the Czech ids; the frames ship in TH4loc_hrv.mor.
+	   9, 9,
+	//----- (th4) ----- Spanish (LANG_ES) letterIDs 111 = N-tilde, 112 = U-diaeresis, 113 = inverted ?,
+	//  114 = inverted !, appended the same way (as wide as N, U, ?, !). A/E/I/O/U-acute reuse the Czech ids;
+	//  the frames ship in TH4loc_esp.mor (see "Spanish (LANG_ES) fonts, REAL ACCENTS" further down).
+	   9, 11, 6, 3
 };
 
 uchar FontIndexMid[ 128 ] = {
@@ -2549,6 +3083,54 @@ uchar FontWidthMid[ 56 ] = {
 	10,	10,	5,	5,	5,	5,	11,	12
 };
 
+//----- (th4) ----- active mid-font pointers (switched in InitLocalization)
+uchar* FontIndexMidPtr = FontIndexMid;
+uchar* FontWidthMidPtr = FontWidthMid;
+
+//----- (th4) ----- Cyrillic medium-text font (medtexts_RUS.cel)
+// (th4) HARD SIGN (0xDA/0xFA) DELIBERATELY POINTS AT THE SOFT-SIGN FRAME 13.
+// The Cyrillic fonts repaint the Latin atlas: frames 1-26 carry the common
+// letters and six rare ones reuse scattered Latin frames -- X=42, B=43, E=46,
+// YU=49, ZH=50 and the hard sign=39. Frame 39 is "%" in the Latin atlas and was
+// never repainted, because Russian uses the hard sign twice in 108k bytes of
+// speech. Bulgarian uses it as a full vowel: ~6000 times across ~2100 rows, so
+// it rendered as a percent sign all over the UI.
+// Pointing it at frame 13 shows a soft sign instead -- visually near-identical,
+// and the width table follows the frame, so the "%"-sized gap goes away too.
+// Shared with Russian by design (approved): 2 affected glyphs in the whole RU set.
+// TO REVERT once frame 39 is painted in TH4loc_blg.mor: put 39 back at offset
+// 0xDA and 0xFA in this table (both the upper- and lower-case rows).
+// (th4) Ukrainian rides this table via the substitution convention: Latin I/i (0x49/0x69)
+// are mapped to frame 27 -- the serif vertical bar drawn for digit '1' in the MID Cyrillic
+// CEL, which is the closest thing to a Ukrainian I. Without it every i/yi in Ukrainian text
+// drew BLANK in this font (all Latin bytes pointed at frame 0). Digits are unaffected: they
+// keep their own byte->frame entries, this only gives the Latin bytes somewhere to land.
+uchar FontIndexMid_Cyrillic[ 256 ] = {
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,37,0,0,0,0,0,47,0,0,0,0,52,44,53,0,
+	0,0,0,0,0,0,0,0,0,0,51,0,0,0,0,54,
+	0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,
+	6,43,4,21,12,20,50,16,2,17,18,11,22,25,10,7,
+	8,3,14,5,1,42,23,24,9,15,13,19,13,46,49,26,
+	6,43,4,21,12,20,50,16,2,17,18,11,22,25,10,7,
+	8,3,14,5,1,42,23,24,9,15,13,19,13,46,49,26,
+};
+uchar FontWidthMid_Cyrillic[ 56 ] = {
+	5, 17, 15, 13, 11, 17, 17, 11, 11, 16, 16, 14, 14, 11, 16, 18, 12, 15, 14, 18, 11, 11, 16, 22, 13, 13, 14, 5, 11, 11, 11, 10, 11, 11, 11, 11, 15, 5, 10, 18, 15, 8, 17, 11, 7, 10, 14, 6, 10, 22, 20, 6, 5, 5, 11, 5
+};
+
+
+
+
+
 uchar FontIndexBig[ 128 ] = {
 	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
 	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
@@ -2567,7 +3149,702 @@ uchar FontWidthBig[ 56 ] = {
 	20,	21,	11,	10,	12,	11,	21,	23
 };
 
-uchar Codepage[ 256 ] = {
+
+//----- (th4) ----- Cyrillic big-title font (bigtgold.cel), same order as medtexts
+// (th4) HARD SIGN (0xDA/0xFA) DELIBERATELY POINTS AT THE SOFT-SIGN FRAME 13.
+// The Cyrillic fonts repaint the Latin atlas: frames 1-26 carry the common
+// letters and six rare ones reuse scattered Latin frames -- X=42, B=43, E=46,
+// YU=49, ZH=50 and the hard sign=39. Frame 39 is "%" in the Latin atlas and was
+// never repainted, because Russian uses the hard sign twice in 108k bytes of
+// speech. Bulgarian uses it as a full vowel: ~6000 times across ~2100 rows, so
+// it rendered as a percent sign all over the UI.
+// Pointing it at frame 13 shows a soft sign instead -- visually near-identical,
+// and the width table follows the frame, so the "%"-sized gap goes away too.
+// Shared with Russian by design (approved): 2 affected glyphs in the whole RU set.
+// TO REVERT once frame 39 is painted in TH4loc_blg.mor: put 39 back at offset
+// 0xDA and 0xFA in this table (both the upper- and lower-case rows).
+// (th4) Ukrainian rides this table via the substitution convention: Latin I/i (0x49/0x69)
+// are mapped to frame 27 -- the serif vertical bar drawn for digit '1' in the BIG Cyrillic
+// CEL, which is the closest thing to a Ukrainian I. Without it every i/yi in Ukrainian text
+// drew BLANK in this font (all Latin bytes pointed at frame 0). Digits are unaffected: they
+// keep their own byte->frame entries, this only gives the Latin bytes somewhere to land.
+uchar FontIndexBig_Cyrillic[ 256 ] = {
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,37,0,0,0,0,0,0,0,0,0,0,52,43,53,0,
+	36,27,28,29,30,31,32,33,34,35,51,0,0,46,0,54,
+	0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,27,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,20,0,0,0,0,0,0,0,
+	6,52,4,21,12,20,50,16,2,17,18,11,22,25,10,7,
+	8,3,14,5,1,42,23,24,9,15,13,19,13,46,49,26,
+	6,52,4,21,12,20,50,16,2,17,18,11,22,25,10,7,
+	8,3,14,5,1,42,23,24,9,15,13,19,13,46,49,26,
+};
+uchar FontWidthBig_Cyrillic[ 56 ] = {
+	5, 31, 28, 22, 19, 28, 28, 23, 20, 29, 27, 25, 26, 19, 27, 31, 19, 28, 29, 29, 19, 18, 29, 45, 21, 22, 24, 11, 23, 22, 22, 21, 22, 21, 21, 21, 32, 10, 16, 12, 5, 30, 28, 24, 13, 18, 16, 11, 20, 20, 34, 10, 19, 37, 21, 5
+};
+
+
+
+uchar* FontIndexBigPtr = FontIndexBig;
+uchar* FontWidthBigPtr = FontWidthBig;
+
+//----- (th4) ----- Portuguese (LANG_PT) fonts. The datafile TH4loc_prt.mor ships
+// medtexts.cel / bigtgold.cel with the CP1252 uppercase-accented block appended at
+// frames 58..88 (contributor's layout, verified in-game). Base frames 0..57 are the
+// stock Latin glyphs, so these index tables = Latin lower half + accent bytes 0xC0..0xFF
+// mapped to their frames (lowercase 0xE0.. aliased to the same uppercase frame; the
+// fonts are caps-only). Widths for accents reuse the base letter's advance. The small
+// font (smaltext) has a different frame count and is wired separately once mapped.
+uchar Codepage_Portuguese[ 256 ] = {
+0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+	  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+	 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+	 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+	 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+	 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+	 96, 97, 98, 99,100,101,102,103,104,105,106,107,108,109,110,111,
+	112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,  1,
+	128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+	144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+	160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+	176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+	192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
+	208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,
+	224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
+	240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
+};
+//----- (th4) ----- DANISH (LANG_DA). CP1252, folded copy of Codepage_Portuguese.
+// The stock MID/BIG font CELs have NO glyphs at the A-ring / AE / O-slash frames
+// (they ship only in the TH4loc_prt.mor accent pack, which is not mounted for DA),
+// and the SMALL index table maps 0xC5 to frame 0 -- so left at identity, Danish
+// text renders BLANKS for aa/ae/oe letters. Every text loop resolves a byte as
+// FontIndex[ Codepage[b] ], so the fold belongs here, in a Danish-own codepage,
+// exactly like Codepage_Turkish -- NEVER edit the shared Portuguese tables.
+// Folds: 0xC5/0xE5 A-ring -> A, 0xC6/0xE6 AE -> E, 0xD8/0xF8 O-slash -> O.
+// DA_GLYPH_FLIP: the glyphs ALREADY EXIST in the PT accent sheet (MID/BIG frames
+// 63/64/82, verified painted). To render true A-ring/AE/O-slash instead of the
+// fold: mount TH4loc_prt.mor for LANG_DA in Windows.cpp (add "|| GameLanguage ==
+// LANG_DA" to the PT/FR/DE mount) and set these six entries back to identity
+// (0xC5, 0xE5, 0xC6, 0xE6, 0xD8, 0xF8). SMALL keeps folding either way (its PT
+// index table maps 0xC5 to 0), which matches PT/FR/DE behaviour.
+uchar Codepage_Danish[ 256 ] = {
+	   0,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+	   1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
+	  32,   33,   34,   35,   36,   37,   38,   39,   40,   41,   42,   43,   44,   45,   46,   47,
+	  48,   49,   50,   51,   52,   53,   54,   55,   56,   57,   58,   59,   60,   61,   62,   63,
+	  64,   65,   66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   77,   78,   79,
+	  80,   81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,   92,   93,   94,   95,
+	  96,   97,   98,   99,  100,  101,  102,  103,  104,  105,  106,  107,  108,  109,  110,  111,
+	 112,  113,  114,  115,  116,  117,  118,  119,  120,  121,  122,  123,  124,  125,  126,    1,
+	 128,  129,  130,  131,  132,  133,  134,  135,  136,  137,  138,  139,  140,  141,  142,  143,
+	 144,  145,  146,  147,  148,  149,  150,  151,  152,  153,  154,  155,  156,  157,  158,  159,
+	 160,  161,  162,  163,  164,  165,  166,  167,  168,  169,  170,  171,  172,  173,  174,  175,
+	 176,  177,  178,  179,  180,  181,  182,  183,  184,  185,  186,  187,  188,  189,  190,  191,
+	 192,  193,  194,  195,  196,   65,   69,  199,  200,  201,  202,  203,  204,  205,  206,  207,
+	 208,  209,  210,  211,  212,  213,  214,  215,   79,  217,  218,  219,  220,  221,  222,  223,
+	 224,  225,  226,  227,  228,   65,   69,  231,  232,  233,  234,  235,  236,  237,  238,  239,
+	 240,  241,  242,  243,  244,  245,  246,  247,   79,  249,  250,  251,  252,  253,  254,  255,
+};
+
+//----- (th4) ----- TURKISH (LANG_TR). CP1254 = CP1252 with six bytes reassigned:
+// 0xD0 G-breve, 0xDD I-dot, 0xDE S-cedilla and their lowercase partners 0xF0/0xFD/0xFE.
+// C-cedilla (0xC7), O-diaeresis (0xD6) and U-diaeresis (0xDC) sit at the SAME byte in
+// both codepages, so the Portuguese CEL frames already draw them correctly and Turkish
+// reuses FontIndex*_Portuguese / FontWidth*_Portuguese wholesale -- no new font tables,
+// the same way French does.
+//
+// Only this ONE codepage table differs, because every text loop in the engine resolves
+// a byte as FontIndex[ Codepage[b] ]: folding belongs here, not in the font tables.
+// The six Turkish bytes fold to plain G / I / S. Left pointing at the PT frames they
+// would draw Eth, Y-acute and Thorn -- the WRONG letters -- so folding is strictly
+// better until the glyphs exist.
+//
+// TR_GLYPH_FLIP: when TH4loc_tur.mor repaints frames 74/87/88 as G-breve / I-dot /
+// S-cedilla, set these six entries back to identity (0xD0, 0xDD, 0xDE, 0xF0, 0xFD,
+// 0xFE) and every Turkish string starts rendering with full diacritics, no text edits.
+// U-DIAERESIS OFF-BY-ONE: the PT/FR accent CEL omits the multiplication sign (0xD7),
+// which is not a letter, but FontIndex*_Portuguese still counts it -- so every byte from
+// 0xD8 up resolves one frame too high. Left alone, 0xDC/0xFC would draw Y-acute instead
+// of U-diaeresis (seen in-game as SYRE / KYCYK for SURE / KUCUK). Turkish maps them to
+// 0xDB instead, which lands on the real U-diaeresis cell (frame 85). This is a bug in
+// the SHARED Portuguese tables, not a Turkish one: PT/FR/anything using bytes 0xD8-0xDE
+// has it too, and French DOES use u-grave and u-circumflex.
+uchar Codepage_Turkish[ 256 ] = {
+	   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,
+	  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+	  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+	 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,   1,
+	 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+	 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+	 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+	 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+	  71, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 219,  73,  83, 223,
+	 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+	  71, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 219,  73,  83, 255,
+};
+
+uchar FontIndexMid_Portuguese[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	 58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,
+	 74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,   0,
+	 58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,
+	 74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,   0,
+};
+uchar FontWidthMid_Portuguese[ 89 ] = {
+	  5,  15,  10,  13,  14,  10,   9,  13,  11,   5,   5,  11,  10,  16,  13,  16,
+	 10,  15,  12,  10,  14,  17,  17,  22,  17,  16,  11,   5,  11,  11,  11,  10,
+	 11,  11,  11,  11,  15,   5,  10,  18,  15,   8,   6,   6,   7,  10,   9,   6,
+	 10,  10,   5,   5,   5,   5,  11,  12,   0,   0,  15,  15,  15,  15,  15,  15,
+	 15,  13,  10,  10,  10,  10,   5,   5,   5,   5,  14,  13,  16,  16,  16,  16,
+	 16,  16,  16,  17,  17,  17,  17,  16,  14,
+};
+uchar FontIndexBig_Portuguese[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	 58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,
+	 74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,   0,
+	 58,  59,  60,  61,  62,  63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,
+	 74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  85,  86,  87,  88,   0,
+};
+uchar FontWidthBig_Portuguese[ 89 ] = {
+	 18,  33,  21,  26,  28,  19,  19,  26,  25,  11,  12,  25,  19,  34,  28,  32,
+	 20,  32,  28,  20,  28,  36,  35,  46,  33,  33,  24,  11,  23,  22,  22,  21,
+	 22,  21,  21,  21,  32,  10,  20,  36,  31,  17,  13,  12,  13,  18,  16,  11,
+	 20,  21,  11,  10,  12,  11,  21,  23,   0,   0,  33,  33,  33,  33,  33,  33,
+	 33,  26,  19,  19,  19,  19,  11,  11,  11,  11,  28,  28,  32,  32,  32,  32,
+	 32,  32,  32,  36,  36,  36,  36,  33,  28,
+};
+
+
+//----- (th4) ----- Latin FOLD tables, named "Spanish" for history: PLAIN LATIN, NO ACCENTS.
+// Used by ITALIAN and SWAHILI (Localization.cpp InitLocalization). Spanish itself has real accents since
+// 2026-10-07 and its own tables -- "Spanish (LANG_ES) fonts, REAL ACCENTS" below -- which are built FROM these
+// (fold everything, then point the Spanish letters at real glyphs). Any accented CP1252 byte folds to its base
+// letter (A-acute -> A, N-tilde -> N, U-diaeresis -> U) and the inverted marks fold to their upright forms, so
+// nothing is ever blank. Codepage_Spanish is the identity in the upper half and is shared by ES / IT / SW.
+uchar Codepage_Spanish[ 256 ] = {
+	  0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	 32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	 48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	 64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,
+	 80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+	 96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+	112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,   1,
+	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+	144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+	160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+	176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+	208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
+	224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+	240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,
+};
+uchar FontIndexMid_Spanish[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  54,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+};
+uchar FontIndexBig_Spanish[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  54,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+};
+uchar FontIndexSmall_Spanish[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  54,  44,  57,  58,  56,  55,  47,  40,  41,  59,  39,  50,  37,  51,  52,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  48,  49,  60,  38,  61,  53,
+	 62,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,  63,  43,  64,  65,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  40,  66,  41,  67,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  53,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+	  0,   1,   0,   0,   0,   0,   0,   0,   0,   5,   0,   0,   0,   9,   0,   0,
+	  0,  14,   0,  15,   0,   0,   0,   0,   0,   0,  21,   0,  21,   0,   0,   0,
+};
+
+//----- (th4) ----- Spanish (LANG_ES) fonts, REAL ACCENTS (2026-10-07). CP1252, fonts inside TH4loc_esp.mor
+// (loc toolkit, fonts/es_fonts.py builds the three CELs and these tables together; rebuild both or neither).
+// Spanish needs A/E/I/O/U-acute, N-tilde, U-diaeresis and the inverted ? and !; lowercase aliases uppercase
+// (caps-only fonts). Every other accented byte still folds to its base letter, never blank.
+//   SMALL: A-acute 94, E 97, I 99, O 101, U 105 (the Czech ids), N-tilde 111, U-diaeresis 112, inverted ? 113,
+//          inverted ! 114 (FontWidthSmall[111..114] appended).
+//   MID / BIG: the Portuguese CELs: inverted ! 56, inverted ? 57, A-acute 59, E 67, I 71, N-tilde 75, O 77,
+//          U-acute 83, U-diaeresis 85. NOT FontIndex*_Portuguese, which is off by one from 0xD7 on.
+// Codepage: Codepage_Spanish (identity in the upper half). The *_Spanish fold tables above are Italian's and
+// Swahili's now. Known-good anchor: a Spanish tooltip with "DA\xD1O" shows N-tilde, the Wirt dialog "\xBFQU\xC9..."
+// shows both marks.
+uchar FontIndexSmall_SpanishAccents[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  54,  44,  57,  58,  56,  55,  47,  40,  41,  59,  39,  50,  37,  51,  52,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  48,  49,  60,  38,  61,  53,
+	 62,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,  63,  43,  64,  65,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  40,  66,  41,  67,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0, 114,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 113,
+	  0,  94,   0,   0,   0,   0,   0,   0,   0,  97,   0,   0,   0,  99,   0,   0,
+	  0, 111,   0, 101,   0,   0,   0,   0,   0,   0, 105,   0, 112,   0,   0,   0,
+	  0,  94,   0,   0,   0,   0,   0,   0,   0,  97,   0,   0,   0,  99,   0,   0,
+	  0, 111,   0, 101,   0,   0,   0,   0,   0,   0, 105,   0, 112,   0,   0,   0,
+};
+uchar FontIndexMid_SpanishAccents[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  56,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  57,
+	  0,  59,   0,   0,   0,   0,   0,   0,   0,  67,   0,   0,   0,  71,   0,   0,
+	  0,  75,   0,  77,   0,   0,   0,   0,   0,   0,  83,   0,  85,   0,   0,   0,
+	  0,  59,   0,   0,   0,   0,   0,   0,   0,  67,   0,   0,   0,  71,   0,   0,
+	  0,  75,   0,  77,   0,   0,   0,   0,   0,   0,  83,   0,  85,   0,   0,   0,
+};
+uchar FontWidthMid_SpanishAccents[ 89 ] = {
+	  5,  15,  10,  13,  14,  10,   9,  13,  11,   5,   5,  11,  10,  16,  13,  16,
+	 10,  15,  12,  10,  14,  17,  17,  22,  17,  16,  11,   5,  11,  11,  11,  10,
+	 11,  11,  11,  11,  15,   5,  10,  18,  15,   8,   6,   6,   7,  10,   9,   6,
+	 10,  10,   5,   5,   5,   5,  11,  12,   5,  11,  15,  15,  15,  15,  15,  15,
+	 15,  13,  10,  10,  10,  10,   5,   5,   5,   5,  14,  13,  16,  16,  16,  16,
+	 16,  16,  16,  17,  17,  17,  17,  16,  14,
+};
+uchar FontIndexBig_SpanishAccents[ 256 ] = {
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	 36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	 16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,  56,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  57,
+	  0,  59,   0,   0,   0,   0,   0,   0,   0,  67,   0,   0,   0,  71,   0,   0,
+	  0,  75,   0,  77,   0,   0,   0,   0,   0,   0,  83,   0,  85,   0,   0,   0,
+	  0,  59,   0,   0,   0,   0,   0,   0,   0,  67,   0,   0,   0,  71,   0,   0,
+	  0,  75,   0,  77,   0,   0,   0,   0,   0,   0,  83,   0,  85,   0,   0,   0,
+};
+uchar FontWidthBig_SpanishAccents[ 89 ] = {
+	 18,  33,  21,  26,  28,  19,  19,  26,  25,  11,  12,  25,  19,  34,  28,  32,
+	 20,  32,  28,  20,  28,  36,  35,  46,  33,  33,  24,  11,  23,  22,  22,  21,
+	 22,  21,  21,  21,  32,  10,  20,  36,  31,  17,  13,  12,  13,  18,  16,  11,
+	 20,  21,  11,  10,  12,  11,  21,  23,  10,  21,  33,  33,  33,  33,  33,  33,
+	 33,  26,  19,  19,  19,  19,  11,  11,  11,  11,  28,  28,  32,  32,  32,  32,
+	 32,  32,  32,  36,  36,  36,  36,  33,  28,
+};
+
+//----- (th4) ----- Polish (LANG_PL) fonts. REAL CP1250 DIACRITICS, self-contained.
+// Polish needs 9 letters English lacks: A-ogonek C-acute E-ogonek L-stroke N-acute
+// O-acute S-acute Z-acute Z-dot. All glyph art ships in TH4loc_pol.mor, which is
+// mounted at 8900 ONLY when language == PL (Windows.cpp), so it can never affect
+// EN/RU/ID/PT/ES/IT/FR. The archive shadows the stock filenames, so NO font loader
+// changes: Panel.cpp / Speeches.cpp / MenuEngine.cpp / LoadFonts() are untouched.
+//
+// Byte encoding is CP1250. Read/write Polish source with Python encoding='cp1250',
+// NEVER 'latin-1'. The greedy-hex C2022 trap applies exactly as it does to PT/RU:
+// use the empty-string break, e.g. "\xA3""ADNY" not "\xA3ADNY".
+//
+// Codepage_Polish upper half is IDENTITY (passthrough, like Cyrillic); the real
+// byte -> letterID map lives in the FontIndex*_Polish tables below.
+uchar Codepage_Polish[ 256 ] = {
+	   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,
+	  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+	  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+	 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,   1,
+	 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+	 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+	 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+	 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+	 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
+	 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+	 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,
+};
+
+// SMALL font (ctrlpan\smaltext.cel, 13x11 cells). The Polish CEL is 93 frames:
+//   frames 0..66  = stock English letterIDs 1..67  (byte-identical to the original)
+//   frames 67..83 = ZERO-BYTE padding for the RU letterID range 68..84 (never drawn:
+//                   StartOffset == EndOffset makes DrawLetter a no-op)
+//   frames 84..92 = Polish letterIDs 85..93
+// Padding keeps Polish clear of RU's FontWidthSmall[68..84] entries without making
+// that shared array per-language. Lowercase CP1250 bytes alias uppercase (caps-only).
+uchar FontIndexSmall_Polish[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  54,  44,  57,  58,  56,  55,  47,  40,  41,  59,  39,  50,  37,  51,  52,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  48,  49,  60,  38,  61,  53,
+	  62,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,  63,  43,  64,  65,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  40,  66,  41,  67,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  91,   0,   0,  92,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  91,   0,   0,  92,
+	   0,   0,   0,  88,   0,  85,   0,   0,   0,   0,   0,   0,   0,   0,   0,  93,
+	   0,   0,   0,  88,   0,   0,   0,   0,   0,  85,   0,   0,   0,   0,   0,  93,
+	   0,   0,   0,   0,   0,   0,  86,   0,   0,   0,  87,   0,   0,   0,   0,   0,
+	   0,  89,   0,  90,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  86,   0,   0,   0,  87,   0,   0,   0,   0,   0,
+	   0,  89,   0,  90,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+
+// MID font (data\medtexts.cel) and BIG font (data\bigtgold.cel), both 89 frames.
+// Polish reuses the Portuguese CEL layout and OVERWRITES 8 accents it never needs
+// (letterIDs 58..65 were A-grave..C-cedilla) with its own. O-acute is left where the
+// Portuguese font already has it, at letterID 77, so the frame count never grows.
+//   58=A-ogonek 59=C-acute 60=E-ogonek 61=L-stroke
+//   62=N-acute  63=S-acute 64=Z-acute  65=Z-dot     77=O-acute (pre-existing)
+uchar FontIndexMid_Polish[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  63,   0,   0,  64,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  63,   0,   0,  64,
+	   0,   0,   0,  61,   0,  58,   0,   0,   0,   0,   0,   0,   0,   0,   0,  65,
+	   0,   0,   0,  61,   0,   0,   0,   0,   0,  58,   0,   0,   0,   0,   0,  65,
+	   0,   0,   0,   0,   0,   0,  59,   0,   0,   0,  60,   0,   0,   0,   0,   0,
+	   0,  62,   0,  77,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  59,   0,   0,   0,  60,   0,   0,   0,   0,   0,
+	   0,  62,   0,  77,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+uchar FontWidthMid_Polish[ 89 ] = {
+	   5,  15,  10,  13,  14,  10,   9,  13,  11,   5,   5,  11,  10,  16,  13,  16,
+	  10,  15,  12,  10,  14,  17,  17,  22,  17,  16,  11,   5,  11,  11,  11,  10,
+	  11,  11,  11,  11,  15,   5,  10,  18,  15,   8,   6,   6,   7,  10,   9,   6,
+	  10,  10,   5,   5,   5,   5,  11,  12,   0,   0,  15,  13,  10,  10,  13,  10,
+	  11,  11,  10,  10,  10,  10,   5,   5,   5,   5,  14,  13,  16,  16,  16,  16,
+	  16,  16,  16,  17,  17,  17,  17,  16,  14,
+};
+uchar FontIndexBig_Polish[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  63,   0,   0,  64,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  63,   0,   0,  64,
+	   0,   0,   0,  61,   0,  58,   0,   0,   0,   0,   0,   0,   0,   0,   0,  65,
+	   0,   0,   0,  61,   0,   0,   0,   0,   0,  58,   0,   0,   0,   0,   0,  65,
+	   0,   0,   0,   0,   0,   0,  59,   0,   0,   0,  60,   0,   0,   0,   0,   0,
+	   0,  62,   0,  77,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  59,   0,   0,   0,  60,   0,   0,   0,   0,   0,
+	   0,  62,   0,  77,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+uchar FontWidthBig_Polish[ 89 ] = {
+	  18,  33,  21,  26,  28,  19,  19,  26,  25,  11,  12,  25,  19,  34,  28,  32,
+	  20,  32,  28,  20,  28,  36,  35,  46,  33,  33,  24,  11,  23,  22,  22,  21,
+	  22,  21,  21,  21,  32,  10,  20,  36,  31,  17,  13,  12,  13,  18,  16,  11,
+	  20,  21,  11,  10,  12,  11,  21,  23,   0,   0,  33,  26,  19,  19,  28,  20,
+	  24,  24,  19,  19,  19,  19,  11,  11,  11,  11,  28,  28,  32,  32,  32,  32,
+	  32,  32,  32,  36,  36,  36,  36,  33,  28,
+};
+
+
+
+//----- (th4) ----- Czech (LANG_CS) fonts. REAL CP1250 DIACRITICS, self-contained, the Polish way.
+// Czech needs 15 capitals English lacks: A E I O U Y with acute, C D E N R S T Z with caron
+// (hacek), U with ring. All glyph art ships in TH4loc_cze.mor, mounted at 8900 ONLY when
+// language == CS (Windows.cpp); it shadows the stock font filenames, so no font loader changed.
+// The pack is REQUIRED for Czech: without it the letterIDs below point past the end of the
+// stock CELs (67 / 55 frames), and DrawLetter does not bounds-check.
+//
+// THE PACK AND THESE TABLES ARE A MATCHED PAIR -- the ids here are the frame numbers inside
+// TH4loc_cze.mor. Change one, rebuild the other:
+//   SMALL (ctrlpan\smaltext.cel, 108 frames): stock 1..67, EMPTY 68..93 (the RU 68..84 and PL
+//     85..93 ranges of the shared FontWidthSmall), Czech 94..108:
+//     94=A-acute  95=C-caron  96=D-caron  97=E-acute  98=E-caron  99=I-acute  100=N-caron  101=O-acute  102=R-caron  103=S-caron  104=T-caron  105=U-acute  106=U-ring  107=Y-acute  108=Z-caron
+//   MID / BIG (data\medtexts.cel, data\bigtgold.cel, 89 frames): the Portuguese accent layout,
+//     acutes kept where PT has them, 9 accents Czech never uses repainted:
+//     58=C-caron  59=A-acute  60=D-caron  61=E-caron  62=N-caron  63=R-caron  64=S-caron  65=T-caron  66=U-ring  67=E-acute  68=Z-caron  71=I-acute  77=O-acute  83=U-acute  86=Y-acute
+// Art: acutes are the PT glyphs; the mid/big caron is PT's E-circumflex flipped and centred on
+// each letter; the small caron (2x3 px) and the small ring are drawn by hand -- at 11 px the
+// extracted marks dragged pieces of the E bar / A apex along. Widths = the base letter's.
+//
+// Codepage_Czech: Polish lower half; the 30 Czech bytes (upper + lower) pass through; every
+// OTHER CP1250 letter folds to its ASCII base (Polish A-ogonek -> A, German U-diaeresis -> U ...)
+// and typographic quotes/dashes fold to ASCII, so a stray byte in a translation draws a letter,
+// never a blank. Lowercase Czech bytes alias the uppercase glyph (the CEL fonts are caps-only).
+// Byte encoding is CP1250; write Czech text as \xNN escapes (see LocalizationCS.cpp header).
+uchar Codepage_Czech[ 256 ] = {
+	   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,
+	  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+	  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+	 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,   1,
+	 128, 129,  44, 131,  34,  46, 134, 135, 136, 137, 138,  60,  83, 141, 142,  90,
+	 144,  39,  39,  34,  34, 149,  45,  45, 152, 153, 154,  62, 115, 157, 158, 122,
+	  32, 161, 162,  76, 164,  65, 166, 167, 168, 169,  83,  60, 172, 173, 174,  90,
+	 176, 177, 178, 108, 180, 181, 182, 183, 184,  97, 115,  62,  76, 189, 108, 122,
+	  82, 193,  65,  65,  65,  76,  67,  67, 200, 201,  69,  69, 204, 205,  73, 207,
+	  68,  78, 210, 211,  79,  79,  79, 120, 216, 217, 218,  85,  85, 221,  84, 115,
+	 114, 225,  97,  97,  97, 108,  99,  99, 232, 233, 101, 101, 236, 237, 105, 239,
+	 100, 110, 242, 243, 111, 111, 111,  47, 248, 249, 250, 117, 117, 253, 116,  39,
+};
+uchar FontIndexSmall_Czech[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  54,  44,  57,  58,  56,  55,  47,  40,  41,  59,  39,  50,  37,  51,  52,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  48,  49,  60,  38,  61,  53,
+	  62,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,  63,  43,  64,  65,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  40,  66,  41,  67,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 103,   0,   0, 104, 108,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 103,   0,   0, 104, 108,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  94,   0,   0,   0,   0,   0,   0,  95,  97,   0,   0,  98,  99,   0,  96,
+	   0,   0, 100, 101,   0,   0,   0,   0, 102, 106, 105,   0,   0, 107,   0,   0,
+	   0,  94,   0,   0,   0,   0,   0,   0,  95,  97,   0,   0,  98,  99,   0,  96,
+	   0,   0, 100, 101,   0,   0,   0,   0, 102, 106, 105,   0,   0, 107,   0,   0,
+};
+uchar FontIndexMid_Czech[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,  65,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,  65,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  59,   0,   0,   0,   0,   0,   0,  58,  67,   0,   0,  61,  71,   0,  60,
+	   0,   0,  62,  77,   0,   0,   0,   0,  63,  66,  83,   0,   0,  86,   0,   0,
+	   0,  59,   0,   0,   0,   0,   0,   0,  58,  67,   0,   0,  61,  71,   0,  60,
+	   0,   0,  62,  77,   0,   0,   0,   0,  63,  66,  83,   0,   0,  86,   0,   0,
+};
+uchar FontWidthMid_Czech[ 89 ] = {
+	   5,  15,  10,  13,  14,  10,   9,  13,  11,   5,   5,  11,  10,  16,  13,  16,
+	  10,  15,  12,  10,  14,  17,  17,  22,  17,  16,  11,   5,  11,  11,  11,  10,
+	  11,  11,  11,  11,  15,   5,  10,  18,  15,   8,   6,   6,   7,  10,   9,   6,
+	  10,  10,   5,   5,   5,   5,  11,  12,   0,   0,  13,  15,  14,  10,  13,  12,
+	  10,  14,  17,  10,  11,  10,   5,   5,   5,   5,  14,  13,  16,  16,  16,  16,
+	  16,  16,  16,  17,  17,  17,  16,  16,  14,
+};
+uchar FontIndexBig_Czech[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,  65,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,  65,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  59,   0,   0,   0,   0,   0,   0,  58,  67,   0,   0,  61,  71,   0,  60,
+	   0,   0,  62,  77,   0,   0,   0,   0,  63,  66,  83,   0,   0,  86,   0,   0,
+	   0,  59,   0,   0,   0,   0,   0,   0,  58,  67,   0,   0,  61,  71,   0,  60,
+	   0,   0,  62,  77,   0,   0,   0,   0,  63,  66,  83,   0,   0,  86,   0,   0,
+};
+uchar FontWidthBig_Czech[ 89 ] = {
+	  18,  33,  21,  26,  28,  19,  19,  26,  25,  11,  12,  25,  19,  34,  28,  32,
+	  20,  32,  28,  20,  28,  36,  35,  46,  33,  33,  24,  11,  23,  22,  22,  21,
+	  22,  21,  21,  21,  32,  10,  20,  36,  31,  17,  13,  12,  13,  18,  16,  11,
+	  20,  21,  11,  10,  12,  11,  21,  23,   0,   0,  26,  33,  28,  19,  28,  28,
+	  20,  28,  36,  19,  24,  19,  11,  11,  11,  11,  28,  28,  32,  32,  32,  32,
+	  32,  32,  32,  36,  36,  36,  33,  33,  28,
+};
+
+//----- (th4) ----- Croatian (LANG_HR) fonts. CP1250, self-contained in TH4loc_hrv.mor (loc toolkit, fonts/hr_fonts.py).
+// Croatian needs C-caron, C-acute, D-stroke, S-caron, Z-caron. The pack carries the CZECH CEL fonts plus two frames,
+// so Croatian reuses the Czech ids where the letter is the same glyph:
+//   SMALL (smaltext, 110 frames): C-caron 95, S-caron 103, Z-caron 108 (the Czech frames), C-acute 109 (the Polish
+//     glyph), D-stroke 110 (the Portuguese Eth). FontWidthSmall[109..110] appended after the Czech 94..108.
+//   MID / BIG (89 frames, Portuguese layout): C-caron 58, S-caron 64, Z-caron 68 (Czech), C-acute 69 (repainted
+//     E-diaeresis slot, the Polish glyph), D-stroke 74 (the Portuguese Eth, unchanged).
+// THE PACK AND THESE TABLES ARE A MATCHED PAIR. The pack is REQUIRED for Croatian (ids past the stock CELs).
+// Codepage_Croatian: Polish/Czech lower half; the 10 Croatian bytes pass through; every OTHER CP1250 letter (Czech
+// r-caron, Polish ogonek...) and typographic quotes/dashes fold to ASCII, so a stray byte draws, never blanks.
+// S-caron: write it as the lowercase byte 0x9A in anything the in-game fonts draw (0x8A is a colour code).
+uchar Codepage_Croatian[ 256 ] = {
+	   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+	  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  79,
+	  80,  81,  82,  83,  84,  85,  86,  87,  88,  89,  90,  91,  92,  93,  94,  95,
+	  96,  97,  98,  99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111,
+	 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,   1,
+	 128, 129,  44, 131,  34,  46, 134, 135, 136, 137, 138,  60,  83,  84, 142,  90,
+	 144,  39,  39,  34,  34, 149,  45,  45, 152, 153, 154,  62, 115, 116, 158, 122,
+	  32, 161, 162,  76, 164,  65, 166, 167, 168, 169,  83,  60, 172, 173, 174,  90,
+	 176, 177, 178, 108, 180, 181, 182, 183, 184,  97, 115,  62,  76, 189, 108, 122,
+	  82,  65,  65,  65,  65,  76, 198,  67, 200,  69,  69,  69,  69,  73,  73,  68,
+	 208,  78,  78,  79,  79,  79,  79, 120,  82,  85,  85,  85,  85,  89,  84, 115,
+	 114,  97,  97,  97,  97, 108, 230,  99, 232, 101, 101, 101, 101, 105, 105, 100,
+	 240, 110, 110, 111, 111, 111, 111,  47, 114, 117, 117, 117, 117, 121, 116,  39,
+};
+uchar FontIndexSmall_Croatian[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  54,  44,  57,  58,  56,  55,  47,  40,  41,  59,  39,  50,  37,  51,  52,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  48,  49,  60,  38,  61,  53,
+	  62,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,  63,  43,  64,  65,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  40,  66,  41,  67,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 103,   0,   0,   0, 108,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 103,   0,   0,   0, 108,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0, 109,   0,  95,   0,   0,   0,   0,   0,   0,   0,
+	 110,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0, 109,   0,  95,   0,   0,   0,   0,   0,   0,   0,
+	 110,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+uchar FontIndexMid_Croatian[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,  48,  46,  49,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  48,   0,  49,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,   0,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,   0,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  69,   0,  58,   0,   0,   0,   0,   0,   0,   0,
+	  74,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  69,   0,  58,   0,   0,   0,   0,   0,   0,   0,
+	  74,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+uchar FontWidthMid_Croatian[ 89 ] = {
+	   5,  15,  10,  13,  14,  10,   9,  13,  11,   5,   5,  11,  10,  16,  13,  16,
+	  10,  15,  12,  10,  14,  17,  17,  22,  17,  16,  11,   5,  11,  11,  11,  10,
+	  11,  11,  11,  11,  15,   5,  10,  18,  15,   8,   6,   6,   7,  10,   9,   6,
+	  10,  10,   5,   5,   5,   5,  11,  12,   0,   0,  13,  15,  14,  10,  13,  12,
+	  10,  14,  17,  10,  11,  13,   5,   5,   5,   5,  14,  13,  16,  16,  16,  16,
+	  16,  16,  16,  17,  17,  17,  16,  16,  14,
+};
+uchar FontIndexBig_Croatian[ 256 ] = {
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,  37,  49,  38,   0,  39,  40,  47,  42,  43,  41,  45,  52,  44,  53,  55,
+	  36,  27,  28,  29,  30,  31,  32,  33,  34,  35,  51,  50,   0,  46,   0,  54,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  42,   0,  43,   0,   0,
+	   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  20,   0,  21,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,   0,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  64,   0,   0,   0,  68,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  69,   0,  58,   0,   0,   0,   0,   0,   0,   0,
+	  74,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+	   0,   0,   0,   0,   0,   0,  69,   0,  58,   0,   0,   0,   0,   0,   0,   0,
+	  74,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+uchar FontWidthBig_Croatian[ 89 ] = {
+	  18,  33,  21,  26,  28,  19,  19,  26,  25,  11,  12,  25,  19,  34,  28,  32,
+	  20,  32,  28,  20,  28,  36,  35,  46,  33,  33,  24,  11,  23,  22,  22,  21,
+	  22,  21,  21,  21,  32,  10,  20,  36,  31,  17,  13,  12,  13,  18,  16,  11,
+	  20,  21,  11,  10,  12,  11,  21,  23,   0,   0,  26,  33,  28,  19,  28,  28,
+	  20,  28,  36,  19,  24,  26,  11,  11,  11,  11,  28,  28,  32,  32,  32,  32,
+	  32,  32,  32,  36,  36,  36,  33,  33,  28,
+};
+
+
+// ---- Codepage: LATIN (original content) + CYRILLIC, with active pointer ----
+uchar Codepage_Latin[ 256 ] = {
 	0,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
 	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
 	32,	33,	34,	35,	36,	37,	38,	39,	40,	41,	42,	43,	44,	45,	46,	47,
@@ -2585,6 +3862,34 @@ uchar Codepage[ 256 ] = {
 	97,	97,	97,	97,	97,	97,	97,	99,101,101,101,101,105,105,105,105,
 	111,110,111,111,111,111,111,47,	48,117,117,117,117,121,	98,121	
 };
+
+// CYRILLIC: lower 128 == Latin (so ASCII renders normally); upper half is IDENTITY
+// (Codepage_Cyrillic[b]=b) so high bytes pass straight into FontIndexSmall_Cyrillic,
+// where the actual CP1251 byte->frame mapping lives.
+uchar Codepage_Cyrillic[ 256 ] = {
+	0,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
+	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
+	32,	33,	34,	35,	36,	37,	38,	39,	40,	41,	42,	43,	44,	45,	46,	47,
+	48,	49,	50,	51,	52,	53,	54,	55,	56,	57,	58,	59,	60,	61,	62,	63,
+	64,	65,	66,	67,	68,	69,	70,	71,	72,	73,	74,	75,	76,	77,	78,	79,
+	80,	81,	82,	83,	84,	85,	86,	87,	88,	89,	90,	91,	92,	93,	94,	95,
+	96,	97,	98,	99,100,101,102,103,104,105,106,107,108,109,110,111,
+	112,113,114,115,116,117,118,119,120,121,122,123,124,125,126, 1,
+	// 0x80..0xFF : identity passthrough
+	128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+	144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+	160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+	176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+	192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
+	208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,
+	224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
+	240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
+};
+
+// Active Codepage (default Latin). InitLocalization() may repoint to Cyrillic.
+// CodepagePtr (defined in vars.h) wraps the subscript to use an unsigned byte index,
+// fixing the latent signed-char OOB at the ~26 call sites that do Codepage[*s].
+CodepagePtr Codepage = { Codepage_Latin };
 
 // Fargus executable is 1.01, addresses are ok
 namespace Fargus
@@ -2680,7 +3985,7 @@ namespace Stream
 	};
 }
 
-// используются при отрисовке
+// (rt) used when drawing
 // 0x004B6EFD
 int DwordArray_2[48] = { 
 	0, 0, 0, 4, 4, 4, 8, 8, 8, 12, 12, 12, 16, 16, 16, 20, 20, 20,
@@ -2696,7 +4001,7 @@ int DwordArray_4[17] = {
 		0xC0, 0xD0, 0xDC, 0xE8, 0xF0, 0xF8, 0xFC, 0x100, 0x120 
 };
 
-//char InfoPanelHeader[MAX_PATH]; // дубликат со StingBuffer бывший 
+//(rt) char InfoPanelHeader[MAX_PATH]; // formerly a duplicate of StingBuffer 
 char InfoPanel4Lines[16][64];// 004D1400
 int InfoPanelLinesCentered[16];// 004D1180
 int InfoPanelLinesUsed; // 004D1190
@@ -2709,10 +4014,10 @@ uchar CurTalkPanelIndex;
 char TalkPanelIndex;
 int PentSpn2PicIndex;
 char TalkPanelMessage[80];
-uchar* MainPanelImage; // декодированные (чистые пиксели) имеют тип uchar*
-char* CtrlPan_TalkButtCEL; // не декодированные CEL данные имеют тип char*
-uchar* LifeShereImage; // декодированный (uchar*)
-uchar* ManaShereImage; // декодированный (uchar*)
+uchar* MainPanelImage; // (rt) decoded (plain pixel) data is of type uchar*
+char* CtrlPan_TalkButtCEL; // (rt) undecoded CEL data is of type char*
+uchar* LifeShereImage; // (rt) decoded (uchar*)
+uchar* ManaShereImage; // (rt) decoded (uchar*)
 Item UniqueInfo;
 uchar IconColors[256];
 uchar IconColorsDisabled[256];
@@ -2757,15 +4062,15 @@ Menu MPMainMenu[5] = {
 };
 // 004A0540
 Menu OptionsMenu[8] = {
-		{MENU_ENABLED | MENU_SLIDER,	0,  MusicMenuHandler},
-		{MENU_ENABLED | MENU_SLIDER,	0,  AmbientMenuHandler},
-		{MENU_ENABLED | MENU_SLIDER,	0,  SoundMenuHandler},
-		{MENU_ENABLED | MENU_SLIDER,	"Gamma",  GammaMenuHandler},
-		{MENU_ENABLED | MENU_SLIDER,	"Contrs",	ContrastMenuHandler},
-		{MENU_ENABLED | MENU_SLIDER,	0,  WalkMenuHandler},
-		{MENU_ENABLED,	 "Previous Menu",	 GoBackMenuHandler},// 0 // "Go Back"
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	0,  MusicMenuHandler},
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	0,  AmbientMenuHandler},
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	0,  SoundMenuHandler},
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	"Gamma",  GammaMenuHandler},
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	"Contrs",	ContrastMenuHandler},
+		{(uint)(MENU_ENABLED | MENU_SLIDER),	0,  WalkMenuHandler},
+		{(uint)(MENU_ENABLED),	 "Previous Menu",	 GoBackMenuHandler},// 0 // "Go Back"
 		//{MENU_ENABLED,	 "More Options",	 ConfigMenuHandler},
-		{MENU_ENABLED, 0, 0}
+		{(uint)(MENU_ENABLED), 0, 0}
 };
 
 Menu MurderConfirmationMenu[5] = {
@@ -2896,11 +4201,11 @@ char* Elements[ET_COUNT] = {
 	"Physical",	// ET_0_PHYSICAL = 0,
 	"Fire",		// ET_1_FIRE = 1,
 	"Lightning",// ET_2_LIGHTNING = 2,
-	"Arcane",	// ET_3_ARCAN = 3,
+	"Magic",	// ET_3_ARCAN = 3,
 	"Acid",		// ET_4_ACID = 4,
 	"Holy",		// ET_5_HOLY = 5, // th2
-	"Cold",		// ET_6_COLD = 6, // новые
-	//"Curse",	// ET_7_CURSE = 7, // уже восемь типов магии (byte mask full)
+	"Cold",		// (rt) ET_6_COLD = 6, // new
+	//(rt) "Curse",	// ET_7_CURSE = 7, // already eight magic types (byte mask full)
 };
 
 char* Spicies[MON_count] = {
