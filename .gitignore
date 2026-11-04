@@ -4,6 +4,7 @@ build/
 *.vcxproj.user
 *.vcxproj.filters
 personal.props
+!scripts/personal.props
 .vs
 .vscode
 .idea
