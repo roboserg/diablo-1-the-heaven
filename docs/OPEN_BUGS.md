@@ -15,8 +15,6 @@ Each was reproduced by the autotest (`scripts\autotest.ps1`, see `docs\BUILD.md`
 | 3 | [Magic items change once after they drop](#3-magic-items-change-once-after-they-drop) | The Heaven | Found by the autotest | Autotest: 9 in 10 magic drops change at the first 5-second item check | Skip: players don't see it |
 | 3 | [Magic items morph between characters](#3-magic-items-morph-between-characters) | Base TH4 | Rageweaver, kishak95 and others | Autotest: items a Warrior stashed come out different for a Classic Mage | Skip: the shared stash locks them |
 | 11 | [A crash between the two shared stash writes can duplicate or lose items](#11-crash-between-the-two-shared-stash-writes) | The Heaven | StArchon (godroll) | Code: the shared stash and the character are two files, written one after the other | Skip: a window of milliseconds |
-| 13 | [Without TH4data.mor, the error blames DIABDAT.MPQ](#13-without-th4datamor-the-error-blames-diabdatmpq) | Base TH4 (Diablo's insert-CD dialog) | Blueplane and two guests (ModDB, 1 Apr, 3 Apr, 28 Jun) | Code: a file missing from every archive opens dialog 112, whose text always names DIABDAT.MPQ | Not decided |
-| 14 | [Infernal Bargain gives no perk points with Skilled, Lord of the Rings or Grim Deal](#14-infernal-bargain-gives-no-perk-points-with-skilled-lord-of-the-rings-or-grim-deal) | The Heaven (re-enabled it in v0.0.3) | A guest playing an Archer (ModDB, 15 Aug) | Code: `getPlayerPerksPointsLeft()` adds its points only without those traits, while its penalties always apply | Not decided |
 
 ## Player reports, not confirmed
 
@@ -54,10 +52,3 @@ Reports:
 ### 11. Crash between the two shared stash writes
 StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [StArchon's cases](FIXED_BUGS.md#shared-stash-starchons-cases)).
 
-### 13. Without TH4data.mor, the error blames DIABDAT.MPQ
-Blueplane ([ModDB](https://www.moddb.com/mods/diablo-1-the-heaven), 1 Apr): "The Heaven cannot access DIABDAT.MPQ" on loading after creating a character. Copying the TH4 files into the folder fixed it (10 Apr). A guest got the same error in Korean (3 Apr), another one couldn't get into the game (28 Jun), and a third guest answered that `TH4data.mor` must be in the folder (4 Jul).
-- **Cause:** The Heaven opens `TH4data.mor` as optional (`Windows.cpp`), so the game starts without it. When a file is missing from every archive, `File_RestoreAccess()` in `File.cpp` opens dialog 112 (`InsertCDDlg()`), Diablo's insert-CD dialog, whose text in `theheaven.rc` always says DIABDAT.MPQ. The same happens with a `TH4data.mor` from an older TH4.
-- **Fixing it:** check at start that `TH4data.mor` is there and from v0.774, and say so by name; and name the missing file in dialog 112.
-
-### 14. Infernal Bargain gives no perk points with Skilled, Lord of the Rings or Grim Deal
-A guest ([ModDB](https://www.moddb.com/mods/diablo-1-the-heaven), 15 Aug): Infernal Bargain doesn't work for their Archer. The class doesn't matter: `getPlayerPerksPointsLeft()` in `Perks.cpp` adds the synergy's extra perk points only in the branch for heroes without the Skilled, Lord of the Rings and Grim Deal traits, while its lower regeneration and stats (`Item.cpp`) always apply. Base TH4 had the synergy turned off; The Heaven turned it on for everyone in v0.0.3.

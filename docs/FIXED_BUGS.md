@@ -6,8 +6,8 @@ What was fixed since v0.3.0. When the next version ships, move the table into `C
 
 | Fix | Commit | Was |
 |---|---|---|
-
-Nothing yet.
+| Without `TH4data.mor` the game stops at the start and names it, and a file missing from the archives gives an error that names that file and both data files. Both used to blame DIABDAT.MPQ. The autotest runs without `TH4data.mor` and asks for a file no archive has. Blueplane and two guests reported it on ModDB. | dda655e | Bug 13 |
+| Infernal Bargain gives its perk points with Skilled, Lord of the Rings and Grim Deal. They got its lower regeneration and stats but none of its points. The autotest takes each trait at rank 1 and the top rank. A guest on ModDB reported it with an Archer. | 5182bbb | Bug 14 |
 
 ## Details of the v0.3.0 fixes
 
