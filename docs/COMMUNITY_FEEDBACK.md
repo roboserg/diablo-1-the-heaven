@@ -115,7 +115,7 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
 - From GitHub [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3):
   - the original town NPC greetings (Cain, Griswold, Adria)
   - a special drop sound for unique and set items
-  - a shared stash in multiplayer
+  - a shared stash in multiplayer (done in v0.2.0: every character shares it)
   - more players per multiplayer game
 - **Both stashes at Gillian,** with a choice of which to open (Rageweaver, 3 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489621478646354080)).
 - **Unanswered question:** is the drop split 70% smart drop / 30% parent class, or 100%? (Rageweaver, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489280883126173896))
