@@ -15,7 +15,7 @@
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
 //          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
-//          the doubled stat cap,
+//          the doubled stat cap, a perk reset with Ostentation,
 //          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
@@ -535,6 +535,7 @@ map<int, string> Manifest;
 set<int>         UnlockedForMage;
 int              TestSeed = 0;
 int              SavedStats[4] = {}, StatSumAtCap = 0, ElixirsDrunk = 0;
+int              StatSumBeforeReset = 0, PerksAfterReset = 0;
 int              PersonalSeed = 0, HeldSeed = 0, EnchantSeed = 0, GemSeed = 0;
 i64              SaveTimeBefore = 0;
 vector<DropInfo> RebuildWatch; // magic items to watch in the inventory: those that kept changing first
@@ -737,6 +738,49 @@ void BuildMain()
 		Check( "stats at the cap are drawn gold (bug 5)", CannotIncreaseStat( CurrentPlayerIndex ) == 1 );
 		short* base[4] = { &p.BaseStrength, &p.BaseMagic, &p.BaseDexterity, &p.BaseVitality };
 		for( int s = 0; s < 4; ++s ) *base[s] = SavedStats[s];
+		RecalcPlayer( CurrentPlayerIndex, true );
+		return Next;
+	} } );
+
+	Steps.push_back( { "perk reset with Ostentation", []{
+		// Godroll locks Raise the Bar, Thaumaturgy and Ostentation against a perk reset:
+		// they raise attribute limits, and lowering a limit cuts base stats above it without
+		// refunding them. The hero takes Ostentation and another perk, drinks elixirs up to the
+		// raised cap, then resets its perks at Griswold's for gold
+		Player& p = Hero();
+		short* base[4] = { &p.BaseStrength, &p.BaseMagic, &p.BaseDexterity, &p.BaseVitality };
+		for( int s = 0; s < 4; ++s ){ SavedStats[s] = *base[s]; *base[s] = 15; }
+		p.perk[SYNERGY_OSTENTATION] = 1;
+		p.perk[PERK_SWIFT_LEARNER] = 1;
+		RecalcPlayer( CurrentPlayerIndex, true );
+		Item elixir {};
+		elixir.MagicCode = MC_44_SPECTRAL_ELIXIR;
+		for( int n = 0; n < 1000 && UsePotionOrScroll( CurrentPlayerIndex, &elixir ); ++n );
+		StatSumBeforeReset = CalcCharBaseStatSum( p );
+		VisualTrade_AddGoldToInventory( 1000 * p.CharLevel );
+		VisualTrade_ResetPerks();
+		PerksAfterReset = 0;
+		for( int k = 0; k < PERKS_SYNERGY_MAX_750; ++k ) if( p.perk[k] ) ++PerksAfterReset;
+		return 2 * ENGINE_FPS;
+	} } );
+
+	Steps.push_back( { "perk reset: 2 seconds later", []{
+		Player& p = Hero();
+		int now = CalcCharBaseStatSum( p );
+		Check( "a perk reset doesn't take away base stats above the cap Ostentation raised", now >= StatSumBeforeReset - 4,
+			Fmt( "stat sum %d before the reset, %d after", StatSumBeforeReset, now ) );
+		Check( "the reset keeps Ostentation then, and resets the other perks", p.perk[SYNERGY_OSTENTATION] == 1 && p.perk[PERK_SWIFT_LEARNER] == 0,
+			Fmt( "Ostentation %d, Swift Learner %d, %d perks left", (int)p.perk[SYNERGY_OSTENTATION], (int)p.perk[PERK_SWIFT_LEARNER], PerksAfterReset ) );
+		p.perk[SYNERGY_OSTENTATION] = 0;
+		short* base[4] = { &p.BaseStrength, &p.BaseMagic, &p.BaseDexterity, &p.BaseVitality };
+		for( int s = 0; s < 4; ++s ) *base[s] = SavedStats[s];
+		RecalcPlayer( CurrentPlayerIndex, true );
+		// below the cap without it, nothing is lost: then the reset takes Ostentation too
+		p.perk[SYNERGY_OSTENTATION] = 1;
+		VisualTrade_AddGoldToInventory( 1000 * p.CharLevel );
+		VisualTrade_ResetPerks();
+		Check( "below the cap without Ostentation, the reset takes it too", p.perk[SYNERGY_OSTENTATION] == 0 );
+		p.perk[SYNERGY_OSTENTATION] = 0;
 		RecalcPlayer( CurrentPlayerIndex, true );
 		return Next;
 	} } );

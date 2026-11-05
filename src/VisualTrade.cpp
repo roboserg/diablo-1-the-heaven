@@ -1505,7 +1505,22 @@ void VisualTrade_ResetPerks()
         return;
     }
     ClearGoldByInventoryAsPrice(price);
+    // (heaven) Raise the Bar, Thaumaturgy and Ostentation raise attribute limits. Without them
+    // the game cuts base stats above the lower limits every tick and never gives them back,
+    // so the reset keeps these three when dropping them would cut stats (idea from Godroll)
+    const PERKS limitPerks[] = { PERK_RAISE_THE_BAR, SYNERGY_THAUMATURGY, SYNERGY_OSTENTATION };
+    char kept[countof(limitPerks)];
+    for( size_t k = 0; k < countof(limitPerks); ++k ){ kept[k] = plr.perk[limitPerks[k]]; plr.perk[limitPerks[k]] = 0; }
+    const PlayerStat maxStat = GetPlayerMaxStat( CurrentPlayerIndex );
+    bool wouldCut = CalcCharBaseStatSum( plr ) > StatSumCap( CurrentPlayerIndex )
+        || plr.BaseStrength > maxStat.Strength || plr.BaseMagic > maxStat.Magic
+        || plr.BaseDexterity > maxStat.Dexterity || plr.BaseVitality > maxStat.Vitality;
+    for( size_t k = 0; k < countof(limitPerks); ++k ) plr.perk[limitPerks[k]] = kept[k];
+    if( wouldCut ){
+        AddWorldMessage( (char*)L("Perks that raise attribute limits are kept") );
+    }
     for( int p = 0; p < PERKS_SYNERGY_MAX_750; ++p ){
+        if( wouldCut && is(p, PERK_RAISE_THE_BAR, SYNERGY_THAUMATURGY, SYNERGY_OSTENTATION) ) continue;
         if( plr.perk[p] != 0 ){
             plr.perk[p] = 0;
             NetSendCmdParam2(1, CMD_105_SETPERK, p, 0);
