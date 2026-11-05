@@ -2,9 +2,9 @@
 
 What is left to fix: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
-When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 13, so links to the old numbers keep working.
+When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 15, so links to the old numbers keep working.
 
-Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
+Reports from the comments on the [ModDB page](https://www.moddb.com/mods/diablo-1-the-heaven) say so; sign in as RobosergTV to see the comments that wait for approval. Every other report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
 ## Confirmed bugs
 
@@ -15,6 +15,8 @@ Each was reproduced by the autotest (`scripts\autotest.ps1`, see `docs\BUILD.md`
 | 3 | [Magic items change once after they drop](#3-magic-items-change-once-after-they-drop) | The Heaven | Found by the autotest | Autotest: 9 in 10 magic drops change at the first 5-second item check | Skip: players don't see it |
 | 3 | [Magic items morph between characters](#3-magic-items-morph-between-characters) | Base TH4 | Rageweaver, kishak95 and others | Autotest: items a Warrior stashed come out different for a Classic Mage | Skip: the shared stash locks them |
 | 11 | [A crash between the two shared stash writes can duplicate or lose items](#11-crash-between-the-two-shared-stash-writes) | The Heaven | StArchon (godroll) | Code: the shared stash and the character are two files, written one after the other | Skip: a window of milliseconds |
+| 13 | [Without TH4data.mor, the error blames DIABDAT.MPQ](#13-without-th4datamor-the-error-blames-diabdatmpq) | Base TH4 (Diablo's insert-CD dialog) | Blueplane and two guests (ModDB, 1 Apr, 3 Apr, 28 Jun) | Code: a file missing from every archive opens dialog 112, whose text always names DIABDAT.MPQ | Not decided |
+| 14 | [Infernal Bargain gives no perk points with Skilled, Lord of the Rings or Grim Deal](#14-infernal-bargain-gives-no-perk-points-with-skilled-lord-of-the-rings-or-grim-deal) | The Heaven (re-enabled it in v0.0.3) | A guest playing an Archer (ModDB, 15 Aug) | Code: `getPlayerPerksPointsLeft()` adds its points only without those traits, while its penalties always apply | Not decided |
 
 ## Player reports, not confirmed
 
@@ -26,6 +28,7 @@ Nobody reproduced these. Each needs an answer from the player.
 | "Stash from griswold: Caution is bugged" | Marcototech, 25 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375)) | One line in his list of the mod's features, so most likely a warning about bug 1, fixed | Close |
 | His Book of Healing went missing | Rageweaver, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)) | He thinks it went missing before kishak95's stash fix, so bug 1 | Close |
 | Black Death and its Symptoms tree in a game where he says he only picked Easy, That's My Secret and Acceleration (the rest of bug 9; its pause menu title is fixed) | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508856317425483958)); issue #3: "Symptoms tree? For what are they?" | Not reproduced. The Symptoms tree shows only with Black Death on. Easy never lists Black Death, a click toggles only a game changer the list shows, and going back to the mode screen clears all game changers | Ask for the save file or a screenshot of the game changers |
+| Rare items with requirements above the hero's level drop on very low levels and are useless | A guest (ModDB, 15 Aug) | Not checked. Rare drops have their own chance since v0.0.3 (The Heaven) | Check which item level rare drops roll with |
 
 ## Details
 
@@ -51,3 +54,10 @@ Reports:
 ### 11. Crash between the two shared stash writes
 StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [StArchon's cases](FIXED_BUGS.md#shared-stash-starchons-cases)).
 
+### 13. Without TH4data.mor, the error blames DIABDAT.MPQ
+Blueplane ([ModDB](https://www.moddb.com/mods/diablo-1-the-heaven), 1 Apr): "The Heaven cannot access DIABDAT.MPQ" on loading after creating a character. Copying the TH4 files into the folder fixed it (10 Apr). A guest got the same error in Korean (3 Apr), another one couldn't get into the game (28 Jun), and a third guest answered that `TH4data.mor` must be in the folder (4 Jul).
+- **Cause:** The Heaven opens `TH4data.mor` as optional (`Windows.cpp`), so the game starts without it. When a file is missing from every archive, `File_RestoreAccess()` in `File.cpp` opens dialog 112 (`InsertCDDlg()`), Diablo's insert-CD dialog, whose text in `theheaven.rc` always says DIABDAT.MPQ. The same happens with a `TH4data.mor` from an older TH4.
+- **Fixing it:** check at start that `TH4data.mor` is there and from v0.774, and say so by name; and name the missing file in dialog 112.
+
+### 14. Infernal Bargain gives no perk points with Skilled, Lord of the Rings or Grim Deal
+A guest ([ModDB](https://www.moddb.com/mods/diablo-1-the-heaven), 15 Aug): Infernal Bargain doesn't work for their Archer. The class doesn't matter: `getPlayerPerksPointsLeft()` in `Perks.cpp` adds the synergy's extra perk points only in the branch for heroes without the Skilled, Lord of the Rings and Grim Deal traits, while its lower regeneration and stats (`Item.cpp`) always apply. Base TH4 had the synergy turned off; The Heaven turned it on for everyone in v0.0.3.

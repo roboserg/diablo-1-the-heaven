@@ -1,9 +1,10 @@
 # Community Feedback
 
-Feature requests and feedback from players, collected from three places:
+Feature requests and feedback from players, collected from four places:
 - the `#the-heaven` channel on **The Hell 4 mod** Discord server (all 144 messages, 25 May – 5 Nov 2026)
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
+- the comments on the [ModDB page](https://www.moddb.com/mods/diablo-1-the-heaven) (all 11, 1 Apr – 31 Oct 2026; sign in as RobosergTV to see the ones that wait for approval)
 
 **Bugs that are still open, confirmed or not, are in [OPEN_BUGS.md](OPEN_BUGS.md).** What was fixed since the last release, and the reports that turned out to be by design, are in [FIXED_BUGS.md](FIXED_BUGS.md); what each release changed is in [CHANGELOG.md](CHANGELOG.md).
 
@@ -118,6 +119,7 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
   - a shared stash in multiplayer (done in v0.2.0: every character shares it)
   - more players per multiplayer game
 - **Both stashes at Gillian,** with a choice of which to open (Rageweaver, 3 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489621478646354080)).
+- **Change an existing character's difficulty, and move characters from single player to multiplayer** (a guest, [ModDB](https://www.moddb.com/mods/diablo-1-the-heaven), 22 Apr).
 - **Unanswered question:** is the drop split 70% smart drop / 30% parent class, or 100%? (Rageweaver, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489280883126173896))
 
 ### Gorvex's suggestion list
