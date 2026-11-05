@@ -2,6 +2,35 @@
 
 All notable changes to Diablo: The Heaven will be documented in this file.
 
+## [0.3.0] - 2026-11-05
+
+**Needs The Hell 4 v0.774.** The Heaven is now built on The Hell 4 v0.774 (October 2026). Copy `TH4data.mor` from TH4 v0.774 into the game folder; one from an older TH4 won't work. The README links a backup copy. Characters, Griswold's stash and the shared stash from v0.2.0 carry over unchanged.
+
+### Changed
+- **Built on The Hell 4 v0.774**: brings everything TH4 added up to v0.774, including sigils and pixel light.
+- **Shared stash locks items that would change**: TH4 rebuilds items for the character who loads them, so a magic staff or book, an item in Classic mode, a socketed white item, a shop item or Night Kin and Clean Hands gold can come out different for another character. Such items are drawn red, can't be taken out, and stay as they were for the character who stashed them.
+- **Perk reset keeps perks whose benefit stays**: Here and Now (a full level), Educated, Higher Education and Overwhelm (stat points at every level-up) and Heavy Drinker (elixirs). Raise the Bar, Thaumaturgy and Ostentation are kept when dropping them would cut stats. The tooltip lists them.
+- **-light radius is back on unique and set items**: v0.1.0 removed it with the penalties, but archers and mages use it to pull fewer monsters.
+- **Quick save (F9) refuses while an item is held** on the cursor.
+
+### Fixed
+- **Stash items lost or duplicated**: Griswold's stash no longer loses or duplicates items around Gillian's shared stash. The shared stash is saved together with the character.
+- **Items lost in saves and loads**: F9/F12 quick save and load, loading a save from the menu, the once-a-minute autosave and quitting no longer lose or duplicate an item held on the cursor or left in Cain's, Adria's or Griswold's windows.
+- **Magic items flipping**: magic items no longer switch between two versions every 5 seconds, with affixes and "Not Identified" coming and going.
+- **Penalties left on unique and set items**: +damage from enemies, -stun threshold, -melee and -ranged absorption, -elemental, spell and weapon %, and negative armour are gone from the stats and the tooltips. Trade-offs, like moving life to mana, stay.
+- **Doubled stat cap**: elixirs and shrines raise stats up to it and they stay there, and stats at the cap turn gold. Before, the game cut them back to the old cap.
+- **Perk reset took away base stats** above the limits Raise the Bar, Thaumaturgy and Ostentation raise.
+- **Sound and music volume** no longer go up a bar on every restart (base TH4).
+- **Unarmed damage** keeps its base with items that change base damage (base TH4).
+- **Sisyphean Task** lists the perks it blocks.
+- **Pixel light** works: the shipped `config.ini` turns it on.
+- **Pause menu title** is readable in the dungeon.
+
+### Known issues
+- A magic item can come out different for another class or in Classic mode (base TH4). The shared stash locks such items.
+- Most magic items change once, a few seconds after they drop and before they're identified.
+- A crash at the exact moment the shared stash and the character are saved can duplicate or lose items.
+
 ## [0.2.0] - 2026-03-30
 
 ### Added

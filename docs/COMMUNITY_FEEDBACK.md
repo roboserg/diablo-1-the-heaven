@@ -5,11 +5,11 @@ Feature requests and feedback from players, collected from three places:
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
-**Bugs that are still open, confirmed or not, are in [OPEN_BUGS.md](OPEN_BUGS.md).** What `th4-v0.774-base` fixed, and the reports that turned out to be by design, are in [FIXED_BUGS.md](FIXED_BUGS.md).
+**Bugs that are still open, confirmed or not, are in [OPEN_BUGS.md](OPEN_BUGS.md).** What was fixed since the last release, and the reports that turned out to be by design, are in [FIXED_BUGS.md](FIXED_BUGS.md); what each release changed is in [CHANGELOG.md](CHANGELOG.md).
 
 Features that players praise or ask for in the other TH4 sub-mods' channels (`#antigrind` and `#godroll`) are in [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md).
 
-The latest release is still v0.2.0 (30 March 2026). The `th4-v0.774-base` branch, not released yet, rebases on TH4 v0.774, which brings sigils and pixel light back.
+The latest release is v0.3.0 (5 November 2026). It rebases on TH4 v0.774, which brings sigils and pixel light back.
 
 Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `#modding` thread. They open in Discord, and you must be signed in and a member of the server.
 
@@ -96,13 +96,13 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
 - **Rebase on the latest TH4.** Mordor has released the latest TH4 source in the downloads section of [patreon.com/thmod](https://www.patreon.com/thmod/about) (Slack Daddy, 14 Oct, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1559691391121104967); Nikodemsky, 4 Nov, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1567663591039959160)). It would bring:
   - pixel light (Rageweaver, 2 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489260002702262423)). Gorvex advised waiting for the newer source instead of porting it by hand.
   - the Wirt power-up and sigils (Ponder, 2 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511302320934228008); Tharunes missed the sigils, 25 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508582352429777048))
-  - **Done on `th4-v0.774-base`** (not released yet): it rebases on TH4 v0.774 (13 Oct 2026). Sigils are back and pixel light works. The Wirt power-up isn't checked yet.
+  - **Done in v0.3.0**: it rebases on TH4 v0.774 (13 Oct 2026). Sigils are back and pixel light works. The Wirt power-up isn't checked yet.
 - **Remove VISE in single player** (VISE is what players call not being able to save or town-portal during combat). Rageweaver calls it the most-asked feature after the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489271217545412700)).
 - **Multiplayer trading and more than 4 players** (Danycron, 30 Mar).
   - Zgeg (26 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508654276639981649)) and UbergamR (12 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536859083250999357)) also asked about trading. Itadori's group can't pass items between players (9 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535848055574761583)).
   - You released an experimental 8-player build on 31 Mar ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488550931464458383)); no one reported back on it.
 - **5x XP in multiplayer.** Itadori, 14 Aug: the 5x XP option doesn't work in multiplayer and they'd like it to ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537844932948263002)). Their group plays TH4 with the Anti-Grind submod in multiplayer and The Heaven in single player.
-- **Keep -light radius** on uniques. **Done on `th4-v0.774-base`** (not released yet): see [FIXED_BUGS.md](FIXED_BUGS.md).
+- **Keep -light radius** on uniques. **Done in v0.3.0.**
 
 ### Other requests
 - **Hardcore:** a scaling XP bonus like Survival or Ironman, and the shared stash as continuity between hardcore deaths (Danycron, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488091359964434503)).
@@ -146,7 +146,7 @@ Gorvex attached `Suggestion compilation.txt` (36 KB, 333 lines) to the thread ([
 - **Shrines:** attribute shrines drop elixirs; the gold shrine drops one pile; shrine effects shared in multiplayer.
 - **Misc:** shoot barrels and urns from range in Normal mode; restore Cain's and Griswold's original greetings.
 
-The one bug in his list (unarmed damage with +/- base damage items) was bug 10, fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
+The one bug in his list (unarmed damage with +/- base damage items) was bug 10, fixed in v0.3.0.
 
 ## Feedback and perception
 

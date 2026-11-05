@@ -1,6 +1,6 @@
 # Open Bugs
 
-What is left on the `th4-v0.774-base` branch: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
+What is left to fix: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
 When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 13, so links to the old numbers keep working.
 
@@ -22,7 +22,7 @@ Nobody reproduced these. Each needs an answer from the player.
 
 | Report | Who | What was checked | Next |
 |---|---|---|---|
-| Items put into Griswold's stash disappear after closing it, since reaching Purgatory | Blackheart, 18 Jul ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521)) | Not reproduced. No stash code depends on the difficulty. In v0.2.0, the build he played, closing Gillian's shared stash reloaded Griswold's stash from the last save, losing what was put in since: bug 1, fixed | Ask him to try the next build |
+| Items put into Griswold's stash disappear after closing it, since reaching Purgatory | Blackheart, 18 Jul ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521)) | Not reproduced. No stash code depends on the difficulty. In v0.2.0, the build he played, closing Gillian's shared stash reloaded Griswold's stash from the last save, losing what was put in since: bug 1, fixed in v0.3.0 | Ask him to try v0.3.0 |
 | "Stash from griswold: Caution is bugged" | Marcototech, 25 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375)) | One line in his list of the mod's features, so most likely a warning about bug 1, fixed | Close |
 | His Book of Healing went missing | Rageweaver, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)) | He thinks it went missing before kishak95's stash fix, so bug 1 | Close |
 | Black Death and its Symptoms tree in a game where he says he only picked Easy, That's My Secret and Acceleration (the rest of bug 9; its pause menu title is fixed) | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508856317425483958)); issue #3: "Symptoms tree? For what are they?" | Not reproduced. The Symptoms tree shows only with Black Death on. Easy never lists Black Death, a click toggles only a game changer the list shows, and going back to the mode screen clears all game changers | Ask for the save file or a screenshot of the game changers |

@@ -57,11 +57,10 @@ For complete release notes and version history, see [CHANGELOG](docs/CHANGELOG.m
 
 ### Nightly Builds (Latest Features, May Have Bugs)
 
-Want to try the newest features right away? Download the **`nightly`** build from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases). It's updated automatically with the latest changes, but may be unstable. For a safer experience, stick with regular versioned releases like `v0.0.4`.
+Want to try the newest features right away? Download the **`nightly`** build from [GitHub Releases](https://github.com/roboserg/diablo-1-the-heaven/releases). It's updated automatically with the latest changes, but may be unstable. For a safer experience, stick with regular versioned releases like `v0.3.0`.
 
 ## Planned changes
 
-* Remove negative penalties from unique items
 * Re-roll affixes on magic and rare items
 * Item sharing in multiplayer
 
