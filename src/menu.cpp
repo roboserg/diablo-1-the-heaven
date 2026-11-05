@@ -22,12 +22,18 @@ tempmergeCombatTexts, tempshowInflictedDamage, tempShowBreakWarning, tempRedInac
 tempRunindungeon, tempAutopickup, tempEasyclick, tempAlthold, tempSwapSpellsOnScroll, tempPanel, tempPotion;
 bool firstTimeFS = true;
 
+// (heaven) The single player menu, with Save Game and Load Game. Auto Save and Asceticism get the multiplayer one
+static bool UsesSPMainMenu()
+{
+	return MaxCountOfPlayersInGame == 1 && !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_1_AUTO_SAVE)) && !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM));
+}
+
 //----- (0041B279) -------------------------------------------------------- menu
 void SelectMainMenu()
 {
 	void(__cdecl * mainMenuHandler)();
 	Menu* mainMenu;
-	if( MaxCountOfPlayersInGame == 1 && !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_1_AUTO_SAVE)) && !(Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM))){
+	if( UsesSPMainMenu() ){
 		mainMenuHandler = SPMainMenuHandler;
 		mainMenu = SPMainMenu;
 	}else{
@@ -399,6 +405,27 @@ void __fastcall LoadGameMenuHandler(int a1, int a2)
 	HandleSystemMessage();
 	SetWindowProc(prevHandler);
 	MouseButtonPressed = MBP_0_NONE; OldMouseButtonPressed = MBP_0_NONE; // prevent autoclick after load
+}
+
+//----- (heaven) ----------------------------------------------------------
+// Whether the menu offers an item right now: F9 and F12 ask the menu's own rules, so they
+// can't allow what the menu forbids, or read a save that isn't there
+static bool SPMainMenuOffers( int item )
+{
+	if( ! UsesSPMainMenu() ) return false;
+	SPMainMenuHandler();
+	return (SPMainMenu[item].Flags & MENU_ENABLED) != 0;
+}
+
+bool IsLoadGameAvailable()
+{
+	return SPMainMenuOffers( 3 );
+}
+
+// SaveGameMenuHandler also refuses a dying hero, even when savealways keeps the item on
+bool IsSaveGameAvailable()
+{
+	return SPMainMenuOffers( 0 ) && Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH && !IsPlayerDead;
 }
 
 //----- (0041B3F0) -------------------------------------------------------- menu

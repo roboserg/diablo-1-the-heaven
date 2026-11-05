@@ -4877,10 +4877,7 @@ void __fastcall KeyPressHandler(WPARAM key)
 	// Quick Save / Quick Load (single-player, saving-enabled modes only)
 	if( MaxCountOfPlayersInGame == 1 ){
 		if( key == VK_120_F9_KEY ){   // F9 = Quick Save
-			if( !IsPlayerDead
-			 && Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
-			 && IsSaveAndLeavingEnabled()
-			 && !EnforceNoSave ){
+			if( IsSaveGameAvailable() ){ // (heaven) only what the menu's Save Game allows
 				// (heaven) An item held on the cursor is not saved: the menu save refuses too.
 				if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){
 					AddWorldMessage( (char*)L("Put the held item away before saving") );
@@ -4900,7 +4897,7 @@ void __fastcall KeyPressHandler(WPARAM key)
 			return;
 		}
 		if( key == VK_123_F12_KEY ){  // F12 = Quick Load
-			if( !IsPlayerDead ){
+			if( IsLoadGameAvailable() ){ // (heaven) only what the menu's Load Game allows; a dead hero never gets here
 				LoadGameMenuHandler(0, 0);
 			}
 			return;

@@ -9,8 +9,9 @@
     phase with "-autotest <phase>". Each run creates or loads its own test hero, runs its
     checks and quits; see src\AutoTest.cpp for what each phase checks. Your own saves,
     shared stash and settings are never touched. The oldsave phase runs first, on the
-    v0.2.0 save in tests\saves\v0.2.0, and its save folders are deleted after it. The nomor phase
-    runs last, with no TH4data.mor in the folder: the game must stop and name the file.
+    v0.2.0 save in tests\saves\v0.2.0, and its save folders are deleted after it. The ql* phases
+    press F9 and F12 in each game mode, each with a new hero and its save folders deleted after it. The
+    nomor phase runs last, with no TH4data.mor in the folder: the game must stop and name the file.
     Before it, missingfile checks the error for a file no archive has.
 
     The game window opens off-screen, without focus and muted, so you can keep using the
@@ -28,7 +29,7 @@
 .PARAMETER Only
     Run only these phases. other and owner need the shared stash main leaves behind and
     every run starts from a fresh folder, so on their own they fail: use it to run main,
-    oldsave, features, missingfile or nomor alone.
+    oldsave, a ql* phase, features, missingfile or nomor alone.
 
 .PARAMETER TimeoutSec
     How long one phase may run before it counts as hung and is stopped.
@@ -40,7 +41,7 @@
 param(
     [switch]$Build,
     [switch]$Show,
-    [ValidateSet("oldsave", "main", "other", "owner", "features", "missingfile", "nomor")][string[]]$Only,
+    [ValidateSet("oldsave", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "features", "missingfile", "nomor")][string[]]$Only,
     [int]$TimeoutSec = 240
 )
 
@@ -50,7 +51,7 @@ $ErrorActionPreference = "Stop"
 $repo  = Resolve-Path "$PSScriptRoot\.."
 $buildDir = Join-Path $repo "build"
 $run   = Join-Path $buildDir "autotest"
-$phases = @("oldsave", "features", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
+$phases = @("oldsave", "features", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
 if ($Only) { $phases = @($phases | Where-Object { $Only -contains $_ }) }
 
 function Fail([string]$msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 2 }
@@ -143,7 +144,7 @@ foreach ($phase in $phases) {
         if ($c.detail -and -not $c.pass) { Write-Host "          $($c.detail)" -ForegroundColor DarkGray }
     }
     $results += $report
-    if ($phase -eq "oldsave" -or $phase -eq "features") { # the next phases start from no saves
+    if ($phase -eq "oldsave" -or $phase -like "ql*" -or $phase -eq "features") { # the next phases start from no saves
         Get-ChildItem $run -Directory -Filter "th4_save_*" | Remove-Item -Recurse -Force
         Remove-Item (Join-Path $run "oldsave-manifest.txt") -ErrorAction SilentlyContinue
         continue

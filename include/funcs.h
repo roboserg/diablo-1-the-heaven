@@ -547,6 +547,8 @@ void __fastcall MurderHeroMenuHandler(int a1, int a2);
 void __fastcall NullMenuHandler(int a1, int a2);
 void __fastcall ExitGameMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall LoadGameMenuHandler( int a1, int a2	);//	Menu		
+bool IsLoadGameAvailable();// Menu (heaven) what the menu's Load Game allows right now; F12 asks it
+bool IsSaveGameAvailable();// Menu (heaven) what the menu's Save Game allows right now; F9 asks it
 void __fastcall SaveGameMenuHandler( int a1, int a2	);//	Menu		
 void CloseItemWindows();// Menu (heaven) return item-window slot items before a save or load
 bool ItemsOutsideSave();// Menu (heaven) a held item, or items in an item window, that a save would miss

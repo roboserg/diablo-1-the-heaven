@@ -33,6 +33,9 @@
 //          item in the inventory, Griswold's stash and the shared stash must be as v0.2.0
 //          listed them in oldsave-manifest.txt, and again after a save and load. The script
 //          runs it first, in its own save folders
+//   ql*    F9 and F12 in each game mode, with a new hero and its own save folders: they must do
+//          nothing wherever the menu's Save Game and Load Game are unavailable, and work where
+//          they are available, also on quest floors, in a battle and while dying
 //   features  Warrior, normal mode: Shift-click on a stat's +, the socket count in ground labels, the
 //          extra sound of unique and set item drops, the 2x speed button and the sound of a cleared
 //          level. The window has sound off, so it reads what PlayLocalSound was asked to play
@@ -91,6 +94,7 @@ const char* HeroNoData   = "AtNoData";
 const char* HeroFeatures = "AtFeatures"; // the script deletes its saves after the phase
 const char* MissingFile  = "autotest\\no archive has this.cel";
 const char* HeroOld      = "OldWarrior"; // made by v0.2.0, see tests\saves\v0.2.0\README.md
+const char* HeroQuick    = "AtQuick";    // the ql* phases; the script deletes the saves after each
 
 string Fmt( const char* fmt, ... )
 {
@@ -1720,6 +1724,243 @@ void BuildMissingFile()
 	} } );
 }
 
+//----- phases: ql* (F9 quick save and F12 quick load) --------------------
+// F9 and F12 must do nothing wherever the menu's Save Game and Load Game are unavailable, and work
+// where they are available. Each phase plays a real hero of that game mode. Ways this can fail:
+// - no saved game: F12 reads a game file that isn't there, and the game ends with a fatal error
+// - Ironman, Outbreak, Nightmare and Speedrun forbid loading, even with a save: F12 loads anyway
+// - Hardcore forbids it in a battle and while dying: F12 takes back the battle or the death
+// - Auto Save and Asceticism play with the menu that has neither item: F9 and F12 work anyway
+// - F9 ignores the menu's rules: Ironman's Save & Quit only, monsters left in Survival and Outbreak,
+//   quest floors, Nightmare and Speedrun after Uber Diablo
+// - the fix blocks too much: F12 no longer loads a normal save, or a save while dying in Normal,
+//   where the menu allows it; F9 no longer saves in town, on a normal level, on an Easy quest floor
+//   or in the Dark Campaign, where every mission is a quest floor
+// - the test fools itself: a menu left open eats the key, which looks like "did nothing", so every
+//   press comes with the menu closed; and qlnormal shows that the key does work where it may
+// F12's marker is an item the save doesn't have: a load takes it away. F9's is the save file's time.
+
+constexpr int MenuSave = 0, MenuLoad = 3; // items of SPMainMenu
+int MarkerSeed = 8000;
+
+void AddMarker()
+{
+	Item it = MakeItem( FindBases( IsRing, 1 ).at( 0 ), ++MarkerSeed, true );
+	MarkerSeed = it.seed;
+	Hold( it );
+	PutHeldInInventory();
+}
+
+bool HasMarker() { return FindInInventory( MarkerSeed ) >= 0; }
+
+// A menu item as the player finds it: opens the menu, reads the item, closes the menu
+bool MenuOffers( int item )
+{
+	SelectMainMenu();
+	bool offered = CurrentMenuWindowPtr == SPMainMenu && (SPMainMenu[item].Flags & MENU_ENABLED);
+	Menu_SetupMenuWindow( 0, 0 );
+	return offered;
+}
+
+// A save as the mode's own rules make it: Ironman's Save & Quit, or after Uber Diablo in Nightmare
+// and Speedrun, whose saving is off until then
+void MakeSave()
+{
+	bool noSave = EnforceNoSave;
+	EnforceNoSave = false;
+	SaveGame();
+	EnforceNoSave = noSave;
+	Check( "the hero has a saved game", gbValidSaveFile );
+}
+
+// A monster that has noticed the hero: the game counts it as a battle
+void StartBattle()
+{
+	for( int i = SummonMonsters_Count; i < MonstersCount; ++i ){
+		Monster& monster = Monsters[MonsterIndexes[i]];
+		if( ! monster.speechIndex ){ monster.ActivationCounter = 255; break; }
+	}
+	Check( "a monster has noticed the hero", IsSomeMonstersActivated() );
+}
+
+// So what stops F9 on this level can't be a monster that noticed the hero as it arrived
+void EndBattle()
+{
+	for( int i = SummonMonsters_Count; i < MonstersCount; ++i ) Monsters[MonsterIndexes[i]].ActivationCounter = 0;
+	Check( "no monster has noticed the hero", ! IsSomeMonstersActivated() );
+}
+
+// Asks the menu, presses F9, and the save file's time shows whether it saved
+void AddF9( const char* when, bool mustSave, void (*setup)() = nullptr )
+{
+	Steps.push_back( { when, [=]{
+		if( setup ) setup();
+		Check( Fmt( "the menu's Save Game %s is %s", when, mustSave ? "available" : "not available" ).c_str(), MenuOffers( MenuSave ) == mustSave );
+		i64 before = SaveFileTime();
+		KeyPressHandler( VK_120_F9_KEY );
+		bool saved = SaveFileTime() != before;
+		Check( Fmt( mustSave ? "F9 %s saves" : "F9 %s does nothing", when ).c_str(), saved == mustSave, saved ? "the save file was written" : "the save file wasn't written" );
+		return Next;
+	} } );
+}
+
+// Asks the menu, presses F12, and 20 ticks later the marker shows whether it loaded
+void AddF12( const char* when, bool mustLoad, void (*setup)() = nullptr )
+{
+	Steps.push_back( { when, [=]{
+		AddMarker();
+		if( setup ) setup();
+		Check( Fmt( "the menu's Load Game %s is %s", when, mustLoad ? "available" : "not available" ).c_str(), MenuOffers( MenuLoad ) == mustLoad );
+		KeyPressHandler( VK_123_F12_KEY );
+		return 20;
+	} } );
+	Steps.push_back( { when, [=]{
+		Check( Fmt( mustLoad ? "F12 %s loads the save" : "F12 %s does nothing", when ).c_str(), HasMarker() != mustLoad,
+			Fmt( "the marker item the save doesn't have is %s", HasMarker() ? "still there: no load" : "gone: it loaded" ) );
+		return Next;
+	} } );
+}
+
+void AddGoTo( DUNGEON level, uint message )
+{
+	Steps.push_back( { "change level", [=]{
+		if( (DUNGEON)Dungeon != level ) StartNewLvl( CurrentPlayerIndex, message, level );
+		return Next;
+	} } );
+	Steps.push_back( { "on the new level", [=]{ return (DUNGEON)Dungeon != level ? Retry : 20; } } );
+}
+
+void AddGoToChurch()     { AddGoTo( DUN_1_CHURCH_1, WM_1026_NEXT_DUNGEON ); }
+void AddGoToQuestFloor() { AddGoTo( DUN_25_KING_LEORICS_TOMB, WM_1029_GOTO_QUEST_DUNGEON ); }
+
+void AddKeysWhileDying( bool mustLoad )
+{
+	Steps.push_back( { "the hero dies", []{
+		AddMarker();
+		TryToDie( CurrentPlayerIndex, 0 );
+		return 5;
+	} } );
+	Steps.push_back( { "F9 and F12 during the death animation", [=]{
+		Check( "the hero is in the death animation", Hero().CurAction == PCA_8_DEATH && ! IsPlayerDead,
+			Fmt( "action %d, dead %d", (int)Hero().CurAction, (int)IsPlayerDead ) );
+		i64 before = SaveFileTime();
+		KeyPressHandler( VK_120_F9_KEY );
+		Check( "F9 during the death animation does nothing", SaveFileTime() == before );
+		Check( Fmt( "the menu's Load Game during the death animation is %s", mustLoad ? "available" : "not available" ).c_str(), MenuOffers( MenuLoad ) == mustLoad );
+		KeyPressHandler( VK_123_F12_KEY );
+		return 20;
+	} } );
+	Steps.push_back( { "F12 during the death animation: result", [=]{
+		bool dying = Hero().CurAction == PCA_8_DEATH || IsPlayerDead;
+		Check( mustLoad ? "F12 during the death animation loads the save, as the menu's Load Game does" : "F12 during the death animation does nothing: the hero stays dead",
+			HasMarker() != mustLoad && dying != mustLoad, Fmt( "marker %s, hero %s", HasMarker() ? "there" : "gone", dying ? "dying" : "alive" ) );
+		return Next;
+	} } );
+}
+
+// A new hero: nothing saved yet, or never saved in Nightmare and Speedrun
+void BuildQuickLoadNoSave()
+{
+	AddStartSteps( CurPhase->gameMode );
+	Steps.push_back( { "no saved game", []{
+		Check( "the new hero has no saved game", ! gbValidSaveFile );
+		return Next;
+	} } );
+	AddF12( "with no saved game", false );
+	Steps.push_back( { "screenshot", []{ Shot( "after-f12" ); return Next; } } );
+}
+
+// The modes whose menu never loads. Outbreak's saves with no monsters left, the others' never
+void BuildQuickLoadForbidden()
+{
+	const GAME_MODE mode = CurPhase->gameMode;
+	AddStartSteps( mode );
+	AddF9( "in town", mode == GM_OUTBREAK );
+	Steps.push_back( { "a save", []{ MakeSave(); return Next; } } );
+	AddF12( "with a save, in a mode that forbids loading", false );
+	Steps.push_back( { "screenshot", []{ Shot( "after-f12" ); return Next; } } );
+	if( is( mode, GM_NIGHTMARE, GM_SPEEDRUN ) ){
+		// Their menu then has Save & Quit, not Save Game, but opening it lifts EnforceNoSave
+		AddF9( "after Uber Diablo", false, []{ UberDiabloKilled = true; } );
+		Steps.push_back( { "before Uber Diablo again", []{ UberDiabloKilled = false; EnforceNoSave = true; return Next; } } );
+	}
+	AddGoToChurch();
+	if( mode == GM_OUTBREAK ) AddF9( "with monsters left on the level", false, EndBattle );
+	AddKeysWhileDying( false );
+}
+
+// Hardcore's menu saves and loads only with no battle going on and a living hero
+void BuildQuickLoadHardcore()
+{
+	AddStartSteps( GM_HARDCORE );
+	AddF9( "with no battle going on", true );
+	AddF12( "with no battle going on", true );
+	AddGoToChurch();
+	AddF9( "during a battle", false, StartBattle );
+	AddF12( "during a battle", false, StartBattle );
+	AddKeysWhileDying( false );
+}
+
+// Survival's menu loads like Normal's, but saves only with no monsters left
+void BuildQuickSaveSurvival()
+{
+	AddStartSteps( GM_SURVIVAL );
+	AddF9( "in town", true );
+	AddF12( "with a save", true );
+	AddGoToChurch();
+	AddF9( "with monsters left on the level", false, EndBattle );
+}
+
+// The modes that save on quest floors and, as these never count a battle, during one too.
+// The Dark Campaign starts on one; a hero there has no monster to notice it
+void BuildQuickSaveAlways()
+{
+	AddStartSteps( CurPhase->gameMode );
+	if( CurPhase->gameMode == GM_EASY ) AddGoToQuestFloor();
+	AddF9( "on a quest floor", true );
+	AddF12( "with a save", true );
+	if( CurPhase->gameMode == GM_EASY ) AddF9( "during a battle", true, StartBattle );
+	Steps.push_back( { "screenshot", []{ Shot( "quest-floor" ); return Next; } } );
+}
+
+void BuildQuickLoadNormal()
+{
+	AddStartSteps( GM_NORMAL );
+	AddF9( "in town", true );
+	AddF12( "with a save", true );
+	AddF9( "with the Auto Save game changer", false, []{ Hero().gameChanger |= BIT( GC_1_AUTO_SAVE ); } );
+	AddF12( "with the Auto Save game changer", false, []{ Hero().gameChanger |= BIT( GC_1_AUTO_SAVE ); } );
+	Steps.push_back( { "next game changer", []{ Hero().gameChanger &= ~BIT( GC_1_AUTO_SAVE ); return Next; } } );
+	AddF9( "with the Asceticism game changer", false, []{ Hero().gameChanger |= BIT( GC_26_ASCETICISM ); } );
+	AddF12( "with the Asceticism game changer", false, []{ Hero().gameChanger |= BIT( GC_26_ASCETICISM ); } );
+	Steps.push_back( { "no game changer", []{ Hero().gameChanger &= ~BIT( GC_26_ASCETICISM ); return Next; } } );
+	AddGoToChurch();
+	AddF9( "on a normal level with monsters left", true, EndBattle );
+	AddF9( "during a battle", false, StartBattle );
+	Steps.push_back( { "the battle ends", []{ EndBattle(); return Next; } } );
+	Steps.push_back( { "a save in the dungeon", []{ MakeSave(); return Next; } } );
+	AddKeysWhileDying( true );
+	AddGoToQuestFloor();
+	AddF9( "on a quest floor", false, EndBattle );
+	AddF12( "on a quest floor", true );
+	Steps.push_back( { "the hero dies for good", []{
+		static bool killed = false;
+		if( ! killed ){ TryToDie( CurrentPlayerIndex, 0 ); killed = true; }
+		return IsPlayerDead ? Next : Retry;
+	} } );
+	Steps.push_back( { "F12 on a dead hero", []{
+		AddMarker();
+		KeyPressHandler( VK_123_F12_KEY ); // the menu opened by itself: it takes the key
+		Menu_SetupMenuWindow( 0, 0 );
+		KeyPressHandler( VK_123_F12_KEY ); // with the menu closed the key is a chat message
+		return 20;
+	} } );
+	Steps.push_back( { "F12 on a dead hero: result", []{
+		Check( "F12 on a dead hero does nothing: the menu's Load Game is the way back", HasMarker() && IsPlayerDead );
+		return Next;
+	} } );
+}
+
 #include "AutoTestFeatures.inl"
 
 const Phase Phases[] = {
@@ -1727,6 +1968,18 @@ const Phase Phases[] = {
 	{ "other", HeroMage,    PC_2_MAGE,    GM_CLASSIC, BuildOther },
 	{ "owner", HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildOwner },
 	{ "oldsave", HeroOld,   PC_0_WARRIOR, GM_NORMAL,  BuildOldSave },
+	{ "qlnormal",       HeroQuick, PC_0_WARRIOR, GM_NORMAL,    BuildQuickLoadNormal },
+	{ "qlhardcore",     HeroQuick, PC_0_WARRIOR, GM_HARDCORE,  BuildQuickLoadHardcore },
+	{ "qlironman",      HeroQuick, PC_0_WARRIOR, GM_IRONMAN,   BuildQuickLoadForbidden },
+	{ "qloutbreak",     HeroQuick, PC_0_WARRIOR, GM_OUTBREAK,  BuildQuickLoadForbidden },
+	{ "qlnightmare",    HeroQuick, PC_0_WARRIOR, GM_NIGHTMARE, BuildQuickLoadForbidden },
+	{ "qlspeedrun",     HeroQuick, PC_0_WARRIOR, GM_SPEEDRUN,  BuildQuickLoadForbidden },
+	{ "qlsurvival",     HeroQuick, PC_0_WARRIOR, GM_SURVIVAL,  BuildQuickSaveSurvival },
+	{ "qleasy",         HeroQuick, PC_0_WARRIOR, GM_EASY,      BuildQuickSaveAlways },
+	{ "qldark",         HeroQuick, PC_0_WARRIOR, GM_DARK_CAMPAIGN, BuildQuickSaveAlways },
+	{ "qlnormalnew",    HeroQuick, PC_0_WARRIOR, GM_NORMAL,    BuildQuickLoadNoSave },
+	{ "qlnightmarenew", HeroQuick, PC_0_WARRIOR, GM_NIGHTMARE, BuildQuickLoadNoSave },
+	{ "qlspeedrunnew",  HeroQuick, PC_0_WARRIOR, GM_SPEEDRUN,  BuildQuickLoadNoSave },
 	{ "features", HeroFeatures, PC_0_WARRIOR, GM_NORMAL, BuildFeatures },
 	{ "missingfile", HeroNoData, PC_0_WARRIOR, GM_NORMAL, BuildMissingFile },
 	{ "nomor", HeroNoData,  PC_0_WARRIOR, GM_NORMAL,  BuildNoMor },
@@ -1747,7 +2000,7 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 		if( ! _stricmp( p.name, name ) ) CurPhase = &p;
 	}
 	if( ! CurPhase ){
-		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldsave|missingfile|nomor [-show]", "Autotest", MB_OK | MB_ICONERROR );
+		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldsave|ql...|missingfile|nomor [-show]", "Autotest", MB_OK | MB_ICONERROR );
 		ExitProcess( 2 );
 	}
 	Active = true;
