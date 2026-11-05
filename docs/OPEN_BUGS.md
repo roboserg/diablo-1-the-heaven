@@ -81,7 +81,6 @@ These came up in `#antigrind` and `#godroll` (links marked *antigrind* and *godr
 - **No-penalty uniques break items whose penalty is the point.** Both reports are about AG's No Negative game changer. The Heaven keeps such trade-offs (see [bug 4](#4-some-unique-item-penalties-remain)) and removes plain penalties like Ravenous Hatred's.
   - Darkbone115 has an item meant to move 40% of life to mana, and it becomes useless ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)).
   - Zerathyl found Ravenous Hatred keeps −26% HP even with penalties off ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1520186604373676043)).
-- **Volume creeps up:** sound and music volume go up one bar on every restart (Rageweaver, on TH4 v0.774 with AG, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567163934660755599), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567264595834576957)). It's probably in The Heaven too.
 
 ## To check: Yuki's unofficial 0.2.0 build
 

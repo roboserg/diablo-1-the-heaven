@@ -17,6 +17,7 @@ What the `th4-v0.774-base` branch fixed since v0.2.0. This file is temporary: wh
 | Harmful penalties are gone from unique and set items, in the hero's stats and in all three tooltips: +damage from enemies, -stun threshold, -melee and -ranged absorption, -elemental, spell and weapon %, and negative armour. Trade-offs stay (see bug 4 in OPEN_BUGS.md) | 114e778 | Bug 4 (Rageweaver, Gorvex, 5 Apr; Marcototech's screenshot) |
 | The doubled stat cap works: elixirs and shrines raise stats up to it and they stay there, and stats at the cap turn gold. Before, the game cut stats back to the old cap a moment later | 6668e25 | [Bug 5](#bug-5-what-was-fixed) (Rageweaver, kishak95, 4-5 Apr) |
 | A perk reset no longer takes away base stats: it keeps Raise the Bar, Thaumaturgy and Ostentation when dropping them would cut stats above the lower limits, and says so. Before, those stats were cut and never came back | b6776a7 | Found in Godroll's perk locks ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)) |
+| Sound and music volume no longer go up a bar on every restart: the sliders had one step more than the volume, so the upper 12 bars saved a volume between two steps, which the next start rounded up (base TH4) | b918b17 | Rageweaver, on TH4 with AG ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567163934660755599), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567264595834576957)) |
 
 ## Bug 1 and kishak95's stash fix
 
