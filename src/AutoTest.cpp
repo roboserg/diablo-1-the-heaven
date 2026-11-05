@@ -29,6 +29,10 @@
 //          every item that comes out the same must not be
 //   owner  the Warrior again: the gem main quit with is in the inventory, and every
 //          listed item must still be exactly as stashed
+//   oldsave  a level 20 Warrior saved by v0.2.0 (tests\saves\v0.2.0): the hero and every
+//          item in the inventory, Griswold's stash and the shared stash must be as v0.2.0
+//          listed them in oldsave-manifest.txt, and again after a save and load. The script
+//          runs it first, in its own save folders
 
 extern StashTab StashTabs[Stash_TotalTabs];
 bool AllowEnchant( Item& item );                                 // Enchanting.cpp
@@ -75,6 +79,7 @@ vector<string>      Shots;
 const char* ManifestFile = "autotest-shared.txt";
 const char* HeroWarrior  = "AtWarrior";
 const char* HeroMage     = "AtMage";
+const char* HeroOld      = "OldWarrior"; // made by v0.2.0, see tests\saves\v0.2.0\README.md
 
 string Fmt( const char* fmt, ... )
 {
@@ -1506,10 +1511,101 @@ void BuildOwner()
 	Steps.push_back( { "close shared stash", CloseSharedStash } );
 }
 
+//----- phase: oldsave ----------------------------------------------------
+// Players upgrade with their v0.2.0 characters, Griswold's stash and the shared stash
+
+struct OldItem { string where; int seed; string described; };
+vector<OldItem> OldItems;
+string          OldHero;
+
+void ReadOldManifest()
+{
+	FILE* f = fopen( "oldsave-manifest.txt", "r" );
+	if( ! f ) return;
+	char line[4096];
+	while( fgets( line, sizeof line, f ) ){
+		string s = line;
+		while( ! s.empty() && (s.back() == '\n' || s.back() == '\r') ) s.pop_back();
+		size_t a = s.find( '\t' ), b = a == string::npos ? a : s.find( '\t', a + 1 );
+		if( b == string::npos ) continue;
+		OldItem it{ s.substr( 0, a ), atoi( s.c_str() + a + 1 ), s.substr( b + 1 ) };
+		if( it.where == "hero" ) OldHero = it.described; else OldItems.push_back( it );
+	}
+	fclose( f );
+}
+
+// The hero line v0.2.0 wrote, from this hero
+string HeroLine()
+{
+	Player& p = Hero();
+	return Fmt( "%s class %d mode %d level %d str %d mag %d dex %d vit %d available %d xp %lld", p.playerName, (int)p.ClassID,
+		(int)GameMode, (int)p.CharLevel, p.BaseStrength, p.BaseMagic, p.BaseDexterity, p.BaseVitality, p.AvailableLvlPoints, (long long)p.Xp );
+}
+
+// The manifest's items in one place (inventory, personal or shared) that are missing or come
+// out different; ok counts the ones that are exactly as v0.2.0 had them
+string CompareOld( const char* where, int& ok, int& total )
+{
+	bool stash = strcmp( where, "inventory" ) != 0;
+	if( ! strcmp( where, "personal" ) ) StashPanel_OpenPersonal();
+	if( ! strcmp( where, "shared" ) ) StashPanel_OpenShared();
+	string wrong;
+	for( const OldItem& it: OldItems ){
+		if( it.where != where ) continue;
+		++total;
+		const Item* found = nullptr;
+		if( stash ){
+			vector<int> at = FindInStash( it.seed );
+			if( ! at.empty() ) found = &StashTabs[at[0] / Stash_MaxSlot].items[at[0] % Stash_MaxSlot];
+		}else{
+			int at = FindInInventory( it.seed );
+			if( at >= 0 ) found = &Hero().InventorySlots[at];
+		}
+		if( found && Describe( *found ) == it.described ){ ++ok; continue; }
+		wrong += Fmt( "  [%d] %s  was: %s", it.seed, found ? Describe( *found ).c_str() : "missing", it.described.c_str() );
+	}
+	if( stash ) StashPanel_Close();
+	return wrong;
+}
+
+void CheckOldItems( const char* when )
+{
+	for( const char* where: { "inventory", "personal", "shared" } ){
+		int ok = 0, total = 0;
+		string wrong = CompareOld( where, ok, total );
+		const char* place = ! strcmp( where, "inventory" ) ? "the inventory" : ! strcmp( where, "personal" ) ? "Griswold's stash" : "the shared stash";
+		Check( Fmt( "v0.2.0 save, %s: every item in %s is as v0.2.0 had it", when, place ).c_str(), total > 0 && ok == total,
+			Fmt( "%d of %d the same", ok, total ) + wrong );
+	}
+}
+
+void BuildOldSave()
+{
+	ReadOldManifest();
+	AddStartSteps( GM_NORMAL );
+	Steps.push_back( { "old hero", []{
+		Check( "v0.2.0 save: the hero has the level, stats and points v0.2.0 saved", ! OldHero.empty() && HeroLine() == OldHero,
+			HeroLine() + "  was: " + OldHero );
+		return Next;
+	} } );
+	Steps.push_back( { "old items", []{ CheckOldItems( "loaded" ); return Next; } } );
+	Steps.push_back( { "save and load in this version", []{
+		QuickSave();
+		KeyPressHandler( VK_123_F12_KEY );
+		return 20;
+	} } );
+	Steps.push_back( { "old items after a save and load", []{
+		Check( "v0.2.0 save, saved and loaded again: the hero is the same", HeroLine() == OldHero, HeroLine() + "  was: " + OldHero );
+		CheckOldItems( "saved and loaded again" );
+		return Next;
+	} } );
+}
+
 const Phase Phases[] = {
 	{ "main",  HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildMain  },
 	{ "other", HeroMage,    PC_2_MAGE,    GM_CLASSIC, BuildOther },
 	{ "owner", HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildOwner },
+	{ "oldsave", HeroOld,   PC_0_WARRIOR, GM_NORMAL,  BuildOldSave },
 };
 
 } // namespace
@@ -1527,7 +1623,7 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 		if( ! _stricmp( p.name, name ) ) CurPhase = &p;
 	}
 	if( ! CurPhase ){
-		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner [-show]", "Autotest", MB_OK | MB_ICONERROR );
+		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldsave [-show]", "Autotest", MB_OK | MB_ICONERROR );
 		ExitProcess( 2 );
 	}
 	Active = true;

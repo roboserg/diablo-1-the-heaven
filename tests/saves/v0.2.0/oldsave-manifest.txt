@@ -1,0 +1,18 @@
+inventory	1100	Ring / Pounding Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 28:0:10..0:0
+inventory	1101	Double-Beaked Staff / Staff of Efficacy | base 95 ml 1 spell 0 charges 0/0 dmg 30-45 ac 10 dur 36/50 sockets 0 req 129/0/195/0 | 68:0:96..0:0
+inventory	1102	Darkened Burgonet / Burgonet of the Frog | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 32 dur 19/30 sockets 0 req 198/0/0/176 | 15:0:36..0:0
+inventory	1103	Short Knife / Knife of Disruption | base 1 ml 1 spell 0 charges 0/0 dmg 2-11 ac 0 dur 4/15 sockets 0 req 10/0/11/0 | 69:0:47..0:4 0:0:0..0:3
+inventory	5138	War Axe / Whirlwind, Voice of Visions | base 32 ml 2 spell 0 charges 0/0 dmg 30-50 ac 0 dur 38/38 sockets 0 req 149/0/0/148 | 10:6:4..14:0 71:1:62..98:0 10:4:3..11:0 28:0:43..0:0
+personal	2100	Ring / Leading Ring of Apprentice | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/5/0/0 | 0:0:0..0:22 48:0:1..0:0
+personal	2101	Double-Beaked Staff / Staff of Divination | base 95 ml 1 spell 0 charges 0/0 dmg 32-45 ac 10 dur 35/56 sockets 0 req 127/0/200/0 | 11:1:11..0:0
+personal	2102	Darkened Burgonet / Vanadinite Burgonet | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 34 dur 11/23 sockets 0 req 196/0/0/179 | 80:1:34..0:0
+personal	2104	Ring / Warden's Ring of Apprentice | base 157 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/4/0/0 | 13:0:-2..0:0 48:0:1..0:0
+personal	15021	Slim Blade / Assurance | base 37 ml 2 spell 0 charges 0/0 dmg 7-14 ac 4 dur 24/24 sockets 0 req 36/0/56/0 | 0:0:0..0:38 11:2:19..0:0 1:0:223..0:0 71:1:70..82:0
+personal	15030	Siege Hammer / Mourning Mallet | base 47 ml 2 spell 0 charges 0/0 dmg 11-24 ac 0 dur 37/37 sockets 0 req 105/0/66/0 | 2:0:66..0:21 69:0:46..0:4 10:3:7..19:0 11:0:9..0:0
+shared	3100	Ring / Vampiric Ring of the Hawk | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/5/0/0 | 23:0:2..0:0 51:0:6..0:0
+shared	3101	Double-Beaked Staff / Staff of the Frog | base 95 ml 1 spell 0 charges 0/0 dmg 30-45 ac 10 dur 17/56 sockets 0 req 128/0/196/0 | 15:0:35..0:0
+shared	3102	Darkened Burgonet / Taaffeite Burgonet | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 32 dur 19/29 sockets 0 req 198/0/0/178 | 80:3:39..0:0
+shared	3103	Short Knife / Astral Knife | base 1 ml 1 spell 0 charges 0/0 dmg 4-11 ac 0 dur 6/16 sockets 0 req 10/0/13/0 | 72:1:256..0:0 0:0:0..0:5
+shared	25079	Cloth Armor / Barbarian Uniform of Delirium | base 56 ml 2 spell 0 charges 0/0 dmg 0-0 ac 10 dur 21/21 sockets 0 req 25/0/19/0 | 80:2:29..0:0 13:0:-14..0:0 53:0:73..0:0 14:0:27..0:0
+shared	25094	Small Hammer / Bloodweep | base 18 ml 2 spell 0 charges 0/0 dmg 5-9 ac 0 dur 20/20 sockets 0 req 26/0/16/0 | 2:0:61..0:16 11:2:17..0:0 1:0:208..0:0 69:0:44..0:4
+hero	0	OldWarrior class 0 mode 0 level 20 str 25 mag 5 dex 15 vit 20 available 95 xp 0
