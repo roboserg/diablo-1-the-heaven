@@ -31,7 +31,7 @@
 | **Lachdanan** | Hell | 14 | Find Lachdanan on Level 14 and talk to him — he will give you the Golden Elixir. Talk to him again after using it to claim your reward. *(SP only)* | Veil of Steel (class-specific) |
 | **The Cursed Blade** | Hell | 14 | Find the Pit of Flame on Level 14 and defeat Fleshdoom to open the path forward. Descend into the City of the Damned and defeat the Wielder of Shadowfang to complete the quest. | Magic Items |
 | **Archbishop Lazarus** | Hell | 15 | Find Archbishop Lazarus's Lair (the Unholy Altar) on Level 15. Defeat Archbishop Lazarus to open a Red Portal and unlock the final battle. | Traitorous Apparel (mage classes) |
-| **Diablo** | Hell | 15 | Defeat Archbishop Lazarus first, then confront Diablo on Level 15. Killing Diablo ends the game. | Victory |
+| **Diablo** | Hell | 15 | Defeat Archbishop Lazarus first, then confront Diablo on Level 15. Killing him doesn't end the game, except in Classic mode: the ending plays when Uber Diablo dies on Level 24 (single player, Horror difficulty, not in Ironman or Nightmare). | Victory in Classic mode |
 | **Celia's Toy** | Abyss | 17 | Find the toy Theodore somewhere in the dungeons. Bring it to Celia to complete the quest. *(SP only)* | Class-specific Unique Item |
 | **Strange Book** | Abyss | 17 | Find the Web Tunnels entrance on Level 17. Enter and defeat the Web Queen boss inside. *(Ironman / Nightmare / Survival / Speedrun only)* | Access to Arachnid Lair |
 | **The Locked Chest** | Abyss | 18 | Find the Dark Nest dungeon on Level 18. Inside, locate both the Locked Chest and the Chest Key. Use the key to open the chest. | Unique Item + Stone |

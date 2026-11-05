@@ -12,6 +12,8 @@
 
 A quality-of-life mod built on The Hell 4 **v0.774** (October 2026). Retains the challenge and depth of TH4 while cutting the tedious grind.
 
+**Shared stash:** talk to Gillian in town to open a stash that all your single-player characters share. Griswold keeps each character's own stash. An item that would change for the character opening the shared stash is shown in red and stays in it.
+
 ### Balance Adjustment Examples:
 * **Game Speed Control**: Time speed button (1.0x → 1.25x → 1.5x) now available in all single-player game modes
 * **Independent Rare Item Drops**: Rare items now have their own drop chance (2% for mobs, 3% for bosses) separate from unique items, matching Diablo 2's priority chain
