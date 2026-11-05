@@ -1783,7 +1783,7 @@ int SaveType();
 void __fastcall GetSaveArchivePath( char (&saveFullName)[MAX_PATH], int stringSize, int slotNum, int isHellfire	);//	CharSlots		
 void GetSharedStashArchivePath( char (&archivePath)[MAX_PATH] );//	CharSlots
 void WriteSharedStashToArchive();//	CharSlots
-void ReadSharedStashFromArchive();//	CharSlots
+bool ReadSharedStashFromArchive();//	CharSlots
 void ReloadPersonalStashFromArchive(int slotIndex);//	CharSlots
 void __fastcall CloseArchiveWrite( bool clearHashTables, int slotNum	);//	CharSlots		
 void  ReleasePlayerFile( );//	CharSlots		
@@ -2661,6 +2661,10 @@ void __fastcall StashPanel_MouseMove();
 void __fastcall StashPanel_MouseClick();
 void __fastcall StashPanel_Load();
 void __fastcall StashPanel_Save();
+void SharedStash_LoadTabs( const char* end );
+void SharedStash_SaveTabs();
+void SharedStash_ClearFingerprints();
+bool SharedStash_IsLocked( const Item& item );
 bool __fastcall StashPanel_IsStashSlot( int slotId );
 Item* __fastcall StashPanel_GetItemBySlotId( int slotId );
 

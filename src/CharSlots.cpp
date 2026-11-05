@@ -107,6 +107,9 @@ void GetSharedStashArchivePath( char (&archivePath)[MAX_PATH] )
 	_strlwr(archivePath);
 }
 
+// (heaven) The shared stash adds a fingerprint per item after the usual stash layout
+static uchar SaveBuffer_SharedStash[CalcEncodeDstBytes(sizeof(StashInfo) + 12 + Stash_TotalTabs * Stash_MaxSlot * 4)];
+
 //----- (th4) -------------------------------------------------------------
 void WriteSharedStashToArchive()
 {
@@ -117,34 +120,35 @@ void WriteSharedStashToArchive()
 	int savedSaveVersion = SaveVersion;
 
 	// Serialize stash into buffer (version 2 format: includes SharedStashTabsPurchased)
-	CurSaveData = (char*)SaveBuffer_Stash;
+	CurSaveData = (char*)SaveBuffer_SharedStash;
 	uint stashSignature = SaveSignature;
 	PutNextHtonl2(stashSignature);
 	PutNextHtonl(2); // shared stash format version
 	PutNextHtonl(SharedStashTabsPurchased);
-	StashPanel_Save();
+	SharedStash_SaveTabs(); // StashPanel_Save's layout plus item fingerprints
 
 	// Restore game save version
 	SaveVersion = savedSaveVersion;
-	int actualSize = (uchar*)CurSaveData - SaveBuffer_Stash;
-	if( actualSize > (int)sizeof(SaveBuffer_Stash) ){
-		TerminateWithError("Shared stash buffer overflow: %i > %i", actualSize, sizeof(SaveBuffer_Stash));
+	int actualSize = (uchar*)CurSaveData - SaveBuffer_SharedStash;
+	if( actualSize > (int)sizeof(SaveBuffer_SharedStash) ){
+		TerminateWithError("Shared stash buffer overflow: %i > %i", actualSize, sizeof(SaveBuffer_SharedStash));
 	}
 	int blockSize = CalcEncodeDstBytes(actualSize);
-	EncodeFile( SaveBuffer_Stash, actualSize, blockSize, CryptKey );
+	EncodeFile( SaveBuffer_SharedStash, actualSize, blockSize, CryptKey );
 	CurSaveData = nullptr;
 
 	// Write directly to file (not MPQ)
 	HANDLE hFile = CreateFileA(sharedPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if( hFile != INVALID_HANDLE_VALUE ){
 		DWORD written;
-		WriteFile(hFile, SaveBuffer_Stash, blockSize, &written, NULL);
+		WriteFile(hFile, SaveBuffer_SharedStash, blockSize, &written, NULL);
 		CloseHandle(hFile);
 	}
 }
 
 //----- (th4) -------------------------------------------------------------
-void ReadSharedStashFromArchive()
+// False when the file is there but can't be read: the stash is left as it was.
+bool ReadSharedStashFromArchive()
 {
 	OutputDebugStringA("[SharedStash] ReadSharedStashFromArchive ENTER\n");
 	char sharedPath[MAX_PATH];
@@ -154,9 +158,10 @@ void ReadSharedStashFromArchive()
 	if( hFile == INVALID_HANDLE_VALUE ){
 		OutputDebugStringA("[SharedStash] File not found, clearing stash\n");
 		ClearVisualStash();
+		SharedStash_ClearFingerprints();
 		SharedStashTabsPurchased = 1;
 		OutputDebugStringA("[SharedStash] EXIT (no file)\n");
-		return;
+		return true;
 	}
 
 	OutputDebugStringA("[SharedStash] File opened\n");
@@ -164,15 +169,16 @@ void ReadSharedStashFromArchive()
 	// Save current game save version - StashPanel_Load uses it
 	int savedSaveVersion = SaveVersion;
 
+	bool loaded = false;
 	DWORD fileSize = GetFileSize(hFile, NULL);
 	OutputDebugStringA("[SharedStash] File read, decoding\n");
-	if( fileSize > 0 && fileSize <= sizeof(SaveBuffer_Stash) ){
+	if( fileSize > 0 && fileSize <= sizeof(SaveBuffer_SharedStash) ){
 		DWORD bytesRead;
-		if( ReadFile(hFile, SaveBuffer_Stash, fileSize, &bytesRead, NULL) && bytesRead == fileSize ){
-			int readSize = DecodeFile( SaveBuffer_Stash, bytesRead, CryptKey );
+		if( ReadFile(hFile, SaveBuffer_SharedStash, fileSize, &bytesRead, NULL) && bytesRead == fileSize ){
+			int readSize = DecodeFile( SaveBuffer_SharedStash, bytesRead, CryptKey );
 			OutputDebugStringA("[SharedStash] Decoded, loading stash panel\n");
 			if( readSize > 0 ){
-				CurSaveData = (char*)SaveBuffer_Stash;
+				CurSaveData = (char*)SaveBuffer_SharedStash;
 				int stashSignature = GetNextHtonl2();
 				if( stashSignature == SaveSignature ){
 					OutputDebugStringA("[SharedStash] Signature OK\n");
@@ -182,9 +188,10 @@ void ReadSharedStashFromArchive()
 					} else {
 						SharedStashTabsPurchased = 100;
 					}
-					OutputDebugStringA("[SharedStash] Calling StashPanel_Load\n");
-					StashPanel_Load();
-					OutputDebugStringA("[SharedStash] StashPanel_Load done\n");
+					OutputDebugStringA("[SharedStash] Calling SharedStash_LoadTabs\n");
+					SharedStash_LoadTabs( (char*)SaveBuffer_SharedStash + readSize );
+					OutputDebugStringA("[SharedStash] SharedStash_LoadTabs done\n");
+					loaded = true;
 				}
 				CurSaveData = nullptr;
 			}
@@ -194,7 +201,8 @@ void ReadSharedStashFromArchive()
 
 	// Restore game save version
 	SaveVersion = savedSaveVersion;
-	OutputDebugStringA("[SharedStash] EXIT OK\n");
+	OutputDebugStringA(loaded ? "[SharedStash] EXIT OK\n" : "[SharedStash] EXIT (unreadable)\n");
+	return loaded;
 }
 
 //----- (th4) -------------------------------------------------------------

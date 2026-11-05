@@ -308,7 +308,8 @@ void __fastcall DrawStashItems()
             // (th4) Same staleness as the shop: RecalcItemsReqMet() walks inventory, belt
             // and talismans only, so stashed items keep the flag they had when they were
             // put away and stay red after a stat-up. Re-test here.
-            inventorySlot.IsReqMet = CheckItemReq( CurrentPlayerIndex, &inventorySlot );
+            // (heaven) Shared stash items that would morph on this character are drawn red too
+            inventorySlot.IsReqMet = CheckItemReq( CurrentPlayerIndex, &inventorySlot ) && ! SharedStash_IsLocked( inventorySlot );
             int graphicValue = inventorySlot.GraphicValue + CM_12_ITEMS_PICS_START;
             char itemWidthTable = ItemWidthTable[graphicValue];
             
@@ -364,8 +365,13 @@ void __fastcall StashPanel_OpenShared()
 	// Save current personal stash state
 	PersonalStashTabsPurchased = StashTabsPurchased;
 	PersonalStashCurrentTab    = StashCurrentTab;
-	// Load shared stash into StashTabs[]
-	ReadSharedStashFromArchive();
+	// Load shared stash into StashTabs[]. If the file is there but can't be read, StashTabs
+	// still holds the personal stash, and closing would copy it into the shared file.
+	if( ! ReadSharedStashFromArchive() ){
+		AddWorldMessage( (char*)L("The shared stash file can't be read") );
+		CurrentDialogIndex = PD_0_None;
+		return;
+	}
 	StashTabsPurchased = SharedStashTabsPurchased; // Shared stash tabs loaded from file
 	StashCurrentTab    = 0;
 	IsSharedStashOpen  = true;
@@ -661,6 +667,191 @@ void __fastcall StashPanel_Save()
 			CurSaveData += sizeof(LastItemInfo);
 		}
 	}
+}
+
+//----- (heaven) ----------------------------------------------------------
+// Shared stash morph protection.
+//
+// Items are saved as a seed plus a few fields and rebuilt on load, and the rebuild
+// reads who is loading: the game mode picks the magic affix table and the rare
+// rules; class, traits and game changers pick the spell of books and staves; Clean
+// Hands and Night Kin turn equipment into gold; and so on. In TH4 an item only ever
+// reloads for the character who owns it. The shared stash hands it to other
+// characters, and for them it can come out as a different item ("morph").
+//
+// So each shared stash item keeps a fingerprint of the item as the character who
+// stashed it had it. When a character opens the shared stash, an item that rebuilds
+// differently is locked for that character: it can't be taken out, and it is saved
+// back with its original bytes, so its owner still gets the real item. Fingerprints
+// sit in a trailer after the usual layout, which older builds ignore. Items stashed
+// by older builds have no fingerprint and are never locked; they get one when a
+// character takes them out and stashes them again.
+struct SharedStashEntry
+{
+	LastItemInfo raw;         // the item exactly as read from the file
+	uint         fingerprint; // the item as its owner had it; 0 = unknown (stashed by an older build)
+	uint         loadedFp;    // the item as it is in StashTabs: tells it apart from another item with its seed
+	bool         locked;      // rebuilds differently for the current character
+};
+static std::map<int, SharedStashEntry> SharedStashEntries; // by Item::seed
+static std::set<int> SharedStashAmbiguousSeeds;            // a seed seen twice can't tell its items apart: unprotected
+static constexpr uint SharedStashFingerprintMagic = 'HVFP';
+
+// Hash of what the generator decided about the item. Leaves out the name (localized),
+// prices and looks, and fields the generator doesn't reset (UniqueItemIndex).
+static uint SharedStash_Fingerprint( const Item& item )
+{
+	uint h = 2166136261u; // FNV-1a
+	auto mix = [&h]( int v ){ for( int b = 0; b < 4; ++b ) h = (h ^ uchar(v >> (b * 8))) * 16777619u; };
+	mix( item.baseItemIndex ); mix( item.ItemCode ); mix( item.MagicLevel ); mix( item.MagicCode );
+	mix( item.EquippedLocation ); mix( item.RequiredLevel ); mix( item.MinDamage ); mix( item.MaxDamage );
+	mix( item.ArmorClass ); mix( item.overTime ); mix( item.damageFromEnemies );
+	mix( item.minMeleeAbsorbPercent ); mix( item.maxMeleeAbsorbPercent );
+	mix( item.minArrowAbsorbPercent ); mix( item.maxArrowAbsorbPercent );
+	mix( item.minThorns ); mix( item.maxThorns );
+	mix( item.SpellIndex ); mix( item.BaseCharges ); mix( item.BaseDurability );
+	mix( item.socketsAmount ); mix( item.socketsBase ); mix( item.socketsAdded );
+	for( short socket: item.sockets ) mix( socket );
+	for( short enchant: item.enchantIndexes ) mix( enchant );
+	mix( item.quenchAffix ); mix( item.quenchLevel );
+	mix( item.RequiredStrength ); mix( item.RequiredMagic ); mix( item.RequiredDexterity ); mix( item.RequiredVitality );
+	for( const Effect& e: item.effect ){
+		if( e.id == AE_NO ) continue;
+		mix( e.id ); mix( e.origin ); mix( e.type ); mix( e.minVal ); mix( e.maxVal ); mix( e.chance );
+	}
+	return h ? h : 1; // 0 means "unknown"
+}
+
+// Fingerprint of the item as a reload by the current character would rebuild it
+static uint SharedStash_RebuiltFingerprint( const LastItemInfo& info )
+{
+	// LoadItem reseeds the random generator: keep the game's own sequence intact
+	int randomSeed = RandomSeed, lastSeed = LastSeed;
+	uint randUsingCounter = RandUsingCounter;
+	Item rebuilt;
+	LoadItem( const_cast<LastItemInfo*>(&info), &rebuilt, true );
+	RandomSeed = randomSeed; LastSeed = lastSeed; RandUsingCounter = randUsingCounter;
+	return SharedStash_Fingerprint( rebuilt );
+}
+
+void SharedStash_ClearFingerprints()
+{
+	SharedStashEntries.clear();
+	SharedStashAmbiguousSeeds.clear();
+}
+
+// Reads the tabs (StashPanel_Save's layout, always in the current item format: the
+// shared file is written by this build or a newer one) and the fingerprint trailer.
+// end: the end of the decoded data.
+void SharedStash_LoadTabs( const char* end )
+{
+	SharedStash_ClearFingerprints();
+	struct Loaded { Item* item; LastItemInfo raw; };
+	vector<Loaded> loaded;
+	for( auto& stashTab : StashTabs ){
+		stashTab.itemCount = GetNextHtonl();
+		if( stashTab.itemCount > Stash_MaxSlot ){
+			TerminateWithError("Shared stash corrupted: itemCount %i > max %i", stashTab.itemCount, Stash_MaxSlot);
+		}
+		memcpy(stashTab.usedFlags, CurSaveData, sizeof(stashTab.usedFlags));
+		CurSaveData += sizeof(stashTab.usedFlags);
+		for( int i = 0; i < stashTab.itemCount; ++i ){
+			Loaded l;
+			l.item = &stashTab.items[i];
+			memcpy( &l.raw, CurSaveData, sizeof(LastItemInfo) );
+			LoadItem( (LastItemInfo*)CurSaveData, l.item, true );
+			CurSaveData += sizeof(LastItemInfo);
+			loaded.push_back( l );
+		}
+	}
+
+	vector<uint> fingerprints( loaded.size(), 0 );
+	if( end - CurSaveData >= 8 && GetNextHtonl() == SharedStashFingerprintMagic ){
+		int count = GetNextHtonl();
+		if( count == (int)loaded.size() && end - CurSaveData >= (ptrdiff_t)count * 4 ){
+			for( uint& fingerprint: fingerprints ) fingerprint = (uint)GetNextHtonl();
+		}
+	}
+
+	for( size_t k = 0; k < loaded.size(); ++k ){
+		const Item& item = *loaded[k].item;
+		if( SharedStashEntries.count( item.seed ) ) SharedStashAmbiguousSeeds.insert( item.seed );
+		const uint fingerprint = fingerprints[k];
+		const uint loadedFp = SharedStash_Fingerprint( item );
+		const bool locked = fingerprint != 0 && fingerprint != loadedFp;
+		SharedStashEntries[item.seed] = { loaded[k].raw, fingerprint, loadedFp, locked };
+	}
+	for( int seed: SharedStashAmbiguousSeeds ) SharedStashEntries.erase( seed );
+}
+
+// Writes the tabs in StashPanel_Save's layout, then the fingerprint trailer.
+// Locked items are written with their original bytes.
+void SharedStash_SaveTabs()
+{
+	vector<uint> fingerprints;
+	for( const auto& stashTab : StashTabs ){
+		PutNextHtonl(stashTab.itemCount);
+		memcpy(CurSaveData, stashTab.usedFlags, sizeof(stashTab.usedFlags));
+		CurSaveData += sizeof(stashTab.usedFlags);
+		for( int i = 0; i < stashTab.itemCount; ++i ){
+			const Item& item = stashTab.items[i];
+			LastItemInfo& info = *(LastItemInfo*)CurSaveData;
+			const bool ambiguous = SharedStashAmbiguousSeeds.count( item.seed ) != 0;
+			auto entry = ambiguous ? SharedStashEntries.end() : SharedStashEntries.find( item.seed );
+			const bool known = entry != SharedStashEntries.end();
+			const bool same = known && entry->second.loadedFp == SharedStash_Fingerprint( item );
+			uint fingerprint = 0;
+			if( same && entry->second.locked ){
+				memcpy( &info, &entry->second.raw, sizeof(LastItemInfo) );
+				fingerprint = entry->second.fingerprint;
+			}else{
+				SaveItem( &info, &item );
+				if( same ){
+					fingerprint = entry->second.fingerprint; // matched this character on load (or unknown)
+				}else if( ! known && ! ambiguous ){
+					// Stashed in this session: the item as this character has it is the real one
+					fingerprint = SharedStash_RebuiltFingerprint( info );
+					SharedStashEntries[item.seed] = { info, fingerprint, SharedStash_Fingerprint( item ), false };
+				}
+				// else another item with the seed of a known one: saved without a fingerprint
+			}
+			fingerprints.push_back( fingerprint );
+			CurSaveData += sizeof(LastItemInfo);
+		}
+	}
+	PutNextHtonl( SharedStashFingerprintMagic );
+	PutNextHtonl( (int)fingerprints.size() );
+	for( uint fingerprint: fingerprints ) PutNextHtonl( (int)fingerprint );
+}
+
+// The entry loaded for this very item (not just another item with its seed), or null
+static SharedStashEntry* SharedStash_Entry( const Item& item )
+{
+	if( ! IsSharedStashOpen ) return nullptr;
+	auto entry = SharedStashEntries.find( item.seed );
+	if( entry == SharedStashEntries.end() || entry->second.loadedFp != SharedStash_Fingerprint( item ) ) return nullptr;
+	return &entry->second;
+}
+
+bool SharedStash_IsLocked( const Item& item )
+{
+	const SharedStashEntry* entry = SharedStash_Entry( item );
+	return entry && entry->locked;
+}
+
+// Call before an item leaves the stash. False (and tells the player) when it must stay.
+// An item taken out belongs to this character from then on: stashing it again gives it
+// a new fingerprint.
+static bool SharedStash_TakeOut( const Item& item )
+{
+	const SharedStashEntry* entry = SharedStash_Entry( item );
+	if( ! entry ) return true;
+	if( entry->locked ){
+		AddWorldMessage( (char*)L("This item would morph on this character") );
+		return false;
+	}
+	SharedStashEntries.erase( item.seed );
+	return true;
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -1053,6 +1244,10 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 		currentInvYPosition++;
 	}
 
+	if( itemForReplacing && ! SharedStash_TakeOut( stash.items[itemForReplacing - 1] ) ){
+		return;
+	}
+
 	if( playerIndex == CurrentPlayerIndex ){ // (rt) If placing for the current player, play the corresponding sound
 		PlayGlobalSound(Flip_InventorySound[ItemFlipTable[player.ItemOnCursor.GraphicValue]]);
 	}
@@ -1131,6 +1326,7 @@ bool __fastcall Stash_MoveItemToInventory(int itemIndex)
 {
 	Player& player = Players[CurrentPlayerIndex];
 	if( (uint) itemIndex >= Stash_MaxSlot ) return false; // TODO: change to >= StashTabs[StashCurrentTab].itemCount
+	if( ! SharedStash_TakeOut( StashTabs[StashCurrentTab].items[itemIndex] ) ) return false;
 
 	player.ItemOnCursor = StashTabs[StashCurrentTab].items[itemIndex];
 	PlayGlobalSound( S_56_I_INVGRAB );
@@ -1183,6 +1379,10 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
         }
     }
     
+	if( stash.usedFlags[cellIndex] && ! SharedStash_TakeOut( stash.items[abs(stash.usedFlags[cellIndex]) - 1] ) ){
+		return;
+	}
+
 	// (rt) an exact copy of the ClearInventorySlot sub here, only up to RecalcPlayer
 	int takeItemIndex;
 

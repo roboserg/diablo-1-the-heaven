@@ -1336,6 +1336,9 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
             if (!IsItemAllowedForStash(&item)) {
                 Tooltip_AddLine_2(L("Cannot be stashed"), C_2_Red);
             }
+            else if (isVisualStashSlot && SharedStash_IsLocked(item)) {
+                Tooltip_AddLine_2(L("Would morph on this character"), C_2_Red);
+            }
             else {
                 if (isVisualStashSlot) {
                     Tooltip_AddLine_2(L("Shift Click to move to inventory"));
@@ -2186,6 +2189,9 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
         if (slot >= IS_Inventory) {
             if (!IsItemAllowedForStash(&item)) {
                 Tooltip_AddLine_3(L("Cannot be stashed"), C_2_Red);
+            }
+            else if (isVisualStashSlot && SharedStash_IsLocked(item)) {
+                Tooltip_AddLine_3(L("Would morph on this character"), C_2_Red);
             }
             else {
                 if (isVisualStashSlot) {
@@ -3234,6 +3240,8 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
         if( slot >= IS_Inventory ){
             if( !IsItemAllowedForStash(&item) ){
                 Tooltip_AddLine(L("Cannot be stashed"), C_2_Red);
+            }else if( isVisualStashSlot && SharedStash_IsLocked(item) ){
+                Tooltip_AddLine(L("Would morph on this character"), C_2_Red);
             }else{
                 if (IsController() && !XinputNotInUse(true)) {
                     if (isVisualStashSlot) {
