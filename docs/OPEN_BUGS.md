@@ -10,14 +10,13 @@ Every report links to its source on **The Hell 4 mod** Discord server: *channel*
 
 | Fix | For | Who, when | Status |
 |---|---|---|---|
-| **Stat cap fix:** `TheHeaven-nightly.zip` (4.49 MB) | [Bug 5](#5-the-doubled-stat-cap-doesnt-fully-work) | kishak95, 5 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490355431598592040)) | Compiled build only, no source. Untested by others. |
 | **Unofficial 0.2.0 build:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), fixes by "Yuki" | Possibly bug 4, now fixed | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Not checked yet. See [To check](#to-check-yukis-unofficial-020-build). |
 
-kishak95's stash fix for bug 1 isn't needed: bug 1 is fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
+kishak95's stash fix for bug 1 and his stat cap build for bug 5 aren't needed: both bugs are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
 
 ## Bugs, most important first
 
-Bugs 1 (Griswold's stash loses and duplicates items) and 2 (items lost in a window or on the cursor during a save or load) are fixed: see [FIXED_BUGS.md](FIXED_BUGS.md). The other numbers stay as they were, so links to them keep working.
+Bugs 1 (Griswold's stash loses and duplicates items), 2 (items lost in a window or on the cursor during a save or load) and 5 (the doubled stat cap) are fixed: see [FIXED_BUGS.md](FIXED_BUGS.md). The other numbers stay as they were, so links to them keep working.
 
 ### 3. Magic items morph
 The game keeps only a magic item's seed and a few fields, and rebuilds the rest after every load and, in the inventory, every 5 seconds. Anything that makes a rebuild come out different morphs the item.
@@ -45,12 +44,6 @@ Reports:
 The harmful penalties players reported are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)). Two decisions are left:
 - **Trade-offs are kept on 94 uniques:** moving life to mana or mana to life, and losing resistances or regeneration for a big bonus. Grace of Death, for example, takes 40-45 less damage from enemies but loses resistances and regeneration. Removing the downside would make these items far stronger than meant, and players in the Anti-Grind channel complain that removing it breaks them (see [To check](#to-check-problems-reported-in-other-sub-mods-channels)). Keep them as they are, or remove these too.
 - **-light radius was removed, but players want it kept,** because it helps archers and mages avoid pulling too many monsters (Darkbone115, 30 Mar, with screenshots, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488064296993820692), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488295169727008809); again on 15 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537953948856614943)). You replied "Will look at the bug tomorrow" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488316119994466315)). It's removed on purpose in code, so this is a design decision as much as a bug.
-
-### 5. The doubled stat cap doesn't fully work
-The changelog (v0.0.4) says the per-level stat cap is doubled. Not re-checked in code yet.
-- Rageweaver, 4 Apr: drinking a Spectral Elixir at the cap raises the stat for about a second, then it drops back. Capped stats don't turn gold either ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490066809288921090)).
-- kishak95: only the 1500 maximum was edited, not the per-level cap, and the cap is defined in more than one place ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490353817768693770), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490375963605860502)).
-- Rageweaver tested: the 1500 maximum isn't doubled either ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490363103660216492)).
 
 ### 6. Multiplayer
 - **Acceleration doesn't work:** in a LAN game on two PCs, time speed (the Acceleration game changer) can't be changed (Marcototech, 21 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1518059339343069234)). In the same test other players couldn't see dropped items, which is probably base TH4's separate loot per player.
