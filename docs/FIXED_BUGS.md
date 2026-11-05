@@ -8,6 +8,7 @@ What was fixed since v0.3.0. When the next version ships, move the table into `C
 |---|---|---|
 | Without `TH4data.mor` the game stops at the start and names it, and a file missing from the archives gives an error that names that file and both data files. Both used to blame DIABDAT.MPQ. The autotest runs without `TH4data.mor` and asks for a file no archive has. Blueplane and two guests reported it on ModDB. | dda655e | Bug 13 |
 | Infernal Bargain gives its perk points with Skilled, Lord of the Rings and Grim Deal. They got its lower regeneration and stats but none of its points. The autotest takes each trait at rank 1 and the top rank. A guest on ModDB reported it with an Archer. | 5182bbb | Bug 14 |
+| F12 quick load does only what the menu's Load Game allows. With no saved game it ended the program with "Unable to open save file": a new hero before its first save, and every Nightmare or Speedrun hero. It also loaded a save in Ironman, Outbreak, Nightmare and Speedrun, with Auto Save and Asceticism, and in Hardcore during a battle, and in those modes it took back the hero's death. F9 quick save now does only what the menu's Save Game allows too. It also saved in Ironman, with Auto Save and Asceticism, on quest floors outside Easy, Classic and Dark Campaign, in Survival and Outbreak with monsters left on the level, and in Nightmare and Speedrun after Uber Diablo. The autotest's `ql*` phases press both keys with a real hero of each mode. Found by reading the code; no player reported it. | 8efe55f | No number |
 
 ## New since v0.3.0
 
