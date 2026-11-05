@@ -5,7 +5,7 @@ Feature requests and feedback from players, collected from three places:
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
-**Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md),** together with the fixes players made and what `th4-v0.774-base` already fixes.
+**Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md),** together with the fixes players made. What `th4-v0.774-base` fixed is in [FIXED_BUGS.md](FIXED_BUGS.md).
 
 Features that players praise or ask for in the other TH4 sub-mods' channels (`#antigrind` and `#godroll`) are in [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md).
 

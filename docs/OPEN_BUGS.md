@@ -1,8 +1,8 @@
 # Open Bugs
 
-Bugs that players reported and that are still left to fix. Checked against the `th4-v0.774-base` branch (commit 6907b52) on 5 Nov 2026. Feature requests and player feedback are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
+Bugs that players reported and that are still left to do, checked against the `th4-v0.774-base` branch. Feature requests and player feedback are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
-When you fix a bug, move it to [Fixed, not released yet](#fixed-not-released-yet) at the bottom, and add it to `CHANGELOG.md` when it ships.
+When you fix a bug, move it out of this file into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release.
 
 Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
@@ -10,28 +10,19 @@ Every report links to its source on **The Hell 4 mod** Discord server: *channel*
 
 | Fix | For | Who, when | Status |
 |---|---|---|---|
-| **Stash fix:** modified `VisualStash.cpp` and `CharSlots.cpp` | Bug 1, [fixed](#fixed-not-released-yet) another way | kishak95, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489677986855915620)) | Downloaded to `F:\git\kishak-stash-fix\` (outside the repo, this PC only). Tested by kishak95 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489712222228844765)) and Rageweaver ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)). Not applied: see below why. |
 | **Stat cap fix:** `TheHeaven-nightly.zip` (4.49 MB) | [Bug 5](#5-the-doubled-stat-cap-doesnt-fully-work) | kishak95, 5 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490355431598592040)) | Compiled build only, no source. Untested by others. |
-| **Unofficial 0.2.0 build:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), fixes by "Yuki" | Possibly [bug 4](#4-some-unique-item-penalties-remain) | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Not checked yet. See [To check](#to-check-yukis-unofficial-020-build). |
+| **Unofficial 0.2.0 build:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), fixes by "Yuki" | Possibly bug 4, now fixed | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Not checked yet. See [To check](#to-check-yukis-unofficial-020-build). |
 
-Rageweaver also plays a further-modded private build based on 0.2.0 that includes the stash fix ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490370898161569962)).
-
-**What kishak95's stash fix changes,** compared with v0.2.0 (the same code is still on `th4-v0.774-base`):
-- **`VisualStash.cpp`:** calls `UpdatePlayerFile()` at the start of `StashPanel_OpenShared()`, so the personal stash is saved before the shared stash replaces it in memory. This is the fix for bug 1.
-- **`CharSlots.cpp`:** the shared stash file format goes from version 2 to 3 and stores its own save version, so its items are read with the format they were saved in rather than the format of the character opening them. Version 1 and 2 files still load.
-
-**Why `th4-v0.774-base` fixes bug 1 differently.** kishak95 found the cause, and his fix stops the loss and duplication as reported. Two problems are left:
-- **Saving on open:** the shared stash file is still written on every move, while the character is saved at other times. Load a save after moving an item and it's in both files or in neither (Marcototech's held-item report under bug 2). In Nightmare and Speedrun the save on open does nothing, because those modes never save the character.
-- **The format change isn't needed:** the item layout is the same in v0.2.0 and on `th4-v0.774-base`, and each item already records the save version it was written with, so the shared stash reads the same for every character. A version 3 file also can't be read by v0.2.0, which players still use.
+kishak95's stash fix for bug 1 isn't needed: bug 1 is fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
 
 ## Bugs, most important first
 
-Bugs 1 (Griswold's stash loses and duplicates items) and 2 (items lost in a window or on the cursor during a save or load) are fixed on `th4-v0.774-base`: see [Fixed, not released yet](#fixed-not-released-yet). The other numbers stay as they were, so links to them keep working.
+Bugs 1 (Griswold's stash loses and duplicates items) and 2 (items lost in a window or on the cursor during a save or load) are fixed: see [FIXED_BUGS.md](FIXED_BUGS.md). The other numbers stay as they were, so links to them keep working.
 
 ### 3. Magic items morph
 The game keeps only a magic item's seed and a few fields, and rebuilds the rest after every load and, in the inventory, every 5 seconds. Anything that makes a rebuild come out different morphs the item.
 
-Fixed on `th4-v0.774-base` (see [Fixed, not released yet](#fixed-not-released-yet)): items flipping between two versions every 5 seconds, kishak95's report below.
+Items that flipped between two versions every 5 seconds are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
 
 Still open:
 - **Across characters (base TH4):** staff and book spells depend on the character's class, and Classic mode uses its own affix table. `th4-v0.774-base` locks shared stash items that would morph for the current character. The autotest checks that the lock holds while the stash stays open through the 5-second checks.
@@ -40,7 +31,6 @@ Still open:
   - **Fixing it:** only new drops can be fixed, since existing items must keep the version players have. That needs a marker on each item (the unused `charFlag` byte) and in the multiplayer item messages. Not worth it unless players notice.
 
 Reports:
-- kishak95, 4 Apr: affixes on an item keep disappearing and coming back, even on an unidentified item that was never in the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490072463659503820), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490074289679106128)). Fixed: the flip.
 - Rageweaver, 25 May: a magic ring changed after switching characters, even though both were Dimachaerus and could use it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581640606322860)). Both were the same class, so it may have been the flip.
 - Rageweaver, 3 Apr: blue items change while in the shared stash and change back once taken out ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618645180219423)). May also be the flip.
 - Marcototech (Discord) and Gron21 (issue #3) can't reproduce it between Paladin, Archer and Mage. Marcototech suspects it only happens between two characters of the same class.
@@ -52,9 +42,8 @@ Reports:
 - The seed is updated on the fly to fix invalid rolls. Only when an item drops; a rebuild never changes the seed.
 
 ### 4. Some unique-item penalties remain
-The changelog says harmful penalties on uniques and sets are removed, but some still show up:
-- **-stun threshold and +damage from enemies (DFE)** (Rageweaver and Gorvex, 5 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490109613838958715), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490109862837879036); confirmed with Marcototech's screenshot, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490369857357615296)).
-  - **Cause:** the filter `IsHarmfulWhenNegative()` (`src/Item.cpp:3406`, used in `src/Item.cpp` and `src/Tooltip.cpp`) only hides *negative* values of the effects on its list. The stun threshold effect isn't on the list. +DFE is harmful when *positive*, so a negative-only check can't catch it.
+The harmful penalties players reported are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)). Two decisions are left:
+- **Trade-offs are kept on 94 uniques:** moving life to mana or mana to life, and losing resistances or regeneration for a big bonus. Grace of Death, for example, takes 40-45 less damage from enemies but loses resistances and regeneration. Removing the downside would make these items far stronger than meant, and players in the Anti-Grind channel complain that removing it breaks them (see [To check](#to-check-problems-reported-in-other-sub-mods-channels)). Keep them as they are, or remove these too.
 - **-light radius was removed, but players want it kept,** because it helps archers and mages avoid pulling too many monsters (Darkbone115, 30 Mar, with screenshots, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488064296993820692), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488295169727008809); again on 15 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537953948856614943)). You replied "Will look at the bug tomorrow" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488316119994466315)). It's removed on purpose in code, so this is a design decision as much as a bug.
 
 ### 5. The doubled stat cap doesn't fully work
@@ -107,7 +96,7 @@ These came up in `#antigrind` and `#godroll` (links marked *antigrind* and *godr
   - Raise the Bar, Thaumaturgy and Ostentation, because lowering an attribute limit cuts base stats above it without refunding them
 
   Check whether The Heaven's reset loses stats that way, and whether progression perks should be locked.
-- **No-penalty uniques break items whose penalty is the point.** Both reports are about AG's No Negative game changer; check both in The Heaven together with [bug 4](#4-some-unique-item-penalties-remain).
+- **No-penalty uniques break items whose penalty is the point.** Both reports are about AG's No Negative game changer. The Heaven keeps such trade-offs (see [bug 4](#4-some-unique-item-penalties-remain)) and removes plain penalties like Ravenous Hatred's.
   - Darkbone115 has an item meant to move 40% of life to mana, and it becomes useless ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)).
   - Zerathyl found Ravenous Hatred keeps −26% HP even with penalties off ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1520186604373676043)).
 - **Volume creeps up:** sound and music volume go up one bar on every restart (Rageweaver, on TH4 v0.774 with AG, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567163934660755599), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567264595834576957)). It's probably in The Heaven too.
@@ -121,18 +110,3 @@ Marcototech posted an unofficial build with fixes by someone named **Yuki**. Che
 - **How to download:** open the message link while signed in to Discord and click the file. Link to the message, not the file: Discord's direct file links expire.
 - The name suggests fixes to unique-item stats (possibly bug 4). It's probably a compiled build, not source, so the check is a diff against our v0.2.0 release.
 - It's a third-party binary. Unzip it into its own empty folder outside the repo, and don't run the exe before checking it.
-
-## Fixed, not released yet
-
-On `th4-v0.774-base`. `scripts\autotest.ps1` plays the game unattended to check these (see `docs\BUILD.md`).
-
-| Fix | Commit | Was |
-|---|---|---|
-| Pixel light works: the shipped `config.ini` lacked the options that turn it on | 7ff7213 | GitHub [issue #5](https://github.com/roboserg/diablo-1-the-heaven/issues/5) |
-| Closing Cain's transmute window while holding an item returns the slot items to the inventory | a5b1365 | Part of bug 2 (issue #3) |
-| F9/F12 quick save and load, and loading a save from the menu, close every item window first and return their items; quick save refuses while an item is on the cursor. The autotest checks loading from the menu with an item in Adria's window | 1c8fd75 | Part of bug 2 (issue #3) |
-| Griswold's personal stash no longer loses or duplicates items around Gillian's shared stash: it stays in memory while the shared stash is open, instead of being reloaded from the last save | 8193865 | [Bug 1](#ready-made-fixes-from-players) (Rageweaver, kishak95, issue #3). kishak95 found the cause |
-| The shared stash file is written only together with a character save, when the shared stash closes. Loading a save drops unsaved shared stash moves, so an item held on the cursor during a load is back in the stash, once | 8193865 | Part of bug 2 (Marcototech, 21 Jun) |
-| The once-a-minute autosave (Auto Save game changer, multiplayer) waits while an item is held or an item window holds items. Quitting, and changing level in multiplayer, first return the window items to the inventory | 8193865 | Part of bug 2: the gem lost in Griswold's crafting window (issue #3) |
-| Shared stash items that would morph for the current character are locked: drawn red, can't be taken out, saved back unchanged | af5cf77 | Part of bug 3 |
-| Magic items no longer flip between two versions every 5 seconds, with affixes and "Not Identified" coming and going. A rebuild that would turn a magic item plain rebuilds it as it dropped. About 1 magic drop in 200 flipped, mostly spell staves | 8193865 | Part of bug 3 (kishak95, 4 Apr) |
