@@ -15,8 +15,8 @@
     nomor phase runs last, with no TH4data.mor in the folder: the game must stop and name the file.
     Before it, missingfile checks the error for a file no archive has.
 
-    The game window opens off-screen, without focus and muted, so you can keep using the
-    PC. -Show puts it on screen to watch.
+    The game window opens off-screen, without focus and muted, and the game can't touch your
+    mouse, so you can keep using the PC. -Show puts it on screen to watch.
 
     Results: build\autotest\autotest-report.json (all checks), autotest-*.gif screenshots,
     and a summary printed at the end. Exit code 0 when every check passed.

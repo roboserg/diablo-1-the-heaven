@@ -69,6 +69,7 @@ void __fastcall CloseGameArchives(bool exitGame)
 //----- (0041D602) --------------------------------------------------------
 void __fastcall DisableScreenSaver(char a1)
 {
+	if( AutoTest_Active() ) return; // (heaven) a test doesn't touch the PC's settings, and a killed game wouldn't restore this one
 	LSTATUS result; // eax@1
 	char v2;        // al@5
 	char v3;        // [sp+23h] [bp-1h]@1

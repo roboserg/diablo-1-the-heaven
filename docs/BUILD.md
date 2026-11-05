@@ -78,7 +78,7 @@ Then launch `TheHeaven.exe`.
 .\scripts\autotest.ps1 -Show    # watch it: the window opens on screen, still muted
 ```
 
-It runs a copy of the game in `build\autotest` with its own test heroes, so your saves, shared stash and settings are never touched. The window opens off-screen, muted, never takes focus, and leaves the mouse, keyboard and gamepad alone, so you can keep using the PC.
+It runs a copy of the game in `build\autotest` with its own test heroes, so your saves, shared stash and settings are never touched. The window opens off-screen, muted, never takes focus, and leaves the mouse, keyboard and gamepad alone, so you can keep using the PC. In a test, the game's calls that would move or lock the pointer, send input, take focus or change the screen mode do nothing, and every phase checks that.
 
 Results go to `build\autotest`: `autotest-report.json` with every check, the `autotest-*.gif` screenshots (look at the dungeon one for pixel light), `autotest-rebuilds.csv` with every magic item the test dropped, as dropped and after each of 4 rebuilds, and an `autotest-<phase>.log` per phase showing how far it got. The exit code is 0 when every check passed. The checks themselves are in `src\AutoTest.cpp`.
 

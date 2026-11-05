@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <tlhelp32.h>
 
 //----- (heaven) ----------------------------------------------------------
 // Autotest: end-to-end checks that run the real game unattended.
@@ -10,7 +11,8 @@
 // touched. Each run creates or loads its own test hero straight away (no menus),
 // runs its steps from the game loop, writes autotest-<phase>.json and screenshots
 // next to the exe, and quits. The window opens off-screen, without focus and with
-// sound off, so the PC stays usable; -show puts it on screen to watch.
+// sound off, and the game can't touch the PC's mouse or focus, so the PC stays usable;
+// -show puts it on screen to watch.
 //
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
@@ -137,6 +139,90 @@ bool Check( const char* name, bool pass, const string& detail = "" )
 }
 
 Player& Hero() { return Players[CurrentPlayerIndex]; }
+
+//----- the PC's mouse and focus ------------------------------------------
+
+// A test must leave the PC's pointer, focus and screen mode alone, in every phase.
+// Ways that can fail:
+// - the game or a DLL asks Windows to move, lock or capture the pointer, send input, take focus or
+//   change the screen mode: those imports go to the stubs below, which only count the call
+// - an import isn't replaced (a Windows shim got there first, say): the check looks at the exe's own
+// - a DLL that loads later still has the real ones: the imports are replaced again in the first tick
+// - a stub takes other arguments than Windows' function: the stack breaks and the phase crashes
+// - a stub's answer breaks the game: the phase's other checks fail
+// - the window lands on a monitor, where the pointer reaches it: looked at every tick, except with -show
+// - the window takes focus anyway: looked at every tick
+int BlockedCalls[8];
+BOOL WINAPI NoSetCursorPos( int, int )                   { ++BlockedCalls[0]; return TRUE; }
+BOOL WINAPI NoClipCursor( const RECT* )                  { ++BlockedCalls[1]; return TRUE; }
+HWND WINAPI NoSetCapture( HWND )                         { ++BlockedCalls[2]; return NULL; }
+UINT WINAPI NoSendInput( UINT count, LPINPUT, int )      { ++BlockedCalls[3]; return count; }
+BOOL WINAPI NoSetForegroundWindow( HWND )                { ++BlockedCalls[4]; return TRUE; }
+HWND WINAPI NoSetActiveWindow( HWND )                    { ++BlockedCalls[5]; return NULL; }
+HWND WINAPI NoSetFocus( HWND )                           { ++BlockedCalls[6]; return NULL; }
+LONG WINAPI NoChangeDisplaySettingsA( DEVMODEA*, DWORD ) { ++BlockedCalls[7]; return DISP_CHANGE_SUCCESSFUL; }
+const struct { const char* name; void* stub; } Blocked[8] = {
+	{ "SetCursorPos", NoSetCursorPos }, { "ClipCursor", NoClipCursor }, { "SetCapture", NoSetCapture },
+	{ "SendInput", NoSendInput }, { "SetForegroundWindow", NoSetForegroundWindow },
+	{ "SetActiveWindow", NoSetActiveWindow }, { "SetFocus", NoSetFocus },
+	{ "ChangeDisplaySettingsA", NoChangeDisplaySettingsA },
+};
+bool HadFocus = false, WasOnMonitor = false;
+string WindowAndDesktop;
+
+void BlockImports( BYTE* module, void* const* real )
+{
+	auto& imports = ((IMAGE_NT_HEADERS*)(module + ((IMAGE_DOS_HEADER*)module)->e_lfanew))->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+	if( ! imports.VirtualAddress ) return;
+	for( auto* dll = (IMAGE_IMPORT_DESCRIPTOR*)(module + imports.VirtualAddress); dll->FirstThunk; ++dll ){
+		for( void** slot = (void**)(module + dll->FirstThunk); *slot; ++slot ){
+			for( int i = 0; i < 8; ++i ){
+				if( *slot != real[i] ) continue;
+				DWORD protect;
+				if( ! VirtualProtect( slot, sizeof *slot, PAGE_READWRITE, &protect ) ) continue;
+				*slot = Blocked[i].stub;
+				VirtualProtect( slot, sizeof *slot, protect, &protect );
+			}
+		}
+	}
+}
+
+void BlockImportsEverywhere()
+{
+	static void* real[8];
+	if( ! real[0] ) for( int i = 0; i < 8; ++i ) real[i] = (void*)GetProcAddress( GetModuleHandleA( "user32.dll" ), Blocked[i].name );
+	HANDLE modules = CreateToolhelp32Snapshot( TH32CS_SNAPMODULE, 0 );
+	if( modules == INVALID_HANDLE_VALUE ) return;
+	MODULEENTRY32 m = { sizeof m };
+	for( BOOL more = Module32First( modules, &m ); more; more = Module32Next( modules, &m ) ) BlockImports( m.modBaseAddr, real );
+	CloseHandle( modules );
+}
+
+void WatchMouseAndFocus()
+{
+	DWORD owner = 0;
+	GetWindowThreadProcessId( GetForegroundWindow(), &owner );
+	if( owner == GetCurrentProcessId() ) HadFocus = true;
+	RECT window, overlap;
+	if( ! ghMainWnd || ! GetWindowRect( ghMainWnd, &window ) ) return;
+	int left = GetSystemMetrics( SM_XVIRTUALSCREEN ), top = GetSystemMetrics( SM_YVIRTUALSCREEN );
+	RECT desktop = { left, top, left + GetSystemMetrics( SM_CXVIRTUALSCREEN ), top + GetSystemMetrics( SM_CYVIRTUALSCREEN ) };
+	if( ! Show && IntersectRect( &overlap, &window, &desktop ) ) WasOnMonitor = true;
+	WindowAndDesktop = Fmt( "window from x %d, desktop up to x %d", (int)window.left, (int)desktop.right );
+}
+
+void CheckMouseAndFocus()
+{
+	WatchMouseAndFocus();
+	bool replaced = (void*)&SetCursorPos == (void*)NoSetCursorPos && (void*)&ClipCursor == (void*)NoClipCursor
+		&& (void*)&SetCapture == (void*)NoSetCapture && (void*)&SendInput == (void*)NoSendInput
+		&& (void*)&SetForegroundWindow == (void*)NoSetForegroundWindow && (void*)&SetFocus == (void*)NoSetFocus;
+	string blocked;
+	for( int i = 0; i < 8; ++i ) if( BlockedCalls[i] ) blocked += Fmt( "%s%s %d", blocked.empty() ? "" : ", ", Blocked[i].name, BlockedCalls[i] );
+	Check( "the test can't touch the PC's mouse, focus or screen mode, and left them alone", replaced && ! HadFocus && ! WasOnMonitor,
+		Fmt( "calls replaced: %s; had focus: %s; on a monitor: %s; %s; calls stopped: %s", replaced ? "yes" : "NO", HadFocus ? "YES" : "no",
+			WasOnMonitor ? "YES" : "no", WindowAndDesktop.c_str(), blocked.empty() ? "none" : blocked.c_str() ) );
+}
 
 //----- items -------------------------------------------------------------
 
@@ -586,6 +672,7 @@ void WriteReport()
 
 void Finish()
 {
+	CheckMouseAndFocus();
 	Log( "finished" );
 	WriteReport();
 	Finished = true;
@@ -2108,6 +2195,7 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 	}
 	Active = true;
 	Show = strstr( cmdLine, "-show" ) != nullptr;
+	BlockImportsEverywhere();
 	DeleteFileA( Fmt( "autotest-%s.log", CurPhase->name ).c_str() );
 	Log( "autotest %s%s", CurPhase->name, Show ? " (shown)" : "" );
 }
@@ -2158,6 +2246,7 @@ void AutoTest_Error( int dialogId, const char* text )
 	}else{
 		Check( "the game runs without an error message", false, shown );
 	}
+	CheckMouseAndFocus();
 	Log( "finished" );
 	WriteReport();
 	ExitProcess( 0 );
@@ -2210,7 +2299,9 @@ void AutoTest_NoteSound( int soundIndex )
 void AutoTest_Tick()
 {
 	if( ! Active || Finished || gbRunGame != 1 ) return;
+	WatchMouseAndFocus();
 	if( Steps.empty() ){
+		BlockImportsEverywhere();
 		Log( "in the game" );
 		CurPhase->build();
 	}
