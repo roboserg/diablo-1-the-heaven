@@ -548,6 +548,7 @@ void __fastcall NullMenuHandler(int a1, int a2);
 void __fastcall ExitGameMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall LoadGameMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall SaveGameMenuHandler( int a1, int a2	);//	Menu		
+void CloseItemWindows();// Menu (heaven) return item-window slot items before a save or load
 void __fastcall RestartMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall SetupMenuHandler( int a1, int a2	);//	Menu
 void MurderHeroInGame();
@@ -2853,6 +2854,7 @@ void __fastcall Quench_MouseClick();
 void SetupQuenchPanel();
 
 void __fastcall Transmute_Open();
+void Transmute_RetriveAllItems();
 void __fastcall Transmute_Close();
 void __fastcall Transmute_Draw();
 void __fastcall Transmute_MouseMove();

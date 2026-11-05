@@ -4876,6 +4876,12 @@ void __fastcall KeyPressHandler(WPARAM key)
 			 && Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
 			 && IsSaveAndLeavingEnabled()
 			 && !EnforceNoSave ){
+				// (heaven) An item held on the cursor is not saved: the menu save refuses too.
+				if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ){
+					AddWorldMessage( (char*)L("Put the held item away before saving") );
+					return;
+				}
+				CloseItemWindows(); // (heaven) items in the item windows' slots are not saved either
 				ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
 				SetCursorGraphics(CM_0_INVISIBLE);
 				AddOnScreenMessage(OM_11_Saving);

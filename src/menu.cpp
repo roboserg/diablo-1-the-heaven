@@ -341,13 +341,28 @@ void __fastcall ExitGameMenuHandler(int a1, int a2)
 	gbRunGameResult = UberDiabloKilled || is(GameMode, GM_NIGHTMARE, GM_SPEEDRUN, GM_IRONMAN); // 0;
 }
 
+//----- (heaven) ----------------------------------------------------------
+// The item windows (stash, trade, crafting, Adria's enchanting, quench, Cain's
+// transmute) hold their slot items outside the save file. Close them before a
+// save or load: each close returns its items to the inventory, so a save
+// includes them and a load can't bring back a second copy.
+void CloseItemWindows()
+{
+	if( IsStashPanelVisible || IsVisualTradePanelVisible || IsCraftPanelVisible || IsEnchantPanelVisible
+	 || IsPowerupPanelVisible || IsQuenchPanelVisible || IsTransmutePanelVisible ){
+		CloseInventoryPanel();
+	}
+	Transmute_RetriveAllItems(); // with TransmuteKeepItems on, closing leaves them in the slots
+}
+
 //----- (0041B372) -------------------------------------------------------- menu
 void __fastcall LoadGameMenuHandler(int a1, int a2)
 {
 	PlayersSpellcastQueue[CurrentPlayerIndex] = {};
 	PlayerWall[CurrentPlayerIndex] = {};
 	ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
-	StashPanel_Close();
+	CloseItemWindows(); // (heaven) was StashPanel_Close() only: F12 quick load can run with any window open
+	TransmuteSlots.ClearAll(); // (heaven) anything still in Cain's slots is not part of the save
 	ResetMainMenu();
 	SetCursorGraphics(CM_0_INVISIBLE);
 	AddOnScreenMessage(OM_10_Loading);
@@ -373,6 +388,7 @@ void __fastcall SaveGameMenuHandler(int a1, int a2)
 			ResetMainMenu();
 		}else{
 			ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
+			CloseItemWindows(); // (heaven) so items in Cain's slots are saved too
 			SetCursorGraphics(CM_0_INVISIBLE);
 			ResetMainMenu();
 			AddOnScreenMessage(OM_11_Saving);
