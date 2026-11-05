@@ -20,3 +20,11 @@ Players rarely open GitHub issues, and bug reports on Discord are hard to follow
 **Start from** retro-league's feedback Worker, `F:\git\retro-league\game\service\ranked\src\feedback.mjs` and its `wrangler.toml` (D1 table, rate limit binding, admin key). Swap its Resend email for the GitHub issue, and its base64 screenshot in D1 for R2. Its browser client doesn't fit; the game side is new C++.
 
 **Test** end to end: the autotest opens the pause menu, sends a report to a local `wrangler dev`, and checks the files and the issue body it would have created.
+
+## Wider item pool per class
+
+From the unmerged branch `feat/0.3.0-more-base-unique-items` (roboserg, 30 Mar 2026), never released. Its one commit, af5bc92, runs `tools/fix_class_mask.py` over `src/BaseItems.cpp`. Base items limited to a subclass become available to its whole class, so every Mage subclass gets the Necromancer's items, for example. Items for two classes become available to all. On the old TH4 base, the items every class can use went from 694 to 883 (Mage +189, Archer +150, Rogue +127, Monk +107, Savage +96, Warrior +87). The mask decides both who can use an item and what drops for them (`GetRequiredClassMask` in `src/Item.cpp`), so this is a balance change, not a fix. Left out of v0.3.0 on 5 Nov 2026.
+
+- **Nobody asked for it** in The Heaven's channels. The nearest are AG's All Drop game changer, which Masterteo89 praises (see [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md)), and Rageweaver's unanswered question about TH4's 70% smart drop and 30% parent class drop (see [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md)).
+- **Redo it rather than merge the branch:** `BaseItems.cpp` changed with the v0.774 rebase, so rerun the script on the new table. `main` already has the script that charts the class masks (67ee2c8).
+- **Test** with the autotest: the shared stash lock and the morph checks must still pass, since it changes which items a class can use.
