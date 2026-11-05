@@ -816,10 +816,14 @@ int __fastcall CalcCharBaseStatSum( Player& player )
 }
 
 //----- (0070E500) --------------------------------------------------------
-int CannotIncreaseStat( int playerIndex )
+// (heaven) The most the four base stats may add up to: the per-level cap, doubled in The Heaven
+// (cccf003), with the traits, perks and modes that raise or replace it. Leveling up, elixirs and
+// shrines stop there (CannotIncreaseStat, LevelPointsToMax) and LimitPlayerParams trims stats above
+// it every tick. The trim kept the cap from before it was doubled, so elixirs past it were taken
+// back a moment later and stats never turned gold (bug 5): all of them use this now.
+int StatSumCap( int playerIndex )
 {
 	Player& player = Players[playerIndex]; // MSL: MORDOR'S STAT LIMITATION
-	int statSum = CalcCharBaseStatSum(player);
 	int clvl = player.CharLevel;
 
 	//-------------------------------- NEW #MSL ----------------------------------------------------
@@ -870,12 +874,7 @@ int CannotIncreaseStat( int playerIndex )
 	statSumLimit += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex); 
 	if (GameMode == GM_CLASSIC) { statSumLimit = 460; }
 	if (Players[playerIndex].gameChanger & BIT(GC_27_TERMINATOR)) { statSumLimit = 2'810; }
-	if (statSum < statSumLimit) {
-		return 0;
-	}
-	else {
-		return 1;
-	}
+	return statSumLimit;
 
 	//------------------------------------------------------------------------------------------
 
@@ -909,6 +908,12 @@ int CannotIncreaseStat( int playerIndex )
 		return 0;
 	}
 #endif
+}
+
+// 1 when the stats are at the cap: they can't be raised and are drawn gold
+int CannotIncreaseStat( int playerIndex )
+{
+	return CalcCharBaseStatSum( Players[playerIndex] ) >= StatSumCap( playerIndex ) ? 1 : 0;
 }
 
 // Calculate spell level cap for prevent reading book

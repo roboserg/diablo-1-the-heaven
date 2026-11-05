@@ -2267,6 +2267,7 @@ void __fastcall Limit_MvP_Ranged_Magical_ToHit_Chance(int playerIndex, int& real
 void __fastcall MonsterLifeSteal( int delLife, int monsterIndex, int playerIndex	);//	Monster		void __usercall MonsterLifeSteal(int a1@<ebx>, int a2@<edi>)
 bool PlayerKnockbackResistFail( int monsterIndex, uint playerIndex, bool charge = false	);
 int __fastcall VariatePotionsByDifficulty( int randAdd, int addFromMax	);//			POINT __usercall VariatePotionsByDifficulty@<eax:edi>(int a1@<eax>, int a2@<edi>, int a3@<esi>)
+int  StatSumCap( int playerIndex );// theheaven (heaven) the most the base stats may add up to
 int  CannotIncreaseStat( int playerIndex );//	Player		
 int __fastcall CalcCharBaseStatSum( Player& player	);//	Player		
 void __fastcall SetPlayerHitPointsOnRestart( int playerIndex, int hitPoints	);//	(rt) Player		reworked SetPlayerHitPoints 0045E9AC

@@ -15,6 +15,7 @@
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
 //          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
+//          the doubled stat cap,
 //          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
@@ -501,6 +502,7 @@ void AddStartSteps( GAME_MODE expectedMode )
 // Shared state between steps of one run
 map<int, string> Manifest;
 int              TestSeed = 0;
+int              SavedStats[4] = {}, StatSumAtCap = 0, ElixirsDrunk = 0;
 int              PersonalSeed = 0, HeldSeed = 0, EnchantSeed = 0, GemSeed = 0;
 i64              SaveTimeBefore = 0;
 vector<DropInfo> RebuildWatch; // magic items to watch in the inventory: those that kept changing first
@@ -671,6 +673,39 @@ void BuildMain()
 		Check( "no unique or set item has negative armour (bug 4)", negativeAc == 0, Fmt( "%d. First: ", negativeAc ) + firstAc );
 		Check( "no unique or set item makes the hero worse in any value (bug 4)", worse == 0, Fmt( "%d of %d. First: ", worse, checked ) + firstWorse );
 		Check( "no unique or set item tooltip shows a penalty (bug 4)", shown == 0, Fmt( "%d penalty lines. First: ", shown ) + firstShown );
+		return Next;
+	} } );
+
+	Steps.push_back( { "stat cap: Spectral Elixirs up to the cap", []{
+		// Bug 5 (Rageweaver, 4 Apr): the per-level stat cap is doubled (cccf003), but a Spectral
+		// Elixir drunk past the old cap raised the stats for a second, then they dropped back,
+		// and capped stats never turned gold. Start from the lowest stats, drink elixirs until
+		// the game refuses them, then let the game run for 2 seconds
+		Player& p = Hero();
+		short* base[4] = { &p.BaseStrength, &p.BaseMagic, &p.BaseDexterity, &p.BaseVitality };
+		for( int s = 0; s < 4; ++s ){ SavedStats[s] = *base[s]; *base[s] = 15; }
+		RecalcPlayer( CurrentPlayerIndex, true );
+		Item elixir {};
+		elixir.MagicCode = MC_44_SPECTRAL_ELIXIR;
+		ElixirsDrunk = 0;
+		while( ElixirsDrunk < 1000 && UsePotionOrScroll( CurrentPlayerIndex, &elixir ) ) ++ElixirsDrunk;
+		StatSumAtCap = CalcCharBaseStatSum( p );
+		return 2 * ENGINE_FPS;
+	} } );
+
+	Steps.push_back( { "stat cap: 2 seconds later", []{
+		Player& p = Hero();
+		int clvl = p.CharLevel;
+		int doubled = ((10 * clvl) + 90 + (2 * clvl / 3)) * 2; // the changelog's formula; this hero has no traits
+		int now = CalcCharBaseStatSum( p );
+		Check( "Spectral Elixirs raise the stats to the doubled per-level cap (bug 5)", StatSumAtCap >= doubled,
+			Fmt( "level %d: stat sum %d after %d elixirs, doubled cap %d", clvl, StatSumAtCap, ElixirsDrunk, doubled ) );
+		Check( "the stats stay at the cap while the game runs (bug 5)", now >= doubled && now >= StatSumAtCap - 4,
+			Fmt( "stat sum %d, %d right after the elixirs (an elixir's last +5 may go up to 4 past the cap)", now, StatSumAtCap ) );
+		Check( "stats at the cap are drawn gold (bug 5)", CannotIncreaseStat( CurrentPlayerIndex ) == 1 );
+		short* base[4] = { &p.BaseStrength, &p.BaseMagic, &p.BaseDexterity, &p.BaseVitality };
+		for( int s = 0; s < 4; ++s ) *base[s] = SavedStats[s];
+		RecalcPlayer( CurrentPlayerIndex, true );
 		return Next;
 	} } );
 

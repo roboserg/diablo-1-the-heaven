@@ -2682,55 +2682,7 @@ int __fastcall LevelPointsToMax(int playerIndex)
 	int pointsToMax = maxStatsSum - curStatsSum;
 	int statSum = CalcCharBaseStatSum( player );
 	int clvl = player.CharLevel;
-	int maxStatSumCap;
-
-	// #msl: mordor's stat limitation
-	int blueblood_limit_raise = HasTrait(playerIndex, TraitId::BlueBlood) ? 40 : 0;
-	int gifted_limit = HasTrait(playerIndex, TraitId::Gifted) ? 100 : 0;
-	int giant_limit = HasTrait(playerIndex, TraitId::Giant) ? 100 : 0;
-	int paladin_limit = HasTrait(playerIndex, TraitId::Paladin) ? (200 + PerkValue(SYNERGY_THAUMATURGY, playerIndex)) : 0;
-	int nightkin_limit = 0; 
-	if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_9_NIGHT_KIN))) { 
-		nightkin_limit = 140;
-	}
-	int mutie_limit = 0;
-	if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
-		mutie_limit = 200;
-	}
-	int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0;
-	int leper = HasTrait(playerIndex, TraitId::Leper) ? 150 : 0;
-	int lithe = HasTrait(playerIndex, TraitId::LitheBuild) ? 100 : 0;
-	int extra_mode_boost = 0;
-	if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) { 
-		extra_mode_boost = clvl / 2 + 50;
-	}
-	maxStatSumCap = ((10 * clvl) + 90 + (2 * clvl / 3)) * 2
-		+ extra_mode_boost
-		+ blueblood_limit_raise
-		+ gifted_limit
-		+ giant_limit
-		+ paladin_limit
-		+ nightkin_limit
-		+ mutie_limit
-		+ oldfashioned
-		+ leper
-		+ lithe;
-	if (HasTrait(playerIndex, TraitId::BendTheRules)) {
-		if (HasTrait(playerIndex, TraitId::Paladin)) {
-			if (maxStatSumCap > (1400 + paladin_limit)) { 
-				maxStatSumCap = 1400 + paladin_limit; 
-			}
-		}
-		else {
-			if (maxStatSumCap > 1400) { 
-				maxStatSumCap = 1400; 
-			}
-		}
-		maxStatSumCap += PerkValue(PERK_RAISE_THE_BAR, playerIndex); 
-	}
-	maxStatSumCap += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex); 
-	if (GameMode == GM_CLASSIC) { maxStatSumCap = 460; }
-	if(player.gameChanger& BIT(GC_27_TERMINATOR)){ maxStatSumCap = 2'810; }
+	int maxStatSumCap = StatSumCap( playerIndex ); // (heaven) the same cap everywhere (bug 5)
 	int pointsToMaxCap = maxStatSumCap - statSum;
 	if (pointsToMax > pointsToMaxCap) {
 		pointsToMax = pointsToMaxCap;
@@ -7780,56 +7732,8 @@ void __fastcall LimitPlayerParams(int playerIndex)
 
 	int nextStatToDecrease = 0;
 	while (1) {
-		// #msl : mordor's stat limitation
-		int blueblood_limit_raise = HasTrait(playerIndex, TraitId::BlueBlood) ? 40 : 0;
-		int gifted_limit = HasTrait(playerIndex, TraitId::Gifted) ? 100 : 0;
-		int giant_limit = HasTrait(playerIndex, TraitId::Giant) ? 100 : 0;
-		int paladin_limit = HasTrait(playerIndex, TraitId::Paladin) ? (200 + PerkValue(SYNERGY_THAUMATURGY, playerIndex)) : 0;
-		int nightkin_limit = 0;
-		if( MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_9_NIGHT_KIN)) ){
-			nightkin_limit = 140;
-		}
-		int mutie_limit = 0;
-		if (MaxCountOfPlayersInGame == 1 && (player.gameChanger & BIT(GC_28_SUPERMUTANT))) {
-			mutie_limit = 200;
-		}
-		int oldfashioned = HasTrait(playerIndex, TraitId::OldFashioned) ? 40 : 0;
-		int leper = HasTrait(playerIndex, TraitId::Leper) ? 150 : 0; 
-		int lithe = HasTrait(playerIndex, TraitId::LitheBuild) ? 100 : 0;
 		int statSum = CalcCharBaseStatSum(player);
-		int extra_mode_boost = 0;
-		if (is(GameMode, GM_IRONMAN, GM_SPEEDRUN, GM_NIGHTMARE, GM_OUTBREAK)) {
-			extra_mode_boost = player.CharLevel / 2 + 50;
-		}
-		int statSumLimit = (10 * player.CharLevel)
-			+ extra_mode_boost
-			+ 90
-			+ (2 * player.CharLevel / 3)
-			+ blueblood_limit_raise
-			+ gifted_limit
-			+ giant_limit
-			+ paladin_limit
-			+ nightkin_limit
-			+ mutie_limit
-			+ oldfashioned
-			+ leper
-			+ lithe;
-		if (HasTrait(playerIndex, TraitId::BendTheRules)) {
-			if (HasTrait(playerIndex, TraitId::Paladin)) {
-				if (statSumLimit > (1400 + paladin_limit)) {
-					statSumLimit = 1400 + paladin_limit;
-				}
-			}
-			else {
-				if (statSumLimit > 1400) {
-					statSumLimit = 1400;
-				}
-			}
-			statSumLimit += PerkValue(PERK_RAISE_THE_BAR, playerIndex);
-		}
-		statSumLimit += 4 * PerkValue(SYNERGY_OSTENTATION, playerIndex);
-		if (GameMode == GM_CLASSIC) { statSumLimit = 460; }
-		if (player.gameChanger & BIT(GC_27_TERMINATOR)) { statSumLimit = 2'810; }
+		int statSumLimit = StatSumCap( playerIndex ); // (heaven) was the cap from before it was doubled (bug 5)
 		// below is the stat decrease loop!
 		if( statSum <= statSumLimit ) break;
 		
