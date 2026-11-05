@@ -21,9 +21,9 @@ Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `
 - `antigrind-channel.md`: the `#antigrind` channel of the Anti-Grind sub-mod (2,115 messages, 23 May – 5 Nov 2026)
 - `godroll-channel.md`: the `#godroll` channel of the Godroll sub-mod (762 messages, 3 Oct – 5 Nov 2026)
 
-The folder is `F:\git\diablo-1-the-heaven\.claude\worktrees\discord-bot-channel-access-6724f2\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link here or in [OPEN_BUGS.md](OPEN_BUGS.md).
+The folder is `F:\git\diablo-1-the-heaven\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link here or in [OPEN_BUGS.md](OPEN_BUGS.md).
 - **Not committed:** the repo is public and these are other people's posts from a members-only server.
-- **Where it lives:** only on this PC, inside that worktree. It disappears if the worktree is deleted, so copy it elsewhere before cleaning up worktrees.
+- **Where it lives:** only on this PC, in the main checkout's `.claude` folder, which git ignores. It was first saved in the Discord session's worktree; save new snapshots here, since deleting a worktree deletes everything in it.
 
 **Live from Discord** (for newer messages or attachments):
 1. In the Claude desktop app's built-in browser, open discord.com and sign in. The QR code from the Discord phone app is fastest. Agents must not type passwords or use a Discord token.
