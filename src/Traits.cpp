@@ -525,7 +525,7 @@ const char* GetTraitPenaltyDescription( TraitId id )
 	case TraitId::MonkeyGrip:		return  "-(10+CLVL) accuracy and AC, -20% maximum chance to hit"; //done
 	case TraitId::Zealot:			return  "-(5+CLVL) accuracy, -15% to maximum chance of hitting target"; //done
 	case TraitId::Adrenaline:		return  "life regeneration drops when standing still"; //done
-	case TraitId::Sisyphean:		return  "total XP gains are reduced by (75+CLVL/10)%. this includes perks and item effects"; //done
+	case TraitId::Sisyphean:		return  "total XP gains are reduced by (75+CLVL/10)%. this includes perks and item effects. can't take Swift Learner, Here and Now, Educated, Higher Education, Silver Tongue, Negation, Bolster, Grace, Butchery, Ostentation, Pick up the Pace, Overwhelm"; //done (heaven) the perks it blocks were hidden without a word (Perks.cpp)
 	case TraitId::BendTheRules:		return  "total base attribute sum is limited at 1400"; //done
     case TraitId::Barbarian:		return  "uses only white items, can't read books (except Fury, Heal, Portal)"; //done
     case TraitId::Psion:		    return  "reduced base mana, no natural mana regeneration"; //done
