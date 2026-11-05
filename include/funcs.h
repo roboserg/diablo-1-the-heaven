@@ -549,6 +549,8 @@ void __fastcall ExitGameMenuHandler( int a1, int a2	);//	Menu
 void __fastcall LoadGameMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall SaveGameMenuHandler( int a1, int a2	);//	Menu		
 void CloseItemWindows();// Menu (heaven) return item-window slot items before a save or load
+bool ItemsOutsideSave();// Menu (heaven) a held item, or items in an item window, that a save would miss
+void PutItemsAwayForSave();// Menu (heaven) before a save that can't wait: windows give items back, held item to the inventory
 void __fastcall RestartMenuHandler( int a1, int a2	);//	Menu		
 void __fastcall SetupMenuHandler( int a1, int a2	);//	Menu
 void MurderHeroInGame();
@@ -1784,7 +1786,6 @@ void __fastcall GetSaveArchivePath( char (&saveFullName)[MAX_PATH], int stringSi
 void GetSharedStashArchivePath( char (&archivePath)[MAX_PATH] );//	CharSlots
 void WriteSharedStashToArchive();//	CharSlots
 bool ReadSharedStashFromArchive();//	CharSlots
-void ReloadPersonalStashFromArchive(int slotIndex);//	CharSlots
 void __fastcall CloseArchiveWrite( bool clearHashTables, int slotNum	);//	CharSlots		
 void  ReleasePlayerFile( );//	CharSlots		
 void __fastcall InitCharData( Player& playerPtr, CharSaveInfo& charInfo, int isHellfire	);//	CharSlots		 
@@ -2660,7 +2661,8 @@ bool __fastcall CursorIntoStashButton(const DisplayObject& button);
 void __fastcall StashPanel_MouseMove();
 void __fastcall StashPanel_MouseClick();
 void __fastcall StashPanel_Load();
-void __fastcall StashPanel_Save();
+void __fastcall StashPanel_Save( const StashTab* tabs );
+void SharedStash_Leave( bool keepChanges ); // (heaven) VisualStash.cpp
 void SharedStash_LoadTabs( const char* end );
 void SharedStash_SaveTabs();
 void SharedStash_ClearFingerprints();

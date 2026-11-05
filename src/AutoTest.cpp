@@ -13,16 +13,23 @@
 // sound off, so the PC stays usable; -show puts it on screen to watch.
 //
 // Phases, in the order the script runs them:
-//   main   Warrior, normal mode: the shipped config, Cain's transmute window, F9/F12
-//          quick save and load, then stashes items in the shared stash and lists them
-//          in autotest-shared.txt as the Warrior has them; ends with a dungeon
-//          screenshot to check pixel light by eye
+//   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
+//          5-second item check (autotest-rebuilds.csv), Cain's transmute window, F9/F12
+//          quick save and load, Griswold's personal stash next to the shared stash,
+//          items held or in Adria's and Griswold's windows during a load or an autosave;
+//          then stashes items in the shared stash and lists them in autotest-shared.txt
+//          as the Warrior has them; takes a dungeon screenshot to check pixel light by
+//          eye, and quits with a gem in Griswold's window
 //   other  Mage, Classic mode: opens the shared stash. Every item that comes out
 //          different from the Warrior's list must be locked and stay in the stash;
 //          every item that comes out the same must not be
-//   owner  the Warrior again: every listed item must still be exactly as stashed
+//   owner  the Warrior again: the gem main quit with is in the inventory, and every
+//          listed item must still be exactly as stashed
 
 extern StashTab StashTabs[Stash_TotalTabs];
+bool AllowEnchant( Item& item );                                 // Enchanting.cpp
+void Enchant_PlaceItemIntoCraftSlot();                           // Enchanting.cpp
+bool Craft_Gems_IsItemAllowedToBeConsumable( Item* itemPtr );    // Crafting.cpp
 
 namespace {
 
@@ -146,8 +153,11 @@ string Describe( const Item& item )
 	return s;
 }
 
+bool Held() { return Cur.GraphicsID >= CM_12_ITEMS_PICS_START; }
+
 // Copies of the item with this seed the hero has anywhere: inventory, body, belt,
-// cursor and Cain's transmute slots
+// cursor and Cain's transmute slots. The cursor counts only while it shows the item:
+// after a load ItemOnCursor can keep a copy the player doesn't have.
 int CountSeed( int seed )
 {
 	Player& p = Hero();
@@ -156,7 +166,7 @@ int CountSeed( int seed )
 	for( int i = 0; i < p.InvItemCount; ++i ) count( p.InventorySlots[i] );
 	for( const Item& it: p.OnBodySlots ) count( it );
 	for( const Item& it: p.BeltInventory ) count( it );
-	count( p.ItemOnCursor );
+	if( Held() ) count( p.ItemOnCursor );
 	for( int i = 0; i < TransmuteSlots.count; ++i ) count( TransmuteSlots.items[i] );
 	return n;
 }
@@ -201,7 +211,7 @@ bool PutHeldInTransmute()
 	return put;
 }
 
-// Where the shared stash has the item with this seed, as tab * Stash_MaxSlot + index
+// Where the open stash (personal or shared) has the item with this seed, as tab * Stash_MaxSlot + index
 vector<int> FindInStash( int seed )
 {
 	vector<int> found;
@@ -212,6 +222,85 @@ vector<int> FindInStash( int seed )
 	}
 	return found;
 }
+
+int CountInStash( int seed ) { return (int)FindInStash( seed ).size(); }
+
+// The item with this seed from the open stash into the inventory
+bool TakeFromStash( int seed )
+{
+	vector<int> at = FindInStash( seed );
+	if( at.empty() ) return false;
+	StashCurrentTab = at[0] / Stash_MaxSlot;
+	return Stash_MoveItemToInventory( at[0] % Stash_MaxSlot );
+}
+
+// The item with this seed from the inventory into the open stash
+bool StashFromInventory( int seed )
+{
+	if( ! TakeFromInventory( seed ) ) return false;
+	if( AddItemToStashFromCursor() ){ EmptyHand(); return true; }
+	PutHeldInInventory();
+	return false;
+}
+
+// A new item straight into the open stash
+bool StashNew( const Item& item )
+{
+	Hold( item );
+	bool put = AddItemToStashFromCursor();
+	EmptyHand();
+	return put;
+}
+
+// A gem Griswold's gem combiner takes; ItemCode is IC_M1_NONE if there is none.
+// Gems don't drop (FindBases skips them): they come from shops and crafting.
+Item MakeCraftGem( int seed )
+{
+	for( size_t i = 1; i < count_BaseItems; ++i ){
+		if( BaseItems[i].baseId < 0 || BaseItems[i].MagicCode != MC_GEM ) continue;
+		Item gem = MakeItem( (int)i, seed, false, 0 );
+		if( gem.ItemCode != IC_M1_NONE && Craft_Gems_IsItemAllowedToBeConsumable( &gem ) ) return gem;
+	}
+	Item none = {};
+	none.ItemCode = IC_M1_NONE;
+	return none;
+}
+
+void QuickSave()    { KeyPressHandler( VK_120_F9_KEY ); }
+void LoadFromMenu() { LoadGameMenuHandler( 0, 0 ); } // ESC, Load Game; F12 runs the same
+
+//----- item rebuilds (bug 3) ---------------------------------------------
+// The game keeps only a magic item's seed and a few fields, and rebuilds the rest after
+// every load and, for the inventory and body, every 5 seconds (ValidateCurPlayer ->
+// UpdateAllItems -> UpdateItem)
+
+bool CanBeMagic( const BaseItem& b )
+{
+	return b.MagicCode != MC_27_QUEST_UNIQUE && is( b.EquippedLocation, EL_1_ONE_HANDED, EL_2_TWO_HANDED,
+		EL_3_TORSO, EL_4_HEAD, EL_5_FINGER, EL_6_NECK, EL_9_WAIST, EL_10_HANDS, EL_11_FEET );
+}
+
+// An item as a monster drops it, on the ground, before the game has rebuilt it
+Item DropItem( int baseItemIndex, int seed, int qlvl )
+{
+	int randomSeed = RandomSeed, lastSeed = LastSeed;
+	uint randUsingCounter = RandUsingCounter;
+	SetupAllItemsSmartdrop( MaxItems_255, baseItemIndex, seed, qlvl, 1 /*ChanceUniqueMob*/, 0, 0, 0, 1 );
+	Item item = Items[MaxItems_255];
+	RandomSeed = randomSeed; LastSeed = lastSeed; RandUsingCounter = randUsingCounter;
+	return item;
+}
+
+// What the game's 5-second item check does to an inventory item
+void RebuildLikeTheGame( Item& item )
+{
+	int randomSeed = RandomSeed, lastSeed = LastSeed;
+	uint randUsingCounter = RandUsingCounter;
+	UpdateItem( item );
+	RandomSeed = randomSeed; LastSeed = lastSeed; RandUsingCounter = randUsingCounter;
+}
+
+struct DropInfo { int base, seed, qlvl; };
 
 //----- files -------------------------------------------------------------
 
@@ -335,6 +424,10 @@ void AddStartSteps( GAME_MODE expectedMode )
 // Shared state between steps of one run
 map<int, string> Manifest;
 int              TestSeed = 0;
+int              PersonalSeed = 0, HeldSeed = 0, EnchantSeed = 0, GemSeed = 0;
+i64              SaveTimeBefore = 0;
+vector<DropInfo> RebuildWatch; // magic items to watch in the inventory: those that kept changing first
+constexpr int    QuitGemSeed = 6051; // main quits with this gem in Griswold's window; owner looks for it
 
 int OpenSharedStash()
 {
@@ -361,6 +454,86 @@ void BuildMain()
 		Check( "pixel light is on with the shipped config.ini (issue #5)", PixelLight );
 		Check( "multi-threaded pixel light is on with the shipped config.ini", MultiThreadPixelLight );
 		Shot( "town" );
+		return Next;
+	} } );
+
+	Steps.push_back( { "magic items through the game's 5-second item check", []{
+		// Bug 3 (kishak95, 4 Apr): affixes on an item in the inventory kept disappearing and
+		// coming back, "Not Identified" too, on an item that was never in the shared stash.
+		// Every rebuild of an item must give the same item. autotest-rebuilds.csv lists
+		// each magic item as it dropped and after each of 4 checks
+		vector<int> bases = FindBases( IsStaff, 12 ), all = FindBases( CanBeMagic, 2000 );
+		for( size_t i = 0, step = max<size_t>( 1, all.size() / 48 ); i < all.size() && bases.size() < 60; i += step ){
+			if( find( bases.begin(), bases.end(), all[i] ) == bases.end() ) bases.push_back( all[i] );
+		}
+		FILE* f = fopen( "autotest-rebuilds.csv", "w" );
+		if( f ) fprintf( f, "base,qlvl,seed,first check changes it,keeps changing,as dropped,check 1,check 2,check 3,check 4\n" );
+		int magic = 0, changedOnce = 0, keepsChanging = 0;
+		string first;
+		vector<DropInfo> once, rest;
+		for( int base: bases ) for( int qlvl: { 10, 30, 60 } ) for( int k = 0; k < 20; ++k ){
+			int seed = 70001 + k * 7919 + base * 31;
+			Item it = DropItem( base, seed, qlvl );
+			if( it.MagicLevel != ML_1_MAGIC ) continue;
+			++magic;
+			string d[5];
+			d[0] = Describe( it );
+			for( int c = 1; c < 5; ++c ){ RebuildLikeTheGame( it ); d[c] = Describe( it ); }
+			bool changes = d[1] != d[0];
+			bool keeps   = d[2] != d[1] || d[3] != d[2] || d[4] != d[3];
+			if( changes ) ++changedOnce;
+			if( keeps ){
+				++keepsChanging;
+				RebuildWatch.push_back( { base, seed, qlvl } );
+				if( first.empty() ) first = Fmt( "First: base %d seed %d qlvl %d: check 1: %s  check 2: %s", base, seed, qlvl, d[1].c_str(), d[2].c_str() );
+			}else{
+				( changes ? once : rest ).push_back( { base, seed, qlvl } );
+			}
+			if( f ){
+				fprintf( f, "%d,%d,%d,%s,%s", base, qlvl, seed, changes ? "yes" : "no", keeps ? "yes" : "no" );
+				for( const string& s: d ){ string q = s; replace( q.begin(), q.end(), '"', '\'' ); fprintf( f, ",\"%s\"", q.c_str() ); }
+				fprintf( f, "\n" );
+			}
+		}
+		if( f ) fclose( f );
+		RebuildWatch.insert( RebuildWatch.end(), once.begin(), once.end() );
+		RebuildWatch.insert( RebuildWatch.end(), rest.begin(), rest.end() );
+		Check( "the test makes magic items as monsters drop them", magic >= 200, Fmt( "%d magic items from %d bases", magic, (int)bases.size() ) );
+		Check( "no magic item keeps changing in the game's 5-second item check (bug 3)", keepsChanging == 0,
+			Fmt( "%d of %d keep changing; %d change at the first check. ", keepsChanging, magic, changedOnce ) + first );
+		return Next;
+	} } );
+
+	Steps.push_back( { "magic items in the inventory for 11 seconds", []{
+		// The same in the running game: its own 5-second check, two or three times
+		static vector<int> seeds, changes;
+		static vector<string> last;
+		static int ticks = 0;
+		if( ticks == 0 ){
+			for( const DropInfo& d: RebuildWatch ){
+				if( seeds.size() >= 10 ) break;
+				Item it = DropItem( d.base, d.seed, d.qlvl );
+				Hold( it );
+				if( ! PutHeldInInventory() ){ EmptyHand(); continue; }
+				int i = FindInInventory( it.seed );
+				seeds.push_back( it.seed );
+				last.push_back( i >= 0 ? Describe( Hero().InventorySlots[i] ) : "gone" );
+				changes.push_back( 0 );
+			}
+			if( ! Check( "magic items to watch go into the inventory", ! seeds.empty() ) ) return Next;
+		}
+		for( size_t k = 0; k < seeds.size(); ++k ){
+			int i = FindInInventory( seeds[k] );
+			string now = i >= 0 ? Describe( Hero().InventorySlots[i] ) : "gone";
+			if( now != last[k] ){ ++changes[k]; last[k] = now; }
+		}
+		if( ++ticks < 11 * ENGINE_FPS ) return Retry;
+		int twice = (int)count_if( changes.begin(), changes.end(), []( int n ){ return n >= 2; } );
+		string counts;
+		for( int n: changes ) counts += Fmt( " %d", n );
+		Check( "in the running game, no magic item in the inventory changes more than once in 11 seconds (bug 3)", twice == 0,
+			Fmt( "%d of %d changed 2 times or more. Changes per item:", twice, (int)seeds.size() ) + counts );
+		for( int seed: seeds ) if( TakeFromInventory( seed ) ) EmptyHand();
 		return Next;
 	} } );
 
@@ -434,6 +607,178 @@ void BuildMain()
 		return Next;
 	} } );
 
+	// ---- Griswold's personal stash and Gillian's shared stash (bug 1) ----
+
+	Steps.push_back( { "personal stash item and a visit to the shared stash", []{
+		// Rageweaver: put an item in Griswold's stash, open the shared stash, open Griswold's
+		// again: the item is gone. The shared stash replaced the personal one in memory, and
+		// leaving it reloaded the personal stash from the last save
+		vector<int> rings = FindBases( IsRing, 4 );
+		Item it = MakeItem( rings.at( 0 ), 6001, true );
+		PersonalSeed = it.seed;
+		StashPanel_OpenPersonal();
+		bool put = StashNew( it );
+		StashPanel_Close();
+		StashPanel_OpenShared();
+		StashPanel_Close();
+		StashPanel_OpenPersonal();
+		int inStash = CountInStash( PersonalSeed );
+		StashPanel_Close();
+		Check( "an item put in Griswold's stash is still there after a visit to Gillian's shared stash (bug 1)",
+			put && inStash == 1 && CountSeed( PersonalSeed ) == 0,
+			Fmt( "%d in Griswold's stash, %d on the hero", inStash, CountSeed( PersonalSeed ) ) );
+		return Next;
+	} } );
+
+	Steps.push_back( { "personal stash item moved to the shared stash", []{
+		// Rageweaver: put an item in Griswold's stash, take it out, put it in the shared
+		// stash: it is in Griswold's stash again. The last save still had it there
+		vector<int> rings = FindBases( IsRing, 4 );
+		Item it = MakeItem( rings.at( 1 % rings.size() ), 6011, true );
+		int seed = it.seed;
+		StashPanel_OpenPersonal();
+		StashNew( it );
+		StashPanel_Close();
+		QuickSave(); // the save has the ring in Griswold's stash
+		StashPanel_OpenPersonal();
+		bool out = TakeFromStash( seed );
+		StashPanel_Close();
+		StashPanel_OpenShared();
+		bool in = StashFromInventory( seed );
+		StashPanel_Close();
+		StashPanel_OpenPersonal();
+		int personal = CountInStash( seed );
+		StashPanel_Close();
+		StashPanel_OpenShared();
+		int shared = CountInStash( seed );
+		TakeFromStash( seed ); // the morph tests below expect only their own items in the shared stash
+		StashPanel_Close();
+		Check( "an item moved from Griswold's stash to the shared stash is in the shared stash only (bug 1)",
+			out && in && personal == 0 && shared == 1, Fmt( "%d in Griswold's stash, %d in the shared stash", personal, shared ) );
+		return Next;
+	} } );
+
+	Steps.push_back( { "personal stash through quick save and load", []{
+		QuickSave();
+		KeyPressHandler( VK_123_F12_KEY );
+		return 20;
+	} } );
+
+	Steps.push_back( { "personal stash through quick save and load result", []{
+		StashPanel_OpenPersonal();
+		int inStash = CountInStash( PersonalSeed );
+		StashPanel_Close();
+		Check( "Griswold's stash keeps the item through F9 and F12 after the shared stash was open", inStash == 1,
+			Fmt( "%d in Griswold's stash", inStash ) );
+		return Next;
+	} } );
+
+	// ---- items lost or doubled by a load (bug 2 in docs/OPEN_BUGS.md) ----
+
+	Steps.push_back( { "shared stash item held while loading", []{
+		// Marcototech: take an item from the stash, keep it on the cursor, ESC, Load Game:
+		// the item is gone. The shared stash file was written without it at once, and closing
+		// the stash for the load saved the game with it on the cursor, where loading doesn't
+		// give it back
+		Item it = MakeItem( FindBases( IsRing, 4 ).at( 0 ), 6021, true );
+		HeldSeed = it.seed;
+		StashPanel_OpenShared();
+		StashNew( it );
+		StashPanel_Close(); // saves: the ring is in the shared stash, not on the hero
+		StashPanel_OpenShared();
+		TakeFromStash( HeldSeed );
+		TakeFromInventory( HeldSeed ); // on the cursor
+		LoadFromMenu();
+		return 20;
+	} } );
+
+	Steps.push_back( { "shared stash item held while loading result", []{
+		int onHero = CountSeed( HeldSeed );
+		StashPanel_OpenShared();
+		int shared = CountInStash( HeldSeed );
+		TakeFromStash( HeldSeed );
+		StashPanel_Close();
+		Check( "an item taken from the shared stash and held while loading a save is back in the stash, once (bug 2)",
+			shared == 1 && onHero == 0, Fmt( "after the load: %d in the shared stash, %d on the hero", shared, onHero ) );
+		return Next;
+	} } );
+
+	Steps.push_back( { "Adria's window while loading", []{
+		// GitHub #3: enchant at Adria and load: two copies with F12, gone with Load Game
+		EnchantSeed = 0;
+		for( int base: FindBases( IsArmor, 40 ) ){
+			Item it = MakeItem( base, 6031, false, 0 );
+			if( it.MagicLevel != 0 || ! AllowEnchant( it ) ) continue;
+			Hold( it );
+			if( PutHeldInInventory() ) EnchantSeed = it.seed;
+			break;
+		}
+		if( ! Check( "found an item Adria can enchant", EnchantSeed != 0 ) ) return Next;
+		QuickSave(); // the save has it in the inventory
+		Enchant_Open();
+		TakeFromInventory( EnchantSeed );
+		Enchant_PlaceItemIntoCraftSlot();
+		bool inWindow = EnchantItem.ItemCode != IC_M1_NONE && EnchantItem.seed == EnchantSeed && ! Held();
+		Check( "the item goes into Adria's enchant window", inWindow );
+		LoadFromMenu();
+		return 20;
+	} } );
+
+	Steps.push_back( { "Adria's window while loading result", []{
+		if( ! EnchantSeed ) return Next;
+		Check( "an item in Adria's window while loading a save comes back once (bug 2)",
+			CountSeed( EnchantSeed ) == 1 && ! IsEnchantPanelVisible,
+			Fmt( "%d copies, window %s", CountSeed( EnchantSeed ), IsEnchantPanelVisible ? "open" : "closed" ) );
+		return Next;
+	} } );
+
+	Steps.push_back( { "Griswold's window during an autosave", []{
+		// GitHub #3: a gem put in Griswold's crafting window disappeared. With the Auto Save
+		// game changer (and in multiplayer) the game saved once a minute, also while a
+		// window held items, and that save didn't have them
+		Item gem = MakeCraftGem( 6041 );
+		if( ! Check( "found a gem Griswold's gem combiner takes", gem.ItemCode != IC_M1_NONE ) ) return Next;
+		GemSeed = gem.seed;
+		Hold( gem );
+		PutHeldInInventory();
+		QuickSave(); // the save has the gem in the inventory
+		Craft_Open();
+		TakeFromInventory( GemSeed );
+		bool inWindow = Craft_Gems_AutoPutCursorItem();
+		Check( "the gem goes into Griswold's gem combiner", inWindow );
+		Hero().gameChanger |= BIT( GC_1_AUTO_SAVE );
+		AutoSaveTickCount = GetTickCountTh() - 61000_ms; // the last autosave was over a minute ago: one is due
+		SaveTimeBefore = SaveFileTime();
+		return 5; // the game loop gets the chance to autosave
+	} } );
+
+	Steps.push_back( { "Griswold's window during an autosave: close it", []{
+		if( ! GemSeed ) return Next;
+		Check( "the autosave waits while Griswold's window holds the gem", SaveFileTime() == SaveTimeBefore,
+			SaveFileTime() == SaveTimeBefore ? "" : "it saved without the gem" );
+		Craft_Close(); // the gem goes back to the inventory
+		return 5;
+	} } );
+
+	Steps.push_back( { "Griswold's window during an autosave: load", []{
+		Hero().gameChanger &= ~BIT( GC_1_AUTO_SAVE );
+		if( ! GemSeed ) return Next;
+		Check( "the autosave runs once the window is closed", SaveFileTime() != SaveTimeBefore );
+		LoadFromMenu(); // loads the autosave
+		return 20;
+	} } );
+
+	Steps.push_back( { "Griswold's window during an autosave result", []{
+		// The autosave writes only the hero file, while loading reads the game file F9 wrote:
+		// the gem was lost when the next game started from the hero file (see the quit check
+		// in the owner phase). Here: the load brings it back once, not twice.
+		Hero().gameChanger &= ~BIT( GC_1_AUTO_SAVE );
+		if( ! GemSeed ) return Next;
+		Check( "the gem from Griswold's window is there once after loading",
+			CountSeed( GemSeed ) == 1, Fmt( "%d copies", CountSeed( GemSeed ) ) );
+		return Next;
+	} } );
+
 	Steps.push_back( { "open shared stash", OpenSharedStash } );
 
 	Steps.push_back( { "stash items", []{
@@ -496,6 +841,17 @@ void BuildMain()
 		Check( "the hero reaches dungeon level 1 (screenshot to check pixel light by eye)", true );
 		return Next;
 	} } );
+
+	Steps.push_back( { "quit with a gem in Griswold's window", []{
+		// Quitting saves with the Auto Save game changer and in multiplayer. The owner phase
+		// checks that the gem is in that save
+		Item gem = MakeCraftGem( QuitGemSeed );
+		Craft_Open();
+		Hold( gem );
+		Check( "the gem goes into Griswold's gem combiner before quitting", gem.ItemCode != IC_M1_NONE && Craft_Gems_AutoPutCursorItem() );
+		Hero().gameChanger |= BIT( GC_1_AUTO_SAVE );
+		return Next; // then the run finishes and the game quits
+	} } );
 }
 
 //----- phase: other ------------------------------------------------------
@@ -511,6 +867,10 @@ void BuildOther()
 	} } );
 
 	Steps.push_back( { "open shared stash", OpenSharedStash } );
+
+	// The game's 5-second item check rebuilds the open stash tab too (StashPanel_RecalcItemsReq):
+	// locked items must stay locked through it, and be saved back as the Warrior left them
+	Steps.push_back( { "keep the shared stash open for 11 seconds", []{ return 11 * ENGINE_FPS; } } );
 
 	Steps.push_back( { "compare", []{
 		int morphed = 0, morphedLocked = 0, same = 0, sameLocked = 0;
@@ -581,6 +941,14 @@ void BuildOther()
 void BuildOwner()
 {
 	AddStartSteps( GM_NORMAL );
+
+	Steps.push_back( { "the gem main quit with", []{
+		Hero().gameChanger &= ~BIT( GC_1_AUTO_SAVE ); // main turned it on to make quitting save
+		int seed = MakeCraftGem( QuitGemSeed ).seed;
+		Check( "a gem left in Griswold's crafting window when the game quits is in the inventory (bug 2)",
+			CountSeed( seed ) == 1, Fmt( "%d copies", CountSeed( seed ) ) );
+		return Next;
+	} } );
 
 	Steps.push_back( { "read the list", []{
 		Manifest = ReadManifest();

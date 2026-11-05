@@ -10849,6 +10849,18 @@ void __fastcall RecreateItem( int itemIndex, short baseItemIndex, int dropType, 
 		bool pregen = dropType & D_PREGEN;
 		bool rare   = dropType & D_RARE;
 		SetupAllItems(itemIndex, baseItemIndex, seed, quality, chanceToUniq, good, dup, pregen, identified, 0, magicFind, rare, genVersion, uniqIndex, difficulty, magicLevel);
+		// (heaven) A magic item is rebuilt without the independent rare roll it had when it
+		// dropped (that roll is skipped for ML_1_MAGIC), so the random numbers after it, and
+		// its affixes, come out different. When that makes it a plain item, the next rebuild
+		// (of a plain item) has the roll again and gives the magic item back: the item
+		// flipped between the two every 5 seconds, "Not Identified" coming and going (bug 3,
+		// kishak95). Rebuild such an item as it dropped, when that gives a magic item.
+		if( magicLevel == ML_1_MAGIC && item.MagicLevel == ML_0_USUAL && ! rare ){
+			SetupAllItems(itemIndex, baseItemIndex, seed, quality, chanceToUniq, good, dup, pregen, identified, 0, magicFind, rare, genVersion, uniqIndex, difficulty, ML_0_USUAL);
+			if( item.MagicLevel != ML_1_MAGIC ){ // not the magic item either: leave it as it was
+				SetupAllItems(itemIndex, baseItemIndex, seed, quality, chanceToUniq, good, dup, pregen, identified, 0, magicFind, rare, genVersion, uniqIndex, difficulty, magicLevel);
+			}
+		}
 	}
 
 	// sockets array recreation has been moved here from LoadItem for correct network sync

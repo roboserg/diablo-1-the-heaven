@@ -205,16 +205,6 @@ bool ReadSharedStashFromArchive()
 	return loaded;
 }
 
-//----- (th4) -------------------------------------------------------------
-void ReloadPersonalStashFromArchive(int slotIndex)
-{
-	HANDLE archiveHandle = OpenArchive(false, slotIndex);
-	if( archiveHandle ){
-		ReadStashInfoFromSave(archiveHandle);
-		CloseArchiveRead(archiveHandle);
-	}
-}
-
 //----- (00456034) --------------------------------------------------------
 void InitSaveDirectory()
 {
@@ -274,14 +264,9 @@ void UpdatePlayerFile()
 
 	int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
 
-	// If shared stash was closed (e.g. via ESC) before UpdatePlayerFile ran, swap back to personal
-	if( IsSharedStashOpen && !IsStashPanelVisible ){
-		WriteSharedStashToArchive();
-		ReloadPersonalStashFromArchive(slotIndex);
-		StashTabsPurchased = PersonalStashTabsPurchased;
-		StashCurrentTab    = PersonalStashCurrentTab;
-		IsSharedStashOpen  = false;
-	}
+	// The shared stash panel was hidden without closing it (chat history, info window):
+	// close it now, its file goes with this save
+	if( IsSharedStashOpen && !IsStashPanelVisible ) SharedStash_Leave( true );
 
 	BackupSaveIfNeed(slotIndex);
 	LastPlayerInfo heroData;
@@ -289,7 +274,7 @@ void UpdatePlayerFile()
 		SavePlayerInfo(&heroData, CurrentPlayerIndex);
 		SaveCharacter(&heroData);
 		WriteWeaponSwapInfoToSave( WeaponSwapItems );
-		if( !IsSharedStashOpen ) WriteStashInfoToSave(); // Don't overwrite personal stash with shared items
+		WriteStashInfoToSave(); // (heaven) the personal stash, kept aside while the shared one is open
 		WriteHotkeysDataToSave();
 		// Temporarily restore real StashTabsPurchased so character archive stores the correct value
 		if( IsSharedStashOpen ){

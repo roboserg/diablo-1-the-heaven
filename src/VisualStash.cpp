@@ -22,6 +22,7 @@ int StashLastAvailablePageIndex = 0;
 int StashCurrentPageIndex = 0;
 bool AvailableStashTabs[Stash_TotalTabs];
 StashTab StashTabs[Stash_TotalTabs];
+static StashTab PersonalStashTabs[Stash_TotalTabs]; // (heaven) the personal stash while the shared one is in StashTabs
 
 DisplayObject StashChangePageButtons[Stash_ChangePageButtonsAmount];
 char StashChangePageButtonsStates[Stash_ChangePageButtonsAmount];
@@ -341,14 +342,11 @@ void __fastcall DrawStashItems()
 //----- (th2) -------------------------------------------------------------
 void __fastcall StashPanel_OpenPersonal()
 {
-	// If shared stash was open, save it and restore personal data before showing personal stash
+	// The shared stash is still open when something hid its panel without closing it
+	// (the chat history, the info window): close it the way StashPanel_Close does
 	if( IsSharedStashOpen ){
-		WriteSharedStashToArchive();
-		int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
-		ReloadPersonalStashFromArchive(slotIndex);
-		StashTabsPurchased = PersonalStashTabsPurchased;
-		StashCurrentTab    = PersonalStashCurrentTab;
-		IsSharedStashOpen  = false;
+		SharedStash_Leave( true );
+		SaveGame();
 	}
 	IsChatHistoryVisible = false;
 	IsStashPanelVisible = true;
@@ -362,19 +360,24 @@ void __fastcall StashPanel_OpenPersonal()
 //----- (th4) -------------------------------------------------------------
 void __fastcall StashPanel_OpenShared()
 {
-	// Save current personal stash state
-	PersonalStashTabsPurchased = StashTabsPurchased;
-	PersonalStashCurrentTab    = StashCurrentTab;
-	// Load shared stash into StashTabs[]. If the file is there but can't be read, StashTabs
-	// still holds the personal stash, and closing would copy it into the shared file.
-	if( ! ReadSharedStashFromArchive() ){
-		AddWorldMessage( (char*)L("The shared stash file can't be read") );
-		CurrentDialogIndex = PD_0_None;
-		return;
+	if( ! IsSharedStashOpen ){ // else its panel was only hidden: show it again as it is
+		// (heaven) Keep the personal stash in memory: it may have changed since the last
+		// save. It used to be reloaded from the save on the way back, which lost items put
+		// in Griswold's stash since then and brought back items taken out (bug 1).
+		PersonalStashTabsPurchased = StashTabsPurchased;
+		PersonalStashCurrentTab    = StashCurrentTab;
+		memcpy( PersonalStashTabs, StashTabs, sizeof(StashTabs) );
+		// Load shared stash into StashTabs[]. If the file is there but can't be read, StashTabs
+		// still holds the personal stash, and closing would copy it into the shared file.
+		if( ! ReadSharedStashFromArchive() ){
+			AddWorldMessage( (char*)L("The shared stash file can't be read") );
+			CurrentDialogIndex = PD_0_None;
+			return;
+		}
+		StashTabsPurchased = SharedStashTabsPurchased; // Shared stash tabs loaded from file
+		StashCurrentTab    = 0;
+		IsSharedStashOpen  = true;
 	}
-	StashTabsPurchased = SharedStashTabsPurchased; // Shared stash tabs loaded from file
-	StashCurrentTab    = 0;
-	IsSharedStashOpen  = true;
 	IsChatHistoryVisible = false;
 	IsStashPanelVisible = true;
 	IsINVPanelVisible   = true;
@@ -393,17 +396,29 @@ void __fastcall StashPanel_Close()
 	if( !IsStashPanelVisible ) return;
 	IsStashPanelVisible = false;
 	CloseInventoryPanel();
-	// If closing shared stash, persist it and restore personal stash immediately
+	// Closing the shared stash writes its file and saves the character with it, so the two agree
 	if( IsSharedStashOpen ){
-		WriteSharedStashToArchive();
+		SharedStash_Leave( true );
 		SaveGame();
-		int slotIndex = GetSlotByHeroName(Players[CurrentPlayerIndex].playerName);
-		ReloadPersonalStashFromArchive(slotIndex);
-		StashTabsPurchased = PersonalStashTabsPurchased;
-		StashCurrentTab    = PersonalStashCurrentTab;
-		IsSharedStashOpen  = false;
 	}
 	PlayGlobalSound(S_75_I_TITLEMOV);
+}
+
+//----- (heaven) ----------------------------------------------------------
+// Back from the shared stash to the personal one, as it was in memory when the shared
+// stash opened. keepChanges writes the shared stash file; the caller then saves the
+// character, so the two files agree. Without it nothing is written: a load goes back to
+// the last save for both. While the shared stash is open, moves between it and the
+// inventory are only in memory, so a load or a crash can't leave an item in both files
+// or in neither.
+void SharedStash_Leave( bool keepChanges )
+{
+	if( ! IsSharedStashOpen ) return;
+	if( keepChanges ) WriteSharedStashToArchive();
+	memcpy( StashTabs, PersonalStashTabs, sizeof(StashTabs) );
+	StashTabsPurchased = PersonalStashTabsPurchased;
+	StashCurrentTab    = PersonalStashCurrentTab;
+	IsSharedStashOpen  = false;
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -583,7 +598,7 @@ void __fastcall WriteStashInfoToSave()
 	uint stashSignature = SaveSignature;
 	PutNextHtonl2(stashSignature);
 	PutNextHtonl(CurSaveVersion);
-    StashPanel_Save();
+    StashPanel_Save( IsSharedStashOpen ? PersonalStashTabs : StashTabs ); // (heaven) always the personal stash
     int actualSize = (uchar*)CurSaveData - SaveBuffer_Stash;
 	int blockSize = CalcEncodeDstBytes(actualSize);
 	EncodeFile( SaveBuffer_Stash, actualSize, blockSize, CryptKey );
@@ -653,9 +668,10 @@ void __fastcall StashPanel_Load()
 }
 
 //----- (th2) -------------------------------------------------------------
-void __fastcall StashPanel_Save()
+void __fastcall StashPanel_Save( const StashTab* tabs )
 {
-	for( const auto& stashTab : StashTabs ){
+	for( int tab = 0; tab < Stash_TotalTabs; ++tab ){
+		const StashTab& stashTab = tabs[tab];
 		PutNextHtonl(stashTab.itemCount);
 
 		memcpy(CurSaveData, stashTab.usedFlags, sizeof(stashTab.usedFlags));
@@ -1316,9 +1332,6 @@ void __fastcall Stash_PutCursorItem(int playerIndex, int mX, int mY)
 		}
 		SetCursorGraphics(newCursorGraphics);
 	}
-	if( IsSharedStashOpen ){
-		WriteSharedStashToArchive();
-	}
 }
 
 //----- (th2) -------------------------------------------------------------
@@ -1335,9 +1348,6 @@ bool __fastcall Stash_MoveItemToInventory(int itemIndex)
 	}else{
 		SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
 		ClearStashSlot(StashCurrentTab, itemIndex);
-	}
-	if( IsSharedStashOpen ){
-		WriteSharedStashToArchive();
 	}
 	return true;
 }
@@ -1423,9 +1433,6 @@ void __fastcall StashTakeCursorItem(int playerIndex, int mX, int mY)
 			SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
 			FixItemCursor(-1);
 		}
-	}
-	if( IsSharedStashOpen ){
-		WriteSharedStashToArchive();
 	}
 }
 

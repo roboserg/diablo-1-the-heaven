@@ -355,12 +355,33 @@ void CloseItemWindows()
 	Transmute_RetriveAllItems(); // with TransmuteKeepItems on, closing leaves them in the slots
 }
 
+//----- (heaven) ----------------------------------------------------------
+// Items the next character save would miss: one held on the cursor (a load doesn't give
+// it back), or ones in an item window's slots (they go back to the inventory when the
+// window closes)
+bool ItemsOutsideSave()
+{
+	return Cur.GraphicsID >= CM_12_ITEMS_PICS_START
+		|| IsVisualTradePanelVisible || IsCraftPanelVisible || IsEnchantPanelVisible
+		|| IsPowerupPanelVisible || IsQuenchPanelVisible || IsTransmutePanelVisible;
+}
+
+//----- (heaven) ----------------------------------------------------------
+// Before a save the player can't put off (quitting, changing level in multiplayer): the
+// item windows give their items back, and a held item goes into the inventory if it fits
+void PutItemsAwayForSave()
+{
+	CloseItemWindows();
+	if( Cur.GraphicsID >= CM_12_ITEMS_PICS_START ) AutoPutCursorToInventoryOrDrop( false );
+}
+
 //----- (0041B372) -------------------------------------------------------- menu
 void __fastcall LoadGameMenuHandler(int a1, int a2)
 {
 	PlayersSpellcastQueue[CurrentPlayerIndex] = {};
 	PlayerWall[CurrentPlayerIndex] = {};
 	ProcHandler prevHandler = SetWindowProc(DisableInputWindowProc);
+	SharedStash_Leave( false ); // (heaven) the load goes back to the last save for the shared stash too: don't write it
 	CloseItemWindows(); // (heaven) was StashPanel_Close() only: F12 quick load can run with any window open
 	TransmuteSlots.ClearAll(); // (heaven) anything still in Cain's slots is not part of the save
 	ResetMainMenu();

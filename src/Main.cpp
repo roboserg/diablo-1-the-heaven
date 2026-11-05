@@ -2613,8 +2613,10 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 	if( MaxCountOfPlayersInGame > 1 
 		|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_1_AUTO_SAVE)) 
 		|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM)) ){
+		PutItemsAwayForSave(); // (heaven) else a gem left in Griswold's window was not in this save
 		UpdatePlayerFile();
 	}
+	SharedStash_Leave( false ); // (heaven) a save above wrote it; without one its changes go with the unsaved game
 	ReleasePlayerFile();
 
 	gbRunGame = 2;
@@ -3796,6 +3798,7 @@ int __stdcall GameWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	if( msg > WM_CAPTURECHANGED ){
 		if( msg >= WM_1026_NEXT_DUNGEON && msg <= WM_1033_RESTART_IN_TOWN ){
 			if( MaxCountOfPlayersInGame > 1 ){
+				PutItemsAwayForSave(); // (heaven) items in the item windows are not saved otherwise
 				UpdatePlayerFile();
 			}
 			ResetFrameSyncCritSection(1);
@@ -6179,7 +6182,7 @@ void GameLogic()
 				|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_1_AUTO_SAVE))
 				|| (Players[CurrentPlayerIndex].gameChanger & BIT(GC_26_ASCETICISM)) ){        // network game
 				i64 tickCount = GetTickCountTh(); // (rt) network game, intercept the call
-				if( tickCount - AutoSaveTickCount > 60000_ms ){ // once per minute
+				if( tickCount - AutoSaveTickCount > 60000_ms && ! ItemsOutsideSave() ){ // once per minute; (heaven) waits while a save would miss items
 					AutoSaveTickCount = tickCount;
 					UpdatePlayerFile();
 				}
