@@ -41,7 +41,7 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
 
 ### Balance and scope
 - **Balance:** a 44-class mod can't be truly balanced; even Project Diablo 2 has weak builds every league ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490549326391414971)). He agrees with Azzi that making the game more forgiving and fleshing things out is the better goal ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490550855080874117)).
-- **Scope:** "There's def good stuff in there. But too many large scale, sweeping changes overall for my taste" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551392845172898)).
+- **Scope (his main verdict on The Heaven):** "There's def good stuff in there. But too many large scale, sweeping changes overall for my taste" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551392845172898)). Just before, he said he liked some of your changes (the socketing buff), and Azzi praised Acceleration in every mode and Infernal Bargain, so "in there" means The Heaven.
 - **End game:** monsters on Crucible and higher scale too hard, and he doubts sigils will let players keep up ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551857020538940)).
 - **Advisor:** he wants to advise a developer on the "real" mod after TH4 1.0, and thinks he has sensible ideas for systems that are fun and still challenging ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551461631885452), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551530779050170)). Worth inviting him to advise The Heaven.
 
@@ -147,7 +147,6 @@ UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift
   - "slamming" gear with gems bought in town: a chance at a good affix, a large chance to ruin the item (like worldstone shards in Project Diablo 2)
 - **A gold cheat or more lenient cheat options.** Itadori says The Heaven is the best version they found, but their group plays another one because it allows a gold cheat ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535406229961179347), [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535406339411673179)).
 - **Work together with the Anti-Grind team** (Itadori, 14 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537844824483434607)).
-- **The Ironman speed-up button in every game mode**, and **bring back Infernal Bargain** (Azzi, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551299492806738), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551359446192238)).
 - From GitHub issue #3:
   - the original town NPC greetings (Cain, Griswold, Adria)
   - a special drop sound for unique and set items
@@ -172,7 +171,7 @@ Gorvex attached `Suggestion compilation.txt` (36 KB, 333 lines) to the thread ([
 - **Traits, perks, synergies:**
   - about 45 traits he considers too weak or too punishing, with suggested numbers
   - perk rewards at clvl 25/50/75/100/125/150
-  - Infernal Bargain back, to turn synergy points into perk points
+  - Infernal Bargain back, to turn synergy points into perk points (The Heaven already re-enabled it)
 - **Game changers:** Acceleration and That's My Secret in single-player Normal and multiplayer Easy/Normal; Double Damage, Effortless and Vaccinated in multiplayer Easy.
 - **UI:**
   - a monster info box showing damage reductions and attack stats
@@ -200,6 +199,7 @@ Marcototech posted an unofficial build with fixes by someone named **Yuki**. Che
 - **What players like:** less grind, the shared stash, the QoL features.
   - Rageweaver argues for keeping no-penalty uniques and the MF buff: they make finding a unique exciting, and players who want balance can play TH4 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489304899408760882)).
   - Shelk, 11 Jul: "much more my speed" than the huge grind of classic TH4 ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1525290493322203216)). UbergamR, 11 Aug: just what they wanted ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536852346460577903)).
+  - Azzi, 6 Apr: likes that the speed-up (Acceleration) works in every game mode and that Infernal Bargain is back ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551299492806738), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551359446192238)).
   - Ponder, 3 Jun: "so many improvements", and wishes TH4 itself had these options ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511775633129340928)).
 - **Hard mode:** on Hard, melee characters struggle because ranged monsters retreat more aggressively, so no-penalty uniques may mostly make ranged characters overpowered (Rageweaver, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489334529750728738)).
 - **Pacing:** with 5x XP, Itadori killed Diablo on dungeon level 16 at clvl 30 ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535849448129953882)).
