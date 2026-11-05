@@ -1,6 +1,6 @@
 # Ideas from Other Mods
 
-Features that players praise or ask for in the channels of two other TH4 sub-mods. Feedback about The Heaven itself is in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md). Problems reported in these channels that may also affect The Heaven are in [OPEN_BUGS.md](OPEN_BUGS.md#to-check-problems-reported-in-other-sub-mods-channels).
+Features that players praise or ask for in the channels of two other TH4 sub-mods. Feedback about The Heaven itself is in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md). Problems reported in these channels that affect The Heaven were fixed or left as they are: see [FIXED_BUGS.md](FIXED_BUGS.md).
 
 The two sub-mods, both on **The Hell 4 mod** Discord server:
 - **Anti-Grind** (AG) by Yuki: `#antigrind`, 2,115 messages, 23 May – 5 Nov 2026

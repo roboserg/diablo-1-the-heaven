@@ -5,7 +5,7 @@ Feature requests and feedback from players, collected from three places:
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
-**Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md),** together with the fixes players made. What `th4-v0.774-base` fixed is in [FIXED_BUGS.md](FIXED_BUGS.md).
+**Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md).** What `th4-v0.774-base` fixed, and the known issues left as they are, is in [FIXED_BUGS.md](FIXED_BUGS.md).
 
 Features that players praise or ask for in the other TH4 sub-mods' channels (`#antigrind` and `#godroll`) are in [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md).
 
@@ -21,7 +21,7 @@ Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `
 - `antigrind-channel.md`: the `#antigrind` channel of the Anti-Grind sub-mod (2,115 messages, 23 May – 5 Nov 2026)
 - `godroll-channel.md`: the `#godroll` channel of the Godroll sub-mod (762 messages, 3 Oct – 5 Nov 2026)
 
-The folder is `F:\git\diablo-1-the-heaven\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link here or in [OPEN_BUGS.md](OPEN_BUGS.md).
+The folder is `F:\git\diablo-1-the-heaven\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link here, in [OPEN_BUGS.md](OPEN_BUGS.md) or in [FIXED_BUGS.md](FIXED_BUGS.md).
 - **Not committed:** the repo is public and these are other people's posts from a members-only server.
 - **Where it lives:** only on this PC, in the main checkout's `.claude` folder, which git ignores. It was first saved in the Discord session's worktree; save new snapshots here, since deleting a worktree deletes everything in it.
 
@@ -57,7 +57,7 @@ All 69 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr);
   - You released an experimental 8-player build the next day; he never reported back on it.
 - **His caveats:**
   - **Missing features:** the open-source TH4 lacked features of the then-current TH4, such as sigils, and the group might not want to lose them ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)). The `th4-v0.774-base` branch rebases on TH4 v0.774, and sigils are back.
-  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph and fixes items that flipped every 5 seconds (The Heaven's own bug); morphing between classes is base TH4 behavior and remains (see [bug 3](OPEN_BUGS.md#3-magic-items-morph)).
+  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph and fixes items that flipped every 5 seconds (The Heaven's own bug); morphing between classes is base TH4 behavior and remains (see [known issues](FIXED_BUGS.md#known-issues-not-fixing)).
   - **Switching versions:** getting a dozen people onto a new version is a hassle. He wanted to ask the group first, so you wouldn't do the work for nothing ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153780250742938), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488154037793718373)).
   - **Timing:** not soon ("another day far away"). He'll keep playing TH4 "for the rest of my life" and wants to try mods like this once TH4 reaches 1.0 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488163367750209616)).
 
@@ -102,7 +102,7 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
   - Zgeg (26 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508654276639981649)) and UbergamR (12 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536859083250999357)) also asked about trading. Itadori's group can't pass items between players (9 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535848055574761583)).
   - You released an experimental 8-player build on 31 Mar ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488550931464458383)); no one reported back on it.
 - **5x XP in multiplayer.** Itadori, 14 Aug: the 5x XP option doesn't work in multiplayer and they'd like it to ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537844932948263002)). Their group plays TH4 with the Anti-Grind submod in multiplayer and The Heaven in single player.
-- **Keep -light radius** on uniques (see [bug 4](OPEN_BUGS.md#4-some-unique-item-penalties-remain)).
+- **Keep -light radius** on uniques. **Done on `th4-v0.774-base`** (not released yet): see [FIXED_BUGS.md](FIXED_BUGS.md).
 
 ### Other requests
 - **Hardcore:** a scaling XP bonus like Survival or Ironman, and the shared stash as continuity between hardcore deaths (Danycron, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488091359964434503)).
