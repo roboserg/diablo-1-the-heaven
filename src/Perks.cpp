@@ -852,8 +852,9 @@ int getPlayerPerksPointsLeft(PERK_TYPE perkType /*= PERK_TYPE_COMMON*/)
 		}else if( HasTrait(CurrentPlayerIndex, TraitId::GrimDeal) ){
 			perkPointsGiven = (clvl - 1) * 2;
 		}else{
-			perkPointsGiven = clvl - 1 + PerkValue(SYNERGY_INFERNAL_BARGAIN, CurrentPlayerIndex, 0);
+			perkPointsGiven = clvl - 1;
 		}
+		perkPointsGiven += PerkValue(SYNERGY_INFERNAL_BARGAIN, CurrentPlayerIndex, 0); // (heaven) with every trait: its penalties apply to all
 
 		// extra perks
 		if( HasTrait(CurrentPlayerIndex, TraitId::Barbarian) ){

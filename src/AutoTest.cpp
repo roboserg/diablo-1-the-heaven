@@ -959,6 +959,41 @@ void BuildMain()
 		return Next;
 	} } );
 
+	Steps.push_back( { "Infernal Bargain with every trait (bug 14)", []{
+		// Infernal Bargain gets "X more perk points" for lower regeneration and stats. Ways this
+		// can fail: a trait with its own perk point formula (Skilled, Lord of the Rings, Grim
+		// Deal) gets the penalties but no points; a fix adds the points twice for heroes without
+		// those traits; the points don't follow the synergy's rank. The hero has no perks here,
+		// so the points left are the points given. It is put back as it was afterwards
+		Player& p = Hero();
+		static Player saved;
+		saved = p;
+		struct { const char* name; TraitId trait; } traits[] = { { "no trait", TraitId::NoTrait }, { "Skilled", TraitId::Skilled },
+			{ "Lord of the Rings", TraitId::LordOfTheRings }, { "Grim Deal", TraitId::GrimDeal } };
+		for( int k = 0; k < PERKS_SYNERGY_MAX_750; ++k ) p.perk[k] = 0;
+		p.traits[0] = p.traits[1] = TraitId::NoTrait;
+		string wrong, all;
+		int ranks[] = { 1, Perks[SYNERGY_INFERNAL_BARGAIN].levels };
+		for( auto& t: traits ){
+			p.traits[0] = t.trait;
+			p.perk[SYNERGY_INFERNAL_BARGAIN] = 0;
+			int base = getPlayerPerksPointsLeft( PERK_TYPE_COMMON );
+			for( int rank: ranks ){
+				p.perk[SYNERGY_INFERNAL_BARGAIN] = rank;
+				int want = base + PerkValue( SYNERGY_INFERNAL_BARGAIN, CurrentPlayerIndex, 0 );
+				int got = getPlayerPerksPointsLeft( PERK_TYPE_COMMON );
+				string line = Fmt( "  %s, rank %d: %d points, %d without it, should be %d", t.name, rank, got, base, want );
+				all += line;
+				if( got != want ) wrong += line;
+			}
+		}
+		p = saved;
+		getAvailablePerksList();
+		RecalcPlayer( CurrentPlayerIndex, true );
+		Check( "Infernal Bargain gives its perk points with every trait (bug 14)", wrong.empty(), wrong.empty() ? all : wrong );
+		return Next;
+	} } );
+
 	Steps.push_back( { "volume sliders through a restart", []{
 		// Rageweaver (antigrind, 3 Nov): sound and music go up one bar every time the game
 		// restarts. For each bar of the sound slider: the volume it sets is saved on quit, the
