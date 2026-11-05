@@ -1250,6 +1250,28 @@ void BuildMain()
 		return Next;
 	} } );
 
+	// Bug 9 (issue #3): the pause menu title "can't be seen" in some zones. The menu over one
+	// level of each zone, as screenshots to check by eye
+	struct Zone { DUNGEON level; const char* name; };
+	for( Zone z: { Zone{ DUN_1_CHURCH_1, "church" }, Zone{ DUN_5_CATACOMB_1, "catacombs" }, Zone{ DUN_9_CAVE_1, "caves" }, Zone{ DUN_13_HELL_1, "hell" } } ){
+		if( z.level != DUN_1_CHURCH_1 ) Steps.push_back( { "go to the next zone", [z]{
+			StartNewLvl( CurrentPlayerIndex, WM_1026_NEXT_DUNGEON, z.level );
+			return Next;
+		} } );
+		Steps.push_back( { "pause menu screenshot", [z]{
+			static int ticks = 0;
+			if( (DUNGEON)Dungeon != z.level ) return Retry;
+			if( ticks == 0 ) SelectMainMenu();
+			if( ++ticks < 20 ) return Retry;
+			ticks = 0;
+			Shot( Fmt( "pause-menu-%s", z.name ).c_str() );
+			bool open = IsGameMenuActive();
+			Menu_SetupMenuWindow( 0, 0 );
+			Check( Fmt( "the pause menu opens in the %s (screenshot to check the title by eye, bug 9)", z.name ).c_str(), open );
+			return Next;
+		} } );
+	}
+
 	Steps.push_back( { "quit with a gem in Griswold's window", []{
 		// Quitting saves with the Auto Save game changer and in multiplayer. The owner phase
 		// checks that the gem is in that save
