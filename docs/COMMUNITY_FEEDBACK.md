@@ -7,15 +7,19 @@ Feature requests and feedback from players, collected from three places:
 
 **Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md),** together with the fixes players made and what `th4-v0.774-base` already fixes.
 
+Features that players praise or ask for in the other TH4 sub-mods' channels (`#antigrind` and `#godroll`) are in [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md).
+
 The latest release is still v0.2.0 (30 March 2026). The `th4-v0.774-base` branch, not released yet, rebases on TH4 v0.774, which brings sigils and pixel light back.
 
 Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `#modding` thread. They open in Discord, and you must be signed in and a member of the server.
 
 ## Sources and how to re-check them
 
-**Local snapshot (fastest).** Every message from both places is saved with author, UTC time and message ID:
+**Local snapshot (fastest).** Every message is saved with author, UTC time and message ID:
 - `the-heaven-channel.md` (144 messages)
 - `modding-thread-the-heaven-mod.md` (218 messages)
+- `antigrind-channel.md`: the `#antigrind` channel of the Anti-Grind sub-mod (2,115 messages, 23 May – 5 Nov 2026)
+- `godroll-channel.md`: the `#godroll` channel of the Godroll sub-mod (762 messages, 3 Oct – 5 Nov 2026)
 
 The folder is `F:\git\diablo-1-the-heaven\.claude\worktrees\discord-bot-channel-access-6724f2\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link here or in [OPEN_BUGS.md](OPEN_BUGS.md).
 - **Not committed:** the repo is public and these are other people's posts from a members-only server.
@@ -28,9 +32,12 @@ The folder is `F:\git\diablo-1-the-heaven\.claude\worktrees\discord-bot-channel-
    - the thread: in `#modding`, click the Threads icon in the channel header, then "The Heaven mod" under older threads (https://discord.com/channels/1261720897975357460/1487937850824593611)
 3. Discord loads about 50 messages at a time. Scroll up until the channel's first message, then down to the end. Stopping early misses messages: the first read of the thread missed its last 20.
    - Read the text, not screenshots.
+   - When scrolling by script, setting `scrollTop = 0` once the list is already at the top doesn't load older messages. Scroll down a little and back to 0 each time.
+   - An unread channel opens at the first unread message, not at the newest one. Scroll to the bottom first.
    - Messages are `li[id^="chat-messages-<channel id>-"]` elements; the author is in `#message-username-<id>` and the text in `#message-content-<id>`.
 4. Switch channels with the sidebar inside the signed-in tab. A new browser tab doesn't share the login, and opening one signed the pane out once.
 5. Attachments (patches, code, Gorvex's suggestion list) exist only in Discord: open the message link and click the file.
+6. To save a big channel to a file, build the text in the page and download it as a file: create a `Blob`, then click an `<a download>` link to it. The browser saves it to `C:\Users\shebo\Downloads`. The page can't write to the clipboard, and returning hundreds of KB through tool output is slow and costly.
 
 A message ID encodes its UTC time: `(id >> 22) + 1420070400000` is milliseconds since 1970.
 
