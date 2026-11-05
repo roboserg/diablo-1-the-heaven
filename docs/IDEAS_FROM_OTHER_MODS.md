@@ -6,7 +6,7 @@ The two sub-mods, both on **The Hell 4 mod** Discord server:
 - **Anti-Grind** (AG) by Yuki: `#antigrind`, 2,115 messages, 23 May – 5 Nov 2026
 - **Godroll** by StArchon, a patched TH4.exe: `#godroll`, 762 messages, 3 Oct – 5 Nov 2026
 
-These are features their players praise or ask for that The Heaven doesn't have and that aren't already in COMMUNITY_FEEDBACK.md. Each was checked against the README, the changelog and the code on `th4-v0.774-base`. Since 17 Oct, AG 7.4 runs on TH4 v0.774, the same base as The Heaven, and Yuki says it loads vanilla TH4 saves ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1561047153697099878)).
+These are features their players praise or ask for that The Heaven doesn't have and that aren't already in COMMUNITY_FEEDBACK.md. Each was checked against the README, the changelog and the code after the move to TH4 v0.774. Since 17 Oct, AG 7.4 runs on TH4 v0.774, the same base as The Heaven, and Yuki says it loads vanilla TH4 saves ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1561047153697099878)).
 
 Links marked *antigrind* and *godroll* open those channels in Discord; you must be signed in and a member of the server. Every linked message is also in a local snapshot: see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 

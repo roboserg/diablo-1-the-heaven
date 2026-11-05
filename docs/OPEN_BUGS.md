@@ -2,7 +2,7 @@
 
 What is left to fix: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
-When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 15, so links to the old numbers keep working.
+When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 15, so links to the old numbers keep working.
 
 Reports from the comments on the [ModDB page](https://www.moddb.com/mods/diablo-1-the-heaven) say so; sign in as RobosergTV to see the comments that wait for approval. Every other report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
