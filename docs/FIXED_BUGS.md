@@ -16,6 +16,7 @@ What the `th4-v0.774-base` branch fixed since v0.2.0. This file is temporary: wh
 | Magic items no longer flip between two versions every 5 seconds, with affixes and "Not Identified" coming and going. A rebuild that would turn a magic item plain rebuilds it as it dropped. About 1 magic drop in 200 flipped, mostly spell staves | 8193865 | Part of bug 3 (kishak95, 4 Apr) |
 | Harmful penalties are gone from unique and set items, in the hero's stats and in all three tooltips: +damage from enemies, -stun threshold, -melee and -ranged absorption, -elemental, spell and weapon %, and negative armour. Trade-offs stay (see bug 4 in OPEN_BUGS.md) | 114e778 | Bug 4 (Rageweaver, Gorvex, 5 Apr; Marcototech's screenshot) |
 | The doubled stat cap works: elixirs and shrines raise stats up to it and they stay there, and stats at the cap turn gold. Before, the game cut stats back to the old cap a moment later | 6668e25 | [Bug 5](#bug-5-what-was-fixed) (Rageweaver, kishak95, 4-5 Apr) |
+| A perk reset no longer takes away base stats: it keeps Raise the Bar, Thaumaturgy and Ostentation when dropping them would cut stats above the lower limits, and says so. Before, those stats were cut and never came back | b6776a7 | Found in Godroll's perk locks ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)) |
 
 ## Bug 1 and kishak95's stash fix
 
