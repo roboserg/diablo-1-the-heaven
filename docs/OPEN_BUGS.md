@@ -6,13 +6,25 @@ When you fix a bug, move it out of this file into [FIXED_BUGS.md](FIXED_BUGS.md)
 
 Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
-## Ready-made fixes from players
+## What to decide
 
-| Fix | For | Who, when | Status |
+Checked on 5 Nov 2026 after the night's fixes. Each row says whether the problem is real and what I suggest.
+
+| Bug | Problem | Real? | Suggestion |
 |---|---|---|---|
-| **Unofficial 0.2.0 build:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), fixes by "Yuki" | Possibly bug 4, now fixed | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Not checked yet. See [To check](#to-check-yukis-unofficial-020-build). |
-
-kishak95's stash fix for bug 1 and his stat cap build for bug 5 aren't needed: both bugs are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
+| — | **A perk reset refunds Here and Now,** so it can be taken again for another level, as often as you pay 1000 gold × level | Yes, in code: free perk points are the level's points minus the perks held | **Fix:** keep Here and Now through a reset, like the stat limit perks. Small |
+| 4 | -light radius is removed from uniques, two players want it back | Yes, removed on purpose | **Your call.** Restoring it is one line in `IsHiddenUniquePenalty()` |
+| 4 | Trade-offs kept on 94 uniques (life for mana, lose resistances for a big bonus) | By design | **Keep.** On Anti-Grind, players complain when these lose their downside ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)) |
+| 6 | Single-player items reach multiplayer through the shared stash | Yes, every character uses `th4shared.stv` | **Keep,** players asked for a shared stash in multiplayer (issue #3, Gorvex). Say "every character" in the changelog |
+| 6 | Time speed can't be changed in multiplayer | Works as designed: time speed applies only when `MaxCountOfPlayersInGame == 1` (`Main.cpp`) | **Skip.** Syncing speed between PCs is a big change |
+| 3 | Magic items change once at the first 5-second check after they drop | Yes, 9 in 10. Players don't see it: drops aren't identified yet | **Skip** |
+| 3 | Items morph between characters (base TH4) | Yes | **Done enough:** the shared stash lock covers sharing |
+| 9 | Pause menu title hard to read; the Symptoms tree looks unfinished | Not checked in the game. Symptoms is base TH4's Black Death tree | **Skip** unless someone sends a screenshot |
+| — | Lock other progression perks against a reset, like Godroll | Design | **Skip,** unless the Here and Now fix should cover more |
+| — | A crash between writing the shared stash file and the character file | A window of milliseconds | **Skip** |
+| — | Griswold's stash reports (Marcototech, Blackheart) and Rageweaver's missing Book of Healing | Probably bug 1, fixed | **Close,** ask them to try the next build |
+| — | Black Death in a game where Marcototech didn't pick it | No: nothing in the code turns it on by itself | **Close** |
+| — | Yuki's unofficial 0.2.0 build ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Bugs 4 and 5 are fixed from source; it's a third-party binary | **Skip** |
 
 ## Bugs, most important first
 
@@ -42,7 +54,7 @@ Reports:
 
 ### 4. Some unique-item penalties remain
 The harmful penalties players reported are fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)). Two decisions are left:
-- **Trade-offs are kept on 94 uniques:** moving life to mana or mana to life, and losing resistances or regeneration for a big bonus. Grace of Death, for example, takes 40-45 less damage from enemies but loses resistances and regeneration. Removing the downside would make these items far stronger than meant, and players in the Anti-Grind channel complain that removing it breaks them (see [To check](#to-check-problems-reported-in-other-sub-mods-channels)). Keep them as they are, or remove these too.
+- **Trade-offs are kept on 94 uniques:** moving life to mana or mana to life, and losing resistances or regeneration for a big bonus. Grace of Death, for example, takes 40-45 less damage from enemies but loses resistances and regeneration. Removing the downside would make these items far stronger than meant, and players in the Anti-Grind channel complain that removing it breaks them: Darkbone115's item that moves 40% of life to mana becomes useless ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)). Plain penalties, like Ravenous Hatred's -26% life that Zerathyl found in Anti-Grind ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1520186604373676043)), are gone in The Heaven. Keep them as they are, or remove these too.
 - **-light radius was removed, but players want it kept,** because it helps archers and mages avoid pulling too many monsters (Darkbone115, 30 Mar, with screenshots, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488064296993820692), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488295169727008809); again on 15 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537953948856614943)). You replied "Will look at the bug tomorrow" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488316119994466315)). It's removed on purpose in code, so this is a design decision as much as a bug.
 
 ### 6. Multiplayer
@@ -67,17 +79,4 @@ From [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3):
 These came up in `#antigrind` and `#godroll` (links marked *antigrind* and *godroll*). They aren't reports against The Heaven, but they may affect it.
 
 - **Shared stash: a crash between two files.** StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [FIXED_BUGS.md](FIXED_BUGS.md)).
-- **Perk reset refunds every perk.** `VisualTrade_ResetPerks()` in `src/VisualTrade.cpp` resets all perks for 1000 gold × character level. Godroll locks perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)). Decide whether The Heaven should too. The stat loss from resetting Raise the Bar, Thaumaturgy and Ostentation is fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
-- **No-penalty uniques break items whose penalty is the point.** Both reports are about AG's No Negative game changer. The Heaven keeps such trade-offs (see [bug 4](#4-some-unique-item-penalties-remain)) and removes plain penalties like Ravenous Hatred's.
-  - Darkbone115 has an item meant to move 40% of life to mana, and it becomes useless ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)).
-  - Zerathyl found Ravenous Hatred keeps −26% HP even with penalties off ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1520186604373676043)).
-
-## To check: Yuki's unofficial 0.2.0 build
-
-Marcototech posted an unofficial build with fixes by someone named **Yuki**. Check what it changes and whether we need any of the fixes. (Yuki also runs the Antigrind submod thread in `#modding`.)
-
-- **File:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), attached to Marcototech's message in `#the-heaven`, 26 May 2026: https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086
-- **Announced here** ("something fixed by Yuki"): [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508760621473071125). Right after the file, Marcototech posted a screenshot captioned "important for play it" ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838742654189739)).
-- **How to download:** open the message link while signed in to Discord and click the file. Link to the message, not the file: Discord's direct file links expire.
-- The name suggests fixes to unique-item stats (possibly bug 4). It's probably a compiled build, not source, so the check is a diff against our v0.2.0 release.
-- It's a third-party binary. Unzip it into its own empty folder outside the repo, and don't run the exe before checking it.
+- **Perk reset refunds every perk.** `VisualTrade_ResetPerks()` in `src/VisualTrade.cpp` resets all perks for 1000 gold × character level. Godroll locks perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)). Decide whether The Heaven should too. **Here and Now is an exploit:** `SpendPerkPoint()` gives a full level when it's taken, and a reset gives its point back, so it can be taken again and again. The stat loss from resetting Raise the Bar, Thaumaturgy and Ostentation is fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).

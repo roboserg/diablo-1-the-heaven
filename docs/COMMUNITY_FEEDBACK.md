@@ -146,7 +146,7 @@ Gorvex attached `Suggestion compilation.txt` (36 KB, 333 lines) to the thread ([
 - **Shrines:** attribute shrines drop elixirs; the gold shrine drops one pile; shrine effects shared in multiplayer.
 - **Misc:** shoot barrels and urns from range in Normal mode; restore Cain's and Griswold's original greetings.
 
-The one bug in his list (unarmed damage with +/- base damage items) is [bug 10](OPEN_BUGS.md#10-unarmed-damage-drops-with-items-that-change-base-damage-base-th4) in the bugs file.
+The one bug in his list (unarmed damage with +/- base damage items) was bug 10, fixed (see [FIXED_BUGS.md](FIXED_BUGS.md)).
 
 ## Feedback and perception
 
