@@ -5142,6 +5142,7 @@ int OldWorldProcess = 0;
 bool AltEnter()
 {
 	if (IsSecondWin /*|| VideoWindowExists*/) return false;
+	if (AutoTest_Active()) return false; // (heaven) Alt+Enter typed in another app must not reach the autotest
 	int isAltPressed = GetAsyncKeyState(VK_MENU) < 0;
 	if (ExtraMouseButtons) {
 		isAltPressed |= GetAsyncKeyState(VK_XBUTTON1) < 0;
@@ -5175,7 +5176,7 @@ bool AltEnter()
 		if (gbRunGame) {
 			POINT p;
 			GetCursorPos(&p);
-			SetCursorPos(p.x + (ScreenWidth - GUI_Width) / 2 * WinWidth / ScreenWidth, p.y + (ScreenHeight - GUI_Height) / 2 * WinHeight / ScreenHeight);
+			if (!AutoTest_Active()) SetCursorPos(p.x + (ScreenWidth - GUI_Width) / 2 * WinWidth / ScreenWidth, p.y + (ScreenHeight - GUI_Height) / 2 * WinHeight / ScreenHeight);
 			ScreenToClient(ghMainWnd, &p);
 			CursorX = p.x + (ScreenWidth - GUI_Width) / 2;
 			CursorY = p.y + (ScreenHeight - GUI_Height) / 2;
@@ -5183,7 +5184,7 @@ bool AltEnter()
 		else {
 			POINT c{ 0, 0 };
 			ClientToScreen(ghMainWnd, &c);
-			SetCursorPos(c.x + GUI_Width / 2 * WinWidth / ScreenWidth, c.y + GUI_Height / 2 * WinHeight / ScreenHeight);
+			if (!AutoTest_Active()) SetCursorPos(c.x + GUI_Width / 2 * WinWidth / ScreenWidth, c.y + GUI_Height / 2 * WinHeight / ScreenHeight);
 		}
 		if (IsFullScreen && !BigWin) {
 			// (th4) 2026-09-10 diagnostics: THIS is the path that forces a

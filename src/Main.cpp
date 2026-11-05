@@ -17,7 +17,7 @@ void ChangeCursorPos(int dx, int dy)
 	GetCursorPos(&p);
 	CursorX += dx;
 	CursorY += dy;
-	SetCursorPos(p.x + (int)round((double)dx * WinWidth / ScreenWidth), p.y + (int)round((double)dy * WinHeight / ScreenHeight) );
+	if( ! AutoTest_Active() ) SetCursorPos(p.x + (int)round((double)dx * WinWidth / ScreenWidth), p.y + (int)round((double)dy * WinHeight / ScreenHeight) );
 
 }
 
@@ -2581,6 +2581,7 @@ void __fastcall RunGameLoop(int gameMessage) // run_game_loop
 			FramePart = FramesMax / (double) (MAX_FPS / ENGINE_FPS);
 			GameLoop(IsWaitingNetTimeOut_MayBe);
 			IsWaitingNetTimeOut_MayBe = 0;
+			AutoTest_Tick(); // (heaven) scripted end-to-end checks, see AutoTest.cpp
 			MainDrawFunc();
 			++MainDrawCount; ++AllDrawCount;
 			if( MainDrawCount == 21 ){
@@ -2782,6 +2783,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	InstallTh4VehCrashHandler(); // (th4) diagnostics: must be armed before __try
 	#endif
 	__try{
+	AutoTest_ParseCommandLine( lpCmdLine ); // (heaven) "-autotest <phase>", see AutoTest.cpp
 	#ifdef _DEBUG
 	// Phase 1 debug harness: "TH4.exe -lightlutcheck" runs the A8L8 light-falloff
 	// LUT self-check over all graphType x OriginalLightLevels combos and exits
@@ -2799,7 +2801,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// ------ Original code start here ---------------------------------------
 	#ifdef _PROTECTION
 	HINSTANCE prevInst = hInstance;
-	MyLoadModule(hInstance);
+	if( ! AutoTest_Active() ) MyLoadModule(hInstance); // (heaven) it relaunches the exe without the command line, which would drop "-autotest"
 	hInstance = prevInst;
 	#endif
 	HInstance = hInstance;
@@ -2812,7 +2814,7 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	OldTopLevelExceptionFilter = (int(__stdcall*)(struct _EXCEPTION_POINTERS*))SetUnhandledExceptionFilter((LONG(__stdcall*)(struct _EXCEPTION_POINTERS*))TopLevelExceptionFilter);
 	#endif
 	// (rt) Checks for an already running instance
-	if( !DevelopMode && (AlreadyHasWindow("THEHEAVEN") || !NoMyExec()) ){ 
+	if( !DevelopMode && !AutoTest_Active() && (AlreadyHasWindow("THEHEAVEN") || !NoMyExec()) ){ // (heaven) the autotest runs from its own folder
 		return 0;
 	}
 	InitOnScreenData();
@@ -6517,6 +6519,7 @@ bool PrevRestrictState = false;
 //----- (th2) --------------------------------------------------------
 void RestrictMouseToWindow(HWND mWindow)
 {
+	if( AutoTest_Active() ) return; // (heaven) never clip the player's pointer to the autotest window
 	bool restrictState = IsRestrictMouseToWindow && IsMainWindowActive && !IsGameMenuActive() && !GamePaused && gbRunGame;
 	if( restrictState != PrevRestrictState ){
 		PrevRestrictState = restrictState;
@@ -6556,7 +6559,7 @@ static bool PrevMenuRestrictState = false;
 
 void RestrictMouseToMenu(HWND mWindow, const RECT& menuRect)
 {
-	if( !mWindow ) return;
+	if( !mWindow || AutoTest_Active() ) return; // (heaven) never clip the player's pointer to the autotest window
 	const bool restrictState = !gbRunGame && !VideoWindowExists && IsMainWindowActive && !IsSizingWindow;
 
 	if( !restrictState ){

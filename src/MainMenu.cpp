@@ -113,6 +113,7 @@ int SinglePlayerGame()
 		#endif
 		if( OriginalMenu ){
 			if( LoadOnStart ){ // (rt) load the specified save immediately for a quick comparison
+				if( AutoTest_Active() ) AutoTest_PrepareHero(); // (heaven) creates the test hero
 				LoadCharSlots(nullptr);
 				singlePlayerSelection = NewGameOnStart ? HM_1_NEW_GAME : HM_2_LOAD_GAME;
 				strcpy( HeroName, CharNameSlots[ AutoLoadSlot ] ); // (rt) the current save number is determined somewhere in hell.dll

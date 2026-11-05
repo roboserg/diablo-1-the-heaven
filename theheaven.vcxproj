@@ -273,6 +273,7 @@
     <ClCompile Include="src\UniqueItems.cpp" />
     <ClCompile Include="src\UniqueMonsters.cpp" />
     <ClCompile Include="src\UniqueSets.cpp" />
+    <ClCompile Include="src\AutoTest.cpp" />
     <ClCompile Include="src\VisualStash.cpp" />
     <ClCompile Include="src\VisualTrade.cpp" />
     <ClCompile Include="src\vorbis.cpp" />

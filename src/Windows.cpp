@@ -110,7 +110,7 @@ void CreateMainWindow()
 	Dst.hCursor = LoadCursor(0, (LPCSTR)IDC_ARROW);
 	Dst.hbrBackground = (HBRUSH)GetStockObject( BLACK_BRUSH );
 	Dst.lpszMenuName = PRJ_NAME;
-	Dst.lpszClassName = "THEHEAVEN";
+	Dst.lpszClassName = AutoTest_Active() ? "THEHEAVEN_AUTOTEST" : "THEHEAVEN"; // (heaven) so a running autotest doesn't stop the player's own game from starting
 	Dst.hIconSm = (struct HICON__*)LoadImage(HInstance, (LPCSTR)ID_ICON1, 1, 16, 16, 0);
 	if( !RegisterClassExA(&Dst) ){
 		TerminateWithError("Unable to register window class");
@@ -199,7 +199,12 @@ void CreateMainWindow()
 	if( !popup ){
 		AdjustWindowRectEx( &r, WS_OVERLAPPEDWINDOW, 0, 0 );
 	}
-	HWND hWnd = CreateWindowExA( 0, "THEHEAVEN", PRJ_NAME,
+	if( AutoTest_Active() && ! AutoTest_Show() ){ // (heaven) autotest: off-screen, right of every monitor
+		startX = GetSystemMetrics( SM_XVIRTUALSCREEN ) + GetSystemMetrics( SM_CXVIRTUALSCREEN ) + 64;
+		startY = 0;
+	}
+	// (heaven) the autotest window never takes focus, even when clicked, and has no taskbar button
+	HWND hWnd = CreateWindowExA( AutoTest_Active() ? WS_EX_NOACTIVATE : 0, AutoTest_Active() ? "THEHEAVEN_AUTOTEST" : "THEHEAVEN", PRJ_NAME,
 		popup ? WS_POPUP : WS_OVERLAPPEDWINDOW, startX, startY, r.right - r.left + 1, r.bottom - r.top + 1, 0, 0, HInstance, 0);
 	if( !hWnd ){
 		TerminateWithError("Unable to create main window");
@@ -214,7 +219,7 @@ void CreateMainWindow()
 		UpdateWindow(secWnd);
 	}
 	// wndmode.dll nevermore
-	ShowWindow( hWnd, SW_SHOWNORMAL );
+	ShowWindow( hWnd, AutoTest_Active() ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL ); // (heaven) the autotest doesn't take focus
 	UpdateWindow( hWnd ); // (rt) no visible effect, probably because WM_PAINT isn't handled
 	#ifndef USE_32BITCOLOR
 	WaitForOldWinExplorerClosed();

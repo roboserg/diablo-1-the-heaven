@@ -296,6 +296,7 @@ void InitTH2( void* arg )
 
 	std::ios::sync_with_stdio( false );
 	GetParamsFromConfig();
+	AutoTest_OverrideConfig(); // (heaven) quiet, windowed, loads its test hero
 	InitLocalization(); // (th4)
 	LoadDlls();
 	PatchStormWin();

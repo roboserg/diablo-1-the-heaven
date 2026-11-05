@@ -2859,6 +2859,14 @@ void SetupQuenchPanel();
 
 void __fastcall Transmute_Open();
 void Transmute_RetriveAllItems();
+
+// (heaven) AutoTest.cpp: "TheHeaven.exe -autotest <phase>", run by scripts\autotest.ps1
+void AutoTest_ParseCommandLine( const char* cmdLine );
+bool AutoTest_Active();
+bool AutoTest_Show();
+void AutoTest_OverrideConfig();
+void AutoTest_PrepareHero();
+void AutoTest_Tick();
 void __fastcall Transmute_Close();
 void __fastcall Transmute_Draw();
 void __fastcall Transmute_MouseMove();
