@@ -5,7 +5,7 @@ Feature requests and feedback from players, collected from three places:
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
-**Bugs that are still open are in [OPEN_BUGS.md](OPEN_BUGS.md).** What `th4-v0.774-base` fixed, and the known issues left as they are, is in [FIXED_BUGS.md](FIXED_BUGS.md).
+**Bugs that are still open, confirmed or not, are in [OPEN_BUGS.md](OPEN_BUGS.md).** What `th4-v0.774-base` fixed, and the reports that turned out to be by design, are in [FIXED_BUGS.md](FIXED_BUGS.md).
 
 Features that players praise or ask for in the other TH4 sub-mods' channels (`#antigrind` and `#godroll`) are in [IDEAS_FROM_OTHER_MODS.md](IDEAS_FROM_OTHER_MODS.md).
 
@@ -57,7 +57,7 @@ All 69 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr);
   - You released an experimental 8-player build the next day; he never reported back on it.
 - **His caveats:**
   - **Missing features:** the open-source TH4 lacked features of the then-current TH4, such as sigils, and the group might not want to lose them ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)). The `th4-v0.774-base` branch rebases on TH4 v0.774, and sigils are back.
-  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph and fixes items that flipped every 5 seconds (The Heaven's own bug); morphing between classes is base TH4 behavior and remains (see [known issues](FIXED_BUGS.md#known-issues-not-fixing)).
+  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph and fixes items that flipped every 5 seconds (The Heaven's own bug); morphing between classes is base TH4 behavior and remains (see [OPEN_BUGS.md](OPEN_BUGS.md#3-magic-items-morph-between-characters)).
   - **Switching versions:** getting a dozen people onto a new version is a hassle. He wanted to ask the group first, so you wouldn't do the work for nothing ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153780250742938), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488154037793718373)).
   - **Timing:** not soon ("another day far away"). He'll keep playing TH4 "for the rest of my life" and wants to try mods like this once TH4 reaches 1.0 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488163367750209616)).
 

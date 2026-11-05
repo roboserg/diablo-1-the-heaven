@@ -1,19 +1,62 @@
 # Open Bugs
 
-Bugs that players reported and that are still left to do, checked against the `th4-v0.774-base` branch. Feature requests and player feedback are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
+What is left on the `th4-v0.774-base` branch: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
-When you fix a bug, move it out of this file into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Problems that were checked and left as they are on purpose are in the same file, under [Known issues, not fixing](FIXED_BUGS.md#known-issues-not-fixing).
+When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the branch's list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 13, so links to the old numbers keep working.
 
 Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
-## Nothing left to fix
+## Confirmed bugs
 
-Bugs 1 to 8 and 10 are fixed or decided (5 Nov 2026): see [FIXED_BUGS.md](FIXED_BUGS.md). Give new reports the next number, 11, so links to the old numbers keep working.
+Each was reproduced by the autotest (`scripts\autotest.ps1`, see `docs\BUILD.md`) or found in the code. Checked on 5 Nov 2026.
 
-## Waiting for players
+| # | Bug | From | Reported by | Confirmed by | Decision |
+|---|---|---|---|---|---|
+| 9 | [The pause menu title is missing or dim in the dungeon](#9-pause-menu-title) | The Heaven | [Issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3) | Autotest screenshots: missing in the church and in hell, nearly invisible in the catacombs, dim in the caves | **To decide.** A small fix |
+| 3 | [Magic items change once after they drop](#3-magic-items-change-once-after-they-drop) | The Heaven | Found by the autotest | Autotest: 9 in 10 magic drops change at the first 5-second item check | Skip: players don't see it |
+| 3 | [Magic items morph between characters](#3-magic-items-morph-between-characters) | Base TH4 | Rageweaver, kishak95 and others | Autotest: items a Warrior stashed come out different for a Classic Mage | Skip: the shared stash locks them |
+| 11 | [A crash between the two shared stash writes can duplicate or lose items](#11-crash-between-the-two-shared-stash-writes) | The Heaven | StArchon (godroll) | Code: the shared stash and the character are two files, written one after the other | Skip: a window of milliseconds |
+| 12 | [A perk reset gives back perks whose benefit stays](#12-perk-reset-gives-back-perks-whose-benefit-stays) | The Heaven | Godroll's perk locks | Code: Educated and Higher Education add stat points at each level-up, and a reset keeps the points | Skip |
 
-Nothing to fix until a player answers: ask them to try the next build, or for a screenshot.
+## Player reports, not confirmed
 
-- **Griswold's stash, probably bug 1 (fixed):** Marcototech, 25 May: "Stash from griswold: Caution is bugged" ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375)). Blackheart, 18 Jul: anything put into Griswold's stash in Purgatory disappears after closing it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521)). Neither was reproduced.
-- **Missing Book of Healing:** Rageweaver's went missing, probably before applying kishak95's stash fix, so probably bug 1 too ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)).
-- **Bug 9, two small items from [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3):** the pause menu title is hard to read in some zones, and the "Symptoms" tree looks unfinished ("work in progress?"). Neither was checked in the game. Symptoms is base TH4's perk tree for the Black Death game changer. Ask for a screenshot.
+Nobody reproduced these. Each needs an answer from the player.
+
+| Report | Who | What was checked | Next |
+|---|---|---|---|
+| Items put into Griswold's stash disappear after closing it, since reaching Purgatory | Blackheart, 18 Jul ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521)) | Not reproduced. No stash code depends on the difficulty. In v0.2.0, the build he played, closing Gillian's shared stash reloaded Griswold's stash from the last save, losing what was put in since: bug 1, fixed | Ask him to try the next build |
+| "Stash from griswold: Caution is bugged" | Marcototech, 25 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375)) | One line in his list of the mod's features, so most likely a warning about bug 1, fixed | Close |
+| His Book of Healing went missing | Rageweaver, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)) | He thinks it went missing before kishak95's stash fix, so bug 1 | Close |
+| Black Death and its Symptoms tree in a game where he says he only picked Easy, That's My Secret and Acceleration (bug 9's other item) | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508856317425483958)); issue #3: "Symptoms tree? For what are they?" | Not reproduced. The Symptoms tree shows only with Black Death on. Easy never lists Black Death, a click toggles only a game changer the list shows, and going back to the mode screen clears all game changers | Ask for the save file or a screenshot of the game changers |
+
+## Details
+
+### 9. Pause menu title
+[Issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3) posted a screenshot of the pause menu with the title barely visible: "On some zones it can't be seen". The autotest's main phase opens the menu on dungeon levels 1, 5, 9 and 13 and saves a screenshot of each, `build\autotest\autotest-main-pause-menu-<zone>.gif` (c9ac151). The title "DIABLO 1 THE HEAVEN" is missing in the church and in hell, nearly invisible in the catacombs and dim in the caves. The menu items below it are readable.
+- **Cause:** base TH4 draws a logo picture there with `Surface_DrawCEL()`, which keeps the dungeon lighting off it. The Heaven draws the title as text in the menu font instead (`Menu_Draw()` in `src/MenuEngine.cpp`), and the lighting darkens it like the floor behind it. The menu items use the same font, but they sit next to the hero, in the light.
+- **Fixing it:** keep the lighting off the title the way `Surface_DrawCEL()` does, or draw a logo picture again. Small.
+
+### 3. Magic items change once after they drop
+In the autotest, 9 in 10 magic items change at the first 5-second check after they drop. From then on they stay the same. Players don't see it, because drops aren't identified yet. `build\autotest\autotest-rebuilds.csv` lists 1798 magic items as dropped and after 4 checks.
+- **Cause:** The Heaven's independent rare roll (dd8817e, v0.0.3) runs when an item drops, but is skipped when a magic item is rebuilt (`SetupAllItems` in `src/Item.cpp`), so every random number after it comes out different.
+- **Fixing it:** only new drops can be fixed, since existing items must keep the version players have. That needs a marker on each item (the unused `charFlag` byte) and in the multiplayer item messages. Not worth it unless players notice.
+
+### 3. Magic items morph between characters
+The game keeps only a magic item's seed and a few fields, and rebuilds the rest after every load. Staff and book spells depend on the character's class, and Classic mode uses its own affix table, so an item can come out different for another character. The shared stash locks items that would morph for the character who opens it (af5cf77), which covers sharing. The autotest's "other" phase finds the items a Warrior stashed that come out different for a Classic Mage, and checks they are locked.
+
+Reports:
+- Rageweaver, 25 May: a magic ring changed after switching characters, even though both were Dimachaerus and could use it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581640606322860)). Both were the same class, so it may have been the flip.
+- Rageweaver, 3 Apr: blue items change while in the shared stash and change back once taken out ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618645180219423)). May also be the flip.
+- Marcototech (Discord) and Gron21 (issue #3) can't reproduce it between Paladin, Archer and Mage. Marcototech suspects it only happens between two characters of the same class.
+- Mordor (TH4 author), 26 May: this is one of the reasons loot must not be shared ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508761056175063112)). Masterteo89 suggests sharing only items every class can use, like Giant Knuckle ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508834029565251675)).
+
+**Gorvex's explanation** (17 Sep, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1550231476996538450)) is partly right:
+- Magic items are regenerated from their seed when loaded. True.
+- The affix pool differs per class/subclass, and disallowed slots get refilled. Only for spells: the staff spell list skips spells the class can't use, and books pick from a list filtered by class. Affix selection has no class filter.
+- The seed is updated on the fly to fix invalid rolls. Only when an item drops; a rebuild never changes the seed.
+
+### 11. Crash between the two shared stash writes
+StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [StArchon's cases](FIXED_BUGS.md#shared-stash-starchons-cases)).
+
+### 12. Perk reset gives back perks whose benefit stays
+Godroll locks perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)). In The Heaven, Educated, Higher Education and Overwhelm add stat points at each level-up (`Player.cpp`), and Heavy Drinker makes monsters drop elixirs. A reset gives their perk points back but keeps the stat points and the elixirs, so a player can take them while leveling and swap them for other perks later. The reset keeps only Here and Now, and Raise the Bar, Thaumaturgy and Ostentation when dropping them would cut stats (see [FIXED_BUGS.md](FIXED_BUGS.md)).
