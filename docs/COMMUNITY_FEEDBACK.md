@@ -5,7 +5,13 @@ Bug reports, fixes and feature requests from players, collected from three place
 - the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
-None of these are fixed yet: the latest release is still v0.2.0 (30 March 2026).
+Nothing here is fixed in a release yet: the latest release is still v0.2.0 (30 March 2026). The `th4-v0.774-base` branch, not released yet, fixes these:
+- the rebase on TH4 v0.774, which brings sigils and pixel light
+- pixel light (issue #5), part of [bug 9](#9-other-open-github-issues)
+- Cain's transmute window and F9/F12 quick save and load, part of [bug 3](#3-items-lost-when-a-window-is-closed-or-a-save-is-loaded-with-an-item-still-in-it)
+- locking shared stash items that would morph, part of [bug 2](#2-magic-items-change-morph)
+
+Each entry below says what is still open. `scripts\autotest.ps1` plays the game unattended to check these fixes (see `docs\BUILD.md`).
 
 Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `#modding` thread. They open in Discord, and you must be signed in and a member of the server.
 
@@ -47,8 +53,8 @@ All 69 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr);
   - Viewers often want to play with him but can't because of the 4-player limit ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)).
   - You released an experimental 8-player build the next day; he never reported back on it.
 - **His caveats:**
-  - **Missing features:** the open-source TH4 lacked features of the then-current TH4, such as sigils, and the group might not want to lose them ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)). The rebase on TH4 v0.774 should solve this.
-  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)).
+  - **Missing features:** the open-source TH4 lacked features of the then-current TH4, such as sigils, and the group might not want to lose them ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)). The `th4-v0.774-base` branch rebases on TH4 v0.774, and sigils are back.
+  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph (see [bug 2](#2-magic-items-change-morph)); the morphing itself is base TH4 behavior and remains.
   - **Switching versions:** getting a dozen people onto a new version is a hassle. He wanted to ask the group first, so you wouldn't do the work for nothing ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153780250742938), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488154037793718373)).
   - **Timing:** not soon ("another day far away"). He'll keep playing TH4 "for the rest of my life" and wants to try mods like this once TH4 reaches 1.0 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488163367750209616)).
 
@@ -119,6 +125,12 @@ The most-reported bug.
   - The affix pool differs per class/subclass. Affix slots that are not allowed for one subclass get filled by valid ones, which shifts the pool.
   - The seed is also updated on the fly to fix invalid rolls, so the same item rolls differently for another class.
   - The root cause is in base TH4; the shared stash just exposes it.
+- **Status: partly fixed on `th4-v0.774-base`** (commit af5cf77, not released yet).
+  - **What it does:** each shared stash item remembers how it looked for the character who stashed it. For a character it would rebuild differently for, the item is:
+    - drawn red, with "Would morph on this character"
+    - impossible to take out
+    - saved back unchanged, so its owner still gets the real item
+  - **Still open:** the morphing itself, and kishak95's report of affixes changing in the inventory.
 
 ### 3. Items lost when a window is closed or a save is loaded with an item still in it
 - Marcototech, 21 Jun: pick an item up from the stash, keep it on the cursor with the stash open, press ESC and load a game, and the item is gone forever ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1518073293121519646))
@@ -126,6 +138,13 @@ The most-reported bug.
   - A gem put into Griswold's crafting window disappears if the window is closed suddenly.
   - A ring transmuted at Cain disappears if it isn't moved to the inventory before closing the window.
   - Quick save, enchant at Adria, then quick load leaves two copies of the item (enchanted and not), and up to three if repeated. Loading from the menu makes the item disappear.
+- **Status: partly fixed on `th4-v0.774-base`** (not released yet):
+  - **Cain** (a5b1365): closing the transmute window while holding an item now returns the slot items to the inventory.
+  - **F9/F12** (1c8fd75): quick save and quick load now close every item window first (stash, trade, crafting, enchanting, power-ups, quench, transmute), returning their items to the inventory. Quick save also refuses while an item is on the cursor. This should cover the Adria quick-load duplicates, but the autotest only checks it with Cain's window.
+  - **Still open:**
+    - Marcototech's cursor item lost on ESC and load
+    - loading from the menu
+    - the gem in Griswold's crafting window
 
 ### 4. Some unique-item penalties were not removed
 The changelog says negative penalties on uniques and sets are removed, but some remain:
@@ -153,7 +172,7 @@ UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift
 
 ### 9. Other open GitHub issues
 - [Issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3): the pause menu title is hard to read in some zones, and the "Symptoms" tree looks unfinished ("work in progress?").
-- [Issue #5](https://github.com/roboserg/diablo-1-the-heaven/issues/5): pixel light doesn't work.
+- [Issue #5](https://github.com/roboserg/diablo-1-the-heaven/issues/5): pixel light doesn't work. **Fixed on `th4-v0.774-base`** (7ff7213, not released yet): the shipped `config.ini` was older than the code and lacked the options that turn pixel light on.
 
 ## Feature requests
 
@@ -161,6 +180,7 @@ UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift
 - **Rebase on the latest TH4.** Mordor has released the latest TH4 source in the downloads section of [patreon.com/thmod](https://www.patreon.com/thmod/about) (Slack Daddy, 14 Oct, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1559691391121104967); Nikodemsky, 4 Nov, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1567663591039959160)). It would bring:
   - pixel light (Rageweaver, 2 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489260002702262423)). Gorvex advised waiting for the newer source instead of porting it by hand.
   - the Wirt power-up and sigils (Ponder, 2 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511302320934228008); Tharunes missed the sigils, 25 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508582352429777048))
+  - **Done on `th4-v0.774-base`** (not released yet): it rebases on TH4 v0.774 (13 Oct 2026). Sigils are back and pixel light works. The Wirt power-up isn't checked yet.
 - **Remove VISE in single player** (VISE is what players call not being able to save or town-portal during combat). Rageweaver calls it the most-asked feature after the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489271217545412700)).
 - **Multiplayer trading and more than 4 players** (Danycron, 30 Mar). Zgeg (26 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508654276639981649)) and UbergamR (12 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536859083250999357)) also asked about trading. You released an experimental 8-player build on 31 Mar ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488550931464458383)); no one reported back on it.
 - **5x XP in multiplayer** (Itadori, see bug 6).
@@ -241,5 +261,5 @@ Marcototech posted an unofficial build with fixes by someone named **Yuki**. Che
 - **Where to report:** players weren't sure whether to post bugs in the `#modding` thread or `#the-heaven` (Marcototech, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490304695967809628)). Name one place, for example in the pinned message.
 
 - **Sub-mods listing:** the mod isn't in the server's TH4 sub-mods section because no one has asked for a subforum yet. Ask the server staff for one (Nikodemsky, 5 Nov, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1567674951891157114)).
-- **Compatibility question:** a Russian-speaking player asked which TH4 version the mod works with and never got a clear answer ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508931328601755790)). The README now names TH4 v0.208.
+- **Compatibility question:** a Russian-speaking player asked which TH4 version the mod works with and never got a clear answer ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508931328601755790)). The README on main names TH4 v0.208; on `th4-v0.774-base` it names v0.774.
 - **Black Death game changer:** Marcototech saw it in a game where he says he only picked Easy and the Acceleration game changers. Rageweaver says it's intended ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508841792731086868)). Unclear whether it's a bug.
