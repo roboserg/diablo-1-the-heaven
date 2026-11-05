@@ -330,6 +330,7 @@ void InitTH2( void* arg )
 		if (OutbreakSaveFolder)  create_directory( SaveFolders[4] );
 		if( DarkCampaignSaveFolder ) create_directory( SaveFolders[5] ); // (th4)
 	}
+	RenameOldClassicSaves(); // (heaven)
 	InitPerks();
 	if( XinputEnabled && ! LoadLibraryA("xinput9_1_0.dll") ){ XinputEnabled = false; }
 	if( LimitCpuCore ) SetProcessAffinityMask(GetCurrentProcess(), 1);

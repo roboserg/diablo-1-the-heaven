@@ -3022,6 +3022,7 @@ const char* NewHeroTitleText();   // (th4) localized text for whatever NewHeroTi
 const char* CharSelectTitleText();// (th4) same, for CharSelectTitle()
 int CharSelectTitle();
 char* SaveFolderName();
+void RenameOldClassicSaves();
 char* SaveFileStash();
 int PlayerMaxLevel();
 i64 LevelUp(uint charLevel);

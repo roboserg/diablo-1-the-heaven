@@ -54,6 +54,30 @@ char* SaveArchiveName() // TODO: change to scan and parse by file extentions (no
 	return name;
 }
 
+//----- (heaven) ----------------------------------------------------------
+// v0.2.0 named Classic saves th3cls_<slot>.ksv, and TH4 v0.774 renamed them th4cls_. Without this,
+// Classic characters from before v0.3.0 are gone from the hero list. MoveFile never replaces a
+// file, so a slot already holding a newer hero keeps it, and the old save stays where it is.
+void RenameOldClassicSaves()
+{
+	char base[MAX_PATH];
+	if( !GetModuleFileNameA(HInstance, base, MAX_PATH) ) return;
+	char* pathEnd = strrchr(base, '\\');
+	if( pathEnd ) pathEnd[1] = 0;
+	// Which folder depends on the config's SaveFolder and ClassicSaveFolder, and on multiplayer
+	for( const char* folder: { "", (const char*)SaveFolders[0], (const char*)SaveFolders[1], (const char*)SaveFolders[3] } ){
+		string dir = string( base ) + folder;
+		WIN32_FIND_DATAA found;
+		HANDLE search = FindFirstFileA( (dir + "th3cls_*.ksv").c_str(), &found );
+		if( search == INVALID_HANDLE_VALUE ) continue;
+		do{
+			string oldName = found.cFileName;
+			MoveFileA( (dir + oldName).c_str(), (dir + "th4cls_" + oldName.substr( strlen( "th3cls_" ) )).c_str() );
+		}while( FindNextFileA( search, &found ) );
+		FindClose( search );
+	}
+}
+
 //----- (th4) -------------------------------------------------------------
 char* SaveFileHero()
 {
