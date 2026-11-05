@@ -4,10 +4,20 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 
 ## [0.3.0] - 2026-11-05
 
-**Needs The Hell 4 v0.774.** The Heaven is now built on The Hell 4 v0.774 (October 2026). Copy `TH4data.mor` from TH4 v0.774 into the game folder; one from an older TH4 won't work. The README links a backup copy. Characters, Griswold's stash and the shared stash from v0.2.0 carry over unchanged.
+**Needs The Hell 4 v0.774.** The Heaven is now built on The Hell 4 v0.774 (October 2026). Copy `TH4data.mor` from TH4 v0.774 into the game folder; one from an older TH4 won't work. The README links a backup copy. Characters, Griswold's stash and the shared stash from v0.2.0 carry over, except for Classic characters (see Known issues).
+
+### New from The Hell 4 v0.774
+- **Outbreak**: a new game mode where you fight off waves of monsters.
+- **Dark Campaign**: a new game mode with 26 missions in the service of the Lord of Terror. Single player only.
+- **Sigils**: rare drops with their own inventory that give extra bonuses.
+- **Gladiatrix**: a new Rogue subclass.
+- **7 new traits**: Scissor, Capitalist, Frenzied, Late Bloomer, Warlord, Raw Power and Thief.
+- **3 new game changers**: Terminator, Super Mutant and Enclave Soldier.
+- **Hundreds of new items**, including 3 new item sets: Crimson Arsenal, War Arsenal and Sisters' Blood.
+- **Secrets of Magic**: a new quest.
+- **Per-pixel lighting**: smoother lighting, on by default.
 
 ### Changed
-- **Built on The Hell 4 v0.774**: brings everything TH4 added up to v0.774, including sigils and pixel light.
 - **Shared stash locks items that would change**: TH4 rebuilds items for the character who loads them, so a magic staff or book, an item in Classic mode, a socketed white item, a shop item or Night Kin and Clean Hands gold can come out different for another character. Such items are drawn red, can't be taken out, and stay as they were for the character who stashed them.
 - **Perk reset keeps perks whose benefit stays**: Here and Now (a full level), Educated, Higher Education and Overwhelm (stat points at every level-up) and Heavy Drinker (elixirs). Raise the Bar, Thaumaturgy and Ostentation are kept when dropping them would cut stats. The tooltip lists them.
 - **-light radius is back on unique and set items**: v0.1.0 removed it with the penalties, but archers and mages use it to pull fewer monsters.
@@ -30,6 +40,11 @@ All notable changes to Diablo: The Heaven will be documented in this file.
 - A magic item can come out different for another class or in Classic mode (base TH4). The shared stash locks such items.
 - Most magic items change once, a few seconds after they drop and before they're identified.
 - A crash at the exact moment the shared stash and the character are saved can duplicate or lose items.
+- F12 quick load closes the game with "Unable to open save file" if the hero has no saved game: a new hero before its first save, or any Nightmare or Speedrun hero. The next update fixes this.
+- Classic characters from v0.2.0 aren't in the hero list, because TH4 v0.774 renamed Classic save files. The game offers a new hero instead, and the old save file stays on disk. The next update lists them again.
+- Some Classic magic items from v0.2.0 get another affix, because TH4 v0.774 added rows to the Classic affix table. The next update fixes this for items v0.3.0 hasn't saved.
+- Infernal Bargain gives no perk points with the traits Skilled, Lord of the Rings or Grim Deal, but its penalties still apply. The next update fixes this.
+- Without `TH4data.mor` the error blames `DIABDAT.MPQ`. The next update names the right file.
 
 ## [0.2.0] - 2026-03-30
 
