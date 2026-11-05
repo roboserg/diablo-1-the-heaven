@@ -2,7 +2,7 @@
 
 What is left to fix: bugs confirmed in the code or by the autotest, then player reports that nobody could confirm yet. Feature requests are in [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md).
 
-When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 15, so links to the old numbers keep working.
+When you fix a bug, move it into [FIXED_BUGS.md](FIXED_BUGS.md), the list of fixes for the next release. Reports that turned out to be by design are there too, under [Not bugs](FIXED_BUGS.md#not-bugs). Give a new bug the next number, 17, so links to the old numbers keep working.
 
 Reports from the comments on the [ModDB page](https://www.moddb.com/mods/diablo-1-the-heaven) say so; sign in as RobosergTV to see the comments that wait for approval. Every other report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
@@ -12,6 +12,7 @@ Each was reproduced by the autotest (`scripts\autotest.ps1`, see `docs\BUILD.md`
 
 | # | Bug | From | Reported by | Confirmed by | Decision |
 |---|---|---|---|---|---|
+| 16 | [Classic magic items from before v0.3.0 roll another affix](#16-classic-magic-items-from-before-v030-roll-another-affix) | Base TH4 | Found by the autotest | Autotest: 5 of the 22 items in a Classic save from v0.2.0 change affix after the upgrade | Not decided |
 | 3 | [Magic items change once after they drop](#3-magic-items-change-once-after-they-drop) | The Heaven | Found by the autotest | Autotest: 9 in 10 magic drops change at the first 5-second item check | Skip: players don't see it |
 | 3 | [Magic items morph between characters](#3-magic-items-morph-between-characters) | Base TH4 | Rageweaver, kishak95 and others | Autotest: items a Warrior stashed come out different for a Classic Mage | Skip: the shared stash locks them |
 | 11 | [A crash between the two shared stash writes can duplicate or lose items](#11-crash-between-the-two-shared-stash-writes) | The Heaven | StArchon (godroll) | Code: the shared stash and the character are two files, written one after the other | Skip: a window of milliseconds |
@@ -29,6 +30,11 @@ Nobody reproduced these. Each needs an answer from the player.
 | Rare items with requirements above the hero's level drop on very low levels and are useless | A guest (ModDB, 15 Aug) | Not checked. Rare drops have their own chance since v0.0.3 (The Heaven) | Check which item level rare drops roll with |
 
 ## Details
+
+### 16. Classic magic items from before v0.3.0 roll another affix
+TH4 v0.774 added rows to the Classic affix table (`src\AffixesClassic.cpp`), and the game rebuilds items from their seed, so an old seed can land on another row. In the Classic save from v0.2.0 (`tests\saves\v0.2.0\classic`), 5 of the 22 items changed: Burgonet of the wolf became Burgonet of structure, and Knife of giants became Knife of swiftness. The base item, durability and requirements stay the same. The Normal mode saves keep every item.
+
+Bringing the old rows back isn't simple. TH4 kept `CurItemGenVersion` at 7, so items from before v0.3.0 and items dropped since carry the same mark, and using the old table for version 7 would change the Classic items dropped since v0.3.0 instead. This comes from reading the code; nothing was tried. The autotest pins these 5 items (`RerolledInClassic` in `src\AutoTest.cpp`), so any other change to an old item still fails it.
 
 ### 3. Magic items change once after they drop
 In the autotest, 9 in 10 magic items change at the first 5-second check after they drop. From then on they stay the same. Players don't see it, because drops aren't identified yet. `build\autotest\autotest-rebuilds.csv` lists 1798 magic items as dropped and after 4 checks.
