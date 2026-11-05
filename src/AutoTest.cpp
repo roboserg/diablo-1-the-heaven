@@ -152,6 +152,7 @@ Player& Hero() { return Players[CurrentPlayerIndex]; }
 // - a stub's answer breaks the game: the phase's other checks fail
 // - the window lands on a monitor, where the pointer reaches it: looked at every tick, except with -show
 // - the window takes focus anyway: looked at every tick
+// - the error dialog the test reads takes focus for a moment: looked at while it's open
 int BlockedCalls[8];
 BOOL WINAPI NoSetCursorPos( int, int )                   { ++BlockedCalls[0]; return TRUE; }
 BOOL WINAPI NoClipCursor( const RECT* )                  { ++BlockedCalls[1]; return TRUE; }
@@ -2203,6 +2204,13 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 bool AutoTest_Active() { return Active; }
 bool AutoTest_Show()   { return Show; }
 
+// FALSE stops Windows from focusing the dialog's first control, which would give it focus
+INT_PTR CALLBACK HiddenDialogFunc( HWND dlg, UINT message, WPARAM wParam, LPARAM lParam )
+{
+	INT_PTR result = DialogFunc( dlg, message, wParam, lParam );
+	return message == WM_INITDIALOG ? FALSE : result;
+}
+
 // From the error dialogs and message boxes (Error.cpp). They would show on the PC's screen and
 // wait for a click, so the autotest reads the text the player would get, records it and quits.
 // dialogId 0 means text is the message itself; otherwise it's what the dialog shows as the problem.
@@ -2217,7 +2225,8 @@ void AutoTest_Error( int dialogId, const char* text )
 	if( dialogId ){
 		shown.clear();
 		// Hidden: the dialog templates aren't WS_VISIBLE, and only DialogBox would show them
-		HWND dlg = CreateDialogParamA( HInstance, (LPCSTR)(INT_PTR)dialogId, NULL, DialogFunc, (LPARAM)problem.c_str() );
+		HWND dlg = CreateDialogParamA( HInstance, (LPCSTR)(INT_PTR)dialogId, NULL, HiddenDialogFunc, (LPARAM)problem.c_str() );
+		WatchMouseAndFocus(); // it would be gone by the check
 		for( HWND c = dlg ? GetWindow( dlg, GW_CHILD ) : NULL; c; c = GetWindow( c, GW_HWNDNEXT ) ){
 			char buf[1024] = "";
 			GetWindowTextA( c, buf, sizeof buf );

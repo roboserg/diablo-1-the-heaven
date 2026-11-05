@@ -408,6 +408,7 @@ void DirectSoundErrorCheck()
 //----- (00401ACE) --------------------------------------------------------
 void __fastcall CenterWindow(HWND hwnd)
 {
+	if( AutoTest_Active() ) return; // (heaven) the test's dialog stays hidden, and this would give it focus
 	tagRECT rc;
 	GetWindowRect(hwnd, &rc);
 	int lWindowWidth = rc.right - rc.left;
