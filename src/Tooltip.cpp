@@ -20,6 +20,10 @@ struct TooltipLine
 
 vector<TooltipLine> TooltipLines;
 int TooltipWidth = 0;
+
+// (heaven) For the autotest: the lines of the item tooltip, as a player would see them
+int Tooltip_LineCount() { return (int)TooltipLines.size(); }
+const char* Tooltip_LineText( int i ) { return TooltipLines[i].text; }
 vec2 TooltipHotspot {};
 vec2 TooltipOffset {};
 
@@ -838,8 +842,7 @@ void __fastcall Tooltip_ShowItemInfo_2(int slot)
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
 			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsHarmfulWhenNegative(e.id) ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( IsHiddenUniquePenalty( item, e ) ) continue; // (heaven)
 			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine_2(InfoPanelBuffer, C_1_Blue);
 			}
@@ -1692,8 +1695,7 @@ void __fastcall Tooltip_ShowItemInfo_3(int slot)
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
 			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsHarmfulWhenNegative(e.id) ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( IsHiddenUniquePenalty( item, e ) ) continue; // (heaven)
 			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine_3(InfoPanelBuffer, C_1_Blue);
 			}
@@ -2696,8 +2698,7 @@ void __fastcall Tooltip_ShowItemInfo( int slot )
 		for( int i = 0; i < countof(item.effect); ++i ){
 			Effect& e = item.effect[i];
 			if( e.id == AE_NO || e.origin >= AO_BASE ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsHarmfulWhenNegative(e.id) ) continue;
-			if( item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS ) continue;
+			if( IsHiddenUniquePenalty( item, e ) ) continue; // (heaven)
 			if( PrintItemEffectToStringBuffer(e.id, &item, i) ){
 				Tooltip_AddLine(InfoPanelBuffer, C_1_Blue);
 			}

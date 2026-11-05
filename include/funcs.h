@@ -748,6 +748,10 @@ void  AddInitItems( );//	Item
 void  InitItems( );//	Item		
 void  PutFragmentsOfReconstructedNote( );//	Item		
 bool IsHarmfulWhenNegative( AFFIX_EFFECT id );//	Item
+bool IsHarmfulWhenPositive( AFFIX_EFFECT id );// Item (heaven)
+bool IsHiddenUniquePenalty( const Item& item, const Effect& e );// Item (heaven) penalties uniques and sets don't have
+int Tooltip_LineCount();// Tooltip (heaven) for the autotest
+const char* Tooltip_LineText( int i );// Tooltip (heaven) for the autotest
 void __fastcall CalcCharParams( int playerIndex, int canLoadAnimFlag	);//	Item		
 void __fastcall UpdateRelictsState( Player& player );//	Item		
 void __fastcall SetAvailableChargesMask( int playerIndex	);//	Item		

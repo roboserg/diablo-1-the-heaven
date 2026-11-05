@@ -3453,6 +3453,22 @@ bool IsHarmfulWhenNegative(AFFIX_EFFECT id) {
 	case AE_SPICIES_TO_HIT:         // to-hit vs a monster species
 	case AE_SPICIES_AC:             // armor class vs a monster species
 	case AE_SPICIES_AC_PERCENT:     // % armor class vs a monster species
+	// (heaven) bug 4: these were left out, so their penalties stayed
+	case AE_STUN_RESIST:            // stun threshold
+	case AE_ABSORB_MELEE_DAMAGE:    // melee damage absorbed
+	case AE_ABSORB_RANGED_DAMAGE:   // ranged damage absorbed
+	case AE_ELEMENT_PERCENT:        // % elemental damage
+	case AE_SPELL_PERCENT:          // % spell damage
+	case AE_WEAPON_PERCENT:         // % weapon proficiency
+	case AE_ARMOR_PIERCING:         // armor piercing
+	case AE_THORNS_PERCENT:         // % thorns
+	case AE_CLVL_AC: case AE_CLVL_HIT: case AE_CLVL_DAMAGE: case AE_CLVL_DAMAGE_PERCENT: case AE_CLVL_RESIST_ALL:
+	case AE_CLVL_STAT_ALL: case AE_CLVL_HP: case AE_CLVL_MANA: case AE_CLVL_MELEE_RES: case AE_CLVL_ARROW_RES:
+	case AE_CLVL_STUN_RES: case AE_CLVL_GOLD: case AE_CLVL_XP: case AE_CLVL_SPELL_ALL: case AE_CLVL_RESIST:
+	case AE_CLVL_STAT: case AE_CLVL_SPELL_LVL: case AE_CLVL_ELEM_PERCENT: case AE_CLVL_SPELL_PERCENT:
+	case AE_CLVL_CRIT_CHANCE: case AE_CLVL_CRIT_DAMAGE_PERCENT: case AE_CLVL_SUMMON_DAMAGE:
+	case AE_CLVL_SUMMON_DAMAGE_PERCENT: case AE_CLVL_SUMMON_TO_HIT: case AE_CLVL_SUMMON_AC: case AE_CLVL_SUMMON_HP:
+	case AE_CLVL_SUMMON_HP_PERCENT: // (rt) value + character level * value2 / 100
 		return true;
 	default:
 		// e.g. AE_DFE (damage from enemies): negative = less damage taken = beneficial
@@ -3460,6 +3476,25 @@ bool IsHarmfulWhenNegative(AFFIX_EFFECT id) {
 		// e.g. AE_MINUS_LIGHT_RADIUS: handled separately at call sites
 		return false;
 	}
+}
+
+// (heaven) Effects that hurt the player when positive: more damage taken from enemies
+bool IsHarmfulWhenPositive( AFFIX_EFFECT id )
+{
+	return id == AE_DFE || id == AE_SPICIES_DFE || id == AE_CLVL_DFE;
+}
+
+// (heaven) Penalties unique and set items don't have in The Heaven (0172f90): the harmful
+// values of the effects above, and -light radius. The hero's stats and the three item
+// tooltips all skip them. Level-scaled effects (AE_CLVL_*) add value2 per 100 levels.
+bool IsHiddenUniquePenalty( const Item& item, const Effect& e )
+{
+	if( item.MagicLevel < ML_2_UNIQUE ) return false;
+	if( e.id == AE_MINUS_LIGHT_RADIUS ) return true;
+	bool scaled = e.id >= AE_CLVL_AC && e.id < AE_COUNT;
+	bool negative = e.minVal < 0 || e.chance < 0 || scaled && e.maxVal < 0;
+	bool positive = e.minVal > 0 || e.chance > 0 || scaled && e.maxVal > 0;
+	return negative && IsHarmfulWhenNegative( (AFFIX_EFFECT)e.id ) || positive && IsHarmfulWhenPositive( (AFFIX_EFFECT)e.id );
 }
 
 // by (th4): true if this player has a live Seeing (Infravision skill) missile.
@@ -3643,8 +3678,7 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			staffSpellsSpeedbook |= 1i64 << ((uchar)spell_ID - 1);
 		}
 		for(Effect& e : item.effect){
-			if (item.MagicLevel >= ML_2_UNIQUE && (e.minVal < 0 || e.chance < 0) && IsHarmfulWhenNegative(e.id)) continue;
-			if (item.MagicLevel >= ML_2_UNIQUE && e.id == AE_MINUS_LIGHT_RADIUS) continue;
+			if( IsHiddenUniquePenalty( item, e ) ) continue; // (heaven)
 			switch( e.id ){
 			case AE_TO_HIT                     : accuracy            += e.chance; break;
 			case AE_PERCENT_DAMAGE             : damagePercent       += e.minVal; break;
@@ -10287,6 +10321,9 @@ void __fastcall GetUniqueItem(int itemIndex, int uniqueItemIndex) // #unique ite
 	for( int i = 0; i < uniq.effectCount; i++ ){
 		Item_ApplyAffix(item, uniq.Effect[i], 0, 0, 1, i, 0, 0, false);
 	}
+	// (heaven) Bug 4: AE_SPECIAL_AC sets the armour value itself, so skipping the effect later
+	// (IsHiddenUniquePenalty) can't undo a negative one: unique and set items give no less than 0
+	if( item.ArmorClass < 0 ) item.ArmorClass = 0;
 	if( uniq.uniqueGraphics >= 0 ) item.GraphicValue = uniq.uniqueGraphics;
 
 	// female classes (Archer / Rogue)

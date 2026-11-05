@@ -14,7 +14,8 @@
 //
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
-//          5-second item check (autotest-rebuilds.csv), Cain's transmute window, F9/F12
+//          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
+//          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
 //          then stashes items in the shared stash and lists them in autotest-shared.txt
@@ -302,6 +303,82 @@ void RebuildLikeTheGame( Item& item )
 
 struct DropInfo { int base, seed, qlvl; };
 
+//----- unique and set item penalties (bug 4) ------------------------------
+
+// A unique or set item and the same base item without its affixes, with the same base rolls
+Item MakeUnique( int uniq, bool affixes )
+{
+	int randomSeed = RandomSeed, lastSeed = LastSeed;
+	uint randUsingCounter = RandUsingCounter;
+	const UniqueItem& u = UniqueItems[uniq];
+	SetRndSeed( 9001 + uniq );
+	GetItemAttrs( MaxItems_255, u.baseId, u.qualityLevel );
+	Items[MaxItems_255].Identified = true; // an unidentified item gets no effects (Item_ApplyAffix)
+	if( affixes ) GetUniqueItem( MaxItems_255, uniq );
+	Item item = Items[MaxItems_255];
+	item.Identified = true;
+	item.IsReqMet = true;
+	RandomSeed = randomSeed; LastSeed = lastSeed; RandUsingCounter = randUsingCounter;
+	return item;
+}
+
+// The hero's values that unique penalties made worse. Bigger is better for all of them.
+vector<int> HeroValues( const Item& item )
+{
+	Player& p = Hero();
+	Item saved = p.OnBodySlots[IS_LeftRing];
+	p.OnBodySlots[IS_LeftRing] = item;
+	CalcCharParams( CurrentPlayerIndex, 0 );
+	vector<int> v = { -p.DamageFromEnemy, p.stunThreshold[CT_0_STUN], p.resistMeleeMin, p.resistMeleeMax,
+		p.resistArrowMin, p.resistArrowMax, p.MaxCurLife, p.MaxCurMana, p.CurStrength, p.CurMagic,
+		p.CurDexterity, p.CurVitality, p.ACFromItems };
+	for( short s: p.spiciesDfe ) v.push_back( -s );
+	for( short r: p.resist ) v.push_back( r );
+	for( short e: p.elementPercent ) v.push_back( e );
+	p.OnBodySlots[IS_LeftRing] = saved;
+	CalcCharParams( CurrentPlayerIndex, 0 );
+	return v;
+}
+
+const char* HeroValueName( size_t i )
+{
+	static const char* names[] = { "damage from enemies", "stun threshold", "melee absorb min", "melee absorb max",
+		"ranged absorb min", "ranged absorb max", "life", "mana", "strength", "magic", "dexterity", "vitality", "armour" };
+	if( i < countof( names ) ) return names[i];
+	i -= countof( names );
+	if( i < 3 ) return "damage from a monster species";
+	i -= 3;
+	return i < ET_CAP ? "a resistance" : "elemental damage %";
+}
+
+// Uniques whose penalty is the point of the item, left as they are: they trade life for mana
+// or the other way, or lose resistances or regeneration for a big bonus (Grace of Death)
+bool IsTradeOff( const Item& item )
+{
+	for( const Effect& e: item.effect ){
+		if( e.id == AE_MANA_MOVED_TO_HEALTH || e.id == AE_HEALTH_MOVED_TO_MANA ) return true;
+		if( e.id == AE_FLAG && (e.type == EA_LOSE_RESISTANCE || e.type == EA_LOSE_REGENERATION) ) return true;
+	}
+	return false;
+}
+
+// Effects a unique or set item must not hurt the player with, and the harmful sign. This is
+// the test's own list, from the effects in the unique data and the bug reports
+bool IsPenalty( const Effect& e )
+{
+	int v = e.minVal != 0 ? e.minVal : e.chance;
+	switch( e.id ){
+	case AE_DFE: case AE_SPICIES_DFE: case AE_CLVL_DFE:
+		return v > 0 || e.maxVal > 0 && e.id == AE_CLVL_DFE;
+	case AE_STUN_RESIST: case AE_CLVL_STUN_RES: case AE_ABSORB_MELEE_DAMAGE: case AE_ABSORB_RANGED_DAMAGE:
+	case AE_ELEMENT_PERCENT: case AE_STAT: case AE_ALL_STAT: case AE_HIT_POINTS: case AE_MANA: case AE_RESIST:
+	case AE_RESIST_All: case AE_AC: case AE_SPECIAL_AC: case AE_LIFE_PERCENT: case AE_MANA_PERCENT:
+		return v < 0;
+	default:
+		return false;
+	}
+}
+
 //----- files -------------------------------------------------------------
 
 i64 FileTime( const char* path )
@@ -534,6 +611,66 @@ void BuildMain()
 		Check( "in the running game, no magic item in the inventory changes more than once in 11 seconds (bug 3)", twice == 0,
 			Fmt( "%d of %d changed 2 times or more. Changes per item:", twice, (int)seeds.size() ) + counts );
 		for( int seed: seeds ) if( TakeFromInventory( seed ) ) EmptyHand();
+		return Next;
+	} } );
+
+	Steps.push_back( { "unique and set item penalties", []{
+		// Bug 4 (Rageweaver, Gorvex, 5 Apr): harmful penalties on uniques and sets are meant to be
+		// gone (0172f90), but -stun threshold and +damage from enemies still showed. Every
+		// unique and set item, worn by the hero, must leave each of the hero's values at least as
+		// good as the same base item without its affixes, and its tooltip must not list a penalty
+		int checked = 0, worse = 0, shown = 0, skipped = 0, negativeAc = 0;
+		string firstWorse, firstShown, firstAc;
+		for( size_t u = 0; u < count_UniqueItems; ++u ){
+			const UniqueItem& uq = UniqueItems[u];
+			if( uq.baseId <= 0 || (size_t)uq.baseId >= count_BaseItems || BaseItems[uq.baseId].baseId < 0 || uq.effectCount <= 0 ) continue;
+			Item item = MakeUnique( (int)u, true ), plain = MakeUnique( (int)u, false );
+			if( item.MagicLevel < ML_2_UNIQUE ) continue;
+			if( item.ArmorClass < 0 ){
+				++negativeAc;
+				if( firstAc.empty() ) firstAc = Fmt( "%s (unique %d): %d", item.FullMagicalItemName, (int)u, item.ArmorClass );
+			}
+			if( IsTradeOff( item ) ){ ++skipped; continue; }
+			++checked;
+			vector<int> withIt = HeroValues( item ), base = HeroValues( plain );
+			for( size_t i = 0; i < withIt.size(); ++i ){
+				if( withIt[i] < base[i] ){
+					++worse;
+					int sign = i == 0 || i >= 13 && i < 16 ? -1 : 1; // damage taken: smaller is better
+					string what = Fmt( "%s (unique %d) makes %s worse: %d instead of %d", item.FullMagicalItemName, (int)u, HeroValueName( i ), sign * withIt[i], sign * base[i] );
+					if( worse <= 40 ) Log( "    worse: %s", what.c_str() );
+					if( firstWorse.empty() ) firstWorse = what;
+					break;
+				}
+			}
+			// the tooltip, as when hovering the item in the inventory
+			Item savedInv = Hero().InventorySlots[0];
+			int invCount = Hero().InvItemCount;
+			Hero().InventorySlots[0] = item;
+			if( invCount < 1 ) Hero().InvItemCount = 1;
+			Tooltip_ShowItemInfo( IS_Inventory + 0 );
+			Hero().InventorySlots[0] = savedInv;
+			Hero().InvItemCount = invCount;
+			for( int k = 0; k < (int)countof( item.effect ); ++k ){
+				const Effect& e = item.effect[k];
+				if( e.id == AE_NO || ! IsPenalty( e ) || ! PrintItemEffectToStringBuffer( e.id, &item, k ) ) continue;
+				string text = InfoPanelBuffer;
+				for( int line = 0; line < Tooltip_LineCount(); ++line ){
+					const char* shownText = Tooltip_LineText( line ); // a long line may be wrapped: its start is enough
+					size_t n = strlen( shownText );
+					if( n >= 10 && text.compare( 0, n, shownText ) == 0 || text == shownText ){
+						++shown;
+						if( shown <= 40 ) Log( "    shown: %s (unique %d) \"%s\"", item.FullMagicalItemName, (int)u, text.c_str() ); if( firstShown.empty() ) firstShown = Fmt( "%s (unique %d) shows \"%s\"", item.FullMagicalItemName, (int)u, text.c_str() );
+						break;
+					}
+				}
+			}
+		}
+		Tooltip_Clear();
+		Check( "unique and set items to check exist", checked > 500, Fmt( "%d checked; %d trade-offs left as they are (life for mana, lose resistances or regeneration)", checked, skipped ) );
+		Check( "no unique or set item has negative armour (bug 4)", negativeAc == 0, Fmt( "%d. First: ", negativeAc ) + firstAc );
+		Check( "no unique or set item makes the hero worse in any value (bug 4)", worse == 0, Fmt( "%d of %d. First: ", worse, checked ) + firstWorse );
+		Check( "no unique or set item tooltip shows a penalty (bug 4)", shown == 0, Fmt( "%d penalty lines. First: ", shown ) + firstShown );
 		return Next;
 	} } );
 
