@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Each run replaces the nightly release, so the newest commit's build has to be the last one left
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest
