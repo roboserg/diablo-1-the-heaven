@@ -15,7 +15,6 @@ Each was reproduced by the autotest (`scripts\autotest.ps1`, see `docs\BUILD.md`
 | 3 | [Magic items change once after they drop](#3-magic-items-change-once-after-they-drop) | The Heaven | Found by the autotest | Autotest: 9 in 10 magic drops change at the first 5-second item check | Skip: players don't see it |
 | 3 | [Magic items morph between characters](#3-magic-items-morph-between-characters) | Base TH4 | Rageweaver, kishak95 and others | Autotest: items a Warrior stashed come out different for a Classic Mage | Skip: the shared stash locks them |
 | 11 | [A crash between the two shared stash writes can duplicate or lose items](#11-crash-between-the-two-shared-stash-writes) | The Heaven | StArchon (godroll) | Code: the shared stash and the character are two files, written one after the other | Skip: a window of milliseconds |
-| 12 | [A perk reset gives back perks whose benefit stays](#12-perk-reset-gives-back-perks-whose-benefit-stays) | The Heaven | Godroll's perk locks | Code: Educated and Higher Education add stat points at each level-up, and a reset keeps the points | Skip |
 
 ## Player reports, not confirmed
 
@@ -52,5 +51,3 @@ Reports:
 ### 11. Crash between the two shared stash writes
 StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [StArchon's cases](FIXED_BUGS.md#shared-stash-starchons-cases)).
 
-### 12. Perk reset gives back perks whose benefit stays
-Godroll locks perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)). In The Heaven, Educated, Higher Education and Overwhelm add stat points at each level-up (`Player.cpp`), and Heavy Drinker makes monsters drop elixirs. A reset gives their perk points back but keeps the stat points and the elixirs, so a player can take them while leveling and swap them for other perks later. The reset keeps only Here and Now, and Raise the Bar, Thaumaturgy and Ostentation when dropping them would cut stats (see [FIXED_BUGS.md](FIXED_BUGS.md)).
