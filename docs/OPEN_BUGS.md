@@ -10,7 +10,7 @@ Every report links to its source on **The Hell 4 mod** Discord server: *channel*
 
 | Fix | For | Who, when | Status |
 |---|---|---|---|
-| **Stash fix:** modified `VisualStash.cpp` and `CharSlots.cpp` | [Bug 1](#1-griswolds-personal-stash-loses-and-duplicates-items) | kishak95, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489677986855915620)) | Downloaded to `F:\git\kishak-stash-fix\` (outside the repo, this PC only). Tested by kishak95 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489712222228844765)) and Rageweaver ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)). Not applied yet. |
+| **Stash fix:** modified `VisualStash.cpp` and `CharSlots.cpp` | Bug 1, [fixed](#fixed-not-released-yet) another way | kishak95, 3 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489677986855915620)) | Downloaded to `F:\git\kishak-stash-fix\` (outside the repo, this PC only). Tested by kishak95 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489712222228844765)) and Rageweaver ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)). Not applied: see below why. |
 | **Stat cap fix:** `TheHeaven-nightly.zip` (4.49 MB) | [Bug 5](#5-the-doubled-stat-cap-doesnt-fully-work) | kishak95, 5 Apr ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490355431598592040)) | Compiled build only, no source. Untested by others. |
 | **Unofficial 0.2.0 build:** `TH4Heaven - 0.2.0 stats uniques fixed.zip` (4.62 MB), fixes by "Yuki" | Possibly [bug 4](#4-some-unique-item-penalties-remain) | Marcototech, 26 May ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508838222828929086)) | Not checked yet. See [To check](#to-check-yukis-unofficial-020-build). |
 
@@ -20,43 +20,36 @@ Rageweaver also plays a further-modded private build based on 0.2.0 that include
 - **`VisualStash.cpp`:** calls `UpdatePlayerFile()` at the start of `StashPanel_OpenShared()`, so the personal stash is saved before the shared stash replaces it in memory. This is the fix for bug 1.
 - **`CharSlots.cpp`:** the shared stash file format goes from version 2 to 3 and stores its own save version, so its items are read with the format they were saved in rather than the format of the character opening them. Version 1 and 2 files still load.
 
+**Why `th4-v0.774-base` fixes bug 1 differently.** kishak95 found the cause, and his fix stops the loss and duplication as reported. Two problems are left:
+- **Saving on open:** the shared stash file is still written on every move, while the character is saved at other times. Load a save after moving an item and it's in both files or in neither (Marcototech's held-item report under bug 2). In Nightmare and Speedrun the save on open does nothing, because those modes never save the character.
+- **The format change isn't needed:** the item layout is the same in v0.2.0 and on `th4-v0.774-base`, and each item already records the save version it was written with, so the shared stash reads the same for every character. A version 3 file also can't be read by v0.2.0, which players still use.
+
 ## Bugs, most important first
 
-### 1. Griswold's personal stash loses and duplicates items
-The most-reported bug.
-- **Loss:** put an item into the personal stash, open the shared stash, reopen the personal stash, and the item is gone. Seen with blacksmith oil, repair oil (Rageweaver, 3 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618475386146867)) and potions (kishak95, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489622453335359538)).
-- **Duplication:** put an item into the personal stash, take it out, put it into the shared stash, and it shows up in the personal stash again (Rageweaver, 3 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489621389085245480)).
-- **Other reports:**
-  - Marcototech, 25 May: "Stash from griswold: Caution is bugged" ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375))
-  - Blackheart, 18 Jul: anything put into Griswold's stash in Purgatory disappears after closing it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521))
-  - GitHub [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3): rings and potions disappear. The reporter suggests removing the option.
-- **Cause:** `StashPanel_OpenShared()` in `src/VisualStash.cpp` loads the shared stash over the personal one in memory without saving the personal stash first.
-- **Fix:** kishak95's stash fix (see [Ready-made fixes](#ready-made-fixes-from-players)).
-- **Idea:** Rageweaver suggests putting both stashes at Gillian with a choice of which to open ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489621478646354080)).
-
-### 2. Items lost when a window is closed or a save is loaded with an item still in it
-Still open:
-- **Cursor item lost on load:** pick an item up from the stash, keep it on the cursor with the stash open, press ESC and load a game, and the item is gone forever (Marcototech, 21 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1518073293121519646)).
-- **Gem in Griswold's crafting window:** it disappears if the window is closed suddenly (GitHub [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3)).
-- **Adria, loading from the menu:** after enchanting at Adria, loading a save from the menu makes the item disappear (issue #3). The quick-load duplicates from the same report should be fixed by the F9/F12 change below, but the autotest only checks that change with Cain's window.
-
-Already fixed on `th4-v0.774-base`: Cain's transmute window and F9/F12 quick save and load (see [Fixed, not released yet](#fixed-not-released-yet)).
+Bugs 1 (Griswold's stash loses and duplicates items) and 2 (items lost in a window or on the cursor during a save or load) are fixed on `th4-v0.774-base`: see [Fixed, not released yet](#fixed-not-released-yet). The other numbers stay as they were, so links to them keep working.
 
 ### 3. Magic items morph
+The game keeps only a magic item's seed and a few fields, and rebuilds the rest after every load and, in the inventory, every 5 seconds. Anything that makes a rebuild come out different morphs the item.
+
+Fixed on `th4-v0.774-base` (see [Fixed, not released yet](#fixed-not-released-yet)): items flipping between two versions every 5 seconds, kishak95's report below.
+
 Still open:
-- **The morphing itself.** `th4-v0.774-base` only locks shared stash items that would morph for the current character; the cause is in base TH4.
-- **Affixes changing in the inventory:** affixes on an item keep disappearing and coming back, even on an unidentified item that was never in the shared stash (kishak95, 4 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490072463659503820), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490074289679106128)).
+- **Across characters (base TH4):** staff and book spells depend on the character's class, and Classic mode uses its own affix table. `th4-v0.774-base` locks shared stash items that would morph for the current character. The autotest checks that the lock holds while the stash stays open through the 5-second checks.
+- **Magic items change once after they drop (The Heaven).** In the autotest, 9 in 10 magic items change at the first 5-second check after they drop. From then on they stay the same. Players don't see it, because drops aren't identified yet. `build\autotest\autotest-rebuilds.csv` lists 1798 magic items as dropped and after 4 checks.
+  - **Cause:** The Heaven's independent rare roll (dd8817e, v0.0.3) runs when an item drops, but is skipped when a magic item is rebuilt (`SetupAllItems` in `src/Item.cpp`), so every random number after it comes out different.
+  - **Fixing it:** only new drops can be fixed, since existing items must keep the version players have. That needs a marker on each item (the unused `charFlag` byte) and in the multiplayer item messages. Not worth it unless players notice.
 
 Reports:
-- Rageweaver, 25 May: a magic ring changed after switching characters, even though both were Dimachaerus and could use it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581640606322860)).
-- Rageweaver, 3 Apr: blue items change while in the shared stash and change back once taken out ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618645180219423)).
+- kishak95, 4 Apr: affixes on an item keep disappearing and coming back, even on an unidentified item that was never in the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490072463659503820), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490074289679106128)). Fixed: the flip.
+- Rageweaver, 25 May: a magic ring changed after switching characters, even though both were Dimachaerus and could use it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581640606322860)). Both were the same class, so it may have been the flip.
+- Rageweaver, 3 Apr: blue items change while in the shared stash and change back once taken out ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618645180219423)). May also be the flip.
 - Marcototech (Discord) and Gron21 (issue #3) can't reproduce it between Paladin, Archer and Mage. Marcototech suspects it only happens between two characters of the same class.
 - Mordor (TH4 author), 26 May: this is one of the reasons loot must not be shared ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508761056175063112)). Masterteo89 suggests sharing only items every class can use, like Giant Knuckle ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508834029565251675)).
 
-**Cause** (Gorvex, 17 Sep, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1550231476996538450)):
-- Magic items are regenerated from their seed when loaded.
-- The affix pool differs per class/subclass. Affix slots that aren't allowed for one subclass get filled by valid ones, which shifts the pool.
-- The seed is also updated on the fly to fix invalid rolls, so the same item rolls differently for another class.
+**Gorvex's explanation** (17 Sep, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1550231476996538450)) is partly right:
+- Magic items are regenerated from their seed when loaded. True.
+- The affix pool differs per class/subclass, and disallowed slots get refilled. Only for spells: the staff spell list skips spells the class can't use, and books pick from a list filtered by class. Affix selection has no class filter.
+- The seed is updated on the fly to fix invalid rolls. Only when an item drops; a rebuild never changes the seed.
 
 ### 4. Some unique-item penalties remain
 The changelog says harmful penalties on uniques and sets are removed, but some still show up:
@@ -93,6 +86,7 @@ From Gorvex's suggestion list ([thread](https://discord.com/channels/12617208979
 
 ## Unconfirmed
 
+- **Griswold's stash, two reports that may be bug 1:** Marcototech, 25 May: "Stash from griswold: Caution is bugged" ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508488088580788375)). Blackheart, 18 Jul: anything put into Griswold's stash in Purgatory disappears after closing it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527881491592253521)). Neither was reproduced. Ask them to try again with the next build.
 - **Black Death game changer:** Marcototech saw it in a game where he says he only picked Easy and the Acceleration game changers. Rageweaver says it's intended ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508841792731086868)).
 - **Missing Book of Healing:** Rageweaver's went missing, probably before applying the stash fix ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)).
 
@@ -114,5 +108,9 @@ On `th4-v0.774-base`. `scripts\autotest.ps1` plays the game unattended to check 
 |---|---|---|
 | Pixel light works: the shipped `config.ini` lacked the options that turn it on | 7ff7213 | GitHub [issue #5](https://github.com/roboserg/diablo-1-the-heaven/issues/5) |
 | Closing Cain's transmute window while holding an item returns the slot items to the inventory | a5b1365 | Part of bug 2 (issue #3) |
-| F9/F12 quick save and load close every item window first and return their items; quick save refuses while an item is on the cursor | 1c8fd75 | Part of bug 2 (issue #3) |
+| F9/F12 quick save and load, and loading a save from the menu, close every item window first and return their items; quick save refuses while an item is on the cursor. The autotest checks loading from the menu with an item in Adria's window | 1c8fd75 | Part of bug 2 (issue #3) |
+| Griswold's personal stash no longer loses or duplicates items around Gillian's shared stash: it stays in memory while the shared stash is open, instead of being reloaded from the last save | 8193865 | [Bug 1](#ready-made-fixes-from-players) (Rageweaver, kishak95, issue #3). kishak95 found the cause |
+| The shared stash file is written only together with a character save, when the shared stash closes. Loading a save drops unsaved shared stash moves, so an item held on the cursor during a load is back in the stash, once | 8193865 | Part of bug 2 (Marcototech, 21 Jun) |
+| The once-a-minute autosave (Auto Save game changer, multiplayer) waits while an item is held or an item window holds items. Quitting, and changing level in multiplayer, first return the window items to the inventory | 8193865 | Part of bug 2: the gem lost in Griswold's crafting window (issue #3) |
 | Shared stash items that would morph for the current character are locked: drawn red, can't be taken out, saved back unchanged | af5cf77 | Part of bug 3 |
+| Magic items no longer flip between two versions every 5 seconds, with affixes and "Not Identified" coming and going. A rebuild that would turn a magic item plain rebuilds it as it dropped. About 1 magic drop in 200 flipped, mostly spell staves | 8193865 | Part of bug 3 (kishak95, 4 Apr) |

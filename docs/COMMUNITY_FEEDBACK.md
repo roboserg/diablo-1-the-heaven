@@ -50,7 +50,7 @@ All 69 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr);
   - You released an experimental 8-player build the next day; he never reported back on it.
 - **His caveats:**
   - **Missing features:** the open-source TH4 lacked features of the then-current TH4, such as sigils, and the group might not want to lose them ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488177978834682018)). The `th4-v0.774-base` branch rebases on TH4 v0.774, and sigils are back.
-  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph; the morphing itself is base TH4 behavior and remains (see [bug 3](OPEN_BUGS.md#3-magic-items-morph)).
+  - **Morphing:** item morphing may be too big a problem to work around in multiplayer ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153395058442420)). The `th4-v0.774-base` branch locks shared stash items that would morph and fixes items that flipped every 5 seconds (The Heaven's own bug); morphing between classes is base TH4 behavior and remains (see [bug 3](OPEN_BUGS.md#3-magic-items-morph)).
   - **Switching versions:** getting a dozen people onto a new version is a hassle. He wanted to ask the group first, so you wouldn't do the work for nothing ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488153780250742938), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488154037793718373)).
   - **Timing:** not soon ("another day far away"). He'll keep playing TH4 "for the rest of my life" and wants to try mods like this once TH4 reaches 1.0 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488163367750209616)).
 
@@ -110,6 +110,7 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
   - a special drop sound for unique and set items
   - a shared stash in multiplayer
   - more players per multiplayer game
+- **Both stashes at Gillian,** with a choice of which to open (Rageweaver, 3 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489621478646354080)).
 - **Unanswered question:** is the drop split 70% smart drop / 30% parent class, or 100%? (Rageweaver, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489280883126173896))
 
 ### Gorvex's suggestion list
