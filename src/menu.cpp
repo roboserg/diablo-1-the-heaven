@@ -1238,7 +1238,10 @@ void __fastcall SetVolumeMenu(char** text, Menu* menu, int volume)
 	if( IsDirectSoundAllocated ){
 		menu->Flags |= MENU_ENABLED | MENU_SLIDER;
 		menu->NamePtr = (char*)L( text[SLIDER_ON] );
-		Menu_SetSliderTicks(menu, VOL_TICKS);
+		// (heaven) The slider's last position is its number of steps: VOL_TICKS - 1, so every
+		// bar is a whole VOL_STEP. With VOL_TICKS the upper bars set volumes between steps,
+		// which the next start rounded up a bar (Rageweaver: one bar louder every restart)
+		Menu_SetSliderTicks(menu, VOL_TICKS - 1);
 		Menu_SetSlider(menu, VOL_MIN, 0, volume);
 	}else{
 		menu->Flags &= ~(MENU_ENABLED | MENU_SLIDER);

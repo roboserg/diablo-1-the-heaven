@@ -235,6 +235,13 @@ bool __fastcall AllocateDirectSound(HWND aHWND)
 	}
 }
 
+// (heaven) A saved volume as the game uses it: in range, on a VOL_STEP step (rounded toward 0)
+int LimitVolume( int volume )
+{
+    LimitToRange(volume, VOL_MIN, 0);
+    return volume - volume % VOL_STEP;
+}
+
 //----- (0046BBD2) --------------------------------------------------------
 void __fastcall GetVolumes( char* key, int* value )
 {
@@ -242,9 +249,7 @@ void __fastcall GetVolumes( char* key, int* value )
     if( !SRegLoadValue("Hellfire", key, 0, &data) ){
         data = 0;
     }
-    LimitToRange(data, VOL_MIN, 0);
-    *value = data;
-    *value -= *value % VOL_STEP;
+    *value = LimitVolume( data );
 }
 
 //----- (0046BC23) --------------------------------------------------------

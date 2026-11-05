@@ -2016,6 +2016,7 @@ bool __fastcall CreateDirectSoundBuffer( Sound& sound	);//	SoundBuffer
 void __fastcall FreeSoundData( Sound& sound	);//	SoundBuffer		
 bool __fastcall AllocateDirectSound( HWND aHWND	);//	SoundBuffer		
 void __fastcall GetVolumes( char* key, int* value	);//	SoundBuffer		
+int LimitVolume( int volume );// SoundBuffer (heaven) a saved volume as the game uses it
 void __fastcall SetDirectSoundBufferFormat( HANDLE aSoundFilePtr	);//	SoundBuffer		
 HRESULT __fastcall CallDirectSoundCreate( LPGUID guid, IDirectSound** ppDS, IUnknown* pUnkOuter	);//	SoundBuffer		
 void  ReleaseDirectSound( );//	SoundBuffer		

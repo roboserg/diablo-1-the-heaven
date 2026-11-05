@@ -15,7 +15,7 @@
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
 //          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
-//          the doubled stat cap, a perk reset with Ostentation,
+//          the doubled stat cap, a perk reset with Ostentation, volume sliders,
 //          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
@@ -782,6 +782,32 @@ void BuildMain()
 		Check( "below the cap without Ostentation, the reset takes it too", p.perk[SYNERGY_OSTENTATION] == 0 );
 		p.perk[SYNERGY_OSTENTATION] = 0;
 		RecalcPlayer( CurrentPlayerIndex, true );
+		return Next;
+	} } );
+
+	Steps.push_back( { "volume sliders through a restart", []{
+		// Rageweaver (antigrind, 3 Nov): sound and music go up one bar every time the game
+		// restarts. For each bar of the sound slider: the volume it sets is saved on quit, the
+		// next start reads it back, and the slider shows it again. It must be the same bar.
+		// The autotest runs without sound, so the registry isn't touched and the sliders are
+		// switched on here just for the check
+		bool allocated = IsDirectSoundAllocated;
+		IsDirectSoundAllocated = true;
+		Menu menu = OptionsMenu[OP_SOUND];
+		SetVolumeMenu( SoundMenu, &menu, VOL_MIN );
+		int bars = (menu.Flags >> 12) & 0xFFF, moved = 0;
+		string first;
+		for( int bar = 0; bar <= bars; ++bar ){
+			menu.Flags = (menu.Flags & ~0xFFFu) | bar;
+			int saved = Menu_GetVolume( &menu );
+			int loaded = LimitVolume( saved );
+			SetVolumeMenu( SoundMenu, &menu, loaded );
+			int shown = menu.Flags & 0xFFF;
+			if( shown != bar && ++moved == 1 ) first = Fmt( "bar %d: volume %d saved, %d read back, shown at bar %d", bar, saved, loaded, shown );
+		}
+		IsDirectSoundAllocated = allocated;
+		Check( "the volume sliders stay on their bar through a restart", bars > 2 && moved == 0,
+			Fmt( "%d of %d bars move. ", moved, bars + 1 ) + first );
 		return Next;
 	} } );
 
