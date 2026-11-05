@@ -76,14 +76,7 @@ From Gorvex's suggestion list ([thread](https://discord.com/channels/12617208979
 
 These came up in `#antigrind` and `#godroll` (links marked *antigrind* and *godroll*). They aren't reports against The Heaven, but they may affect it.
 
-- **Shared stash edge cases.** StArchon tested how TH4 rebuilds items for the character that loads them ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685739481866274), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)). Check each case against the morph lock (af5cf77):
-  - Night Kin and Clean Hands turn dropped gear into gold when they load it, and it stays gold once they save.
-  - White items roll their sockets again on every load. A character that can't socket writes only the gem-holding sockets into the item, so 3 sockets with 1 gem comes back to its owner with 4.
-  - Griswold's premium items and Wirt's items roll weaker affixes for a lower-level character.
-  - Items bought from Pepin are re-picked from the loading character's shop pool.
-  - Books switch spells for some subclasses (Terminator, Survival), and you learn the spell you see.
-  - A crash between writing the shared stash file and the character file can duplicate or lose items.
-  - UbergamR says he "could dupe with the shared stash" in The Heaven ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1538143668421136476)), without saying how.
+- **Shared stash: a crash between two files.** StArchon ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)): a crash between writing the shared stash file and the character file can duplicate or lose items. The Heaven now writes the two together, when the shared stash closes or the character saves, one right after the other, so the window is a few milliseconds. Closing it fully needs both in one file or a write-ahead copy. His other shared stash cases are caught by the morph lock (see [FIXED_BUGS.md](FIXED_BUGS.md)).
 - **Perk reset refunds every perk.** `VisualTrade_ResetPerks()` in `src/VisualTrade.cpp` zeroes all perks for 1000 gold × character level. Godroll locks two kinds of perks ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)):
   - perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others
   - Raise the Bar, Thaumaturgy and Ostentation, because lowering an attribute limit cuts base stats above it without refunding them
