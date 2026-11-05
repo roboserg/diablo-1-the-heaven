@@ -35,6 +35,7 @@
 //          runs it first, in its own save folders
 
 extern StashTab StashTabs[Stash_TotalTabs];
+extern Perk Perks[PERKS_COUNT];
 bool AllowEnchant( Item& item );                                 // Enchanting.cpp
 void Enchant_PlaceItemIntoCraftSlot();                           // Enchanting.cpp
 bool Craft_Gems_IsItemAllowedToBeConsumable( Item* itemPtr );    // Crafting.cpp
@@ -907,6 +908,54 @@ void BuildMain()
 			Fmt( "level %d, then %d with Here and Now %d", level, levelTaken, held ) ) ) return Next;
 		Check( "a perk reset keeps Here and Now, so its level can't be bought again", heldAfter == 1 && spentAfter == 1 && swiftAfter == 0,
 			Fmt( "after the reset: Here and Now %d, Swift Learner %d, %d perk points still spent", heldAfter, swiftAfter, spentAfter ) );
+		return Next;
+	} } );
+
+	Steps.push_back( { "perk reset with perks whose benefit stays (bug 12)", []{
+		// Educated, Higher Education and Overwhelm add stat points at every level-up, and Heavy
+		// Drinker makes unique monsters drop elixirs. A reset that refunded them let a player take
+		// them while leveling, keep the points and elixirs, and swap them for other perks later.
+		// Ways the fix can fail: the reset still refunds one of them, or lowers its rank; it keeps
+		// their requirements too (Swift Learner, Obsession, Advanced User), which must still reset;
+		// a kept perk stops working once its requirements are gone; its points come back as unspent.
+		// Overwhelm exists only in Ironman, Nightmare and Speedrun, so the step plays Nightmare.
+		// The hero is put back as it was afterwards
+		Player& p = Hero();
+		static Player saved;
+		saved = p;
+		const GAME_MODE mode = GameMode;
+		GameMode = GM_NIGHTMARE;
+		const int kept[] = { PERK_EDUCATED, PERK_HEAVY_DRINKER, SYNERGY_HIGHER_EDUCATION, SYNERGY_OVERWHELM };
+		const int ranks[] = { 5, 5, 1, 1 };
+		const int reset[] = { PERK_SWIFT_LEARNER, PERK_OBSESSION, PERK_ADVANCED_USER };
+		for( int k = 0; k < PERKS_SYNERGY_MAX_750; ++k ) p.perk[k] = 0;
+		p.perk[PERK_SWIFT_LEARNER] = 5; p.perk[PERK_OBSESSION] = 5; p.perk[PERK_ADVANCED_USER] = 1;
+		for( int k = 0; k < 4; ++k ) p.perk[kept[k]] = ranks[k];
+		auto benefit = []{ return Fmt( "%d stat points per level, %d%% elixir chance",
+			PerkValue( PERK_EDUCATED, CurrentPlayerIndex ) + PerkValue( SYNERGY_HIGHER_EDUCATION, CurrentPlayerIndex )
+			+ PerkValue( SYNERGY_OVERWHELM, CurrentPlayerIndex ), PerkValue( PERK_HEAVY_DRINKER, CurrentPlayerIndex ) ); };
+		string before = benefit();
+		VisualTrade_AddGoldToInventory( 1000 * p.CharLevel );
+		VisualTrade_ResetPerks();
+		string after = benefit(), keptNow, resetNow;
+		bool allKept = true, allReset = true;
+		for( int k = 0; k < 4; ++k ){
+			allKept &= p.perk[kept[k]] == ranks[k];
+			keptNow += Fmt( " %s %d", Perks[kept[k]].name, (int)p.perk[kept[k]] );
+		}
+		for( int r: reset ){
+			allReset &= p.perk[r] == 0;
+			resetNow += Fmt( " %s %d", Perks[r].name, (int)p.perk[r] );
+		}
+		int spent = getPlayerSumOfPerks( PERK_TYPE_COMMON ), spentSynergy = getPlayerSumOfPerks( PERK_TYPE_SYNERGY );
+		GameMode = mode;
+		p = saved;
+		getAvailablePerksList();
+		RecalcPlayer( CurrentPlayerIndex, true );
+		Check( "a perk reset keeps Educated, Higher Education, Overwhelm and Heavy Drinker (bug 12)", allKept && spent == 10 && spentSynergy == 2,
+			Fmt( "after the reset:%s; %d perk and %d synergy points still spent (10 and 2 kept)", keptNow.c_str(), spent, spentSynergy ) );
+		Check( "the reset still resets their requirements", allReset, "after the reset:" + resetNow );
+		Check( "the kept perks still work without their requirements", before == after, "before the reset " + before + ", after " + after );
 		return Next;
 	} } );
 

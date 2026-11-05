@@ -641,7 +641,9 @@ void __fastcall VisualTrade_MouseMove()
                     sprintf(InfoPanelBuffer, "Cost: %i gold", price);
                     Tooltip_AddLine(InfoPanelBuffer, totalGold >= price ? C_0_White : C_2_Red);
                     Tooltip_AddLine("Resets all spent perk points");
-                    Tooltip_AddLine("except Here and Now");
+                    Tooltip_AddLine("except Here and Now, Educated,");
+                    Tooltip_AddLine("Higher Education, Overwhelm");
+                    Tooltip_AddLine("and Heavy Drinker");
                 }
                     break;
                 case VTA_ResetStats:
@@ -1522,9 +1524,11 @@ void VisualTrade_ResetPerks()
     }
     for( int p = 0; p < PERKS_SYNERGY_MAX_750; ++p ){
         if( wouldCut && is(p, PERK_RAISE_THE_BAR, SYNERGY_THAUMATURGY, SYNERGY_OSTENTATION) ) continue;
-        // (heaven) Here and Now grants a full level when it's taken: refunding it would let it
-        // be taken again for another level after every reset
-        if( p == PERK_HERE_AND_NOW ) continue;
+        // (heaven) Perks whose benefit stays after a reset are kept, so they can't be taken
+        // again or swapped for others: Here and Now grants a full level when it's taken,
+        // Educated, Higher Education and Overwhelm add stat points at every level-up, and
+        // Heavy Drinker's elixirs raise stats for good (bug 12, idea from Godroll)
+        if( is(p, PERK_HERE_AND_NOW, PERK_EDUCATED, SYNERGY_HIGHER_EDUCATION, SYNERGY_OVERWHELM, PERK_HEAVY_DRINKER) ) continue;
         if( plr.perk[p] != 0 ){
             plr.perk[p] = 0;
             NetSendCmdParam2(1, CMD_105_SETPERK, p, 0);
