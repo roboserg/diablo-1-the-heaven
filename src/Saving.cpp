@@ -591,6 +591,7 @@ void LoadItemFull( Item* item )
 		i.saveVersion = CurSaveVersion;
 		UpdateItem(i);
 	}
+	i.genVersion = ItemGenAfterLoad( i.genVersion, itemSaveVersion ); // (heaven) it's about to forget which version saved it
 	i.saveVersion = CurSaveVersion;
 }
 

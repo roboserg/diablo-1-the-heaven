@@ -7081,6 +7081,7 @@ void __fastcall Item_AddPrefix(Item& item, int MaxAffixQLVL, int Spell_ID, int I
 	if( !RNG(10) || IsMagicItem ){
 		while( affixes[affixId + 1].effect.id != AE_NO ){
 			pref = &affixes[++affixId];
+			if( pref->sinceGen > item.genVersion ) continue; // (heaven)
 			if( (pref->item & IA_STAFF) && (pref->itemSpecialization & baseItem.Specialization) && pref->quality <= MaxAffixQLVL ){
 				if( !IsMagicItem || pref->NotCursed ){
 					affixMap.push_back(affixId);
@@ -9030,6 +9031,7 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 	if( !disablePrefix ){
 		for( ; affixes[prefixId].effect.id != AE_NO; ++prefixId ){
 			prefix = &affixes[prefixId];
+			if( prefix->sinceGen > item.genVersion ) continue; // (heaven)
 			if( (occuranceMask & prefix->item) && (specializationMask & prefix->itemSpecialization) ){
 				if( prefix->quality >= minQLVL && prefix->quality <= maxQLVL ){
 					if( !isGoodMagicItem || prefix->NotCursed ){
@@ -9061,6 +9063,7 @@ void __fastcall Item_AddAffixes(Item& item, int minQLVL, int maxQLVL, int occura
 	if( enablePostfix ){
 		for( int suffixId = 0; affixes[suffixId + firstSuffix].effect.id != AE_NO; ++suffixId ){
 			post = &affixes[suffixId + firstSuffix];
+			if( post->sinceGen > item.genVersion ) continue; // (heaven)
 			//if( (int)post->Name == 1 ) __debugbreak();
 			if( (occuranceMask & post->item) && (specializationMask & post->itemSpecialization) ){
 				if( post->quality >= minQLVL && post->quality <= maxQLVL ){
@@ -10490,7 +10493,7 @@ void __fastcall SetRandomDurability(int itemIndex)
 
 enum DROP_CHANCE { ChanceMagicBase = 50, ChanceUniqueMob = 1, MagicFindUniqueDiv = 4,
                    ChanceRareBase = 20, BossRareMultiplier = 3 }; // all values are X/1000
-constexpr int ChanceUniqueBoss[CurItemGenVersion + 1] = { 10, 10, 6, 6, 10, 10, 6, 8 }; // last value is current chance
+constexpr int ChanceUniqueBoss[CurItemGenVersion + 1] = { 10, 10, 6, 6, 10, 10, 6, 8, 8 }; // last value is current chance
 
 //----- (004272CE) - Item regeneration from seed info, should not have any player specific filters
 void __fastcall SetupAllItems(int itemIndex, int baseItemIndex, i64 seed, int qlvl, int chanceInPercent, int IsGoodMagicItem, int allowDup, int pregen, bool identified, int playerMask, int magicFind, int rare, int genVersion, int uniqIndex, uchar difficulty, uchar magicLevel /*= 0*/ )

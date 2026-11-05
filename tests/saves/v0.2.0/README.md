@@ -16,10 +16,9 @@ In each folder:
 - `th4_save_sp\th4shared.stv`: the shared stash.
 - `oldsave-manifest.txt`: everything as v0.2.0 had it, one per line. An item line has where it is, its seed and the autotest's `Describe()` line (names, base, damage, armour, durability, requirements, every effect and any gems). The `hero` line has the level, base stats, unspent points and experience. The `perks` and `spells` lines have each one's number, rank and name, so a perk or spell TH4 moved shows up; the Warrior's list is older and doesn't have them.
 
-The test allows for what TH4 v0.774 itself changed, in `src\AutoTest.cpp`:
+The test allows for one thing TH4 v0.774 itself changed: two affixes were renamed, with the same effect (`WithNewNames` in `src\AutoTest.cpp`).
 
-- Two affixes were renamed, with the same effect (`WithNewNames`).
-- Rows added to the Classic affix table reroll the affix of 5 Classic items (`RerolledInClassic`, bug 16 in `docs\OPEN_BUGS.md`). They must still be there as the same base item.
+`tests\saves\v0.3.0` has the Classic hero as v0.3.0 saved it.
 
 The saves were made on 5 Nov 2026 by the v0.2.0 release (tag `v0.2.0`) with a small driver added for the occasion, which was never committed: it created each hero, raised the level, spent the points by the game's own rules, made the items with the game's own item generator, put them in place through the stash panels, saved and wrote the list.
 

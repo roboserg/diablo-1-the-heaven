@@ -489,7 +489,11 @@ template<size_t N, typename I> int PrintBigNum(char (&outBuf)[N], I val, char se
 }
 
 // versioning struct size
-enum Game_Param: ushort { CurSaveVersion = 30, CurItemGenVersion = 7 }; // (rt) on release the version archive can be cleared and loading old versions forbidden, or a release save identifier 'HEL3' introduced
+enum Game_Param: ushort { CurSaveVersion = 31, CurItemGenVersion = 8 }; // (rt) on release the version archive can be cleared and loading old versions forbidden, or a release save identifier 'HEL3' introduced
+// (heaven) Item generator 8 is generator 7 plus the Classic affixes TH4 v0.774 added (Affix::sinceGen).
+// v0.2.0 rolled generator 7 without them and v0.3.0 (save version 30) with them, under the same
+// number, so items saved by v0.3.0 become generator 8 when they load.
+constexpr int ItemGenAfterLoad( int genVersion, int saveVersion ) { return genVersion == 7 && saveVersion == 30 ? 8 : genVersion; }
 struct StructVersion { ushort num; size_t size; };
 template<typename T> constexpr size_t StructSize(ushort version)
 {

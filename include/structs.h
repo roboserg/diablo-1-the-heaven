@@ -155,6 +155,7 @@ struct Affix
 	int				Multiplier;
 	int				minReqClvl;
 	int				maxReqClvl;
+	int				sinceGen;	// (heaven) the item generator that added this row: older items don't roll it
 };
 
 struct BaseAction

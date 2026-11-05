@@ -1,0 +1,25 @@
+inventory	1100	Ring / obsidian Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 6:0:30..0:0
+inventory	1101	Double-Beaked Staff / Staff of the bear | base 95 ml 1 spell 0 charges 0/0 dmg 30-45 ac 10 dur 15/50 sockets 0 req 129/0/195/0 | 21:22:0..0:0
+inventory	1102	Darkened Burgonet / Burgonet of structure | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 32 dur 25/61 sockets 0 req 198/0/0/176 | 16:0:106..0:0
+inventory	4461	Slim Blade / Shadowsteel | base 37 ml 2 spell 0 charges 0/0 dmg 9-16 ac 4 dur 30/30 sockets 0 req 34/0/55/0 | 20:0:1..0:0 28:0:32..0:0 57:0:3..0:0 13:0:-2..0:0 77:0:-12..0:0 51:0:-2..0:0
+inventory	1301	Sphere of Bone Spirit / Plentiful Sphere of Bone Spirit | base 504 ml 1 spell 36 charges 32/32 dmg 0-0 ac 0 dur 12/38 sockets 0 req 0/105/78/0 | 8:0:2..0:0 78:0:9..0:0
+inventory	1400	Book of Fire Ball / Book of Fire Ball | base 2644 ml 0 spell 12 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/95/0/0 |
+personal	12000	Ring / Crimson Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/3/0/0 | 80:1:35..0:0
+personal	12001	Double-Beaked Staff / Staff of swiftness | base 95 ml 1 spell 0 charges 0/0 dmg 29-45 ac 10 dur 32/50 sockets 0 req 127/0/199/0 | 26:0:2..0:0
+personal	12002	Darkened Burgonet / Burgonet of structure | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 26/81 sockets 0 req 197/0/0/179 | 16:0:191..0:0
+personal	12003	Short Knife / Knife of swiftness | base 1 ml 1 spell 0 charges 0/0 dmg 2-10 ac 0 dur 8/15 sockets 0 req 11/0/13/0 | 26:0:2..0:0 0:0:0..0:5
+personal	15381	Slim Blade / Shadowsteel | base 37 ml 2 spell 0 charges 0/0 dmg 7-15 ac 4 dur 27/27 sockets 0 req 35/0/57/0 | 20:0:1..0:0 28:0:31..0:0 57:0:4..0:0 13:0:-3..0:0 77:0:-15..0:0 51:0:-2..0:0
+personal	17144	Circlet / The Butcher's Gaze | base 41 ml 2 spell 0 charges 0/0 dmg 0-0 ac 3 dur 12/12 sockets 0 req 15/0/34/0 | 21:27:0..0:0 51:0:5..0:0 2:0:40..0:24 48:0:1..0:0 26:0:1..0:0 52:0:5..0:0 14:0:-18..0:0
+personal	12204	Sphere of Fire Ball / pearl Sphere of Fire Ball | base 499 ml 1 spell 12 charges 36/36 dmg 0-0 ac 0 dur 15/23 sockets 0 req 0/95/10/0 | 80:3:25..0:0 78:0:3..0:0
+personal	12300	Book of Mana Shield / Book of Mana Shield | base 114 ml 0 spell 11 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/70/0/0 |
+shared	22000	Ring / Ring of sorcery | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 11:1:19..0:0
+shared	22001	Double-Beaked Staff / Staff of the bear | base 95 ml 1 spell 0 charges 0/0 dmg 32-42 ac 10 dur 24/52 sockets 0 req 128/0/197/0 | 21:22:0..0:0
+shared	22002	Darkened Burgonet / sapphire Burgonet of harmony | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 16/24 sockets 0 req 199/0/0/177 | 80:2:54..0:0 27:0:3..0:0
+shared	22003	Short Knife / Knife of the heavens | base 1 ml 1 spell 0 charges 0/0 dmg 2-11 ac 0 dur 6/13 sockets 0 req 11/0/11/0 | 12:0:12..0:0 0:0:0..0:3
+shared	25810	Hauberk / Windrider | base 13 ml 2 spell 0 charges 0/0 dmg 0-0 ac 49 dur 55/55 sockets 0 req 160/0/80/116 | 6:0:40..0:0 13:0:-13..0:0 3:0:-33..0:0 7:0:-4..0:0
+shared	27119	Cloak / Dreadweave Attire | base 56 ml 2 spell 0 charges 0/0 dmg 0-0 ac 8 dur 20/20 sockets 4 req 25/0/20/0 | 13:0:-2..0:0 51:0:2..0:0 52:0:2..0:0 5:0:5..0:0 57:0:2..0:0 82:0:-4..0:0 84:0:4..0:0
+shared	22203	Globe of Guardian / sapphire Globe of Guardian | base 502 ml 1 spell 13 charges 26/26 dmg 0-0 ac 0 dur 19/31 sockets 0 req 0/130/60/0 | 80:2:56..0:0 78:0:6..0:0
+shared	22300	Book of Telekinesis / Book of Telekinesis | base 225 ml 0 spell 33 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/75/0/0 |
+hero	0	OldClassic class 2 mode 9 level 25 str 25 mag 45 dex 25 vit 30 available 80 xp 4172131
+perks	0	none
+spells	0	1:1:Fire Bolt 2:1:Healing 4:3:Flash 23:2:Teleport 30:3:Charged Bolt 31:1:Holy Bolt

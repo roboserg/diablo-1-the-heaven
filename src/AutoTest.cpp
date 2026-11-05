@@ -37,6 +37,9 @@
 //          inventory, Griswold's stash and the shared stash must be as v0.2.0 listed them in
 //          oldsave-manifest.txt, and again after a save and load. The script runs them first,
 //          each in its own save folders
+//   classic030  the same for a Classic Mage saved by v0.3.0 (tests\saves\v0.3.0): its items rolled
+//          with the affixes TH4 v0.774 added to Classic, and its shared stash has fingerprints.
+//          New items must still roll with those affixes
 //   ql*    F9 and F12 in each game mode, with a new hero and its own save folders: they must do
 //          nothing wherever the menu's Save Game and Load Game are unavailable, and work where
 //          they are available, also on quest floors, in a battle and while dying
@@ -1714,7 +1717,7 @@ void BuildOwner()
 	Steps.push_back( { "close shared stash", CloseSharedStash } );
 }
 
-//----- phases: heroes saved by v0.2.0 --------------------------------------
+//----- phases: heroes saved by an older version -----------------------------
 // Players upgrade with their v0.2.0 characters, Griswold's stash and the shared stash. Ways this
 // can fail, for each hero, on load and again after a save and load in this version:
 // - the game doesn't find the hero and makes a new one: a Classic save has its own folder, and
@@ -1723,7 +1726,13 @@ void BuildOwner()
 //   spell level on another spell. That's why the list has their names as well as their numbers
 // - a perk's rank or a stat above a limit of this version gets cut
 // - books and staves come out with another spell for a Mage or an Archer
-// - Classic rebuilds an item with the wrong affix table
+// - a v0.2.0 Classic item rolls with the affixes TH4 v0.774 added, and gets another affix (bug 16)
+// - it rolls right on load but wrong once this version saves it, because a rebuild forgets which
+//   version saved it: so each item is also rebuilt the way the game's 5-second item check does
+// - a v0.3.0 Classic item, which rolled with those affixes, rolls without them now: it gets another
+//   affix, and in the shared stash it no longer matches its fingerprint and is locked for good
+// - new drops and shop items roll without those affixes
+// - another game mode's table changes: the other old heroes' items change
 // - sockets are rolled again, or a gem vanishes or turns into another gem
 // - the rare, unique and magic items of a high level, high difficulty come out different
 // - the test fools itself: a save that doesn't hold what it's for, so the lists are checked too
@@ -1731,6 +1740,8 @@ void BuildOwner()
 struct OldItem { string where; int seed; string described; };
 vector<OldItem> OldItems;
 string          OldHero, OldPerks, OldSpells;
+
+const char* OldVersion() { return ! strcmp( CurPhase->name, "classic030" ) ? "v0.3.0" : "v0.2.0"; }
 
 void ReadOldManifest()
 {
@@ -1751,7 +1762,7 @@ void ReadOldManifest()
 	fclose( f );
 }
 
-// The hero line v0.2.0 wrote, from this hero
+// The hero line the old version wrote, from this hero
 string HeroLine()
 {
 	Player& p = Hero();
@@ -1760,7 +1771,7 @@ string HeroLine()
 }
 
 // The manifest's items in one place (inventory, personal or shared) that are missing or come
-// out different; ok counts the ones that are exactly as v0.2.0 had them
+// out different; ok counts the ones that are exactly as the old version had them
 string HeroPerks()
 {
 	string s;
@@ -1785,18 +1796,6 @@ string WithNewNames( string described )
 	return described;
 }
 
-// TH4 v0.774 added rows to the Classic affix table, so these Classic magic items roll another
-// affix after the upgrade (bug 16, docs\OPEN_BUGS.md). They must still be there as the same base
-// item, with the same durability and requirements. Any other item that changes fails the check
-const set<int> RerolledInClassic = { 1102, 12002, 12003, 22002, 22003 };
-
-// The part of a Describe() line about the base item: from " | base " to the effects
-string BasePart( const string& described )
-{
-	size_t from = described.find( " | base " ), to = from == string::npos ? from : described.find( " |", from + 3 );
-	return to == string::npos ? "" : described.substr( from, to - from );
-}
-
 string CompareOld( const char* where, int& ok, int& total )
 {
 	bool stash = strcmp( where, "inventory" ) != 0;
@@ -1814,13 +1813,15 @@ string CompareOld( const char* where, int& ok, int& total )
 			int at = FindInInventory( it.seed );
 			if( at >= 0 ) found = &Hero().InventorySlots[at];
 		}
-		if( found && Describe( *found ) == WithNewNames( it.described ) ){ ++ok; continue; }
-		if( found && ! strcmp( CurPhase->name, "oldclassic" ) && RerolledInClassic.count( it.seed ) && BasePart( Describe( *found ) ) == BasePart( it.described ) ){
-			++ok;
-			wrong += Fmt( "  known reroll [%d] %s  was: %s", it.seed, Describe( *found ).c_str(), it.described.c_str() );
+		if( ! found ){
+			wrong += Fmt( "  [%d] missing  was: %s", it.seed, it.described.c_str() );
 			continue;
 		}
-		wrong += Fmt( "  [%d] %s  was: %s", it.seed, found ? Describe( *found ).c_str() : "missing", it.described.c_str() );
+		Item rebuilt = *found;
+		RebuildLikeTheGame( rebuilt );
+		string expected = WithNewNames( it.described );
+		if( Describe( *found ) == expected && Describe( rebuilt ) == expected ){ ++ok; continue; }
+		wrong += Fmt( "  [%d] %s  rebuilt: %s  was: %s", it.seed, Describe( *found ).c_str(), Describe( rebuilt ).c_str(), it.described.c_str() );
 	}
 	if( stash ) StashPanel_Close();
 	return wrong;
@@ -1832,20 +1833,33 @@ void CheckOldItems( const char* when )
 		int ok = 0, total = 0;
 		string wrong = CompareOld( where, ok, total );
 		const char* place = ! strcmp( where, "inventory" ) ? "the inventory" : ! strcmp( where, "personal" ) ? "Griswold's stash" : "the shared stash";
-		Check( Fmt( "v0.2.0 save, %s: every item in %s is as v0.2.0 had it", when, place ).c_str(), total > 0 && ok == total,
+		Check( Fmt( "%s save, %s: every item in %s is as %s had it", OldVersion(), when, place, OldVersion() ).c_str(), total > 0 && ok == total,
 			Fmt( "%d of %d the same", ok, total ) + wrong );
 	}
+	StashPanel_OpenShared();
+	int locked = 0, total = 0;
+	string names;
+	for( const OldItem& it: OldItems ){
+		vector<int> at = it.where == "shared" ? FindInStash( it.seed ) : vector<int>();
+		if( at.empty() ) continue;
+		++total;
+		const Item& item = StashTabs[at[0] / Stash_MaxSlot].items[at[0] % Stash_MaxSlot];
+		if( SharedStash_IsLocked( item ) ){ ++locked; names += Fmt( "  [%d] %s", it.seed, item.FullMagicalItemName ); }
+	}
+	StashPanel_Close();
+	Check( Fmt( "%s save, %s: nothing in the shared stash is locked for the hero who stashed it", OldVersion(), when ).c_str(), total > 0 && locked == 0,
+		Fmt( "%d of %d locked", locked, total ) + names );
 }
 
 void CheckOldHero( const char* when )
 {
-	Check( Fmt( "v0.2.0 save, %s: the hero has the level, stats and points v0.2.0 saved", when ).c_str(), ! OldHero.empty() && HeroLine() == OldHero,
+	Check( Fmt( "%s save, %s: the hero has the level, stats and points it saved", OldVersion(), when ).c_str(), ! OldHero.empty() && HeroLine() == OldHero,
 		HeroLine() + "  was: " + OldHero );
 	// The Warrior's list is older than these lines; every other list must have them
 	if( ! strcmp( CurPhase->name, "oldwarrior" ) ) return;
-	Check( Fmt( "v0.2.0 save, %s: every perk has the rank v0.2.0 saved", when ).c_str(), ! OldPerks.empty() && HeroPerks() == OldPerks,
+	Check( Fmt( "%s save, %s: every perk has the rank it saved", OldVersion(), when ).c_str(), ! OldPerks.empty() && HeroPerks() == OldPerks,
 		HeroPerks() + "  was: " + OldPerks );
-	Check( Fmt( "v0.2.0 save, %s: every spell has the level v0.2.0 saved", when ).c_str(), ! OldSpells.empty() && HeroSpells() == OldSpells,
+	Check( Fmt( "%s save, %s: every spell has the level it saved", OldVersion(), when ).c_str(), ! OldSpells.empty() && HeroSpells() == OldSpells,
 		HeroSpells() + "  was: " + OldSpells );
 }
 
@@ -1867,7 +1881,12 @@ void BuildOldSave()
 			int perks = (int)count( OldPerks.begin(), OldPerks.end(), ' ' );
 			Check( "v0.2.0 save: the veteran has many perks, and gems in both stashes", perks >= 20 && gemmedPersonal >= 2 && gemmedShared >= 2, counts );
 		}else if( strcmp( CurPhase->name, "oldwarrior" ) ){
-			Check( "v0.2.0 save: the hero has books and staves whose spell depends on his class", books >= 3 && spellStaves >= 3, counts );
+			Check( Fmt( "%s save: the hero has books and staves whose spell depends on the class", OldVersion() ).c_str(), books >= 3 && spellStaves >= 3, counts );
+		}
+		if( ! strcmp( CurPhase->name, "classic030" ) ){
+			int added = 0;
+			for( const OldItem& it: OldItems ) if( it.described.find( " of structure " ) != string::npos ) ++added;
+			Check( "v0.3.0 save: it has items that rolled an affix TH4 v0.774 added", added >= 2, Fmt( "%d items of structure", added ) );
 		}
 		return Next;
 	} } );
@@ -1881,6 +1900,29 @@ void BuildOldSave()
 	Steps.push_back( { "old items after a save and load", []{
 		CheckOldHero( "saved and loaded again" );
 		CheckOldItems( "saved and loaded again" );
+		return Next;
+	} } );
+	if( strcmp( CurPhase->name, "classic030" ) ) return;
+	Steps.push_back( { "new items", []{
+		int same = 0, total = 0, current = 0;
+		string wrong;
+		for( const OldItem& it: OldItems ){
+			if( it.described.find( " ml 1 spell 0 " ) == string::npos ) continue;
+			++total;
+			Item item = MakeItem( atoi( it.described.c_str() + it.described.find( " | base " ) + 8 ), it.seed, true );
+			if( item.genVersion == CurItemGenVersion ) ++current;
+			if( Describe( item ) == it.described ) ++same;
+			else wrong += Fmt( "  [%d] %s  v0.3.0: %s", it.seed, Describe( item ).c_str(), it.described.c_str() );
+		}
+		Check( "a new item rolls with the affixes TH4 v0.774 added: the same seed comes out as on v0.3.0", total > 0 && same == total && current == total,
+			Fmt( "%d of %d the same, %d of this version's generator", same, total, current ) + wrong );
+		int shop = 0, older = 0;
+		auto look = [&]( const Item& item ){ if( item.seed && item.ItemCode != IC_M1_NONE ){ ++shop; if( item.genVersion != CurItemGenVersion ) ++older; } };
+		for( const Item& item: BasicalItemsArray ) look( item );
+		for( const Item& item: MagicItemsStoreArray ) look( item );
+		for( const Item& item: WitchAdriaItems ) look( item );
+		for( const Item& item: PepinItems ) look( item );
+		Check( "shop items come from this version's generator", shop > 0 && older == 0, Fmt( "%d of %d from an older one", older, shop ) );
 		return Next;
 	} } );
 }
@@ -2158,6 +2200,7 @@ const Phase Phases[] = {
 	{ "oldarcher",  HeroOldArcher,  PC_1_ARCHER,  GM_NORMAL,  BuildOldSave },
 	{ "oldclassic", HeroOldClassic, PC_2_MAGE,    GM_CLASSIC, BuildOldSave },
 	{ "oldveteran", HeroOldVeteran, PC_5_SAVAGE,  GM_NORMAL,  BuildOldSave },
+	{ "classic030", HeroOldClassic, PC_2_MAGE,    GM_CLASSIC, BuildOldSave },
 	{ "qlnormal",       HeroQuick, PC_0_WARRIOR, GM_NORMAL,    BuildQuickLoadNormal },
 	{ "qlhardcore",     HeroQuick, PC_0_WARRIOR, GM_HARDCORE,  BuildQuickLoadHardcore },
 	{ "qlironman",      HeroQuick, PC_0_WARRIOR, GM_IRONMAN,   BuildQuickLoadForbidden },
@@ -2191,7 +2234,7 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 		if( ! _stricmp( p.name, name ) ) CurPhase = &p;
 	}
 	if( ! CurPhase ){
-		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldwarrior|oldmage|oldarcher|oldclassic|oldveteran|ql...|missingfile|nomor [-show]", "Autotest", MB_OK | MB_ICONERROR );
+		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldwarrior|oldmage|oldarcher|oldclassic|oldveteran|classic030|ql...|missingfile|nomor [-show]", "Autotest", MB_OK | MB_ICONERROR );
 		ExitProcess( 2 );
 	}
 	Active = true;

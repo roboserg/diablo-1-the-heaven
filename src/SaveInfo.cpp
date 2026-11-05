@@ -102,7 +102,7 @@ template<class ItemInfo> void LoadItem(ItemInfo* itemInfo, Item* item, bool keep
 	}
 	IS( ItemInfo, ItemInfo64 ){
 		temp.saveVersion = info.saveVersion ? info.saveVersion : SaveVersion;
-		RecreateItem(MaxItems_255, info.baseItemIndex, info.dropType, info.seed, info.amount, info.magicLevelAndIdentified, info.genVersion,
+		RecreateItem(MaxItems_255, info.baseItemIndex, info.dropType, info.seed, info.amount, info.magicLevelAndIdentified, ItemGenAfterLoad( info.genVersion, temp.saveVersion ),
 			info.quality, info.magicFind, info.uniqIndex, info.enchantIndexes, info.quenchAffix, info.quenchLevel, info.socketsAdded, info.sockets, info.difficulty, info.charFlag);
 	}else{
 		int magicFind = 0;
