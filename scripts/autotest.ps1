@@ -28,7 +28,7 @@
 .PARAMETER Only
     Run only these phases. other and owner need the shared stash main leaves behind and
     every run starts from a fresh folder, so on their own they fail: use it to run main,
-    oldsave, missingfile or nomor alone.
+    oldsave, features, missingfile or nomor alone.
 
 .PARAMETER TimeoutSec
     How long one phase may run before it counts as hung and is stopped.
@@ -40,7 +40,7 @@
 param(
     [switch]$Build,
     [switch]$Show,
-    [ValidateSet("oldsave", "main", "other", "owner", "missingfile", "nomor")][string[]]$Only,
+    [ValidateSet("oldsave", "main", "other", "owner", "features", "missingfile", "nomor")][string[]]$Only,
     [int]$TimeoutSec = 240
 )
 
@@ -50,7 +50,7 @@ $ErrorActionPreference = "Stop"
 $repo  = Resolve-Path "$PSScriptRoot\.."
 $buildDir = Join-Path $repo "build"
 $run   = Join-Path $buildDir "autotest"
-$phases = @("oldsave", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
+$phases = @("oldsave", "features", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
 if ($Only) { $phases = @($phases | Where-Object { $Only -contains $_ }) }
 
 function Fail([string]$msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 2 }
@@ -143,7 +143,7 @@ foreach ($phase in $phases) {
         if ($c.detail -and -not $c.pass) { Write-Host "          $($c.detail)" -ForegroundColor DarkGray }
     }
     $results += $report
-    if ($phase -eq "oldsave") { # the next phases start from no saves
+    if ($phase -eq "oldsave" -or $phase -eq "features") { # the next phases start from no saves
         Get-ChildItem $run -Directory -Filter "th4_save_*" | Remove-Item -Recurse -Force
         Remove-Item (Join-Path $run "oldsave-manifest.txt") -ErrorAction SilentlyContinue
         continue

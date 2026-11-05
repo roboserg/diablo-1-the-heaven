@@ -9,6 +9,16 @@ What was fixed since v0.3.0. When the next version ships, move the table into `C
 | Without `TH4data.mor` the game stops at the start and names it, and a file missing from the archives gives an error that names that file and both data files. Both used to blame DIABDAT.MPQ. The autotest runs without `TH4data.mor` and asks for a file no archive has. Blueplane and two guests reported it on ModDB. | dda655e | Bug 13 |
 | Infernal Bargain gives its perk points with Skilled, Lord of the Rings and Grim Deal. They got its lower regeneration and stats but none of its points. The autotest takes each trait at rank 1 and the top rank. A guest on ModDB reported it with an Archer. | 5182bbb | Bug 14 |
 
+## New since v0.3.0
+
+These go into `CHANGELOG.md` and the release notes with the table above. The autotest's `features` phase checks them all.
+
+- **2x game speed:** the speed button goes 1x, 1.25x, 1.5x, 2x. At 2x it lights both chevrons.
+- **Shift-click on a stat's +** spends 5 points, or fewer when there are fewer left or the stat's cap is closer.
+- **Socket counts on the ground:** with Alt, an item's label ends with its socket count, like `Long Sword [3]`. As in the tooltip, Ironman, Nightmare and Speedrun hide the count on unique and set items. Config: `ShowSocketsOnGround`, on by default.
+- **A drop sound for unique and set items:** a new drop also plays `Sfx\Items\Flipmag.wav`, which nothing else in the game plays. Rare items and items a player puts down don't play it. Config: `UniqueDropSound`, on by default.
+- **A sound for a cleared level:** when the last monster of a level dies, the game plays the cleared quest area's sound, once. A level cleared earlier stays quiet when entered again, and Ironman and Survival keep their own sound. Config: `LevelClearedSound`, on by default.
+
 ## Details of the v0.3.0 fixes
 
 What v0.3.0 fixed is in [CHANGELOG.md](CHANGELOG.md). The sections below explain the bigger fixes. Reports that turned out to be by design are at the end, under [Not bugs](#not-bugs).

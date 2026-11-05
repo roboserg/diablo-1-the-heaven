@@ -5235,6 +5235,12 @@ void __fastcall AddQuestMonsters(ushort* dunData, int startRow, int startCol) //
 	RepairMonsterMap();
 }
 
+// (heaven) LevelClearedSound: plays when the last monster that was left on entering the level dies.
+// A level cleared earlier stays quiet, though in multiplayer its dead come through DelMonster on every
+// entry. The count waits for the first tick: a saved game reads its monsters after LoadGameLevel.
+static bool LevelClearCountDue = false, LevelClearPending = false;
+void LevelClearedSound_LevelLoaded() { LevelClearCountDue = true; }
+
 //----- (0043C70C) --------------------------------------------------------
 void __fastcall DelMonster(int monsterIndexIndex)
 {
@@ -5249,6 +5255,13 @@ void __fastcall DelMonster(int monsterIndexIndex)
 	else {
 		if( GameModeType() == GAME_MODE_TYPE::IRON && GetNumberOfMonstersInDungeon() == 0 && GetNumberOfObjectsInDungeon() <= MaxIronmanObjects && Dungeon != DUN_0_TOWN ){
 			IronmanLevelCleared();
+		}
+		if( LevelClearPending && GetNumberOfMonstersInDungeon() == 0 ){
+			LevelClearPending = false;
+			if( LevelClearedSound && GameModeType() != GAME_MODE_TYPE::IRON ){ // those two have their own, above
+				const Player& player = Players[CurrentPlayerIndex];
+				PlayLocalSound( S_14_QUESTDON, player.Row, player.Col );
+			}
 		}
 	}
 }
@@ -13424,6 +13437,10 @@ void __fastcall Ai_31_Warlord(uint monsterIndex)
 //----- (00443789) --------------------------------------------------------
 void RemoveKilledMonsters()
 {
+	if( LevelClearCountDue ){
+		LevelClearCountDue = false;
+		LevelClearPending = GetNumberOfMonstersInDungeon() > 0;
+	}
 	for( int summonIndex = 0; summonIndex < SummonMonsters_Count; ++summonIndex ){
 		Monster& summon = Monsters[summonIndex];
 		if( summon.flag & MF_15_KILLED ){

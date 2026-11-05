@@ -9153,9 +9153,14 @@ void __fastcall ApplyAffixesToItem(int itemIndex, int baseItemIndex, int minQual
 	}
 }
 
+// (heaven) UniqueDropSound is for new drops, not for an item a player puts down. New drops land
+// through SetupItemAnim on every player's machine, items put down through RespawnItem.
+static bool ItemPutDownByPlayer[ MaxItems_255 + 1 ];
+
 //----- (00426BE0) --------------------------------------------------------
 void __fastcall SetupItemAnim(int itemIndex)
 {
+	ItemPutDownByPlayer[itemIndex] = false;
 	Item& item = Items[itemIndex];
 	int flip = ItemFlipTable[item.GraphicValue];
 	item.ItemCELFilePtr = FlipItemCELFiles[flip];
@@ -11055,6 +11060,7 @@ int __fastcall SpawnSomething(int baseItemIndex, int row, int col, bool specQues
 //----- (00427E8B) --------------------------------------------------------
 void __fastcall RespawnItem(int itemIndex, int flipFlag)
 {
+	ItemPutDownByPlayer[itemIndex] = true;
 	Item& item = Items[itemIndex];
 	item.ItemCELFilePtr = FlipItemCELFiles[ItemFlipTable[item.GraphicValue]];
 	item.FramesCount = Flip_FramesCount[ItemFlipTable[item.GraphicValue]];
@@ -11151,6 +11157,10 @@ void ProcessItems()
 			}else{
 				if( item.FrameIndex == item.FramesCount >> 1 ){// (rt) play the sound in the middle of the animation
 					PlayLocalSound(Flip_DropSound[ItemFlipTable[item.GraphicValue]], item.MapRow, item.MapCol);
+					// (heaven) Decided on the finished item as it lands. Rare items are ML_2_UNIQUE too, with D_RARE
+					if( UniqueDropSound && ! ItemPutDownByPlayer[itemIndex] && is(item.MagicLevel, ML_2_UNIQUE, ML_3_SET) && ! (item.dropType & D_RARE) ){
+						PlayLocalSound(S_36_I_FLIPMAG, item.MapRow, item.MapCol); // no other use in the game, so it means only this
+					}
 				}
 				if( item.FrameIndex >= item.FramesCount ){
 					item.FrameIndex = item.FramesCount;

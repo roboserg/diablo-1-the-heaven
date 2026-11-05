@@ -716,7 +716,7 @@ struct HighlightName
 {
 	short itemId, row, col, x, y, x_, y_, width, height;
 	char magicLevel;
-	char text[64];
+	char text[80];
 	HighlightName( short x, short y, short width, short height, short row, short col, short itemId, char magicLevel, const char* text ):
 		itemId(itemId), row(row), col(col), x(x), y(y), x_(-1), y_(-1), width(width), height(height), magicLevel( magicLevel )
 	{	// (th4) bounded copy: textOnGround is 256 bytes, a long name with the level prefix overflowed text[64]
@@ -724,6 +724,36 @@ struct HighlightName
 	}
 };
 CObjectUnderCursor HighlightedItem;
+
+//----- (heaven) ----------------------------------------------------------
+// The text of an item's label on the ground (Alt highlight)
+void GroundItemLabel( const Item& item, char (&textOnGround)[256] )
+{
+	if( item.ItemCode == IC_11_GOLD ){
+		sprintf( textOnGround, L("%i gold"), item.amount );
+		return;
+	}
+	const bool identified = item.Identified || item.MagicLevel == ML_0_USUAL;
+	// (th4) config ShowItemLevelOnGround: "(clvl) Name" for UNIDENTIFIED MAGIC items only
+	// (white items count as identified above; unique ML_2 and set ML_3 items are skipped by
+	// request -- their requirement is not what players look at). The number is the REQUIRED
+	// CHARACTER LEVEL, Item::RequiredLevel -- not the drop level (Item::quality) nor the base
+	// item level (BaseItems[].itemLevel). It is already final while the item is unidentified.
+	// 0 = no level requirement: no prefix.
+	if( ShowItemLevelOnGround && !identified && item.RequiredLevel > 0
+	 && item.MagicLevel != ML_2_UNIQUE && item.MagicLevel != ML_3_SET ){
+		sprintf(textOnGround, "(%i) %s", (int)item.RequiredLevel, identified ? item.FullMagicalItemName : item.Name);
+	}else{
+		sprintf(textOnGround, "%s", identified ? item.FullMagicalItemName : item.Name);
+	}
+	// (heaven) config ShowSocketsOnGround: "Name [3]", for the items whose tooltip shows the count
+	if( ShowSocketsOnGround && item.socketsAmount > 0 && (not(GameMode, GM_IRONMAN, GM_NIGHTMARE, GM_SPEEDRUN) || item.MagicLevel < ML_2_UNIQUE) ){
+		char count[16];
+		sprintf( count, " [%i]", (int)item.socketsAmount );
+		strcat_s( textOnGround, count );
+	}
+}
+
 //----- (004029A7) --------------------------------------------------------
 void HighlightItemsNameOnMap()
 {
@@ -752,23 +782,7 @@ void HighlightItemsNameOnMap()
 		int row = (item.MapRow - PlayerRowPos) * zoomFactor;
 		int col = (item.MapCol - PlayerColPos) * zoomFactor;
 		// items on ground name highlighting
-		if( item.ItemCode == IC_11_GOLD ){
-			sprintf( textOnGround, L("%i gold"), item.amount );
-		} else{
-			const bool identified = item.Identified || item.MagicLevel == ML_0_USUAL;
-			// (th4) config ShowItemLevelOnGround: "(clvl) Name" for UNIDENTIFIED MAGIC items only
-			// (white items count as identified above; unique ML_2 and set ML_3 items are skipped by
-			// request -- their requirement is not what players look at). The number is the REQUIRED
-			// CHARACTER LEVEL, Item::RequiredLevel -- not the drop level (Item::quality) nor the base
-			// item level (BaseItems[].itemLevel). It is already final while the item is unidentified.
-			// 0 = no level requirement: no prefix.
-			if( ShowItemLevelOnGround && !identified && item.RequiredLevel > 0
-			 && item.MagicLevel != ML_2_UNIQUE && item.MagicLevel != ML_3_SET ){
-				sprintf(textOnGround, "(%i) %s", (int)item.RequiredLevel, identified ? item.FullMagicalItemName : item.Name);
-			}else{
-				sprintf(textOnGround, "%s", identified ? item.FullMagicalItemName : item.Name);
-			}
-		}
+		GroundItemLabel( item, textOnGround );
 		int x = 32 * (row - col) + (200 * zoomFactor * (Scroll.xOfs + PlayerShiftY) / 100 >> 1) + Xofs - Screen_LeftBorder;
 		int y = 16 * (row + col) + (200 * zoomFactor * (Scroll.yOfs + PlayerShiftX) / 100 >> 1) + Yofs - Screen_TopBorder - 30;
 		DynZoom_WorldToScreen( x, y );	// (th4) DYNAMIC ZOOM: over the item where it is SHOWN (no-op without it)

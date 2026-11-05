@@ -33,6 +33,9 @@
 //          item in the inventory, Griswold's stash and the shared stash must be as v0.2.0
 //          listed them in oldsave-manifest.txt, and again after a save and load. The script
 //          runs it first, in its own save folders
+//   features  Warrior, normal mode: Shift-click on a stat's +, the socket count in ground labels, the
+//          extra sound of unique and set item drops, the 2x speed button and the sound of a cleared
+//          level. The window has sound off, so it reads what PlayLocalSound was asked to play
 //   missingfile  asks for a file no archive has, like a TH4data.mor from an older TH4 would:
 //          the error must name that file and TH4data.mor (bug 13)
 //   nomor  the script removes TH4data.mor first: the game must stop with an error that names
@@ -85,6 +88,7 @@ const char* ManifestFile = "autotest-shared.txt";
 const char* HeroWarrior  = "AtWarrior";
 const char* HeroMage     = "AtMage";
 const char* HeroNoData   = "AtNoData";
+const char* HeroFeatures = "AtFeatures"; // the script deletes its saves after the phase
 const char* MissingFile  = "autotest\\no archive has this.cel";
 const char* HeroOld      = "OldWarrior"; // made by v0.2.0, see tests\saves\v0.2.0\README.md
 
@@ -1716,11 +1720,14 @@ void BuildMissingFile()
 	} } );
 }
 
+#include "AutoTestFeatures.inl"
+
 const Phase Phases[] = {
 	{ "main",  HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildMain  },
 	{ "other", HeroMage,    PC_2_MAGE,    GM_CLASSIC, BuildOther },
 	{ "owner", HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildOwner },
 	{ "oldsave", HeroOld,   PC_0_WARRIOR, GM_NORMAL,  BuildOldSave },
+	{ "features", HeroFeatures, PC_0_WARRIOR, GM_NORMAL, BuildFeatures },
 	{ "missingfile", HeroNoData, PC_0_WARRIOR, GM_NORMAL, BuildMissingFile },
 	{ "nomor", HeroNoData,  PC_0_WARRIOR, GM_NORMAL,  BuildNoMor },
 };
@@ -1835,6 +1842,12 @@ void AutoTest_PrepareHero()
 	}else{
 		Log( "hero %s found in slot %d", CurPhase->hero, AutoLoadSlot );
 	}
+}
+
+// From PlayLocalSound: the features phase checks what was played
+void AutoTest_NoteSound( int soundIndex )
+{
+	SoundsPlayed.push_back( soundIndex );
 }
 
 // From the game loop, once per game tick

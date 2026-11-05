@@ -1395,12 +1395,44 @@ void DrawMainPanel()
 	DrawThiefLightLevelBar();	// (th4) THIEF: no-op for everyone else
 }
 
+//----- (heaven) ----------------------------------------------------------
+// The speed button's file has a pair of frames (up, pressed) for each of 1x, 1.25x and 1.5x: they light
+// the dot, the first chevron or the second. 2x lights both chevrons. This adds its pair, taking each
+// pixel from the frame that has it lit. All the frames are 31 rows of 32 pixels with no transparent
+// ones, so they have the same layout and their bytes can be mixed directly.
+static char* AddTimeButton2xFrames( char* cel )
+{
+	const uint* header = (const uint*)cel;
+	const uint frames = header[0], frameSize = header[2] - header[1];
+	if( frames != 6 || header[1 + frames] != header[1] + frames * frameSize ){
+		TerminateWithError( "Please update TH4data.mor file, data\\timescale_arrow_button.CEL has %u frames", frames );
+	}
+	const uint newFrames = frames + 2, headerSize = (newFrames + 2) * sizeof( uint );
+	char* result = (char*)AllocMem( headerSize + newFrames * frameSize );
+	uint* newHeader = (uint*)result;
+	newHeader[0] = newFrames;
+	for( uint i = 0; i <= newFrames; ++i ) newHeader[1 + i] = headerSize + i * frameSize;
+	char* newFrame = result + headerSize;
+	memcpy( newFrame, cel + header[1], frames * frameSize );
+	for( uint pressed = 0; pressed < 2; ++pressed ){
+		const char* dotLit    = newFrame + (0 + pressed) * frameSize;
+		const char* firstLit  = newFrame + (2 + pressed) * frameSize;
+		const char* secondLit = newFrame + (4 + pressed) * frameSize;
+		char* bothLit         = newFrame + (6 + pressed) * frameSize;
+		for( uint i = 0; i < frameSize; ++i ){
+			bothLit[i] = secondLit[i] == dotLit[i] ? firstLit[i] : secondLit[i];
+		}
+	}
+	FreeMemZero( cel );
+	return result;
+}
+
 //----- (th2) -------------------------------------------------------------
 void InitPanelButtons()
 {
 	CtrlPan_Panel8buCEL = (char*)LoadFile("CtrlPan\\Panel8bu.CEL");
 	CtrlPan_NewButtonsCEL = (char*)LoadFile("CtrlPan\\MainPanelV3_buttons_37x29.CEL");
-	CtrlPan_TimeButtonCEL = (char*)LoadFile("data\\timescale_arrow_button.CEL");
+	CtrlPan_TimeButtonCEL = AddTimeButton2xFrames( (char*)LoadFile("data\\timescale_arrow_button.CEL") );
 	CtrlPan_MainMenuCEL = (char*)LoadFile("CtrlPan\\MainPanelV3_menuButton_75x29.CEL");
 	CtrlPan_P8But2CEL = (char*)LoadFile("CtrlPan\\P8But2.CEL");
 	CtrlPan_TalkButtCEL = (char*)LoadFile("CtrlPan\\TalkButt.CEL");

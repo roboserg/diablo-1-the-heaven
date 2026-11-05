@@ -2396,7 +2396,7 @@ nanoseconds PrevTime{ 0 }, Tick{ 0 };
 
 double TimeSpeed = 1.0;
 
-const double TimeSpeeds[] = { 1.0, 1.25, 1.5 };
+const double TimeSpeeds[] = { 1.0, 1.25, 1.5, 2.0 };
 int CurTimeSpeedIndex = 0;
 
 //----- (th2) -------------------------------------------------------------
@@ -6052,6 +6052,7 @@ void __fastcall LoadGameLevel(int startNewGame, int lvlDir)
 	RestoreCarriedManaShield();	// (th4) and put his mana shield back up
 	RestoreCarriedReflect();	// (th4) and his reflect, if he still has charges
 	ValidateMonsters();
+	LevelClearedSound_LevelLoaded();	// (heaven)
 	//AuditMonsterMap("end of LoadGameLevel"); // (th4) MonsterMap ghost detector -- see TH4_MONSTERMAP_DEBUG in Monster.cpp
 	//if (OverwriteGolemHP && GolemCurrentHealthDuringLevelTransition > 0 && DungeonLevel) {
 	//	int someInt = PlayerCastSummaryLevel(CurrentPlayerIndex, PS_21_GOLEM);

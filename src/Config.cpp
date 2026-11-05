@@ -45,6 +45,9 @@ int DrawMode = 1; // textured quad mode by default
 _D3DTEXTUREFILTERTYPE FilteringMode = D3DTEXF_LINEAR; // bilinear filtration by default
 bool SharpScaling = false; // (th4) sharp bilinear upscaling, see dx_utility.cpp SharpStretch
 bool ShowItemLevelOnGround = false; // (th4) "(ilvl) Name" in the Alt ground labels, automap.cpp HighlightItemsNameOnMap
+bool ShowSocketsOnGround = true; // (heaven) "Name [3]" in the Alt ground labels, automap.cpp GroundItemLabel
+bool UniqueDropSound = true; // (heaven) an extra sound when a unique or set item drops, Item.cpp ProcessItems
+bool LevelClearedSound = true; // (heaven) a sound when the last monster of a level dies, Monster.cpp DelMonster
 bool FsrUpscale = false;   // (th4) AMD FSR 1.0 upscaling, see dx_utility.cpp FsrPresent
 int FsrSharpness = 2;      // (th4) FSR RCAS sharpening, 0..20 = 0.0..2.0 stops (lower = sharper)
 bool IceAgeTreeSnow = true; // (th4) Ice Age: snow-covered, frosted trees in town / Ravenholm (was "IceTreeGlow", from when they glowed; renamed 2026-10-10), TownWater.cpp IceTrees_Active
@@ -273,6 +276,9 @@ ConfigLine ConfigStructure[] = {
 	{ cfgString, MO_INT, "ColdBreath", "Breath vapour in the cold (the Ice Age, and the Glacial Caverns and Frozen Loch in every game): heroes, townsfolk, cows and living monsters breathe out puffs of mist: off, on (= 5), or 1 ... 10", &cfg<ColdBreath> },
 	{ cfgString, MO_INT, "RetroPixel", "Pixel size for RetroMode: 0 = the mode's own size, or 1 ... 8", &cfg<RetroPixel> },
 	{ cfgString, MO_BOOL, "ShowItemLevelOnGround", "Show the required character level in brackets before the name of unidentified magic items on the ground (Alt highlight); not shown for unique and set items", &cfg<ShowItemLevelOnGround>, OFF },
+	{ cfgString, MO_BOOL, "ShowSocketsOnGround", "Show the socket count after the name of items on the ground, like Long Sword [3] (Alt highlight)", &cfg<ShowSocketsOnGround>, ON },
+	{ cfgString, MO_BOOL, "UniqueDropSound", "Play an extra sound when a unique or set item drops", &cfg<UniqueDropSound>, ON },
+	{ cfgString, MO_BOOL, "LevelClearedSound", "Play the sound of a cleared quest area when the last monster of a level dies; Ironman and Survival keep their own sound", &cfg<LevelClearedSound>, ON },
 	{ cfgString, MO_BOOL, "SharpScaling", "Sharper picture when the game resolution is smaller than your screen or window: pixels are enlarged crisply first, then smoothed only at the seams. Needs filter ON. Most visible at low game resolutions", &cfg<SharpScaling>, OFF },
 	{ cfgString, MO_BOOL, "vsync", "V-Sync", &cfg<Vsync>, ON },
 	{ cfgString, MO_INT, "fps", "Max FPS", &cfg<MaxFPS> },

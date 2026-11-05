@@ -1480,6 +1480,8 @@ void __fastcall Ai_29_Redvex_Blackjade( uint monsterIndex	);//	Monster
 void __fastcall Ai_30_Lachdanan( uint monsterIndex	);//	Monster		
 void __fastcall Ai_31_Warlord( uint monsterIndex	);//	Monster		
 void  RemoveKilledMonsters( );//	Monster		
+void LevelClearedSound_LevelLoaded();// Monster (heaven)
+void GroundItemLabel( const Item& item, char (&textOnGround)[256] );// automap (heaven)
 void  ProcessMonsters( );//	Monster		
 void  FreeMonsterResources( );//	Monster		
 int __fastcall MayMoveMonsterToDirection( int monsterIndex, int direction, int range = 1	);//	Monster		
@@ -2878,6 +2880,7 @@ void AutoTest_Error( int dialogId, const char* text );
 void AutoTest_OverrideConfig();
 void AutoTest_PrepareHero();
 void AutoTest_Tick();
+void AutoTest_NoteSound( int soundIndex );
 void __fastcall Transmute_Close();
 void __fastcall Transmute_Draw();
 void __fastcall Transmute_MouseMove();

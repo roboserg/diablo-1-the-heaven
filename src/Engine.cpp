@@ -178,6 +178,7 @@ int __fastcall RandomizeSound(int sound)
 //----- (004186C4) --------------------------------------------------------
 void __fastcall PlayLocalSound(int soundIndex, int row, int col)
 {
+	if( AutoTest_Active() ) AutoTest_NoteSound( soundIndex ); // (heaven) it runs with sound off
 	soundIndex = RandomizeSound(soundIndex);
 	Sound& sound = Sounds[soundIndex];
 	if( soundIndex >= S_0_WALK1 && soundIndex <= S_3_WALK4 && sound.buffer ){

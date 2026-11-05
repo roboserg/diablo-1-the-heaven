@@ -22,7 +22,7 @@ AG's main selling point is that every change is either a game changer picked whe
 - **Auto attack and auto loot** (Godroll, 2–4 Nov): click a monster once and the hero keeps fighting and moves on to the next monster. When nothing is left, it picks up drops and opens chests and shrines. Both can be turned off in the config. Matt called it one of the best QoL features ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1566897157301207190), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1566666441317556229)).
 - **Backpack sort** (Godroll): Backspace packs the inventory and groups items ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1566356389494915172)). The Heaven only sorts the stash, by quality, level, price or picture; ZemoG asked for alphabetical sorting ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1560094942032953345)).
 - **More visible loot:**
-  - socket counts shown on items on the ground (AG, praised by bigguyforyou, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1507815571901907114))
+  - socket counts shown on items on the ground (AG, praised by bigguyforyou, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1507815571901907114)). **Done for the next release.**
   - item outlines always on, without holding Alt (Godroll; Slack Daddy plays on a 65" TV, [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1560172334277464104))
   - inventory cells colored by item quality (Godroll; made optional after Rageweaver and Magnus found it messy, [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1566001049955860556))
 - **More loot, chosen per character** (AG):
@@ -64,9 +64,9 @@ AG's main selling point is that every change is either a game changer picked whe
 ## Combat flow and movement (Godroll)
 - **Pause while a panel is open,** only in battle. It paused everywhere until Marcototech objected ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557063418731569223), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557180033414467658)).
 - **Cooldowns reset out of battle, and buffs last.** Buffs carry across stairs, and Fury, Seeing, Etherealize, Reflect and Mana Shield can be cast in town and stay on ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1565808660582764555), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1556440664609263636), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1563769457631821987)). The Heaven only allows Teleport and Mana Shield in town.
-- **2x speed and faster jogging:** the speed button goes up to 2x, and the game starts at the speed you left it at ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1564886495280496672)). The Heaven stops at 1.5x.
+- **2x speed and faster jogging:** the speed button goes up to 2x, and the game starts at the speed you left it at ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1564886495280496672)). **The 2x speed is done for the next release.** The game still starts at 1x, and jogging is unchanged.
 - **Long walks and WASD:** one click walks any reachable path, and Shift+WASD walks ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1556921339087028344)).
-- **Shift-click on a stat's + spends 5 points.** It was Slack Daddy's idea ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1562576488547614720)).
+- **Shift-click on a stat's + spends 5 points.** It was Slack Daddy's idea ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1562576488547614720)). **Done for the next release.**
 
 ## Map and information (Godroll)
 - **Map overhaul:**
@@ -79,7 +79,7 @@ AG's main selling point is that every change is either a game changer picked whe
 - **Loot and uniques left on the level,** shown while holding Alt and unlocked for a difficulty after killing Uber Diablo there. Gorvex first called it "on the edge of cheating", and Masterteo89 called it a spoiler ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1561201576075591761), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1561299210148642940)).
 - **Game time per hero:** Marcototech asked for it, and Gorvex wants it to compare classes ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1563841690437951532)).
 - **Small touches:**
-  - a sound when a level is cleared, and HP bars marked in quarters (Godroll, [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1564174780658221176), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1567678973779910778))
+  - a sound when a level is cleared, and HP bars marked in quarters (Godroll, [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1564174780658221176), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1567678973779910778)). **The sound is done for the next release.**
   - the player's pain cries when hit by spells and traps, restored (AG, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1559892585064038401))
   - renaming a character (AG, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1527867845998940170))
 

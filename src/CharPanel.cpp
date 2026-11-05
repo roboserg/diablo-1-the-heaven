@@ -569,10 +569,16 @@ void CharPanel_MouseClick()
 	ButtonStatDown = 0;
 	for( int currentButton = 0; currentButton < 4; currentButton++){
 		if( AttributeUpAvail[currentButton] && CursorIntoStatUpButton (currentButton) ){
-            int pointsToSpend = 1;
-			#if CHEATS
-			if( IsShiftPressed ) pointsToSpend = 5;
-			#endif
+            int pointsToSpend = IsShiftPressed ? 5 : 1; // (heaven) Shift spends 5; it was only in developer builds
+			// (heaven) No more than the stat has room for: ModifyPlayerStrength and the others would lose the rest
+			const Player& player = Players[CurrentPlayerIndex];
+			const PlayerStat maxStat = GetPlayerMaxStat( CurrentPlayerIndex );
+			switch( currentButton ){
+			case 0:	LimitToMax(pointsToSpend, maxStat.Strength  - player.BaseStrength);		break;
+			case 1:	LimitToMax(pointsToSpend, maxStat.Magic     - player.BaseMagic);		break;
+			case 2:	LimitToMax(pointsToSpend, maxStat.Dexterity - player.BaseDexterity);	break;
+			case 3:	LimitToMax(pointsToSpend, maxStat.Vitality  - player.BaseVitality);		break;
+			}
 			LimitToMax(pointsToSpend, Players[CurrentPlayerIndex].AvailableLvlPoints);
 			NetSendCmdParam1( 1, CMD_3_ADDSTR + currentButton, pointsToSpend );
 			Players[CurrentPlayerIndex].AvailableLvlPoints -= pointsToSpend;
