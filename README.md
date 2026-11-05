@@ -64,15 +64,6 @@ Want to try the newest features right away? Download the **`nightly`** build fro
 * Re-roll affixes on magic and rare items
 * Item sharing in multiplayer
 
-## Build
-
-Improved development experience vs. the original source:
-* Updated build system for modern Windows environments using **VS Code** (Visual Studio no longer required)
-* Cleaned up codebase (removed dev tools and legacy files)
-* Easy one-command builds via `build.ps1`
-
-See [BUILD.md](docs/BUILD.md) for detailed build instructions.
-
 ## Credits
 
 Based on [the-hell-4-src](https://github.com/roboserg/the-hell-4-src), an upload of The Hell 4 v0.774 source files (dated October 13, 2026) that were publicly released by [The Hell team](https://www.patreon.com/thmod).
