@@ -1602,11 +1602,20 @@ int IsSomeMonstersActivated()
 	return 0;
 }
 
+//----- (heaven) ----------------------------------------------------------
+// BattleLockdown off in config.ini: no lock on saving and leaving in a fight or in a quest area
+// with monsters left, as in Easy. Single player, Normal and Hard: the other modes' rules on this
+// are part of their challenge
+bool IsBattleLockdownOff()
+{
+	return SaveAlwaysEnabled || ( ! BattleLockdown && MaxCountOfPlayersInGame == 1 && is(GameMode, GM_NORMAL, GM_HARD) );
+}
+
 //----- (00777888) --------------------------------------------------------
 bool IsSaveAndLeavingEnabled()
 {
 	// (th4) GM_DARK_CAMPAIGN saves like Easy: always allowed, never blocked by an active battle.
-	return is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || SaveAlwaysEnabled || !IsSomeMonstersActivated();
+	return is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || IsBattleLockdownOff() || !IsSomeMonstersActivated();
 }
 
 //----- (0047935E) --------------------------------------------------------
@@ -1685,7 +1694,7 @@ void CheckTriggers() // CheckPlayersOnDunEntries
 				return;
 			}
 		}else if( warp.GameMessage == WM_1028_RETURN_FROM_QUEST_DUNGEON ){
-			if( MonstersCount == SummonMonsters_Count || SaveAlwaysEnabled || is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) 
+			if( MonstersCount == SummonMonsters_Count || IsBattleLockdownOff() || is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) 
 				|| (MaxCountOfPlayersInGame != 1 && not(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE) ) ){ // Players can leave quest area (back to non-quest area) via stairs anytime in MP
 			//if( true || SaveAlwaysEnabled || is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) || MaxCountOfPlayersInGame != 1 ){ // For faster testing quest area
 				if (!StartNewLvl(CurrentPlayerIndex, warp.GameMessage, Dungeon.returnLvl)) {
@@ -1813,7 +1822,7 @@ void CheckTriggers() // CheckPlayersOnDunEntries
 			AddOnScreenMessage(messageIndex);
 
 		}else if( warp.GameMessage == WM_1032_RETURN_TO_TOWN ){
-			if( Dungeon->isQuest && MonstersCount > SummonMonsters_Count && !SaveAlwaysEnabled && not(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) ){
+			if( Dungeon->isQuest && MonstersCount > SummonMonsters_Count && !IsBattleLockdownOff() && not(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN) ){
 				CannotEnterBeforeClearing(2, OM_2_area_not_cleared);
 				return;
 			}

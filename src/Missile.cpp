@@ -4896,7 +4896,7 @@ void __fastcall CastTownPortal(int missileIndex, int casterRow, int casterCol, i
 	if( casterIndex == CurrentPlayerIndex && !missile.IsDeleted && Dungeon != DUN_0_TOWN ){
 		int destLvl = (DUNGEON)Dungeon;
 		if( Dungeon->isQuest
-		 && MonstersCount > SummonMonsters_Count && !SaveAlwaysEnabled && not(GameMode, GM_EASY, GM_CLASSIC) && MaxCountOfPlayersInGame == 1 ){ // Allow quest area TP in MP
+		 && MonstersCount > SummonMonsters_Count && !IsBattleLockdownOff() && not(GameMode, GM_EASY, GM_CLASSIC) && MaxCountOfPlayersInGame == 1 ){ // Allow quest area TP in MP
 			missile.IsDeleted = true;
 			return;
 		}

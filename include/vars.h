@@ -1645,6 +1645,8 @@ extern bool ShowItemLevelOnGround; // (th4) Config.cpp; used by automap.cpp High
 extern bool ShowSocketsOnGround; // (heaven) Config.cpp; used by automap.cpp GroundItemLabel
 extern bool UniqueDropSound; // (heaven) Config.cpp; used by Item.cpp ProcessItems
 extern bool LevelClearedSound; // (heaven) Config.cpp; used by Monster.cpp DelMonster
+extern bool BattleLockdown;
+extern int SigilDropRate;
 extern bool FsrUpscale;   // (th4) Config.cpp; used by dx_utility.cpp FsrPresent
 extern int FsrSharpness;  // (th4) Config.cpp; 0..20 = 0.0..2.0 stops
 extern int ChromaticAberration; // (th4) Config.cpp; used by dx_utility.cpp PostFxPresent

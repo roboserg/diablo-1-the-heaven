@@ -21,7 +21,13 @@ void TryToDropSigil(int row, int col)
         sdc = 200;
     }
 
-    if (RNG(sdc) == 11)
+    // (heaven) SigilDropRate in config.ini, in percent of the chance above. The cap keeps sdc above
+    // the 11 it is compared with. At 0 the roll stays, so what rolls after it comes out the same
+    int rate = SigilDropRate;
+    LimitToMax(rate, 1000);
+    if (rate > 0) sdc = sdc * 100 / rate;
+
+    if (RNG(sdc) == 11 && rate > 0)
     {
         int sigilIndex = BI_2504_SIGIL_FIRST + (GetRndSeed() % 5);
         int qlvl = ItemLevelByDungeonLevel();

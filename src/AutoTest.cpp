@@ -38,7 +38,9 @@
 //          they are available, also on quest floors, in a battle and while dying
 //   features  Warrior, normal mode: Shift-click on a stat's +, the socket count in ground labels, the
 //          extra sound of unique and set item drops, the 2x speed button and the sound of a cleared
-//          level. The window has sound off, so it reads what PlayLocalSound was asked to play
+//          level, BattleLockdown in a fight and in a quest area, and SigilDropRate. The window has
+//          sound off, so it reads what PlayLocalSound was asked to play
+//   oldconfig  a config.ini from before the options above: they read as their defaults
 //   missingfile  asks for a file no archive has, like a TH4data.mor from an older TH4 would:
 //          the error must name that file and TH4data.mor (bug 13)
 //   nomor  the script removes TH4data.mor first: the game must stop with an error that names
@@ -1981,6 +1983,7 @@ const Phase Phases[] = {
 	{ "qlnightmarenew", HeroQuick, PC_0_WARRIOR, GM_NIGHTMARE, BuildQuickLoadNoSave },
 	{ "qlspeedrunnew",  HeroQuick, PC_0_WARRIOR, GM_SPEEDRUN,  BuildQuickLoadNoSave },
 	{ "features", HeroFeatures, PC_0_WARRIOR, GM_NORMAL, BuildFeatures },
+	{ "oldconfig", HeroFeatures, PC_0_WARRIOR, GM_NORMAL, BuildOldConfig },
 	{ "missingfile", HeroNoData, PC_0_WARRIOR, GM_NORMAL, BuildMissingFile },
 	{ "nomor", HeroNoData,  PC_0_WARRIOR, GM_NORMAL,  BuildNoMor },
 };

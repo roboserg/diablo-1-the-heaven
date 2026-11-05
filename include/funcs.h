@@ -2428,6 +2428,7 @@ void CloseDenPortals();
 void TheDenScript();
 void Lava_Pits_Script();
 int  IsSomeMonstersActivated( );//	Warp		
+bool  IsBattleLockdownOff( );// Warp (heaven)
 bool  IsSaveAndLeavingEnabled( );//	Warp		
 i64 GetTickCountTh();
 

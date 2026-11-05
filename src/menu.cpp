@@ -55,7 +55,7 @@ void SPMainMenuHandler()
 	// left to the "!Dungeon->isQuest" fallback: the Hideout and every campaign mission are
 	// QUEST floors, so without this the Save Game item would be greyed out everywhere.
 	if( Players[CurrentPlayerIndex].CurAction != PCA_8_DEATH
-	 && (SaveAlwaysEnabled || is(GameMode, GM_EASY, GM_CLASSIC, GM_DARK_CAMPAIGN) || !Dungeon->isQuest) && IsSaveAndLeavingEnabled() && !IsPlayerDead  && EnforceNoSave == false ){
+	 && (IsBattleLockdownOff() || is(GameMode, GM_EASY, GM_CLASSIC, GM_DARK_CAMPAIGN) || !Dungeon->isQuest) && IsSaveAndLeavingEnabled() && !IsPlayerDead  && EnforceNoSave == false ){
 		isSaveGameEnabled = 1;
 	}
 

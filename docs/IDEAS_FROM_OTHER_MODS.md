@@ -32,7 +32,7 @@ AG's main selling point is that every change is either a game changer picked whe
 
   Masterteo89 calls All Drop one of AG's winning points ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1508076361837969439), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1539195315067035749), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1560143047692386366)).
 - **Sigils:**
-  - AG added a config setting for the sigil drop rate, from 0% to 1000% ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1561043669161738361)).
+  - AG added a config setting for the sigil drop rate, from 0% to 1000% ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1561043669161738361)). **The Heaven's `SigilDropRate` is done for the next release.**
   - Players also asked to reroll useless sigil bonuses ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1507918058671312980)) and to recycle 2–3 sigils into one at Cain ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1559984115443564585)).
   - Godroll puts picked-up sigils straight into the sigil bag ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558226796514902170)).
 

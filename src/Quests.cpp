@@ -988,7 +988,7 @@ void QuestsActions()
 				nextLocIndex = DUN_30_HALLS_OF_ANGUISH;
 			}
 			if( nextLocIndex ){
-				if( MonstersCount <= SummonMonsters_Count || is(GameMode, GM_EASY, GM_CLASSIC)){
+				if( MonstersCount <= SummonMonsters_Count || is(GameMode, GM_EASY, GM_CLASSIC) || IsBattleLockdownOff() ){
 					StartNewLvl(CurrentPlayerIndex, WM_1029_GOTO_QUEST_DUNGEON, nextLocIndex);
 				}else{
 					AddOnScreenMessage(OM_2_area_not_cleared);
@@ -1046,7 +1046,7 @@ void QuestsActions()
 ONSCREEN_MESSAGE BlockMessageToQuestDungeon()
 {	
 	ONSCREEN_MESSAGE msg = OM_0_NO_MESSAGE;
-	if( is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || SaveAlwaysEnabled
+	if( is(GameMode, GM_EASY, GM_CLASSIC, GM_SPEEDRUN, GM_DARK_CAMPAIGN) || IsBattleLockdownOff()
 		|| (MaxCountOfPlayersInGame != 1 && not(GameMode, GM_IRONMAN, GM_SURVIVAL, GM_NIGHTMARE)) ){ // Easy, Speedrun, Dark Campaign, Multi, Cheat -> always can
 		// can go
 	}

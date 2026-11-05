@@ -48,6 +48,8 @@ bool ShowItemLevelOnGround = false; // (th4) "(ilvl) Name" in the Alt ground lab
 bool ShowSocketsOnGround = true; // (heaven) "Name [3]" in the Alt ground labels, automap.cpp GroundItemLabel
 bool UniqueDropSound = true; // (heaven) an extra sound when a unique or set item drops, Item.cpp ProcessItems
 bool LevelClearedSound = true; // (heaven) a sound when the last monster of a level dies, Monster.cpp DelMonster
+bool BattleLockdown = true; // (heaven) off: save, town portal and leave in a fight, Warp.cpp IsBattleLockdownOff
+int SigilDropRate = 100; // (heaven) in percent of the game's own chance, Sigils.cpp TryToDropSigil
 bool FsrUpscale = false;   // (th4) AMD FSR 1.0 upscaling, see dx_utility.cpp FsrPresent
 int FsrSharpness = 2;      // (th4) FSR RCAS sharpening, 0..20 = 0.0..2.0 stops (lower = sharper)
 bool IceAgeTreeSnow = true; // (th4) Ice Age: snow-covered, frosted trees in town / Ravenholm (was "IceTreeGlow", from when they glowed; renamed 2026-10-10), TownWater.cpp IceTrees_Active
@@ -279,6 +281,8 @@ ConfigLine ConfigStructure[] = {
 	{ cfgString, MO_BOOL, "ShowSocketsOnGround", "Show the socket count after the name of items on the ground, like Long Sword [3] (Alt highlight)", &cfg<ShowSocketsOnGround>, ON },
 	{ cfgString, MO_BOOL, "UniqueDropSound", "Play an extra sound when a unique or set item drops", &cfg<UniqueDropSound>, ON },
 	{ cfgString, MO_BOOL, "LevelClearedSound", "Play the sound of a cleared quest area when the last monster of a level dies; Ironman and Survival keep their own sound", &cfg<LevelClearedSound>, ON },
+	{ cfgString, MO_BOOL, "BattleLockdown", "Single player, Normal and Hard: off lets you save, town portal and leave a level in a fight and in a quest area with monsters left, as in Easy", &cfg<BattleLockdown>, ON },
+	{ cfgString, MO_INT, "SigilDropRate", "How often sigils drop, in percent of the game's own chance: 0 ... 1000 (default 100)", &cfg<SigilDropRate> },
 	{ cfgString, MO_BOOL, "SharpScaling", "Sharper picture when the game resolution is smaller than your screen or window: pixels are enlarged crisply first, then smoothed only at the seams. Needs filter ON. Most visible at low game resolutions", &cfg<SharpScaling>, OFF },
 	{ cfgString, MO_BOOL, "vsync", "V-Sync", &cfg<Vsync>, ON },
 	{ cfgString, MO_INT, "fps", "Max FPS", &cfg<MaxFPS> },
@@ -492,6 +496,9 @@ void GetUserParameters()
 	// (th4) FSR sharpening: MO_INT options are only converted here (IniFile.cpp stores text);
 	// an absent key reads as "" (ZeroCfg), so keep the default 2 instead of atoi("") = 0.
 	if( *(char*)cfg<FsrSharpness> ) FsrSharpness = atoi(cfg<FsrSharpness>);
+	// (heaven) An absent key keeps 100, and so does "on", which atoi would read as 0
+	if( isdigit( (uchar)*(char*)cfg<SigilDropRate> ) ) SigilDropRate = atoi(cfg<SigilDropRate>);
+	else if( !_stricmp( cfg<SigilDropRate>, "off" ) ) SigilDropRate = 0;
 	// (th4) Post-effect strengths are numbers 0..10, but players naturally write on/off like
 	// every other switch in config.ini, and atoi("on") is 0. So: off / absent -> 0, on -> a
 	// medium default, a number -> that number (clamped 0..10 where it is used, PostFxPresent).

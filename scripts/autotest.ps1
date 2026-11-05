@@ -29,7 +29,7 @@
 .PARAMETER Only
     Run only these phases. other and owner need the shared stash main leaves behind and
     every run starts from a fresh folder, so on their own they fail: use it to run main,
-    oldsave, a ql* phase, features, missingfile or nomor alone.
+    oldsave, a ql* phase, features, oldconfig, missingfile or nomor alone.
 
 .PARAMETER TimeoutSec
     How long one phase may run before it counts as hung and is stopped.
@@ -41,7 +41,7 @@
 param(
     [switch]$Build,
     [switch]$Show,
-    [ValidateSet("oldsave", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "features", "missingfile", "nomor")][string[]]$Only,
+    [ValidateSet("oldsave", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "features", "oldconfig", "missingfile", "nomor")][string[]]$Only,
     [int]$TimeoutSec = 240
 )
 
@@ -51,7 +51,7 @@ $ErrorActionPreference = "Stop"
 $repo  = Resolve-Path "$PSScriptRoot\.."
 $buildDir = Join-Path $repo "build"
 $run   = Join-Path $buildDir "autotest"
-$phases = @("oldsave", "features", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
+$phases = @("oldsave", "features", "oldconfig", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
 if ($Only) { $phases = @($phases | Where-Object { $Only -contains $_ }) }
 
 function Fail([string]$msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 2 }
@@ -107,6 +107,14 @@ foreach ($phase in $phases) {
     Write-Host "==> autotest $phase" -ForegroundColor Cyan
     if ($phase -eq "oldsave") { Copy-Item (Join-Path $oldSave "*") $run -Recurse -Exclude "README.md" }
     if ($phase -eq "nomor") { Remove-Item (Join-Path $run "TH4data.mor") } # this folder's link or copy, not build\TH4data.mor
+    $shippedConfig = Join-Path $repo "res\config.ini"
+    $configFile = Join-Path $run "config.ini"
+    if ($phase -eq "features") { # options a player changed in the file
+        (Get-Content $shippedConfig) -replace '^set BattleLockdown on\b', 'set BattleLockdown off' -replace '^set SigilDropRate 100\b', 'set SigilDropRate 250' | Set-Content $configFile
+    }
+    if ($phase -eq "oldconfig") { # a player's file from before the options
+        (Get-Content $shippedConfig) -notmatch '^set (BattleLockdown|SigilDropRate|ShowSocketsOnGround|UniqueDropSound|LevelClearedSound) ' | Set-Content $configFile
+    }
     $gameArgs = @("-autotest", $phase)
     if ($Show) { $gameArgs += "-show" }
     $p = Start-Process -FilePath (Join-Path $run "TheHeaven.exe") -ArgumentList $gameArgs -WorkingDirectory $run -PassThru
@@ -129,6 +137,7 @@ foreach ($phase in $phases) {
         Write-Host "    timed out after $TimeoutSec s, stopped" -ForegroundColor Red
     }
     Stop-AutotestGames # nothing may outlive its phase
+    Copy-Item $shippedConfig $configFile # the next phase has what players get
     $reportFile = Join-Path $run "autotest-$phase.json"
     if (Test-Path $reportFile) {
         $report = Get-Content $reportFile -Raw | ConvertFrom-Json
@@ -144,7 +153,7 @@ foreach ($phase in $phases) {
         if ($c.detail -and -not $c.pass) { Write-Host "          $($c.detail)" -ForegroundColor DarkGray }
     }
     $results += $report
-    if ($phase -eq "oldsave" -or $phase -like "ql*" -or $phase -eq "features") { # the next phases start from no saves
+    if ($phase -eq "oldsave" -or $phase -like "ql*" -or $phase -eq "features" -or $phase -eq "oldconfig") { # the next phases start from no saves
         Get-ChildItem $run -Directory -Filter "th4_save_*" | Remove-Item -Recurse -Force
         Remove-Item (Join-Path $run "oldsave-manifest.txt") -ErrorAction SilentlyContinue
         continue

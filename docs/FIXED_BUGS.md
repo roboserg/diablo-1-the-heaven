@@ -19,6 +19,8 @@ These go into `CHANGELOG.md` and the release notes with the table above. The aut
 - **Socket counts on the ground:** with Alt, an item's label ends with its socket count, like `Long Sword [3]`. As in the tooltip, Ironman, Nightmare and Speedrun hide the count on unique and set items. Config: `ShowSocketsOnGround`, on by default.
 - **A drop sound for unique and set items:** a new drop also plays `Sfx\Items\Flipmag.wav`, which nothing else in the game plays. Rare items and items a player puts down don't play it. Config: `UniqueDropSound`, on by default.
 - **A sound for a cleared level:** when the last monster of a level dies, the game plays the cleared quest area's sound, once. A level cleared earlier stays quiet when entered again, and Ironman and Survival keep their own sound. Config: `LevelClearedSound`, on by default.
+- **Save and town portal in a fight, as an option:** `set BattleLockdown off` in config.ini lets a single player game on Normal or Hard save, town portal and leave a level in a fight and in a quest area with monsters left, as in Easy. Players call this lock VISE. It stays on by default, and the other modes keep their rules.
+- **How often sigils drop, as an option:** `SigilDropRate` in config.ini, in percent of the game's own chance, from 0 to 1000. It is 100 by default. Each player's game rolls its own drops, so in multiplayer it changes only that player's.
 
 ## Details of the v0.3.0 fixes
 

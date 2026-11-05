@@ -2291,7 +2291,7 @@ int __fastcall IsSpellEnabledHere(int spell, int playerIndex)// #quest level spe
 	if( IsSpellBannedInDarkCampaign(spell) ) return 0;
 	//if(GameMode == GM_CLASSIC && Dungeon == DUN_16_HELL_4 && is(spell, PS_10_PHASING, PS_23_TELEPORT)){ return 0; }
 	if( Dungeon->isQuest /*&& GameMode != GM_EASY*/ ){
-		if( MonstersCount > SummonMonsters_Count && !SaveAlwaysEnabled && not(GameMode, GM_EASY, GM_CLASSIC) && spell == PS_7_TOWN_PORTAL && MaxCountOfPlayersInGame == 1 //Allow quest area TP in MP
+		if( MonstersCount > SummonMonsters_Count && !IsBattleLockdownOff() && not(GameMode, GM_EASY, GM_CLASSIC) && spell == PS_7_TOWN_PORTAL && MaxCountOfPlayersInGame == 1 //Allow quest area TP in MP
 		
 			|| is( Dungeon, DUN_32_HORAZONS_HAVEN, DUN_33_SUMMONING_ROOMS, DUN_34_THE_PIT ) && is( spell, PS_10_PHASING, PS_23_TELEPORT, PS_33_TELEKINES, PS_42_WARP)
 		

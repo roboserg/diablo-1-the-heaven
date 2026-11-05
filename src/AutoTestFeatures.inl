@@ -135,22 +135,117 @@ bool MonstersDying()
 	return false;
 }
 
-// Goes to a level and lets it settle
-void AddFeaturesGoTo( DUNGEON level, uint message )
+void HealHero() { Hero().CurLife = Hero().MaxCurLife; }
+
+bool OnScreenShows( int messageIndex )
 {
-	Steps.push_back( { "go to the level", [=]{
-		if( (DUNGEON)Dungeon != level ) StartNewLvl( CurrentPlayerIndex, message, level );
-		return Next;
+	for( uchar i = OnScreenMessage::Head; i != OnScreenMessage::Tail; ++i ){
+		if( OnScreenMessage::Queue[i].index == messageIndex ) return true;
+	}
+	return false;
+}
+
+// Stairs as the hero finds them: stands the hero on the level's warp for the game's own check
+bool TakeWarp( int message )
+{
+	Player& p = Hero();
+	for( const Warp& warp: Warps ){
+		if( warp.GameMessage != message ) continue;
+		const int row = p.Row, col = p.Col;
+		p.Row = warp.Row;
+		p.Col = warp.Col;
+		CheckTriggers();
+		p.Row = row;
+		p.Col = col;
+		return true;
+	}
+	return false;
+}
+
+// Stairs to town, the kind a quest area can have: added under the hero where the level has none
+bool TakeWarpToTown()
+{
+	Warps.push_back( { Hero().Row, Hero().Col, WM_1032_RETURN_TO_TOWN, DUN_0_TOWN } );
+	const bool taken = TakeWarp( WM_1032_RETURN_TO_TOWN );
+	Warps.pop_back();
+	return taken;
+}
+
+// The hero's town portal, moved under the hero as if it had walked in. Returns the missile
+int OpenPortalUnderHero()
+{
+	const Player& p = Hero();
+	const int portal = CastMissile( p.Row, p.Col, p.Row, p.Col, p.dir, MI_10_TOWN_PORTAL, CT_0_PLAYER, CurrentPlayerIndex, 0, 0, 0 );
+	if( ! Missiles[portal].IsDeleted ){
+		Missiles[portal].Row = p.Row;
+		Missiles[portal].Col = p.Col;
+	}
+	return portal;
+}
+
+// Waits for a level change the hero started, and checks it came
+void AddLeftLevel( const char* name, DUNGEON from )
+{
+	Steps.push_back( { name, [=, wait = 100]() mutable {
+		if( (DUNGEON)Dungeon == from && wait-- > 0 ) return Retry;
+		Check( name, (DUNGEON)Dungeon != from, Fmt( "on level %d", (int)(DUNGEON)Dungeon ) );
+		return 20;
 	} } );
-	Steps.push_back( { "on the level", [level, settle = 20]() mutable {
-		if( (DUNGEON)Dungeon != level ) return Retry;
-		return settle-- > 0 ? Retry : Next;
+}
+
+// F9 and the save file's time: the same check as the F9 phases
+void CheckF9Saves( const char* name )
+{
+	const i64 before = SaveFileTime();
+	KeyPressHandler( VK_120_F9_KEY );
+	Check( name, SaveFileTime() != before );
+}
+
+// Rolls for a sigil as a monster's death does, from the same start each time, and takes each one
+// that drops off the ground again
+int RollSigils( int rate, int rolls )
+{
+	SigilDropRate = rate;
+	SetRndSeed( 12345 );
+	int sigils = 0;
+	for( int i = 0; i < rolls; ++i ){
+		const int before = ItemsCount;
+		TryToDropSigil( Hero().Row, Hero().Col );
+		if( ItemsCount == before ) continue;
+		const int index = ItemActive[ItemsCount - 1];
+		if( Items[index].baseItemIndex >= BI_2504_SIGIL_FIRST && Items[index].baseItemIndex <= BI_2508_SIGIL_LAST ) ++sigils;
+		ItemMap[Items[index].MapRow][Items[index].MapCol] = 0;
+		DeleteItem( index, ItemsCount - 1 );
+	}
+	return sigils;
+}
+
+// A config.ini from before the options: autotest.ps1 takes their lines out
+void BuildOldConfig()
+{
+	AddStartSteps( GM_NORMAL );
+	Steps.push_back( { "the options a config.ini doesn't have yet", []{
+		Check( "a config.ini without the new options reads as their defaults",
+			BattleLockdown && SigilDropRate == 100 && ShowSocketsOnGround && UniqueDropSound && LevelClearedSound,
+			Fmt( "BattleLockdown %d, SigilDropRate %d, ShowSocketsOnGround %d, UniqueDropSound %d, LevelClearedSound %d",
+				(int)BattleLockdown, SigilDropRate, (int)ShowSocketsOnGround, (int)UniqueDropSound, (int)LevelClearedSound ) );
+		return Next;
 	} } );
 }
 
 void BuildFeatures()
 {
 	AddStartSteps( GM_NORMAL );
+
+	// autotest.ps1 changes these two in the shipped config.ini for this phase, so a line missing or a
+	// default changed there fails here too
+	Steps.push_back( { "the options from config.ini", []{
+		Check( "BattleLockdown off and SigilDropRate 250 in config.ini are read", ! BattleLockdown && SigilDropRate == 250,
+			Fmt( "BattleLockdown %d, SigilDropRate %d", (int)BattleLockdown, SigilDropRate ) );
+		BattleLockdown = true;
+		SigilDropRate = 100;
+		return Next;
+	} } );
 
 	// Shift-click on a stat's + spends 5 points, not more than there are or than fit
 	AddStatClick( "Shift-click on a stat's + spends 5 points", 0, true, 13, -1, 5 );
@@ -228,7 +323,7 @@ void BuildFeatures()
 	} } );
 
 	// The sound of a cleared level
-	AddFeaturesGoTo( DUN_1_CHURCH_1, WM_1026_NEXT_DUNGEON );
+	AddGoTo( DUN_1_CHURCH_1, WM_1026_NEXT_DUNGEON );
 	Steps.push_back( { "kill all the monsters but one", []{
 		SoundsPlayed.clear();
 		const vector<int> left = MonstersLeft();
@@ -249,7 +344,7 @@ void BuildFeatures()
 			Fmt( "%d left, played %d times", GetNumberOfMonstersInDungeon(), CountSound( S_14_QUESTDON ) ) );
 		return Next;
 	} } );
-	AddFeaturesGoTo( DUN_2_CHURCH_2, WM_1026_NEXT_DUNGEON );
+	AddGoTo( DUN_2_CHURCH_2, WM_1026_NEXT_DUNGEON );
 	// What DeltaLoadLevel does on entering a level in multiplayer: the monsters killed earlier are
 	// flagged during the load, and go through DelMonster on the first tick
 	Steps.push_back( { "a level cleared earlier, entered as in multiplayer", []{
@@ -267,9 +362,185 @@ void BuildFeatures()
 		SoundsPlayed.clear();
 		return Next;
 	} } );
-	AddFeaturesGoTo( DUN_1_CHURCH_1, WM_1027_PREV_DUNGEON );
+	AddGoTo( DUN_1_CHURCH_1, WM_1027_PREV_DUNGEON );
 	Steps.push_back( { "the cleared level stays quiet", []{
 		Check( "entering a level cleared earlier plays no clear sound", CountSound( S_14_QUESTDON ) == 0, Fmt( "played %d times", CountSound( S_14_QUESTDON ) ) );
 		return Next;
 	} } );
+
+	// The battle lockdown: a fight on an ordinary level, as the game has it
+	AddGoTo( DUN_3_CHURCH_3, WM_1026_NEXT_DUNGEON );
+	Steps.push_back( { "a fight, with the lockdown on", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		StartBattle();
+		Check( "with BattleLockdown on, Save Game is off in a fight", ! MenuOffers( MenuSave ) );
+		const i64 before = SaveFileTime();
+		KeyPressHandler( VK_120_F9_KEY );
+		Check( "with BattleLockdown on, F9 doesn't save in a fight", SaveFileTime() == before );
+		ClearOnScreenMessages();
+		const bool stairs = TakeWarp( WM_1026_NEXT_DUNGEON );
+		Check( "with BattleLockdown on, the stairs refuse in a fight", stairs && OnScreenShows( OM_4_battle_not_over ) );
+		Check( "with BattleLockdown on, a quest area's entrance refuses in a fight", BlockMessageToQuestDungeon() == OM_4_battle_not_over );
+		return 20;
+	} } );
+	Steps.push_back( { "the portal, with the lockdown on", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		StartBattle();
+		ClearOnScreenMessages();
+		OpenPortalUnderHero();
+		return 10;
+	} } );
+	Steps.push_back( { "the portal refused", []{
+		Check( "with BattleLockdown on, a town portal refuses in a fight", OnScreenShows( OM_4_battle_not_over ) && (DUNGEON)Dungeon == DUN_3_CHURCH_3,
+			Fmt( "on level %d", (int)(DUNGEON)Dungeon ) );
+		return 20;
+	} } );
+
+	// The same fight with the lockdown off: the menu, then a save and a load in the fight
+	Steps.push_back( { "a fight, with the lockdown off", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		BattleLockdown = false;
+		StartBattle();
+		Check( "with BattleLockdown off, Save Game is on in a fight", MenuOffers( MenuSave ) );
+		Check( "with BattleLockdown off, a quest area's entrance opens in a fight", BlockMessageToQuestDungeon() == OM_0_NO_MESSAGE );
+		SelectMainMenu();
+		return 3;
+	} } );
+	Steps.push_back( { "screenshot", []{
+		Shot( "pause-menu-in-a-fight" );
+		Menu_SetupMenuWindow( 0, 0 );
+		return Next;
+	} } );
+	Steps.push_back( { "save in the fight", []{
+		StartBattle();
+		CheckF9Saves( "with BattleLockdown off, F9 saves in a fight" );
+		AddMarker();
+		KeyPressHandler( VK_123_F12_KEY );
+		return 20;
+	} } );
+	Steps.push_back( { "load it", []{
+		Check( "and F12 loads that save, with the fight still on", ! HasMarker() && (DUNGEON)Dungeon == DUN_3_CHURCH_3 && IsSomeMonstersActivated(),
+			Fmt( "marker %d, level %d, fight %d", (int)HasMarker(), (int)(DUNGEON)Dungeon, IsSomeMonstersActivated() ) );
+		return Next;
+	} } );
+
+	// Only single player, Normal and Hard
+	Steps.push_back( { "the modes it leaves alone", []{
+		HealHero();
+		StartBattle();
+		const GAME_MODE mode = GameMode;
+		const bool noSave = EnforceNoSave;
+		struct { GAME_MODE mode; const char* name; } modes[] = { { GM_HARDCORE, "Hardcore" }, { GM_IRONMAN, "Ironman" }, { GM_NIGHTMARE, "Nightmare" },
+			{ GM_SURVIVAL, "Survival" }, { GM_OUTBREAK, "Outbreak" } };
+		for( const auto& m: modes ){
+			GameMode = m.mode;
+			Check( Fmt( "with BattleLockdown off, %s keeps its lock: no Save Game and no leaving in a fight", m.name ).c_str(),
+				! MenuOffers( MenuSave ) && ! IsSaveAndLeavingEnabled() );
+			EnforceNoSave = noSave; // Nightmare's menu turns it on
+		}
+		GameMode = GM_HARD;
+		Check( "with BattleLockdown off, Hard has Save Game and leaving in a fight", MenuOffers( MenuSave ) && IsSaveAndLeavingEnabled() );
+		GameMode = mode;
+		MaxCountOfPlayersInGame = 2;
+		const bool offInMultiplayer = IsBattleLockdownOff();
+		MaxCountOfPlayersInGame = 1;
+		Check( "with BattleLockdown off, multiplayer keeps its own rules", ! offInMultiplayer );
+		return Next;
+	} } );
+
+	// How often sigils drop. In the same step, so nothing else rolls in between
+	Steps.push_back( { "sigils", []{
+		const int rolls = 40000; // 1 in 800 at 100%: about 50 sigils
+		const int at0 = RollSigils( 0, rolls ), at50 = RollSigils( 50, rolls ), at100 = RollSigils( 100, rolls );
+		const int at250 = RollSigils( 250, rolls ), at1000 = RollSigils( 1000, rolls ), at5000 = RollSigils( 5000, rolls );
+		const string counts = Fmt( "in %d rolls: 0%% %d, 50%% %d, 100%% %d, 250%% %d, 1000%% %d, 5000%% %d", rolls, at0, at50, at100, at250, at1000, at5000 );
+		Check( "SigilDropRate 0 drops no sigils", at0 == 0, counts );
+		Check( "SigilDropRate 100 keeps the game's 1 in 800", at100 >= 25 && at100 <= 80, counts );
+		Check( "SigilDropRate 50 drops half as many", at50 >= 8 && at50 <= 45, counts );
+		Check( "SigilDropRate 250 drops 2.5 times as many", at250 >= 85 && at250 <= 170, counts );
+		Check( "SigilDropRate 1000 drops 10 times as many", at1000 >= 400 && at1000 <= 600, counts );
+		Check( "SigilDropRate above 1000 counts as 1000", at5000 == at1000, counts );
+		const GAME_MODE mode = GameMode;
+		GameMode = GM_DARK_CAMPAIGN; // the game's best chance, 1 in 200
+		const int inCampaign = RollSigils( 1000, 4000 );
+		GameMode = mode;
+		SigilDropRate = 100;
+		Check( "at 1000% the Dark Campaign's 1 in 200 becomes 1 in 20", inCampaign >= 140 && inCampaign <= 260, Fmt( "%d sigils in 4000 rolls", inCampaign ) );
+		return Next;
+	} } );
+
+	// Stairs and the portal in the fight, with the lockdown off
+	Steps.push_back( { "the stairs in the fight", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		StartBattle();
+		TakeWarp( WM_1026_NEXT_DUNGEON );
+		return Next;
+	} } );
+	AddLeftLevel( "with BattleLockdown off, the stairs work in a fight", DUN_3_CHURCH_3 );
+	Steps.push_back( { "the portal in the fight", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		StartBattle();
+		OpenPortalUnderHero();
+		return Next;
+	} } );
+	AddLeftLevel( "with BattleLockdown off, a town portal works in a fight", DUN_4_CHURCH_4 );
+
+	// A quest area with monsters left
+	Steps.push_back( { "the lockdown on again", []{ BattleLockdown = true; return Next; } } );
+	AddGoToQuestFloor();
+	Steps.push_back( { "a quest area, with the lockdown on", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		Check( "the quest area has monsters left", MonstersCount > SummonMonsters_Count );
+		Check( "with BattleLockdown on, Save Game is off in a quest area with monsters left", ! MenuOffers( MenuSave ) );
+		Check( "with BattleLockdown on, town portal can't be cast there", ! IsSpellEnabledHere( PS_7_TOWN_PORTAL, CurrentPlayerIndex ) );
+		Check( "with BattleLockdown on, a town portal doesn't open there", Missiles[OpenPortalUnderHero()].IsDeleted );
+		ClearOnScreenMessages();
+		const bool stairs = TakeWarp( WM_1028_RETURN_FROM_QUEST_DUNGEON );
+		Check( "with BattleLockdown on, the stairs back refuse there", stairs && OnScreenShows( OM_2_area_not_cleared ) );
+		Check( "with BattleLockdown on, the next quest area's entrance refuses there", BlockMessageToQuestDungeon() == OM_2_area_not_cleared );
+		return 20;
+	} } );
+	Steps.push_back( { "stairs to town, with the lockdown on", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		ClearOnScreenMessages();
+		const bool stairs = TakeWarpToTown();
+		Check( "with BattleLockdown on, stairs to town refuse there", stairs && OnScreenShows( OM_2_area_not_cleared ) );
+		return 20;
+	} } );
+	Steps.push_back( { "a quest area, with the lockdown off", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		BattleLockdown = false;
+		Check( "with BattleLockdown off, Save Game is on in a quest area with monsters left", MenuOffers( MenuSave ) );
+		Check( "with BattleLockdown off, the next quest area's entrance opens there", BlockMessageToQuestDungeon() == OM_0_NO_MESSAGE );
+		CheckF9Saves( "with BattleLockdown off, F9 saves there" );
+		Check( "with BattleLockdown off, town portal can be cast there", IsSpellEnabledHere( PS_7_TOWN_PORTAL, CurrentPlayerIndex ) );
+		Check( "with BattleLockdown off, a town portal opens there", ! Missiles[OpenPortalUnderHero()].IsDeleted );
+		return Next;
+	} } );
+	AddLeftLevel( "with BattleLockdown off, that town portal takes the hero out", DUN_25_KING_LEORICS_TOMB );
+	AddGoToQuestFloor();
+	Steps.push_back( { "the stairs back", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		TakeWarp( WM_1028_RETURN_FROM_QUEST_DUNGEON );
+		return Next;
+	} } );
+	AddLeftLevel( "with BattleLockdown off, the stairs back work there", DUN_25_KING_LEORICS_TOMB );
+	AddGoToQuestFloor();
+	Steps.push_back( { "stairs to town", []{
+		if( Hero().CurAction != PCA_0_STAND ) return Retry;
+		HealHero();
+		TakeWarpToTown();
+		return Next;
+	} } );
+	AddLeftLevel( "with BattleLockdown off, stairs to town work there", DUN_25_KING_LEORICS_TOMB );
+	Steps.push_back( { "the lockdown back on", []{ BattleLockdown = true; return Next; } } );
 }
