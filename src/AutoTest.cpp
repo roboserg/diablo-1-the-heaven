@@ -1482,7 +1482,9 @@ void BuildOther()
 					if( locked ) ++morphedLocked;
 					else if( wrong.empty() ) wrong = "not locked: " + Describe( item ) + "  was: " + listed->second;
 					if( example.empty() ) example = "Warrior's: " + listed->second + "  Mage's: " + Describe( item );
-				}else{
+				}else if( ! (item.dropType & D_SHOP) ){
+					// Not shop items: their stock is random, and one can swap an affix for another with
+					// the same effects and another name, which isn't in this comparison but is rightly locked
 					++same;
 					if( locked ){ ++sameLocked; if( wrong.empty() ) wrong = "locked but the same: " + Describe( item ); }
 				}
