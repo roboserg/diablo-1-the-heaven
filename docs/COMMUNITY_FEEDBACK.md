@@ -38,6 +38,7 @@ The most-reported bug.
   - Rageweaver, 25 May: a magic ring changed after switching characters, even though both were Dimachaerus and could use it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581640606322860))
   - Rageweaver, 3 Apr: blue items change while in the shared stash and change back once taken out ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489618645180219423))
   - Mordor (TH4 author), 26 May: this is one of the reasons loot must not be shared ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508761056175063112))
+  - Masterteo89, 26 May, suggests sharing only items every class can use, like Giant Knuckle ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508834029565251675))
   - Marcototech (Discord) and Gron21 (GitHub issue #3) can't reproduce it moving items between Paladin, Archer and Mage. Marcototech suspects it only happens between two characters of the same class.
 - **In the inventory:** kishak95, 4 Apr: affixes on an item keep disappearing and coming back, even on an unidentified item that was never in the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490072463659503820), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490074289679106128))
 - **Cause** (Gorvex, 17 Sep, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1550231476996538450)):
@@ -67,11 +68,13 @@ The changelog (v0.0.4) says the per-level stat cap is doubled.
 ### 6. Multiplayer gaps
 - Marcototech, 21 Jun, two PCs on the same LAN: time speed (Acceleration game changer) can't be changed, and other players can't see dropped items ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1518059339343069234)). Separate loot per player is probably base TH4 behavior.
 - Itadori, 14 Aug: the 5x XP option doesn't work in multiplayer and they'd like it to ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537844932948263002)). Their group plays TH4 with the Anti-Grind submod in multiplayer and The Heaven in single player.
+- **Single-player items reach multiplayer.** The changelog says the shared stash is for single-player characters, but Marcototech sees SP items in the MP stash (19 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1517491398708957364)), with 5 SP characters and 1 MP character all using the same stash (14 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537852169124843660)). He counts it as an advantage over Anti-Grind. Decide whether to keep or block it.
 
 ### 7. Sisyphean Task silently hides Swift Learner
 UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift Learner perk, and nothing in the game says why. Worth noting in the trait or perk description ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536870226858082446)).
 
-### 8. Wrong documentation
+### 8. Documentation
+- **The shared stash is hard to find.** Tharunes and Zgeg couldn't find it (25–26 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581213928161373)). It's at Gillian; worth saying in the README.
 - `docs/QUESTS.md` says killing Diablo on level 15 ends the game. In TH4 the ending only plays after Uber Diablo. Azzi pointed it out as an AI-written mistake ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490548888031985787)); Blackheart confirmed the Uber Diablo ending in `#the-heaven` on 15 Jul.
 
 ### 9. Other open GitHub issues
@@ -83,9 +86,9 @@ UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift
 ### Most asked
 - **Rebase on the latest TH4.** Mordor has released the latest TH4 source in the downloads section of [patreon.com/thmod](https://www.patreon.com/thmod/about) (Slack Daddy, 14 Oct, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1559691391121104967); Nikodemsky, 4 Nov, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1567663591039959160)). It would bring:
   - pixel light (Rageweaver, 2 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489260002702262423)). Gorvex advised waiting for the newer source instead of porting it by hand.
-  - the Wirt power-up and sigils (Ponder, 2 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511302320934228008))
+  - the Wirt power-up and sigils (Ponder, 2 Jun, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511302320934228008); Tharunes missed the sigils, 25 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508582352429777048))
 - **Remove VISE in single player** (VISE is what players call not being able to save or town-portal during combat). Rageweaver calls it the most-asked feature after the shared stash ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489271217545412700)).
-- **Multiplayer trading and more than 4 players** (Danycron, 30 Mar). You released an experimental 8-player build on 31 Mar ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488550931464458383)); no one reported back on it.
+- **Multiplayer trading and more than 4 players** (Danycron, 30 Mar). Zgeg (26 May, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508654276639981649)) and UbergamR (12 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536859083250999357)) also asked about trading. You released an experimental 8-player build on 31 Mar ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488550931464458383)); no one reported back on it.
 - **5x XP in multiplayer** (Itadori, see bug 6).
 - **Keep -light radius** on uniques (see bug 4).
 
@@ -94,6 +97,8 @@ UbergamR, 12 Aug: a character with the Sisyphean Task trait can't pick the Swift
 - **More gear crafting** (Danycron, 6 Apr, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490550986094280834), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551174745559123)):
   - a gamble that adds affixes to blue items
   - "slamming" gear with gems bought in town: a chance at a good affix, a large chance to ruin the item (like worldstone shards in Project Diablo 2)
+- **A gold cheat or more lenient cheat options.** Itadori says The Heaven is the best version they found, but their group plays another one because it allows a gold cheat ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535406229961179347), [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535406339411673179)).
+- **Work together with the Anti-Grind team** (Itadori, 14 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537844824483434607)).
 - **The Ironman speed-up button in every game mode**, and **bring back Infernal Bargain** (Azzi, [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551299492806738), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551359446192238)).
 - From GitHub issue #3:
   - the original town NPC greetings (Cain, Griswold, Adria)
@@ -144,7 +149,14 @@ Marcototech posted an unofficial build with fixes by someone named **Yuki**. Che
 
 ## Feedback and perception
 
-- **What players like:** less grind, the shared stash, the QoL features. Rageweaver argues for keeping no-penalty uniques and the MF buff: they make finding a unique exciting, and players who want balance can play TH4 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489304899408760882)).
+- **What players like:** less grind, the shared stash, the QoL features.
+  - Rageweaver argues for keeping no-penalty uniques and the MF buff: they make finding a unique exciting, and players who want balance can play TH4 ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489304899408760882)).
+  - Shelk, 11 Jul: "much more my speed" than the huge grind of classic TH4 ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1525290493322203216)). UbergamR, 11 Aug: just what they wanted ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536852346460577903)).
+  - Ponder, 3 Jun: "so many improvements", and wishes TH4 itself had these options ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1511775633129340928)).
+- **Pacing:** with 5x XP, Itadori killed Diablo on dungeon level 16 at clvl 30 ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1535849448129953882)).
+- **Misconceptions:**
+  - gazoo, 16 Aug: the mod only exists to make Psion overpowered ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1538326216572936305)). You replied on 17 Sep that it has many other additions.
+  - Ketsuen, 14 Aug: Anti-Grind already offers everything people ask for here, and the creator has never posted in the channel ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1537900354551677019)).
 - **What some don't:** Danycron liked some changes but finds there are too many sweeping ones.
 - **Abandonment and AI:** from 6 Apr players noticed you had gone quiet. Azzi and Danycron guessed you were "bullied out" or ran out of steam, and that much of the code and docs were AI-written ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490548356609609818)). Gorvex said the same in `#the-heaven` on 18 Jul ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1527931229406625884)). Others (Ponder, Marcototech) are still waiting for updates.
 - **Sigils** (relevant once rebased on newer TH4): players find them too rare with too-small bonuses, and Lithe halving the sigil inventory makes that trait too punishing ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553886073950368)).
