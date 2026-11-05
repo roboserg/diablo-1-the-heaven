@@ -42,7 +42,7 @@ void __fastcall File_RestoreAccess(HANDLE aHandle, int* aTryCountPtr, LPARAM dwI
 		SleepTh(20);
 		++*TryCountPtr;
 	}else{
-		if( !InsertCDDlg() )
+		if( !InsertCDDlg( (const char*)dwInitParam ) )
 			FileErrDlg(dwInitParam);
 	}
 }

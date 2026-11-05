@@ -71,7 +71,7 @@ Then launch `TheHeaven.exe`.
 
 ## Autotest
 
-`scripts\autotest.ps1` plays the real game unattended and checks recent fixes: the shipped config, magic items through the game's 5-second item check, Cain's transmute window, F9/F12 quick save and load, Griswold's and Gillian's stashes, items held or left in item windows during saves and loads, the shared stash lock between a normal Warrior and a Classic Mage, and a character saved by v0.2.0 (`tests\saves\v0.2.0`) loading with every item as it was. It needs `diabdat.mpq` and `TH4data.mor` in `build\`.
+`scripts\autotest.ps1` plays the real game unattended and checks recent fixes: the shipped config, magic items through the game's 5-second item check, Cain's transmute window, F9/F12 quick save and load, Griswold's and Gillian's stashes, items held or left in item windows during saves and loads, the shared stash lock between a normal Warrior and a Classic Mage, a character saved by v0.2.0 (`tests\saves\v0.2.0`) loading with every item as it was, and the errors for a missing `TH4data.mor` and for a file missing from the archives. It needs `diabdat.mpq` and `TH4data.mor` in `build\`.
 
 ```powershell
 .\scripts\autotest.ps1 -Build   # build, then run every phase (about 4 minutes)

@@ -305,6 +305,7 @@ void OpenGameArchives()
 	thmusicMPQPtr	= OpenMPQ( MpqPath_2, "\\THmusic2.mor", InstallKey, 8200, 0 );
 	thmusi3MPQPtr   = OpenMPQ( MpqPath_a, "\\THmusic3.mor", InstallKey, 8300, 0 );
 	hellgfxMPQPtr	= OpenMPQ( MpqPath_7, "\\TH4data.mor",	InstallKey, 8500, 0 );
+	if( ! hellgfxMPQPtr ) FileErrDlg( (LPARAM)"TH4data.mor from The Hell 4 v0.774" ); // (heaven) the game can't run without it
 	hellmfMPQPtr	= OpenMPQ( MpqPath_8, "\\THmusic.mor",	InstallKey, 8600, 0 );
 	th2devMPQPtr	= OpenMPQ( MpqPath_dev, "\\th2dev.mpq",	InstallKey, 8700, 0 );  // dev mpq
 	//----- (th4) ----- Russian localization audio pack: higher priority than

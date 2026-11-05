@@ -286,6 +286,7 @@ __declspec(noreturn) void TerminateWithError(LPCSTR format, ...)
 		wvsprintfA(errorMsg, format, va);
 		va_end(va);
 	}
+	if( errorMsg[0] ) AutoTest_Error( 0, errorMsg ); // (heaven) no message box on the PC during the autotest
 
 	ErrorExitGame();
 
@@ -479,6 +480,7 @@ void __fastcall SetErrorDialogTitle(HWND hDlg, LPCSTR lpString)
 //----- (00401C51) --------------------------------------------------------
 void __fastcall FileErrDlg(LPARAM dwInitParam)
 {
+	AutoTest_Error( ID_DIALOG3, (const char*)dwInitParam ); // (heaven)
 	ErrorExitGame();
 	if( !dwInitParam ){
 		dwInitParam = (LPARAM)&ZeroString;
@@ -502,10 +504,11 @@ void __fastcall DiskFreeDlg(LPARAM dwInitParam)
 }
 
 //----- (00401CD2) --------------------------------------------------------
-bool InsertCDDlg()
+bool InsertCDDlg( const char* file ) // (heaven) file: the one that couldn't be read, may be null
 {
+	AutoTest_Error( ID_DIALOG8, file ); // (heaven)
 	ShowCursor(1);
-	INT_PTR nResult = DialogBoxParamA(HInstance, (LPCSTR)ID_DIALOG8, ghMainWnd, DialogFunc, (LPARAM)&ZeroString);
+	INT_PTR nResult = DialogBoxParamA(HInstance, (LPCSTR)ID_DIALOG8, ghMainWnd, DialogFunc, file ? (LPARAM)file : (LPARAM)&ZeroString);
 	if( nResult == -1 ){
 		TerminateWithError("InsertCDDlg");
 	}

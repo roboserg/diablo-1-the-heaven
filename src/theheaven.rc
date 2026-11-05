@@ -135,7 +135,7 @@ CAPTION "Data File Error"
 FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON   "OK",1,208,93,50,14
-    LTEXT           "The Heaven was unable to open a required file.  Please contact Mordor and provide a detailed description of your problem. And try visiting The Heaven's official website http://www.patreon.com/thmod where you could find more answers.",-1,7,7,251,36
+    LTEXT           "The Heaven was unable to open a required file. The game folder needs diabdat.mpq from Diablo 1 and TH4data.mor from The Hell 4 v0.774. If both are there, report the problem at github.com/roboserg/diablo-1-the-heaven/issues.",-1,7,7,251,36
     LTEXT           "The problem occurred while trying to load a file",-1,7,48,232,9
     LTEXT           "unknown file",ID_PROBLEM_SRC,20,59,210,27
 END
@@ -197,7 +197,7 @@ CAPTION "Data File Error"
 FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON   "OK",1,136,71,50,14
-    LTEXT           "The Heaven cannot access DIABDAT.MPQ. To leave the program, press Quit.",-1,7,7,236,27
+    LTEXT           "The Heaven cannot read the file below. The game folder needs diabdat.mpq from Diablo 1 and TH4data.mor from The Hell 4 v0.774. To leave the program, press Quit.",-1,7,7,236,27
     LTEXT           "unknown file",ID_PROBLEM_SRC,20,37,210,27
     PUSHBUTTON      "Quit",ID_EXIT_CANCEL_BUTTON,193,71,50,14
 END

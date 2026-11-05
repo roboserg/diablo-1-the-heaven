@@ -33,6 +33,10 @@
 //          item in the inventory, Griswold's stash and the shared stash must be as v0.2.0
 //          listed them in oldsave-manifest.txt, and again after a save and load. The script
 //          runs it first, in its own save folders
+//   missingfile  asks for a file no archive has, like a TH4data.mor from an older TH4 would:
+//          the error must name that file and TH4data.mor (bug 13)
+//   nomor  the script removes TH4data.mor first: the game must stop with an error that names
+//          it (bug 13). It runs last. AutoTest_Error reads the errors' text; nothing shows
 
 extern StashTab StashTabs[Stash_TotalTabs];
 extern Perk Perks[PERKS_COUNT];
@@ -80,6 +84,8 @@ vector<string>      Shots;
 const char* ManifestFile = "autotest-shared.txt";
 const char* HeroWarrior  = "AtWarrior";
 const char* HeroMage     = "AtMage";
+const char* HeroNoData   = "AtNoData";
+const char* MissingFile  = "autotest\\no archive has this.cel";
 const char* HeroOld      = "OldWarrior"; // made by v0.2.0, see tests\saves\v0.2.0\README.md
 
 string Fmt( const char* fmt, ... )
@@ -1685,11 +1691,38 @@ void BuildOldSave()
 	} } );
 }
 
+//----- phase: nomor ------------------------------------------------------
+// The game must never get this far without TH4data.mor: AutoTest_Error ends the run
+
+void BuildNoMor()
+{
+	Steps.push_back( { "in the game without TH4data.mor", []{
+		Check( "without TH4data.mor, the game stops with an error that names it (bug 13)", false, "it got into the game without any error" );
+		return Next;
+	} } );
+}
+
+//----- phase: missingfile -----------------------------------------------
+// File_Open with a name no archive has goes the same way as a file an older TH4data.mor lacks.
+// AutoTest_Error ends the run at the dialog
+
+void BuildMissingFile()
+{
+	Steps.push_back( { "open a file no archive has", []{
+		HANDLE file;
+		File_Open( MissingFile, &file, 0 );
+		Check( "a file missing from the archives gives an error that names it and TH4data.mor (bug 13)", false, "no error" );
+		return Next;
+	} } );
+}
+
 const Phase Phases[] = {
 	{ "main",  HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildMain  },
 	{ "other", HeroMage,    PC_2_MAGE,    GM_CLASSIC, BuildOther },
 	{ "owner", HeroWarrior, PC_0_WARRIOR, GM_NORMAL,  BuildOwner },
 	{ "oldsave", HeroOld,   PC_0_WARRIOR, GM_NORMAL,  BuildOldSave },
+	{ "missingfile", HeroNoData, PC_0_WARRIOR, GM_NORMAL, BuildMissingFile },
+	{ "nomor", HeroNoData,  PC_0_WARRIOR, GM_NORMAL,  BuildNoMor },
 };
 
 } // namespace
@@ -1707,7 +1740,7 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 		if( ! _stricmp( p.name, name ) ) CurPhase = &p;
 	}
 	if( ! CurPhase ){
-		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldsave [-show]", "Autotest", MB_OK | MB_ICONERROR );
+		MessageBoxA( NULL, "Usage: TheHeaven.exe -autotest main|other|owner|oldsave|missingfile|nomor [-show]", "Autotest", MB_OK | MB_ICONERROR );
 		ExitProcess( 2 );
 	}
 	Active = true;
@@ -1718,6 +1751,54 @@ void AutoTest_ParseCommandLine( const char* cmdLine )
 
 bool AutoTest_Active() { return Active; }
 bool AutoTest_Show()   { return Show; }
+
+// From the error dialogs and message boxes (Error.cpp). They would show on the PC's screen and
+// wait for a click, so the autotest reads the text the player would get, records it and quits.
+// dialogId 0 means text is the message itself; otherwise it's what the dialog shows as the problem.
+// In the nomor and missingfile phases this error is the point (bug 13); elsewhere any error fails.
+// Ways the bug 13 errors can fail: naming DIABDAT.MPQ or nothing instead of the file that's missing
+// (the dialogs' fixed text names TH4data.mor anyway, so the problem field is what counts); text cut
+// off by its box; a dialog on the PC's screen; the game carrying on after it
+void AutoTest_Error( int dialogId, const char* text )
+{
+	if( ! Active ) return;
+	string problem = text ? text : "", shown = problem, cutOff;
+	if( dialogId ){
+		shown.clear();
+		// Hidden: the dialog templates aren't WS_VISIBLE, and only DialogBox would show them
+		HWND dlg = CreateDialogParamA( HInstance, (LPCSTR)(INT_PTR)dialogId, NULL, DialogFunc, (LPARAM)problem.c_str() );
+		for( HWND c = dlg ? GetWindow( dlg, GW_CHILD ) : NULL; c; c = GetWindow( c, GW_HWNDNEXT ) ){
+			char buf[1024] = "";
+			GetWindowTextA( c, buf, sizeof buf );
+			if( ! *buf || ! strcmp( buf, "OK" ) || ! strcmp( buf, "Quit" ) ) continue;
+			shown += string( shown.empty() ? "" : " / " ) + buf;
+			RECT box, need;
+			GetClientRect( c, &box );
+			need = box;
+			HDC dc = GetDC( c );
+			HGDIOBJ oldFont = SelectObject( dc, (HGDIOBJ)SendMessageA( c, WM_GETFONT, 0, 0 ) );
+			DrawTextA( dc, buf, -1, &need, DT_CALCRECT | DT_WORDBREAK );
+			SelectObject( dc, oldFont );
+			ReleaseDC( c, dc );
+			if( need.bottom > box.bottom ) cutOff += Fmt( " CUT OFF: needs %d pixels, has %d: %s", (int)need.bottom, (int)box.bottom, buf );
+		}
+		if( dlg ) DestroyWindow( dlg );
+		shown = Fmt( "dialog %d: ", dialogId ) + shown + cutOff;
+	}
+	auto has = []( const string& s, const char* what ){ return s.find( what ) != string::npos; };
+	if( ! strcmp( CurPhase->name, "nomor" ) ){
+		Check( "without TH4data.mor, the game stops with an error that names it (bug 13)",
+			has( problem, "TH4data.mor" ) && has( problem, "v0.774" ) && cutOff.empty(), shown );
+	}else if( ! strcmp( CurPhase->name, "missingfile" ) ){
+		Check( "a file missing from the archives gives an error that names it and TH4data.mor (bug 13)",
+			problem == MissingFile && has( shown, "TH4data.mor" ) && cutOff.empty(), shown );
+	}else{
+		Check( "the game runs without an error message", false, shown );
+	}
+	Log( "finished" );
+	WriteReport();
+	ExitProcess( 0 );
+}
 
 // After the config is read: load the test hero at once, quietly, in a window
 void AutoTest_OverrideConfig()

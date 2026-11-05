@@ -21,7 +21,7 @@ int __stdcall DialogFunc( HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam	);/
 void __fastcall SetErrorDialogTitle( HWND hDlg, LPCSTR lpString	);//	Error		
 void __fastcall FileErrDlg( LPARAM dwInitParam	);//	Error		
 void __fastcall DiskFreeDlg( LPARAM dwInitParam	);//	Error		
-bool  InsertCDDlg( );//	Error		
+bool  InsertCDDlg( const char* file );//	Error		
 void  ResetAutoMap( );//	AutoMap		
 void  InitDungeonAutomapData( );//	AutoMap		
 void  ShiftAutomapUp( );//	AutoMap		
@@ -2874,6 +2874,7 @@ void Transmute_RetriveAllItems();
 void AutoTest_ParseCommandLine( const char* cmdLine );
 bool AutoTest_Active();
 bool AutoTest_Show();
+void AutoTest_Error( int dialogId, const char* text );
 void AutoTest_OverrideConfig();
 void AutoTest_PrepareHero();
 void AutoTest_Tick();
