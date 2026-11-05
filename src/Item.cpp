@@ -3661,10 +3661,15 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 	}
 	// --- END OF SIGIL SECTION ---
 
+	int handsMinDamage = 0, handsMaxDamage = 0; // (heaven) damage of what is in the hands (bug 10)
 	for( Item* itemPtr : equippedItems ){
 	    Item& item = *itemPtr;
 		minDamage += item.MinDamage;
 		maxDamage += item.MaxDamage;
+		if( itemPtr == &player.OnBodySlots[IS_LeftHand] || itemPtr == &player.OnBodySlots[IS_RightHand] ){
+			handsMinDamage += item.MinDamage;
+			handsMaxDamage += item.MaxDamage;
+		}
 		armorClass += item.ArmorClass;
         damageFromEnemies += item.damageFromEnemies;
         meleeAbsorbPercentMin += item.minMeleeAbsorbPercent;
@@ -3924,7 +3929,11 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 			break;
 		}
 	}
-	if( minDamage == 0 && maxDamage == 0 ){
+	// (heaven) Unarmed: nothing in the hands deals damage. Other items that change base damage,
+	// like Plate Harness (-5), add to the unarmed damage. Before, any of them turned it off: a
+	// level 75 Monk in Plate Harness did -5 instead of 32-70 (bug 10, Gorvex)
+	if( handsMinDamage == 0 && handsMaxDamage == 0 ){
+		int otherMinDamage = minDamage, otherMaxDamage = maxDamage;
 		minDamage = 1;
 		maxDamage = 1;
 		if( player.OnBodySlots[IS_LeftHand].ItemCode == IC_5_SHIELD && player.OnBodySlots[IS_LeftHand].IsReqMet 
@@ -3939,6 +3948,8 @@ void __fastcall CalcCharParams(int playerIndex, int canLoadAnimFlag)
 				maxDamage = player.CharLevel;
 			}
 		}
+		minDamage += otherMinDamage;
+		maxDamage += otherMaxDamage;
 	}
 	// TODO: extract to func GetFuryValue and apply to GetDamageOfPlayerSpell
 	if( player.activeBuffFlag & BF_2_FURY_ACTIVE ){  // Fury effects on classes, #player Fury, #character Fury

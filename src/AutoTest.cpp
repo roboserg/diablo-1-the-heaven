@@ -15,7 +15,7 @@
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
 //          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
-//          the doubled stat cap, a perk reset with Ostentation, volume sliders,
+//          the doubled stat cap, a perk reset with Ostentation, volume sliders, unarmed damage,
 //          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
@@ -808,6 +808,36 @@ void BuildMain()
 		IsDirectSoundAllocated = allocated;
 		Check( "the volume sliders stay on their bar through a restart", bars > 2 && moved == 0,
 			Fmt( "%d of %d bars move. ", moved, bars + 1 ) + first );
+		return Next;
+	} } );
+
+	Steps.push_back( { "unarmed damage with Plate Harness", []{
+		// Bug 10 (Gorvex): unarmed damage loses its base when an item changes base damage, like
+		// Plate Harness (-5): a Shugoki loses about 37 damage. A level 75 Monk with empty hands,
+		// without armour and then in Plate Harness: the harness must change the damage by its own -5
+		Player& p = Hero();
+		int harnessBase = 0;
+		for( int i = 1; i < (int)count_BaseItems && ! harnessBase; ++i ) if( BaseItems[i].NamePtr && ! strcmp( BaseItems[i].NamePtr, "Plate Harness" ) ) harnessBase = i;
+		if( ! Check( "Plate Harness exists", harnessBase > 0 ) ) return Next;
+		Item harness = MakeItem( harnessBase, 7100, false, 0 );
+		harness.IsReqMet = true;
+		PLAYER_CLASS classId = p.ClassID;
+		int level = p.CharLevel;
+		Item left = p.OnBodySlots[IS_LeftHand], right = p.OnBodySlots[IS_RightHand], torso = p.OnBodySlots[IS_Torso];
+		p.ClassID = PC_3_MONK;
+		p.CharLevel = 75;
+		p.OnBodySlots[IS_LeftHand].ItemCode = p.OnBodySlots[IS_RightHand].ItemCode = p.OnBodySlots[IS_Torso].ItemCode = IC_M1_NONE;
+		CalcCharParams( CurrentPlayerIndex, 0 );
+		int minBare = p.MinDamageFromItem, maxBare = p.MaxDamageFromItem;
+		p.OnBodySlots[IS_Torso] = harness;
+		CalcCharParams( CurrentPlayerIndex, 0 );
+		int minHarness = p.MinDamageFromItem, maxHarness = p.MaxDamageFromItem;
+		p.ClassID = classId; p.CharLevel = level;
+		p.OnBodySlots[IS_LeftHand] = left; p.OnBodySlots[IS_RightHand] = right; p.OnBodySlots[IS_Torso] = torso;
+		RecalcPlayer( CurrentPlayerIndex, true );
+		Check( "unarmed, Plate Harness changes the damage only by its own base damage (bug 10)",
+			minHarness == minBare + harness.MinDamage && maxHarness == maxBare + harness.MaxDamage,
+			Fmt( "level 75 Monk: %d-%d without armour, %d-%d in Plate Harness (%d-%d)", minBare, maxBare, minHarness, maxHarness, harness.MinDamage, harness.MaxDamage ) );
 		return Next;
 	} } );
 
