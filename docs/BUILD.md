@@ -60,10 +60,10 @@ Copy these files into your `GameFolder` to run the game:
 ```
 diabdat.mpq     from Diablo 1 (required)
 TH4data.mor     from The Hell 4 v0.774 (required: graphics and sounds)
-config.ini      from The Hell 4 v0.774 (optional; created on first launch otherwise)
+config.ini      from res\config.ini (The Heaven's default settings)
 ```
 
-No TH4 v0.774? Download the [backup copy](https://drive.google.com/file/d/1p50lTU8JDtfFM8lgLKiXp9vUwr3V4ROT/view) (`TH4_v0.774.7z`) and take `TH4data.mor` and `config.ini` from it.
+No TH4 v0.774? Download the [backup copy](https://drive.google.com/file/d/1p50lTU8JDtfFM8lgLKiXp9vUwr3V4ROT/view) (`TH4_v0.774.7z`) and take `TH4data.mor` from it.
 
 Then launch `TheHeaven.exe`.
 

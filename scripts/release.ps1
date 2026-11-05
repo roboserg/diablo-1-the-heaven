@@ -126,12 +126,20 @@ $releaseFiles = @(
     "Standard.sn2"
 )
 
+# Each file comes from build\, except config.ini: the copy in build\ is the local,
+# gitignored one you test with, so ship The Heaven's defaults from res\ instead
+# (the nightly workflow does the same).
+function Get-ReleaseSource([string]$f) {
+    if ($f -eq "config.ini") { return "res\config.ini" }
+    return "build\$f"
+}
+
 $zipName = "DiabloTheHeaven-$tag.zip"
 $zipPath = "$PSScriptRoot\..\$zipName"
 
 # Verify all required files/folders exist
 foreach ($f in $releaseFiles) {
-    $fullPath = "build\$f"
+    $fullPath = Get-ReleaseSource $f
     if (-not (Test-Path $fullPath)) {
         Write-Warn "Expected release file not found, skipping: $fullPath"
     }
@@ -144,7 +152,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
 
 foreach ($f in $releaseFiles) {
-    $fullPath = Resolve-Path "build\$f" -ErrorAction SilentlyContinue
+    $fullPath = Resolve-Path (Get-ReleaseSource $f) -ErrorAction SilentlyContinue
     if (-not $fullPath) { continue }
 
     if (Test-Path $fullPath -PathType Container) {
