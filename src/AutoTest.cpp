@@ -15,7 +15,8 @@
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
 //          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
-//          the doubled stat cap, a perk reset with Ostentation, volume sliders, unarmed damage,
+//          the doubled stat cap, perk resets with Ostentation and with Here and Now, volume
+//          sliders, unarmed damage,
 //          Cain's transmute window, F9/F12
 //          quick save and load, Griswold's personal stash next to the shared stash,
 //          items held or in Adria's and Griswold's windows during a load or an autosave;
@@ -782,6 +783,32 @@ void BuildMain()
 		Check( "below the cap without Ostentation, the reset takes it too", p.perk[SYNERGY_OSTENTATION] == 0 );
 		p.perk[SYNERGY_OSTENTATION] = 0;
 		RecalcPlayer( CurrentPlayerIndex, true );
+		return Next;
+	} } );
+
+	Steps.push_back( { "perk reset with Here and Now", []{
+		// Here and Now grants a full level when it's taken. If a perk reset gave its point back,
+		// it could be taken again for another level, as often as the reset is paid for. The hero
+		// takes Swift Learner 5 (its requirement) and Here and Now, then resets its perks.
+		// The hero is put back as it was afterwards
+		Player& p = Hero();
+		static Player saved;
+		saved = p;
+		p.perk[PERK_SWIFT_LEARNER] = 5;
+		int level = p.CharLevel;
+		SpendPerkPoint( PERK_HERE_AND_NOW );
+		int levelTaken = p.CharLevel, held = p.perk[PERK_HERE_AND_NOW];
+		VisualTrade_AddGoldToInventory( 1000 * p.CharLevel );
+		VisualTrade_ResetPerks();
+		int heldAfter = p.perk[PERK_HERE_AND_NOW], swiftAfter = p.perk[PERK_SWIFT_LEARNER];
+		int spentAfter = getPlayerSumOfPerks( PERK_TYPE_COMMON );
+		p = saved;
+		getAvailablePerksList();
+		RecalcPlayer( CurrentPlayerIndex, true );
+		if( ! Check( "Here and Now gives a level", levelTaken == level + 1 && held == 1,
+			Fmt( "level %d, then %d with Here and Now %d", level, levelTaken, held ) ) ) return Next;
+		Check( "a perk reset keeps Here and Now, so its level can't be bought again", heldAfter == 1 && spentAfter == 1 && swiftAfter == 0,
+			Fmt( "after the reset: Here and Now %d, Swift Learner %d, %d perk points still spent", heldAfter, swiftAfter, spentAfter ) );
 		return Next;
 	} } );
 

@@ -2576,6 +2576,8 @@ bool CursorIntoLevelUpButton();
 void HandlePerksWindowClick();
 void InitPerks();
 int getPlayerPerksPointsLeft(PERK_TYPE perkType = PERK_TYPE_COMMON);
+int getPlayerSumOfPerks(PERK_TYPE perkType = PERK_TYPE_COMMON);
+void SpendPerkPoint(int perk);
 void PerkPanel_Shift(int delta);
 void PerkPanel_ShiftLeft();
 void PerkPanel_ShiftRight();
