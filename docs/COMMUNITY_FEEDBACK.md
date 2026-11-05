@@ -2,12 +2,35 @@
 
 Bug reports, fixes and feature requests from players, collected from three places:
 - the `#the-heaven` channel on **The Hell 4 mod** Discord server (all 144 messages, 25 May – 5 Nov 2026)
-- the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 198 messages, 30 Mar – 6 Apr 2026)
+- the archived **"The Heaven mod"** thread in that server's `#modding` channel (all 218 messages, 30 Mar – 6 Apr 2026)
 - [GitHub issues](https://github.com/roboserg/diablo-1-the-heaven/issues)
 
 None of these are fixed yet: the latest release is still v0.2.0 (30 March 2026).
 
 Links marked *channel* go to `#the-heaven` and links marked *thread* go to the `#modding` thread. They open in Discord, and you must be signed in and a member of the server.
+
+## Sources and how to re-check them
+
+**Local snapshot (fastest).** Every message from both places is saved with author, UTC time and message ID:
+- `the-heaven-channel.md` (144 messages)
+- `modding-thread-the-heaven-mod.md` (218 messages)
+
+The folder is `F:\git\diablo-1-the-heaven\.claude\worktrees\discord-bot-channel-access-6724f2\.claude\community-sources\`, captured on 5 Nov 2026. Search it for the message ID in any link below.
+- **Not committed:** the repo is public and these are other people's posts from a members-only server.
+- **Where it lives:** only on this PC, inside that worktree. It disappears if the worktree is deleted, so copy it elsewhere before cleaning up worktrees.
+
+**Live from Discord** (for newer messages or attachments):
+1. In the Claude desktop app's built-in browser, open discord.com and sign in. The QR code from the Discord phone app is fastest. Agents must not type passwords or use a Discord token.
+2. Open the sources:
+   - `#the-heaven`: https://discord.com/channels/1261720897975357460/1507669410330972260
+   - the thread: in `#modding`, click the Threads icon in the channel header, then "The Heaven mod" under older threads (https://discord.com/channels/1261720897975357460/1487937850824593611)
+3. Discord loads about 50 messages at a time. Scroll up until the channel's first message, then down to the end. Stopping early misses messages: the first read of the thread missed its last 20.
+   - Read the text, not screenshots.
+   - Messages are `li[id^="chat-messages-<channel id>-"]` elements; the author is in `#message-username-<id>` and the text in `#message-content-<id>`.
+4. Switch channels with the sidebar inside the signed-in tab. A new browser tab doesn't share the login, and opening one signed the pane out once.
+5. Attachments (patches, code, Gorvex's suggestion list) exist only in Discord: open the message link and click the file.
+
+A message ID encodes its UTC time: `(id >> 22) + 1420070400000` is milliseconds since 1970.
 
 ## Danycron's feedback (priority)
 
@@ -16,7 +39,7 @@ Danycron is worth special attention:
 - **Group leader:** he plays in a multiplayer group ("the MP pod") of about a dozen players.
 - **Expert:** you called him "the expert". He says he only knows one class well and points to Gorvex as the most knowledgeable player on the server.
 
-All 62 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr); he never posted in `#the-heaven`.
+All 69 of his messages are in the `#modding` thread (30–31 Mar and 5–6 Apr); he never posted in `#the-heaven`.
 
 ### What would get his group to play The Heaven
 - **Shared stash:** one of the group's biggest wants. Done in v0.2.0.
@@ -43,12 +66,15 @@ He liked the socketing buff for uniques and rares, and wants more ways to improv
 - **Balance:** a 44-class mod can't be truly balanced; even Project Diablo 2 has weak builds every league ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490549326391414971)). He agrees with Azzi that making the game more forgiving and fleshing things out is the better goal ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490550855080874117)).
 - **Scope (his main verdict on The Heaven):** "There's def good stuff in there. But too many large scale, sweeping changes overall for my taste" ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551392845172898)). Just before, he said he liked some of your changes (the socketing buff), and Azzi praised Acceleration in every mode and Infernal Bargain, so "in there" means The Heaven.
 - **End game:** monsters on Crucible and higher scale too hard, and he doubts sigils will let players keep up ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551857020538940)).
+  - He calls the scaling "honestly off the charts overpowered". Even his Hydramancer, which he thinks is the strongest class, struggled. Players need a big power boost, not tiny upgrades ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490555563736563802)).
+  - He finished Inferno with that Hydramancer, and the whole run is in his live VODs ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490555894331605133)).
 - **Advisor:** he wants to advise a developer on the "real" mod after TH4 1.0, and thinks he has sensible ideas for systems that are fun and still challenging ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551461631885452), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490551530779050170)). Worth inviting him to advise The Heaven.
 
 ### Sigils (relevant after the v0.774 rebase)
-- **Drop rate:** sigils need to drop far more often, almost as often as gems ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553185763594270)).
+- **He likes the system:** the sigil bag and the mechanic are fine; the problem is only how rare they are ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490555122986516590)). It feels bad to wait an hour or two for one and get +1 gold or +1 minion damage ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490555196307279882)).
+- **Drop rate:** sigils need to drop far more often, almost as often as gems ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553185763594270)). He also agrees with Azzi that two-affix sigils should be more common ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490555396685824150)).
 - **Why:** they're too rare, their bonuses are too small, and a full inventory takes dozens of hours of play. Many are useless anyway ("+1 gold") ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490552807663603764)). With more drops they'd work like D2 charms, which you keep replacing and upgrading ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553026921103360)).
-- **Lithe:** the Lithe trait halving the sigil inventory makes Lithe a trait no one would take. It loses 35 charm slots, which turns a former inconvenience into a large power loss ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553886073950368), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490554145248252015)).
+- **Lithe:** the Lithe trait halving the sigil inventory makes Lithe a trait no one would take. It loses 35 charm slots, which turns a former inconvenience into a large power loss. Even 35 charms of +3 Dexterity would outweigh what Lithe gives ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490553886073950368), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490554145248252015), [thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490554467354017985)).
 
 ### On you and the mod
 - 31 Mar: he reacted with a "noooo" emoji to the screenshots showing that -light radius was removed ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1488301098061135873)).
