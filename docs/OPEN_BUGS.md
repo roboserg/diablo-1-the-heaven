@@ -4,7 +4,7 @@ Bugs that players reported and that are still left to fix. Checked against the `
 
 When you fix a bug, move it to [Fixed, not released yet](#fixed-not-released-yet) at the bottom, and add it to `CHANGELOG.md` when it ships.
 
-Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
+Every report links to its source on **The Hell 4 mod** Discord server: *channel* means `#the-heaven`, *thread* means the archived "The Heaven mod" thread in `#modding`, and *antigrind* and *godroll* are the channels of those two sub-mods. You must be signed in and a member to open them. To check a report against the original messages, see [Sources and how to re-check them](COMMUNITY_FEEDBACK.md#sources-and-how-to-re-check-them).
 
 ## Ready-made fixes from players
 
@@ -95,6 +95,28 @@ From Gorvex's suggestion list ([thread](https://discord.com/channels/12617208979
 
 - **Black Death game changer:** Marcototech saw it in a game where he says he only picked Easy and the Acceleration game changers. Rageweaver says it's intended ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508841792731086868)).
 - **Missing Book of Healing:** Rageweaver's went missing, probably before applying the stash fix ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1489715218815778856)).
+
+## To check: problems reported in other sub-mods' channels
+
+These came up in `#antigrind` and `#godroll` (links marked *antigrind* and *godroll*). They aren't reports against The Heaven, but they may affect it.
+
+- **Shared stash edge cases.** StArchon tested how TH4 rebuilds items for the character that loads them ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685739481866274), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1557685749065715824)). Check each case against the morph lock (af5cf77):
+  - Night Kin and Clean Hands turn dropped gear into gold when they load it, and it stays gold once they save.
+  - White items roll their sockets again on every load. A character that can't socket writes only the gem-holding sockets into the item, so 3 sockets with 1 gem comes back to its owner with 4.
+  - Griswold's premium items and Wirt's items roll weaker affixes for a lower-level character.
+  - Items bought from Pepin are re-picked from the loading character's shop pool.
+  - Books switch spells for some subclasses (Terminator, Survival), and you learn the spell you see.
+  - A crash between writing the shared stash file and the character file can duplicate or lose items.
+  - UbergamR says he "could dupe with the shared stash" in The Heaven ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1538143668421136476)), without saying how.
+- **Perk reset refunds every perk.** `VisualTrade_ResetPerks()` in `src/VisualTrade.cpp` zeroes all perks for 1000 gold × character level. Godroll locks two kinds of perks ([godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558229347318366229), [godroll](https://discord.com/channels/1261720897975357460/1555832068272033864/1558409752655036497)):
+  - perks where a reset would open an exploit: Heavy Drinker, Swift Learner, Educated, Higher Education, Pick up the Pace and others
+  - Raise the Bar, Thaumaturgy and Ostentation, because lowering an attribute limit cuts base stats above it without refunding them
+
+  Check whether The Heaven's reset loses stats that way, and whether progression perks should be locked.
+- **No-penalty uniques break items whose penalty is the point.** Both reports are about AG's No Negative game changer; check both in The Heaven together with [bug 4](#4-some-unique-item-penalties-remain).
+  - Darkbone115 has an item meant to move 40% of life to mana, and it becomes useless ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1566903035379064982)).
+  - Zerathyl found Ravenous Hatred keeps −26% HP even with penalties off ([antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1520186604373676043)).
+- **Volume creeps up:** sound and music volume go up one bar on every restart (Rageweaver, on TH4 v0.774 with AG, [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567163934660755599), [antigrind](https://discord.com/channels/1261720897975357460/1507664341145620480/1567264595834576957)). It's probably in The Heaven too.
 
 ## To check: Yuki's unofficial 0.2.0 build
 
