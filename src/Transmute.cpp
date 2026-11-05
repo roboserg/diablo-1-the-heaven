@@ -701,19 +701,38 @@ void __fastcall Transmute_Open()
 void Transmute_RetriveAllItems()
 {
 	Player& player = Players[CurrentPlayerIndex];
-	if( Cur.GraphicsID == CM_1_NORMAL_HAND ){
-		for(int itemIndex = TransmuteSlots.count - 1; itemIndex >= 0; --itemIndex){
-			player.ItemOnCursor = TransmuteSlots.items[itemIndex];
-			if( AutoPutCursorToInventoryOrDrop(false) ){
-				TransmuteSlots.Clear(itemIndex);
-				PlayGlobalSound( S_56_I_INVGRAB );
-			}else if( InvPutItem(CurrentPlayerIndex) != -1 ){
-				TransmuteSlots.Clear(itemIndex);
-			}else{
-				SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
-				TransmuteSlots.Clear(itemIndex);
-				break;
-			}
+	// (heaven) Items reach the inventory through the cursor. This used to run only with an
+	// empty hand, so closing the window while holding an item left the slot items behind,
+	// and the slots are not saved: they were lost on quit. Now a held item is parked while
+	// the slot items move, then handed back (the same way Craft_RetrieveAllItems does it).
+	const bool holdingItem = Cur.GraphicsID >= CM_12_ITEMS_PICS_START;
+	if( ! holdingItem && Cur.GraphicsID != CM_1_NORMAL_HAND ) return;
+	Item heldItem;
+	if( holdingItem ) heldItem = player.ItemOnCursor;
+	const bool hadSlotItems = TransmuteSlots.count > 0;
+	bool retrievedAny = false;
+	for(int itemIndex = TransmuteSlots.count - 1; itemIndex >= 0; --itemIndex){
+		player.ItemOnCursor = TransmuteSlots.items[itemIndex];
+		if( AutoPutCursorToInventoryOrDrop(false) ){
+			TransmuteSlots.Clear(itemIndex);
+			PlayGlobalSound( S_56_I_INVGRAB );
+			retrievedAny = true;
+		}else if( InvPutItem(CurrentPlayerIndex) != -1 ){
+			TransmuteSlots.Clear(itemIndex);
+			retrievedAny = true;
+		}else if( ! holdingItem ){
+			SetCursorGraphics(player.ItemOnCursor.GraphicValue + CM_12_ITEMS_PICS_START);
+			TransmuteSlots.Clear(itemIndex);
+			break;
+		}else{
+			break; // no room anywhere and the cursor is taken: the rest stay in the slots
+		}
+	}
+	if( holdingItem ){
+		player.ItemOnCursor = heldItem;
+		if( hadSlotItems ){ // the moves above switched the cursor picture (to the hand, or to a slot item)
+			SetCursorGraphics(heldItem.GraphicValue + CM_12_ITEMS_PICS_START);
+			if( retrievedAny ) FixItemCursor(-1);
 		}
 	}
 }
