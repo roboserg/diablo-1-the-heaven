@@ -463,6 +463,43 @@ void Shot( const char* name )
 	if( MoveFileExA( f.cFileName, file.c_str(), MOVEFILE_REPLACE_EXISTING ) ) Shots.push_back( file );
 }
 
+// Bug 9: how much of the pause menu title's brightness reaches the screen, from 0 to 1. Draws
+// the title again at full brightness over a blanked copy of its band to find its pixels,
+// compares them with what the frame shows (lit the way the screenshot lights it), then puts
+// the band back
+double PauseTitleBrightness()
+{
+	const char* title = "DIABLO 1 THE HEAVEN";
+	const int x0 = Screen_LeftBorder + (ScreenWidth - GetTextWidthBig( title )) / 2;
+	const int y0 = Screen_TopBorder + 40 + (ScreenHeight - GUI_Height) / 2;
+	const int left = x0 - 8, width = GetTextWidthBig( title ) + 16, top = y0 - 60, rows = 70;
+	vector<uchar> frame( width * rows ), light( width * rows ), glyph( width * rows );
+	auto at = [&]( int r ){ return (uchar*)&WorkingSurface[left + YOffsetHashTable[top + r]]; };
+	auto lightAt = [&]( int r ){ return LightSurface + (at( r ) - SoftSrcSurfacePtr); };
+	for( int r = 0; r < rows; ++r ){
+		memcpy( &frame[r * width], at( r ), width );
+		if( LightSurface ) memcpy( &light[r * width], lightAt( r ), width );
+		memset( at( r ), 0, width );
+	}
+	int dark = DarkLevel;
+	DarkLevel = 0;
+	Font_DrawText( x0, y0, (char*)title );
+	DarkLevel = dark;
+	for( int r = 0; r < rows; ++r ){
+		memcpy( &glyph[r * width], at( r ), width );
+		memcpy( at( r ), &frame[r * width], width );
+		if( LightSurface ) memcpy( lightAt( r ), &light[r * width], width );
+	}
+	auto lum = []( uchar i ){ return ScreenPalette[i].peRed + ScreenPalette[i].peGreen + ScreenPalette[i].peBlue; };
+	double shown = 0, full = 0;
+	for( int i = 0; i < width * rows; ++i ){
+		if( ! glyph[i] ) continue;
+		full += lum( glyph[i] );
+		shown += lum( frame[i] ) * (LightSurface ? 1.0 - light[i] / 255.0 : 1.0);
+	}
+	return full ? shown / full : 0;
+}
+
 map<int, string> ReadManifest()
 {
 	map<int, string> items;
@@ -1251,7 +1288,7 @@ void BuildMain()
 	} } );
 
 	// Bug 9 (issue #3): the pause menu title "can't be seen" in some zones. The menu over one
-	// level of each zone, as screenshots to check by eye
+	// level of each zone: the title must reach the screen at full brightness, and a screenshot
 	struct Zone { DUNGEON level; const char* name; };
 	for( Zone z: { Zone{ DUN_1_CHURCH_1, "church" }, Zone{ DUN_5_CATACOMB_1, "catacombs" }, Zone{ DUN_9_CAVE_1, "caves" }, Zone{ DUN_13_HELL_1, "hell" } } ){
 		if( z.level != DUN_1_CHURCH_1 ) Steps.push_back( { "go to the next zone", [z]{
@@ -1266,8 +1303,11 @@ void BuildMain()
 			ticks = 0;
 			Shot( Fmt( "pause-menu-%s", z.name ).c_str() );
 			bool open = IsGameMenuActive();
+			double bright = PauseTitleBrightness();
 			Menu_SetupMenuWindow( 0, 0 );
-			Check( Fmt( "the pause menu opens in the %s (screenshot to check the title by eye, bug 9)", z.name ).c_str(), open );
+			Check( Fmt( "the pause menu opens in the %s", z.name ).c_str(), open );
+			Check( Fmt( "the pause menu title is at full brightness in the %s (bug 9)", z.name ).c_str(), bright > 0.95,
+				Fmt( "%.0f%% of its brightness reaches the screen", bright * 100 ) );
 			return Next;
 		} } );
 	}

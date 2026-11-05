@@ -234,6 +234,10 @@ void Menu_Draw()
 		}
 		int logoX = Screen_LeftBorder + (ScreenWidth - GetTextWidthBig("DIABLO 1 THE HEAVEN")) / 2;
 		int logoY = Screen_TopBorder + 40 + (ScreenHeight - GUI_Height) / 2;
+		// (heaven) Full brightness, like the menu items below: the title was drawn with the
+		// darkness the dungeon drawing left in DarkLevel, so it was missing or dim in the
+		// dungeon (bug 9). Base TH4 drew a logo picture here, which ignores DarkLevel
+		DarkLevel = 0;
 		Font_DrawText(logoX, logoY, "DIABLO 1 THE HEAVEN");
 		int y = Screen_TopBorder + 160 + (ScreenHeight - GUI_Height)/2; // vertical center
 		for( Menu* i = CurrentMenuWindowPtr; i->FuncPtr; y += 45 ){
