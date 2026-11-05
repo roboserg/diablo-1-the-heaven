@@ -123,6 +123,37 @@ Item MakeItem( int baseItemIndex, int seed, bool magic, int itemLevel = 30 )
 	return item;
 }
 
+// A plain item as a monster drops it: rebuilt by the full generator on every load, so the
+// loading character's rules apply (sockets only for characters who can grind, gold for
+// Night Kin and Clean Hands)
+Item MakeMonsterDrop( int baseItemIndex, int seed, int itemLevel = 30 )
+{
+	int randomSeed = RandomSeed, lastSeed = LastSeed;
+	uint randUsingCounter = RandUsingCounter;
+	SetupAllItems( MaxItems_255, baseItemIndex, seed, itemLevel, 1 /*ChanceUniqueMob*/, 0, 0, 0, true, 0, 0, 0, -1, 0, 0 );
+	LastItemInfo info;
+	SaveItem( &info, &Items[MaxItems_255] );
+	Item item;
+	LoadItem( &info, &item, true );
+	RandomSeed = randomSeed; LastSeed = lastSeed; RandUsingCounter = randUsingCounter;
+	return item;
+}
+
+// Describe() without the names: some names depend on the class (a Warrior's Relict of
+// Healing is a Mage's Scroll of Healing), the item doesn't
+string WithoutNames( const string& described )
+{
+	size_t at = described.find( " | base " );
+	return at == string::npos ? described : described.substr( at );
+}
+
+// Sockets the item had, from its Describe() line
+int DescribedSockets( const string& described )
+{
+	size_t at = described.find( " sockets " );
+	return at == string::npos ? 0 : atoi( described.c_str() + at + 9 );
+}
+
 // Base items that can drop and be stashed, filtered by match
 vector<int> FindBases( bool (*match)( const BaseItem& ), size_t max )
 {
@@ -501,6 +532,7 @@ void AddStartSteps( GAME_MODE expectedMode )
 
 // Shared state between steps of one run
 map<int, string> Manifest;
+set<int>         UnlockedForMage;
 int              TestSeed = 0;
 int              SavedStats[4] = {}, StatSumAtCap = 0, ElixirsDrunk = 0;
 int              PersonalSeed = 0, HeldSeed = 0, EnchantSeed = 0, GemSeed = 0;
@@ -984,9 +1016,30 @@ void BuildMain()
 				if( stash( MakeItem( bases[k], 5000 + int(k) * 10 + copy, true ) ) ) ++magic;
 			}
 		}
+		// StArchon's cases (godroll), on the second tab (the game fills only the open tab):
+		// white monster drops roll their sockets again on every load, and only for a character
+		// who can grind; Night Kin and Clean Hands turn them into gold
+		StashCurrentTab = 1;
+		int socketed = 0, unsocketed = 0;
+		for( int seed = 6000; seed < 7000 && (socketed < 3 || unsocketed < 3); ++seed ){
+			Item it = MakeMonsterDrop( armour[seed % armour.size()], seed );
+			if( it.MagicLevel != ML_0_USUAL ) continue;
+			int& count = it.socketsAmount > 0 ? socketed : unsocketed;
+			if( count < 3 && stash( it ) ) ++count;
+		}
+		// Shop items are rebuilt with the loading character's shop rules: Griswold's premium
+		// items and Wirt's for its level, Pepin's from its shop pool
+		int shop = 0;
+		for( int i = 0; i < 3; ++i ) if( stash( MagicItemsStoreArray[i] ) ) ++shop;
+		if( stash( WirtItem ) ) ++shop;
+		for( int i = 2; i < 5; ++i ) if( stash( PepinItems[i] ) ) ++shop; // the first two are always the same potions
+		for( int i = 0; i < 2; ++i ) if( stash( BasicalItemsArray[i] ) ) ++shop;
+		StashCurrentTab = 0;
 		if( f ) fclose( f );
 		Check( "the Warrior stashes plain armour and magic staves, books, rings and armour in the shared stash",
 			plain >= 2 && magic >= 10, Fmt( "%d plain and %d magic items stashed", plain, magic ) );
+		Check( "the Warrior stashes white monster drops, with and without sockets, and shop items",
+			socketed > 0 && unsocketed > 0 && shop > 0, Fmt( "%d socketed, %d without sockets, %d from shops", socketed, unsocketed, shop ) );
 		return 10;
 	} } );
 
@@ -1046,14 +1099,21 @@ void BuildOther()
 
 	Steps.push_back( { "compare", []{
 		int morphed = 0, morphedLocked = 0, same = 0, sameLocked = 0;
+		int shopItems = 0, shopDiffer = 0, shopLocked = 0, socketedWhite = 0, socketedLocked = 0;
 		string example, wrong;
 		for( int t = 0; t < Stash_TotalTabs; ++t ){
 			for( int i = 0; i < StashTabs[t].itemCount; ++i ){
 				const Item& item = StashTabs[t].items[i];
 				auto listed = Manifest.find( item.seed );
 				if( listed == Manifest.end() ) continue;
-				bool differs = Describe( item ) != listed->second;
+				bool differs = WithoutNames( Describe( item ) ) != WithoutNames( listed->second );
 				bool locked = SharedStash_IsLocked( item );
+				if( ! locked ) UnlockedForMage.insert( item.seed );
+				if( item.dropType & D_SHOP ){ ++shopItems; if( differs ) ++shopDiffer; if( differs && locked ) ++shopLocked; }
+				if( item.MagicLevel == ML_0_USUAL && DescribedSockets( listed->second ) > 0 ){
+					++socketedWhite;
+					if( differs && locked ) ++socketedLocked;
+				}
 				if( differs ){
 					++morphed;
 					if( locked ) ++morphedLocked;
@@ -1071,6 +1131,10 @@ void BuildOther()
 			Fmt( "%d of %d locked. ", morphedLocked, morphed ) + wrong );
 		Check( "items that come out the same (plain armour) are not locked", same > 0 && sameLocked == 0,
 			Fmt( "%d of %d locked", sameLocked, same ) );
+		Check( "white items whose sockets the Mage can't have (no grinding in Classic) are locked", socketedWhite > 0 && socketedLocked == socketedWhite,
+			Fmt( "%d of %d locked", socketedLocked, socketedWhite ) );
+		Check( "shop items that would come out different are locked", shopItems > 0 && shopLocked == shopDiffer,
+			Fmt( "%d shop items, %d would come out different, %d of them locked", shopItems, shopDiffer, shopLocked ) );
 		return Next;
 	} } );
 
@@ -1106,6 +1170,42 @@ void BuildOther()
 
 	Steps.push_back( { "screenshot", []{ Shot( "shared-stash-locked" ); return Next; } } );
 	Steps.push_back( { "close shared stash", CloseSharedStash } );
+
+	// StArchon (godroll): Night Kin and Clean Hands turn equipment into gold when they load
+	// it, and it stays gold once they save. The owner phase then checks the Warrior gets
+	// every item back as it was
+	Steps.push_back( { "open the shared stash as a Night Kin", []{
+		Hero().gameChanger |= BIT( GC_9_NIGHT_KIN );
+		return OpenSharedStash();
+	} } );
+
+	Steps.push_back( { "compare as a Night Kin", []{
+		int gold = 0, goldLocked = 0, differs = 0, differsLocked = 0;
+		string wrong;
+		for( int t = 0; t < Stash_TotalTabs; ++t ){
+			for( int i = 0; i < StashTabs[t].itemCount; ++i ){
+				const Item& item = StashTabs[t].items[i];
+				auto listed = Manifest.find( item.seed );
+				if( listed == Manifest.end() || WithoutNames( Describe( item ) ) == WithoutNames( listed->second ) ) continue;
+				bool locked = SharedStash_IsLocked( item );
+				++differs;
+				if( locked ) ++differsLocked;
+				else if( wrong.empty() ) wrong = "not locked: " + Describe( item ) + "  was: " + listed->second;
+				if( item.ItemCode == IC_11_GOLD && UnlockedForMage.count( item.seed ) ){ ++gold; if( locked ) ++goldLocked; }
+			}
+		}
+		Check( "for a Night Kin, equipment the Mage could take turns into gold, and is locked", gold > 0 && goldLocked == gold,
+			Fmt( "%d of %d locked", goldLocked, gold ) );
+		Check( "for a Night Kin, every item that would come out different is locked", differsLocked == differs,
+			Fmt( "%d of %d locked. ", differsLocked, differs ) + wrong );
+		return Next;
+	} } );
+
+	Steps.push_back( { "close the shared stash as a Night Kin", []{
+		int result = CloseSharedStash();
+		Hero().gameChanger &= ~BIT( GC_9_NIGHT_KIN );
+		return result;
+	} } );
 }
 
 //----- phase: owner ------------------------------------------------------
@@ -1141,7 +1241,7 @@ void BuildOwner()
 			if( SharedStash_IsLocked( item ) ) ++locked;
 		}
 		Check( "every item the Warrior stashed is still there, once", missing == 0, Fmt( "%d missing or doubled. ", missing ) + first );
-		Check( "every item is exactly as the Warrior stashed it, after the Mage opened the stash", changed == 0,
+		Check( "every item is exactly as the Warrior stashed it, after the Mage opened the stash, also as a Night Kin", changed == 0,
 			Fmt( "%d changed. ", changed ) + first );
 		Check( "nothing is locked for the Warrior", locked == 0, Fmt( "%d locked", locked ) );
 		return Next;
@@ -1153,7 +1253,8 @@ void BuildOwner()
 		int seed = tab.items[0].seed;
 		bool taken = Stash_MoveItemToInventory( 0 );
 		int at = FindInInventory( seed );
-		Check( "the Warrior can take an item out, unchanged", taken && at >= 0 && Describe( Hero().InventorySlots[at] ) == Manifest[seed] );
+		Check( "the Warrior can take an item out, unchanged", taken && at >= 0 && Describe( Hero().InventorySlots[at] ) == Manifest[seed],
+			Fmt( "taken %d, in the inventory at %d: ", (int)taken, at ) + (at >= 0 ? Describe( Hero().InventorySlots[at] ) : string()) + "  was: " + Manifest[seed] );
 		return Next;
 	} } );
 
