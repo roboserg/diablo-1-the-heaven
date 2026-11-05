@@ -1,0 +1,45 @@
+inventory	1100	Ring / Aventurine Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 80:4:69..0:0
+inventory	1101	Double-Beaked Staff / Staff of Banishment | base 95 ml 1 spell 0 charges 0/0 dmg 30-45 ac 10 dur 16/50 sockets 0 req 129/0/195/0 | 71:1:146..162:0
+inventory	1102	Darkened Burgonet / Burgonet of the Wolf | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 32 dur 17/30 sockets 0 req 198/0/0/176 | 14:0:66..0:0
+inventory	4461	Slim Blade / Shadowsteel | base 37 ml 2 spell 0 charges 0/0 dmg 9-16 ac 4 dur 30/30 sockets 0 req 34/0/55/0 | 20:0:1..0:0 28:0:31..0:0 57:0:3..0:0 13:0:-3..0:0 77:0:-13..0:0 51:0:-2..0:0
+inventory	1301	Sphere of Flame Ring / Dreadful Sphere of Flame Ring | base 504 ml 1 spell 19 charges 11/11 dmg 0-0 ac 0 dur 24/38 sockets 0 req 0/110/78/0 | 21:36:0..0:0 78:0:9..0:0
+inventory	1400	Book of Flash / Book of Flash | base 2644 ml 0 spell 4 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/155/0/0 |
+inventory	1673	Battle Helmet / Skeletal Helm of Hellish Worlds | base 50 ml 2 spell 0 charges 0/0 dmg 0-0 ac 16 dur 19/19 sockets 0 req 113/0/0/66 | 80:3:30..0:0 13:0:-12..0:0 6:0:18..0:0 11:0:19..0:0 0:0:0..0:-3
+inventory	1679	Cloth Armor / Bloodsurge Attire of Bravery | base 56 ml 2 spell 0 charges 0/0 dmg 0-0 ac 8 dur 16/16 sockets 0 req 25/0/19/0 | 53:0:72..0:0 39:0:25..0:0 58:0:16..0:0 11:0:25..0:0
+inventory	1800	Ring / Ring of the Dragon | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 2 req 0/5/0/0 | 14:0:90..0:0 52:0:9..0:0 gems 1238 1245
+inventory	1801	Double-Beaked Staff / Staff of Vampires | base 95 ml 1 spell 0 charges 0/0 dmg 32-43 ac 10 dur 39/52 sockets 2 req 126/0/196/0 | 43:1:31..0:0 23:0:2..0:0 gems 1239 1246
+personal	12000	Ring / Iolite Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/3/0/0 | 80:3:60..0:0
+personal	12001	Double-Beaked Staff / Staff of Ruin | base 95 ml 1 spell 0 charges 0/0 dmg 29-45 ac 10 dur 18/50 sockets 0 req 127/0/199/0 | 21:35:0..0:0
+personal	12002	Darkened Burgonet / Burgonet of the Lion | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 11/28 sockets 0 req 197/0/0/179 | 14:0:91..0:0
+personal	12003	Short Knife / Knife of Strength | base 1 ml 1 spell 0 charges 0/0 dmg 2-10 ac 0 dur 5/15 sockets 0 req 11/0/13/0 | 11:0:32..0:0 0:0:0..0:5
+personal	17144	Circlet / The Butcher's Gaze | base 41 ml 2 spell 0 charges 0/0 dmg 0-0 ac 3 dur 12/12 sockets 0 req 15/0/34/0 | 21:27:0..0:0 51:0:5..0:0 2:0:44..0:25 48:0:1..0:0 26:0:1..0:0 52:0:5..0:0 14:0:-19..0:0
+personal	17553	Battle Helmet / The Apostasy Canticle | base 50 ml 2 spell 22 charges 10/10 dmg 0-0 ac 16 dur 20/20 sockets 0 req 112/0/0/67 | 21:27:0..0:0 9:22:10..0:0 21:22:0..0:0 68:0:54..0:0 13:0:-4..0:0 57:0:3..0:0 5:0:-7..0:0 50:3:-11..0:0 50:0:15..0:0 66:0:0..0:-14 15:0:-29..0:0 0:0:0..0:-4
+personal	12204	Sphere of Ball Lightning / Tempered Sphere of Ball Lightning | base 499 ml 1 spell 14 charges 0/0 dmg 0-0 ac 0 dur 15/23 sockets 0 req 0/100/10/0 | 16:0:159..0:0 78:0:3..0:0
+personal	12300	Book of Healing / Book of Healing | base 114 ml 0 spell 2 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/40/0/0 |
+personal	12549	Light Mace / Relentless Battlehammer | base 46 ml 2 spell 0 charges 0/0 dmg 4-14 ac 0 dur 18/18 sockets 0 req 32/0/17/0 | 0:0:0..0:75 71:0:71..85:0 2:0:108..0:36 28:0:62..0:0
+personal	12564	Hatchet / The Ambassador, Reach of the Beast | base 6 ml 2 spell 0 charges 0/0 dmg 10-13 ac 0 dur 15/15 sockets 0 req 22/0/0/17 | 10:2:10..40:0 11:2:21..0:0 0:0:0..0:60 28:0:115..0:0
+personal	12700	Ring / Ring of Vigor | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 2 req 0/3/0/0 | 37:0:28..0:0 11:3:44..0:0 gems 1338 1345
+personal	12701	Double-Beaked Staff / Burning Staff | base 95 ml 1 spell 0 charges 0/0 dmg 31-44 ac 10 dur 29/55 sockets 2 req 128/0/198/0 | 10:1:14..23:0 39:0:41..0:0 gems 1339 1346
+personal	17479	Cloth Armor / Gemmed Cloth Armor | base 56 ml 0 spell 0 charges 0/0 dmg 0-0 ac 10 dur 11/21 sockets 2 req 25/0/19/0 | 58:0:20..0:0 gems 1317
+personal	17731	Skull Cap / Socketed Skull Cap | base 14 ml 0 spell 0 charges 0/0 dmg 0-0 ac 9 dur 9/15 sockets 2 req 37/0/89/0 |
+personal	18000	Ruby (grade 1) / Ruby (grade 1) | base 1238 ml 0 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/0/0/0 |
+personal	18001	Amber (grade 2) / Amber (grade 2) | base 1249 ml 0 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/0/0/0 |
+shared	22000	Ring / Ring of the Vulture | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 15:0:79..0:0
+shared	22001	Double-Beaked Staff / Staff of Bloodshed | base 95 ml 1 spell 0 charges 0/0 dmg 32-42 ac 10 dur 21/52 sockets 0 req 128/0/197/0 | 71:2:208..230:0
+shared	22002	Darkened Burgonet / Consuming Burgonet of Wisdom | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 16/24 sockets 0 req 199/0/0/177 | 57:0:15..0:0 11:1:51..0:0
+shared	22003	Short Knife / Knife of Banishment | base 1 ml 1 spell 0 charges 0/0 dmg 2-11 ac 0 dur 5/13 sockets 0 req 11/0/11/0 | 71:1:116..134:0 0:0:0..0:3
+shared	25810	Hauberk / Windrider | base 13 ml 2 spell 0 charges 0/0 dmg 0-0 ac 49 dur 55/55 sockets 0 req 160/0/80/116 | 6:0:37..0:0 13:0:-13..0:0 3:0:-35..0:0 7:0:-4..0:0
+shared	27119	Cloth Armor / Dreadweave Attire | base 56 ml 2 spell 0 charges 0/0 dmg 0-0 ac 8 dur 20/20 sockets 2 req 25/0/20/0 | 13:0:-2..0:0 51:0:2..0:0 52:0:2..0:0 5:0:5..0:0 57:0:2..0:0 82:0:-3..0:0 84:0:2..0:0
+shared	22203	Globe of the Magi / Replenishing Globe of the Magi | base 502 ml 1 spell 38 charges 0/0 dmg 0-0 ac 0 dur 18/31 sockets 0 req 0/100/60/0 | 54:0:99..0:0 78:0:6..0:0
+shared	22300	Book of Fire Bolt / Book of Fire Bolt | base 225 ml 0 spell 1 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/25/0/0 |
+shared	22616	Chain Coif / Exile Linen Headguard | base 28 ml 2 spell 0 charges 0/0 dmg 0-0 ac 19 dur 20/20 sockets 0 req 68/0/136/0 | 53:0:72..0:0 12:0:9..0:0 80:3:34..0:0 13:0:-9..0:0
+shared	22625	Ball Mace / Harvester | base 42 ml 2 spell 0 charges 0/0 dmg 4-12 ac 0 dur 20/20 sockets 0 req 14/0/25/0 | 1:0:222..0:0 11:0:27..0:0 2:0:108..0:36 68:0:89..0:0
+shared	22700	Ring / Replenishing Ring of the Rat | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 2 req 0/5/0/0 | 54:0:89..0:0 15:0:56..0:0 15:0:90..0:0 gems 1258 1265
+shared	22701	Double-Beaked Staff / Burning Staff | base 95 ml 1 spell 0 charges 0/0 dmg 31-43 ac 10 dur 14/55 sockets 2 req 125/0/200/0 | 10:1:16..23:0 43:2:31..0:0 gems 1259 1266
+shared	27000	Short Knife / Gemmed Short Knife | base 1 ml 0 spell 0 charges 0/0 dmg 2-11 ac 0 dur 7/13 sockets 2 req 10/0/11/0 | 43:1:10..0:0 0:0:0..0:3 gems 1238
+shared	27126	Heavy Axe / Socketed Heavy Axe | base 8 ml 0 spell 0 charges 0/0 dmg 40-56 ac 0 dur 27/41 sockets 2 req 201/0/0/199 |
+shared	28000	Amethyst (grade 1) / Amethyst (grade 1) | base 1278 ml 0 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/0/0/0 |
+shared	28001	Diamond (grade 2) / Diamond (grade 2) | base 1289 ml 0 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/0/0/0 |
+hero	0	OldVeteran class 5 mode 0 level 120 str 179 mag 50 dex 159 vit 173 available 0 xp 4611711227541
+perks	0	0:5:Toughness 1:5:Endurance 2:5:Fortitude 3:5:Willpower 4:5:Focus 5:5:Swift Learner 6:5:Gold Fever 7:5:Strong Arm 9:5:Steel Skin 10:3:Stone Wall 11:5:Unstoppable 12:1:Awareness 13:5:Eagle Eye 15:5:Dodger 16:5:Resistance 17:4:Obsession 26:4:Ironclad 29:3:Sixth Sense 32:4:Haggler 33:4:Heavy Drinker 34:4:Overdraw 35:4:Conservator 41:4:Advanced User 63:1:Evasion 75:4:Bloodsurge 78:4:Gain Strength 79:4:Gain Dexterity 80:4:Gain Magic 81:4:Gain Vitality 86:2:Rampage 112:4:Rehabilitation 162:4:Crushing Blows 164:4:Weapon Thrift 171:4:Shot Deflection 400:1:Intrepidity 401:1:Sapience 418:1:Resumption 433:4:Restoration 434:2:Golden Suns 447:2:Auxiliary Armour 450:4:Infernal Bargain 458:2:Snowball Effect 466:1:Painkiller 469:2:Longevity 470:2:Awakening 473:2:Stronger Quenching
+spells	0	15:1:Force Wave 19:1:Flame Ring 22:2:Fury 29:1:Elemental 35:1:Arcane Star

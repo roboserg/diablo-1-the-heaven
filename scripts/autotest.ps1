@@ -8,7 +8,8 @@
     not copied), with The Heaven's shipped res\config.ini, then runs the game once per
     phase with "-autotest <phase>". Each run creates or loads its own test hero, runs its
     checks and quits; see src\AutoTest.cpp for what each phase checks. Your own saves,
-    shared stash and settings are never touched. The oldsave phase runs first, on the
+    shared stash and settings are never touched. The v0.2.0 hero phases (oldwarrior, oldmage, oldarcher,
+    oldclassic, oldveteran) run first, each on its
     v0.2.0 save in tests\saves\v0.2.0, and its save folders are deleted after it. The ql* phases
     press F9 and F12 in each game mode, each with a new hero and its save folders deleted after it. The
     nomor phase runs last, with no TH4data.mor in the folder: the game must stop and name the file.
@@ -29,7 +30,7 @@
 .PARAMETER Only
     Run only these phases. other and owner need the shared stash main leaves behind and
     every run starts from a fresh folder, so on their own they fail: use it to run main,
-    oldsave, a ql* phase, features, oldconfig, missingfile or nomor alone.
+    one v0.2.0 hero's phase, a ql* phase, features, oldconfig, missingfile or nomor alone.
 
 .PARAMETER TimeoutSec
     How long one phase may run before it counts as hung and is stopped.
@@ -41,7 +42,7 @@
 param(
     [switch]$Build,
     [switch]$Show,
-    [ValidateSet("oldsave", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "features", "oldconfig", "missingfile", "nomor")][string[]]$Only,
+    [ValidateSet("oldwarrior", "oldmage", "oldarcher", "oldclassic", "oldveteran", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "features", "oldconfig", "missingfile", "nomor")][string[]]$Only,
     [int]$TimeoutSec = 240
 )
 
@@ -51,7 +52,8 @@ $ErrorActionPreference = "Stop"
 $repo  = Resolve-Path "$PSScriptRoot\.."
 $buildDir = Join-Path $repo "build"
 $run   = Join-Path $buildDir "autotest"
-$phases = @("oldsave", "features", "oldconfig", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
+$oldHeroes = @("oldwarrior", "oldmage", "oldarcher", "oldclassic", "oldveteran") # one folder each in tests\saves\v0.2.0: oldmage is mage
+$phases = $oldHeroes + @("features", "oldconfig", "qlnormal", "qlhardcore", "qlironman", "qloutbreak", "qlnightmare", "qlspeedrun", "qlsurvival", "qleasy", "qldark", "qlnormalnew", "qlnightmarenew", "qlspeedrunnew", "main", "other", "owner", "missingfile", "nomor") # in this order: other and owner use what main left, and nomor removes a file
 if ($Only) { $phases = @($phases | Where-Object { $Only -contains $_ }) }
 
 function Fail([string]$msg) { Write-Host "ERROR: $msg" -ForegroundColor Red; exit 2 }
@@ -102,10 +104,10 @@ Copy-Item (Join-Path $repo "res\config.ini") (Join-Path $run "config.ini") # wha
 
 # ---- run the phases -----------------------------------------------------------
 $results = @()
-$oldSave = Join-Path $repo "tests\saves\v0.2.0"
+$oldSaves = Join-Path $repo "tests\saves\v0.2.0"
 foreach ($phase in $phases) {
     Write-Host "==> autotest $phase" -ForegroundColor Cyan
-    if ($phase -eq "oldsave") { Copy-Item (Join-Path $oldSave "*") $run -Recurse -Exclude "README.md" }
+    if ($oldHeroes -contains $phase) { Copy-Item (Join-Path $oldSaves "$($phase.Substring(3))\*") $run -Recurse }
     if ($phase -eq "nomor") { Remove-Item (Join-Path $run "TH4data.mor") } # this folder's link or copy, not build\TH4data.mor
     $shippedConfig = Join-Path $repo "res\config.ini"
     $configFile = Join-Path $run "config.ini"
@@ -153,7 +155,7 @@ foreach ($phase in $phases) {
         if ($c.detail -and -not $c.pass) { Write-Host "          $($c.detail)" -ForegroundColor DarkGray }
     }
     $results += $report
-    if ($phase -eq "oldsave" -or $phase -like "ql*" -or $phase -eq "features" -or $phase -eq "oldconfig") { # the next phases start from no saves
+    if ($oldHeroes -contains $phase -or $phase -like "ql*" -or $phase -eq "features" -or $phase -eq "oldconfig") { # the next phases start from no saves
         Get-ChildItem $run -Directory -Filter "th4_save_*" | Remove-Item -Recurse -Force
         Remove-Item (Join-Path $run "oldsave-manifest.txt") -ErrorAction SilentlyContinue
         continue

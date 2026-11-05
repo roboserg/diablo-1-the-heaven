@@ -1,0 +1,25 @@
+inventory	1100	Ring / Pounding Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 28:0:10..0:0
+inventory	1101	Double-Beaked Staff / Staff of Efficacy | base 95 ml 1 spell 0 charges 0/0 dmg 30-45 ac 10 dur 36/50 sockets 0 req 129/0/195/0 | 68:0:96..0:0
+inventory	1102	Darkened Burgonet / Burgonet of the Frog | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 32 dur 19/30 sockets 0 req 198/0/0/176 | 15:0:36..0:0
+inventory	4461	Slim Blade / Shadowsteel | base 37 ml 2 spell 0 charges 0/0 dmg 9-16 ac 4 dur 30/30 sockets 0 req 34/0/55/0 | 20:0:1..0:0 28:0:31..0:0 57:0:3..0:0 13:0:-3..0:0 77:0:-13..0:0 51:0:-2..0:0
+inventory	1301	Sphere of Flame Ring / Structured Sphere of Flame Ring | base 504 ml 1 spell 19 charges 8/8 dmg 0-0 ac 0 dur 45/75 sockets 0 req 0/110/78/0 | 16:0:109..0:0 78:0:9..0:0
+inventory	1400	Book of Flash / Book of Flash | base 2644 ml 0 spell 4 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/155/0/0 |
+personal	12000	Ring / Warden's Ring | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/3/0/0 | 13:0:-2..0:0
+personal	12001	Double-Beaked Staff / Staff of Expertise | base 95 ml 1 spell 0 charges 0/0 dmg 29-45 ac 10 dur 21/50 sockets 0 req 127/0/199/0 | 67:0:0..0:6
+personal	12002	Darkened Burgonet / Burgonet of Stability | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 18/28 sockets 0 req 197/0/0/179 | 27:0:2..0:0
+personal	12003	Short Knife / Knife of Punishment | base 1 ml 1 spell 0 charges 0/0 dmg 2-10 ac 0 dur 5/15 sockets 0 req 11/0/13/0 | 70:0:73..114:0 0:0:0..0:5
+personal	17144	Circlet / The Butcher's Gaze | base 41 ml 2 spell 0 charges 0/0 dmg 0-0 ac 3 dur 12/12 sockets 0 req 15/0/34/0 | 21:27:0..0:0 51:0:5..0:0 2:0:44..0:25 48:0:1..0:0 26:0:1..0:0 52:0:5..0:0 14:0:-19..0:0
+personal	17553	Battle Helmet / The Apostasy Canticle | base 50 ml 2 spell 22 charges 10/10 dmg 0-0 ac 16 dur 20/20 sockets 0 req 112/0/0/67 | 21:27:0..0:0 9:22:10..0:0 21:22:0..0:0 68:0:54..0:0 13:0:-4..0:0 57:0:3..0:0 5:0:-7..0:0 50:3:-11..0:0 50:0:15..0:0 66:0:0..0:-14 15:0:-29..0:0 0:0:0..0:-4
+personal	12204	Sphere of Force Wave / Refilling Sphere of Force Wave | base 499 ml 1 spell 15 charges 0/0 dmg 0-0 ac 0 dur 9/23 sockets 0 req 0/140/10/0 | 54:0:61..0:0 78:0:3..0:0
+personal	12300	Book of Lightning Wall / Book of Lightning Wall | base 114 ml 0 spell 40 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/75/0/0 |
+shared	22000	Ring / Ring of the Turtle | base 156 ml 1 spell 0 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/2/0/0 | 52:0:5..0:0
+shared	22001	Double-Beaked Staff / Staff of Draining | base 95 ml 1 spell 0 charges 0/0 dmg 32-42 ac 10 dur 16/52 sockets 0 req 128/0/197/0 | 21:37:0..0:0
+shared	22002	Darkened Burgonet / Coruscating Burgonet of Stability | base 11 ml 1 spell 0 charges 0/0 dmg 0-0 ac 33 dur 16/24 sockets 0 req 199/0/0/177 | 74:0:29..0:0 27:0:2..0:0
+shared	22003	Short Knife / Knife of Draining | base 1 ml 1 spell 0 charges 0/0 dmg 2-11 ac 0 dur 5/13 sockets 0 req 11/0/11/0 | 21:37:0..0:0 0:0:0..0:3
+shared	25810	Hauberk / Windrider | base 13 ml 2 spell 0 charges 0/0 dmg 0-0 ac 49 dur 55/55 sockets 0 req 160/0/80/116 | 6:0:37..0:0 13:0:-13..0:0 3:0:-35..0:0 7:0:-4..0:0
+shared	27119	Cloth Armor / Dreadweave Attire | base 56 ml 2 spell 0 charges 0/0 dmg 0-0 ac 8 dur 20/20 sockets 2 req 25/0/20/0 | 13:0:-2..0:0 51:0:2..0:0 52:0:2..0:0 5:0:5..0:0 57:0:2..0:0 82:0:-3..0:0 84:0:2..0:0
+shared	22203	Globe of the Magi / Bountiful Globe of the Magi | base 502 ml 1 spell 38 charges 0/0 dmg 0-0 ac 0 dur 15/31 sockets 0 req 0/100/60/0 | 8:0:3..0:0 78:0:6..0:0
+shared	22300	Book of Arcane Nova / Book of Arcane Nova | base 225 ml 0 spell 43 charges 0/0 dmg 0-0 ac 0 dur 0/0 sockets 0 req 0/175/0/0 |
+hero	0	OldArcher class 1 mode 0 level 25 str 25 mag 15 dex 35 vit 30 available 80 xp 3372131
+perks	0	none
+spells	0	1:1:Fire Bolt 7:1:Town Portal 16:1:Reflect 20:1:Incinerate 22:1:Fury 33:1:Telekinesis 35:1:Arcane Star 39:1:Holy Nova
