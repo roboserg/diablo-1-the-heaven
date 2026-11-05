@@ -3473,7 +3473,7 @@ bool IsHarmfulWhenNegative(AFFIX_EFFECT id) {
 	default:
 		// e.g. AE_DFE (damage from enemies): negative = less damage taken = beneficial
 		// e.g. AE_SPICIES_DFE: negative = less damage taken from a species = beneficial
-		// e.g. AE_MINUS_LIGHT_RADIUS: handled separately at call sites
+		// e.g. AE_MINUS_LIGHT_RADIUS: kept, players use it to pull fewer monsters
 		return false;
 	}
 }
@@ -3485,12 +3485,12 @@ bool IsHarmfulWhenPositive( AFFIX_EFFECT id )
 }
 
 // (heaven) Penalties unique and set items don't have in The Heaven (0172f90): the harmful
-// values of the effects above, and -light radius. The hero's stats and the three item
-// tooltips all skip them. Level-scaled effects (AE_CLVL_*) add value2 per 100 levels.
+// values of the effects above. The hero's stats and the three item tooltips all skip them.
+// Level-scaled effects (AE_CLVL_*) add value2 per 100 levels. -light radius stays: archers
+// and mages use it to pull fewer monsters (Darkbone115)
 bool IsHiddenUniquePenalty( const Item& item, const Effect& e )
 {
 	if( item.MagicLevel < ML_2_UNIQUE ) return false;
-	if( e.id == AE_MINUS_LIGHT_RADIUS ) return true;
 	bool scaled = e.id >= AE_CLVL_AC && e.id < AE_COUNT;
 	bool negative = e.minVal < 0 || e.chance < 0 || scaled && e.maxVal < 0;
 	bool positive = e.minVal > 0 || e.chance > 0 || scaled && e.maxVal > 0;

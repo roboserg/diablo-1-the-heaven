@@ -14,7 +14,8 @@
 //
 // Phases, in the order the script runs them:
 //   main   Warrior, normal mode: the shipped config, magic items rebuilt by the game's
-//          5-second item check (autotest-rebuilds.csv), penalties on unique and set items,
+//          5-second item check (autotest-rebuilds.csv), penalties and -light radius on
+//          unique and set items,
 //          the doubled stat cap, perk resets with Ostentation and with Here and Now, volume
 //          sliders, unarmed damage,
 //          Cain's transmute window, F9/F12
@@ -707,6 +708,61 @@ void BuildMain()
 		Check( "no unique or set item has negative armour (bug 4)", negativeAc == 0, Fmt( "%d. First: ", negativeAc ) + firstAc );
 		Check( "no unique or set item makes the hero worse in any value (bug 4)", worse == 0, Fmt( "%d of %d. First: ", worse, checked ) + firstWorse );
 		Check( "no unique or set item tooltip shows a penalty (bug 4)", shown == 0, Fmt( "%d penalty lines. First: ", shown ) + firstShown );
+		return Next;
+	} } );
+
+	Steps.push_back( { "unique -light radius", []{
+		// Darkbone115 (30 Mar, 15 Aug): -light radius on uniques helps archers and mages pull
+		// fewer monsters, so players want it kept. Every unique or set item with -light radius,
+		// worn by the hero, must make the light radius smaller than the same base item without
+		// its affixes, and its tooltip must show the line
+		Player& p = Hero();
+		int withLight = 0, smaller = 0, shown = 0;
+		string firstNot, firstHidden;
+		for( size_t u = 0; u < count_UniqueItems; ++u ){
+			const UniqueItem& uq = UniqueItems[u];
+			if( uq.baseId <= 0 || (size_t)uq.baseId >= count_BaseItems || BaseItems[uq.baseId].baseId < 0 || uq.effectCount <= 0 ) continue;
+			Item item = MakeUnique( (int)u, true ), plain = MakeUnique( (int)u, false );
+			if( item.MagicLevel < ML_2_UNIQUE ) continue;
+			int minus = 0, plus = 0, k = -1;
+			for( int i = 0; i < (int)countof( item.effect ); ++i ){
+				if( item.effect[i].id == AE_MINUS_LIGHT_RADIUS ){ minus += item.effect[i].minVal; k = i; }
+				if( item.effect[i].id == AE_PLUS_LIGHT_RADIUS ) plus += item.effect[i].minVal;
+			}
+			if( minus <= plus ) continue;
+			++withLight;
+			Item saved = p.OnBodySlots[IS_LeftRing];
+			p.OnBodySlots[IS_LeftRing] = plain;
+			CalcCharParams( CurrentPlayerIndex, 0 );
+			int radiusPlain = p.LightRadius;
+			p.OnBodySlots[IS_LeftRing] = item;
+			CalcCharParams( CurrentPlayerIndex, 0 );
+			int radiusWorn = p.LightRadius;
+			p.OnBodySlots[IS_LeftRing] = saved;
+			CalcCharParams( CurrentPlayerIndex, 0 );
+			if( radiusWorn < radiusPlain ) ++smaller;
+			else if( firstNot.empty() ) firstNot = Fmt( "%s (unique %d): light radius %d, %d without its affixes", item.FullMagicalItemName, (int)u, radiusWorn, radiusPlain );
+			Item savedInv = p.InventorySlots[0];
+			int invCount = p.InvItemCount;
+			p.InventorySlots[0] = item;
+			if( invCount < 1 ) p.InvItemCount = 1;
+			Tooltip_ShowItemInfo( IS_Inventory + 0 );
+			p.InventorySlots[0] = savedInv;
+			p.InvItemCount = invCount;
+			bool found = false;
+			if( PrintItemEffectToStringBuffer( AE_MINUS_LIGHT_RADIUS, &item, k ) ){
+				string text = InfoPanelBuffer;
+				for( int line = 0; line < Tooltip_LineCount() && ! found; ++line ) found = text == Tooltip_LineText( line );
+			}
+			if( found ) ++shown;
+			else if( firstHidden.empty() ) firstHidden = Fmt( "%s (unique %d)", item.FullMagicalItemName, (int)u );
+		}
+		Tooltip_Clear();
+		RecalcPlayer( CurrentPlayerIndex, true );
+		if( ! Check( "uniques with -light radius exist", withLight > 0 ) ) return Next;
+		Check( "uniques with -light radius make the light radius smaller (Darkbone115)", smaller == withLight,
+			Fmt( "%d of %d. First that doesn't: ", smaller, withLight ) + firstNot );
+		Check( "their tooltip shows -light radius", shown == withLight, Fmt( "%d of %d. First that doesn't: ", shown, withLight ) + firstHidden );
 		return Next;
 	} } );
 
