@@ -16,7 +16,7 @@ kishak95's stash fix for bug 1 and his stat cap build for bug 5 aren't needed: b
 
 ## Bugs, most important first
 
-Bugs 1 (Griswold's stash loses and duplicates items), 2 (items lost in a window or on the cursor during a save or load) and 5 (the doubled stat cap) are fixed: see [FIXED_BUGS.md](FIXED_BUGS.md). The other numbers stay as they were, so links to them keep working.
+Bugs 1 (Griswold's stash loses and duplicates items), 2 (items lost in a window or on the cursor during a save or load), 5 (the doubled stat cap), 7 (Sisyphean Task hides Swift Learner), 8 (wrong or missing documentation) and 10 (unarmed damage) are fixed: see [FIXED_BUGS.md](FIXED_BUGS.md). The other numbers stay as they were, so links to them keep working.
 
 ### 3. Magic items morph
 The game keeps only a magic item's seed and a few fields, and rebuilds the rest after every load and, in the inventory, every 5 seconds. Anything that makes a rebuild come out different morphs the item.
@@ -51,20 +51,10 @@ The harmful penalties players reported are fixed (see [FIXED_BUGS.md](FIXED_BUGS
 
 5x XP in multiplayer is a feature request; see [COMMUNITY_FEEDBACK.md](COMMUNITY_FEEDBACK.md#most-asked).
 
-### 7. Sisyphean Task silently hides Swift Learner
-A character with the Sisyphean Task trait can't pick the Swift Learner perk, and nothing in the game says why (UbergamR, 12 Aug, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536867137627365416); DarkAidan95 explained it, [channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1536870226858082446)). Say so in the trait or perk description.
-
-### 8. Wrong or missing documentation
-- **Wrong Diablo ending:** `docs/QUESTS.md:34` says killing Diablo on level 15 ends the game. In TH4 the ending only plays after Uber Diablo. Azzi pointed it out as an AI-written mistake ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1490548888031985787)); Blackheart confirmed the Uber Diablo ending ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1526809479365263511)).
-- **Shared stash hard to find:** Tharunes and Zgeg couldn't find it ([channel](https://discord.com/channels/1261720897975357460/1507669410330972260/1508581213928161373)). It's at Gillian, and the README doesn't say so.
-
 ### 9. Smaller items from GitHub issue #3
 From [issue #3](https://github.com/roboserg/diablo-1-the-heaven/issues/3):
 - The pause menu title is hard to read in some zones.
 - The "Symptoms" tree looks unfinished ("work in progress?").
-
-### 10. Unarmed damage drops with items that change base damage (base TH4)
-From Gorvex's suggestion list ([thread](https://discord.com/channels/1261720897975357460/1487937850824593611/1487940115207684226)): unarmed base damage loses its flat bonus when wearing items with innate +/- base damage, such as Plate Harness. A Shugoki loses about 37 damage on average. Reported against TH4, not specifically The Heaven.
 
 ## Unconfirmed
 
